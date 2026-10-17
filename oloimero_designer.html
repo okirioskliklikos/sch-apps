@@ -1,0 +1,5449 @@
+<!doctype html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ολοήμερο Designer</title>
+<style>
+:root{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#222;background:#f5f6f8;--muted:#667085;--header-height:50px;--floating-controls-bottom:12px}
+*{box-sizing:border-box}
+body{margin:0}
+header{
+  padding:8px 12px;background:#fff;border-bottom:1px solid #ddd;
+  display:flex;gap:7px;align-items:center;flex-wrap:nowrap;
+  position:sticky;top:0;z-index:30
+}
+.brand{font-weight:850;margin-right:8px;flex:0 0 auto;white-space:nowrap}
+.small{font-size:12px;color:var(--muted)}
+button,select,input{font:inherit}
+button,select{
+  border:1px solid #bbb;background:#fff;border-radius:7px;padding:6px 9px
+}
+button{cursor:pointer;white-space:nowrap}
+button:hover{background:#f1f1f1}
+button.active{background:#e3eefc;border-color:#6f98c8}
+button:disabled{opacity:.45;cursor:not-allowed}
+.sep{width:1px;height:27px;background:#ddd}
+.status{
+  position:fixed;
+  left:512px;
+  right:170px;
+  z-index:60;
+  min-width:0;
+  padding:2px 7px;
+  background:transparent;
+  font-size:12px;
+  color:#666;
+  text-align:center;
+  min-height:14px;
+  line-height:14px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.header-right{
+  margin-left:auto;
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:7px;
+  min-width:0;
+  flex:1 1 180px;
+  overflow:hidden;
+}
+.file-state{
+  box-sizing:border-box;min-width:64px;max-width:250px;
+  flex:0 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-size:12px;padding:4px 7px;border-radius:999px;border:1px solid #d8dee8;color:#667085
+}
+.file-state.ok{color:#027a48;border-color:#a6f4c5;background:#ecfdf3}
+.file-state.warn{color:#b54708;border-color:#fedf89;background:#fffaeb}
+.file-state:hover{filter:brightness(.97);box-shadow:0 0 0 2px rgba(37,99,235,.08)}
+.print-control{display:inline-flex;align-items:stretch}
+.print-control select{
+  border-radius:0 7px 7px 0;border-left:0;padding:6px 7px;background:#fff
+}
+.print-control button{border-radius:7px 0 0 7px}
+.teacher-hours-input-row{display:inline-flex;align-items:center;gap:7px;width:max-content;max-width:100%}
+.teacher-hours-input-row input{
+  box-sizing:border-box;flex:0 0 62px;width:62px;min-width:62px;max-width:62px;
+  text-align:center;font-weight:700;font-variant-numeric:tabular-nums
+}
+.teacher-fet-hours{
+  box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;
+  flex:0 0 auto;min-width:52px;min-height:30px;padding:4px 9px;
+  border:1px solid #d8dee8;border-radius:7px;background:#f7f9fc;
+  color:#596579;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums
+}
+header{
+  position:sticky;
+}
+
+main{display:grid;grid-template-columns:300px minmax(0,1fr);min-height:calc(100vh - var(--header-height))}
+aside{
+  background:#fff;border-right:1px solid #ccc;padding:14px;
+  position:sticky;top:var(--header-height);height:calc(100vh - var(--header-height));
+  overflow-y:auto;align-self:start;z-index:15
+}
+aside h2{font-size:17px;margin:0 0 10px}
+.section-heading{
+  display:flex;align-items:center;justify-content:space-between;gap:8px
+}
+.section-heading .section-label{min-width:0}
+.section-heading-actions{display:flex;align-items:center;gap:4px;flex:0 0 auto}
+.section-style-edit{
+  flex:0 0 30px;width:30px;height:28px;padding:0;
+  display:inline-flex;align-items:center;justify-content:center;
+  font-size:14px;line-height:1;color:#5f6368
+}
+.section-style-edit svg,.section-import svg{
+  display:block;width:16px;height:16px;overflow:visible;
+  fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;
+  pointer-events:none
+}
+.section-import{
+  flex:0 0 30px;width:30px;height:28px;padding:0;
+  display:inline-flex;align-items:center;justify-content:center;
+  line-height:1;color:#5f6368
+}
+.section-heading-actions>.section-style-edit,
+.section-heading-actions>.section-import{
+  box-sizing:border-box!important;
+  flex:0 0 30px!important;
+  width:30px!important;min-width:30px!important;max-width:30px!important;
+  height:28px!important;min-height:28px!important;max-height:28px!important;
+  margin:0!important;padding:0!important
+}
+.hint{font-size:13px;color:#666;line-height:1.45;margin:8px 0 12px}
+.toolbox{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+#templates,#subjects,#departments,#unions{display:flex;flex-direction:column;gap:8px}
+.template{
+  border-radius:9px;padding:9px;border:1px solid rgba(0,0,0,.22);
+  display:grid;grid-template-columns:1fr auto;gap:5px;align-items:center;cursor:grab
+}
+.template .name{font-weight:700;cursor:inherit;overflow-wrap:anywhere}
+.teacher-over-warning,
+.teacher-hours-ok{
+  margin-left:auto;
+  padding-left:8px;
+  font-weight:900 !important;
+  font-style:normal !important;
+  flex:0 0 auto;
+}
+.teacher-over-warning{
+  color:#d00000 !important;
+}
+.teacher-hours-ok{
+  color:#0a8a20 !important;
+}
+.template .name{
+  display:flex;
+  align-items:center;
+  min-width:0;
+}
+.teacher-actions{
+  display:flex;align-items:center;justify-content:flex-end;gap:4px;
+  justify-self:end;white-space:nowrap
+}
+.sidebar-item-actions{
+  display:flex;align-items:center;justify-content:flex-end;gap:4px;
+  justify-self:end;white-space:nowrap
+}
+.sidebar-action-icon{
+  appearance:none !important;
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  width:20px !important;
+  height:20px !important;
+  min-width:20px !important;
+  min-height:20px !important;
+  margin:0 !important;
+  padding:0 !important;
+  border:0 !important;
+  border-radius:3px !important;
+  background:transparent !important;
+  box-shadow:none !important;
+  font-family:inherit !important;
+  font-size:18px !important;
+  color:#5f6368 !important;
+  font-weight:700 !important;
+  line-height:20px !important;
+  cursor:pointer
+}
+.sidebar-action-icon:hover{background:rgba(255,255,255,.58) !important}
+.sidebar-action-icon svg{
+  display:block;width:16px;height:16px;overflow:visible;
+  fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;
+  pointer-events:none
+}
+.teacher-actions .teacher-over-warning,
+.teacher-actions .teacher-hours-ok{
+  margin-left:0;padding-left:0
+}
+.template small{grid-column:1;min-width:0}
+.teacher-long-row{
+  grid-column:1/-1;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;
+  width:100%;
+  min-width:0;
+  margin-top:-2px
+}
+.teacher-long-name{
+  justify-self:start;
+  width:100%;
+  min-width:0;
+  color:inherit;
+  font-size:12px;
+  font-weight:400;
+  line-height:1.2;
+  opacity:.72;
+  overflow-wrap:anywhere
+}
+.teacher-days{
+  grid-column:2;justify-self:end;align-self:end;
+  font-size:12px;font-weight:800;white-space:nowrap;opacity:.88
+}
+.template button{padding:3px 7px;background:rgba(255,255,255,.75)}
+.subject-item{
+  border:1px solid #ccc;border-radius:9px;padding:9px;background:#fafafa;
+  display:grid;grid-template-columns:1fr auto;gap:5px;align-items:center;cursor:grab
+}
+.subject-item .name{font-weight:700;cursor:grab;overflow-wrap:anywhere}
+.subject-item small{grid-column:1/-1;color:#666}
+.subject-item button{padding:3px 7px}
+.department-item{
+  border:1px solid #ccc;border-radius:9px;padding:9px;background:#fafafa;
+  display:grid;grid-template-columns:1fr auto;gap:5px;align-items:center;cursor:grab
+}
+.department-item .name{font-weight:700;cursor:grab;overflow-wrap:anywhere}
+.department-item small{grid-column:1/-1;color:#666}
+.department-item button{padding:3px 7px}
+.union-item{
+  border:1px solid #ccc;border-radius:9px;padding:9px;background:#fafafa;
+  display:grid;grid-template-columns:1fr auto;gap:5px;align-items:center;cursor:grab
+}
+.union-item .name{font-weight:700;cursor:grab;overflow-wrap:anywhere}
+.union-item small{grid-column:1/-1;color:#666}
+.union-item button{padding:3px 7px}
+.section-title{margin-top:18px!important}
+.cell-content-stack{
+  position:absolute;inset:5px;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  width:auto;height:auto;
+}
+.teacher-slot{min-height:34px}
+.subject-slot{min-height:29px}
+.lower-slot{
+  min-height:29px;margin-top:0;
+  display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:center;gap:4px
+}
+
+.subject-text{
+  display:block;width:100%;box-sizing:border-box;
+  text-align:center;line-height:1.2;white-space:nowrap;overflow-wrap:normal;word-break:normal;
+  hyphens:manual;cursor:grab;
+  background:#fff;border:1px solid #fff;border-radius:6px;
+  padding:4px 6px;z-index:6;
+  margin:0
+}
+.lower-tag{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:auto;max-width:100%;box-sizing:border-box;
+  text-align:center;line-height:1.15;overflow-wrap:anywhere;cursor:grab;
+  background:#fff;border:1px solid #8f9aa6;border-radius:5px;
+  padding:3px 6px;margin:0;z-index:6
+}
+.union-text{border-style:dashed;background:#f7f7f7}
+
+#boardWrap{
+  padding:18px 18px 18px 0;
+  overflow-x:auto;
+  overflow-y:auto;
+  min-width:0;
+  cursor:grab;
+}
+#boardWrap.panning{
+  cursor:grabbing;
+  user-select:none;
+}
+#boardWrap.file-drag-over{background:#eef5ff}
+.empty-project-drop{
+  display:none;
+  width:min(720px,calc(100% - 48px));
+  min-height:190px;
+  margin:54px auto 90px;
+  padding:34px 28px;
+  border:2px dashed #79a2ff;
+  border-radius:16px;
+  background:#f3f7ff;
+  color:#7f8fa6;
+  text-align:center;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  gap:10px;
+  cursor:default;
+  transition:background .16s,border-color .16s,box-shadow .16s;
+}
+.empty-project-drop.visible{display:flex}
+.empty-project-drop.drag-over{
+  background:#e7f0ff;
+  border-color:#2768df;
+  box-shadow:0 0 0 4px rgba(39,104,223,.14);
+}
+.empty-project-drop-icon{font-size:34px;line-height:1;color:#1455c0}
+.empty-project-drop-title{font-size:19px;font-weight:750;color:#1455c0}
+.empty-project-drop-text{font-size:14px;line-height:1.55;max-width:600px}
+.empty-project-drop-files{font-weight:750;color:#1455c0}
+.fet-link-icon{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:18px;height:18px;margin-left:5px;color:#5f6368;
+  font-size:.9em;font-style:normal;font-weight:800;vertical-align:middle
+}
+.fet-link-icon svg{
+  display:block;width:16px;height:16px;fill:none;stroke:currentColor;
+  stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round
+}
+.teacher-long-row .fet-link-icon{
+  justify-self:end;margin-left:7px
+}
+.sidebar-link-row{
+  grid-column:1/-1;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;
+  gap:7px;
+  width:100%;
+  min-width:0;
+  color:#666;
+  font-size:13px
+}
+.sidebar-link-row .sidebar-meta-text{
+  min-width:0;overflow-wrap:anywhere
+}
+.sidebar-link-row .fet-link-icon{
+  justify-self:end;margin:0
+}
+.fet-link-note{
+  display:flex;align-items:center;gap:6px;
+  min-height:32px;box-sizing:border-box;
+  margin-top:-3px;padding:7px 9px;border-radius:7px;
+  background:#eef5ff;color:#245b96;font-size:12px;line-height:1.35
+}
+.fet-link-note .fet-link-icon{
+  flex:0 0 18px;margin:0;align-self:center
+}
+.fet-link-note[hidden]{display:none !important}
+input.fet-linked-name{background:#f1f5f9;color:#516170;cursor:not-allowed}
+.board-zoom-controls{
+  position:fixed;
+  right:18px;
+  z-index:60;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  padding:5px 7px;
+  background:rgba(255,255,255,.94);
+  border:1px solid #bbb;
+  border-radius:9px;
+  box-shadow:0 2px 8px rgba(0,0,0,.16);
+}
+.board-usage-summary{
+  position:fixed;
+  left:318px;
+  z-index:60;
+  min-width:178px;
+  display:grid;
+  gap:4px;
+  padding:8px 11px;
+  background:rgba(255,255,255,.95);
+  border:1px solid #b9c5d4;
+  border-radius:9px;
+  box-shadow:0 2px 8px rgba(0,0,0,.14);
+  color:#344054;
+  font-size:13px;
+  line-height:1.25;
+  user-select:none
+}
+.board-usage-summary,
+.status,
+.board-zoom-controls{
+  bottom:var(--floating-controls-bottom)
+}
+.board-usage-summary,
+.board-usage-summary *{font-size:13px !important}
+.usage-summary-row{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;
+  gap:14px
+}
+.usage-summary-label{font-weight:600}
+.usage-summary-value{
+  min-width:44px;
+  text-align:right;
+  color:#245b96;
+  font-weight:800;
+  font-variant-numeric:tabular-nums
+}
+.usage-summary-row.program-total{
+  margin-top:2px;
+  padding-top:5px;
+  border-top:1px solid #dbe3ec
+}
+.usage-summary-row.combined-total .usage-summary-label,
+.usage-summary-row.combined-total .usage-summary-value{font-weight:800}
+.usage-summary-row.status-error,
+.usage-summary-row.status-error .usage-summary-label,
+.usage-summary-row.status-error .usage-summary-value{color:#b42318 !important}
+.usage-summary-row.status-error{cursor:pointer}
+.template.teacher-conflict{
+  background:#ffe2e2 !important;color:#7a1f1f !important;
+  box-shadow:inset 0 0 0 2px #d97777
+}
+.board-zoom-controls button{
+  min-width:30px;
+  height:30px;
+  padding:2px 8px;
+  font-size:18px;
+  line-height:1;
+}
+#zoomLevel{
+  min-width:48px;
+  text-align:center;
+  font-size:13px;
+  font-weight:700;
+  color:#444;
+  cursor:pointer;
+  user-select:none;
+}
+table{border-collapse:collapse;background:#fff;table-layout:fixed;user-select:none;box-sizing:border-box}
+td{
+  border:1px solid #999;padding:5px;vertical-align:top;position:relative;
+  background:#fff;min-width:10px;box-sizing:border-box
+}
+td.structure-cell{
+  background:#f7f7f7;font-weight:700;text-align:center;vertical-align:middle;
+  user-select:none
+}
+td.day-heading{font-size:18px}
+td.time-heading{
+  font-size:16px;white-space:nowrap;overflow:visible
+}
+td.time-heading .cell-text,
+td.time-heading .cell-html{
+  white-space:nowrap;overflow-wrap:normal;word-break:normal
+}
+#board tr>td:first-child{
+  position:sticky;left:0;z-index:12;background:#f7f7f7 !important;
+  background-clip:border-box;
+  box-shadow:2px 0 0 #999
+}
+#board tr:first-child>td:first-child{z-index:14}
+td.drop{outline:3px solid #555;outline-offset:-3px}
+.cell-text{
+  position:absolute;inset:5px;
+  box-sizing:border-box;
+  padding:3px 4px;white-space:pre-wrap;
+  overflow-wrap:anywhere;user-select:none;cursor:default;
+  display:flex;flex-direction:column;align-items:stretch;
+}
+.cell-text.valign-top{justify-content:flex-start}
+.cell-text.valign-middle{justify-content:center}
+.cell-text.valign-bottom{justify-content:flex-end}
+.cell-html{
+  display:block;
+  width:100%;
+  white-space:pre-wrap;
+  text-align:inherit;
+}
+.card{
+  border-radius:8px;padding:7px 9px;margin:0;display:block;
+  width:100%;text-align:center;
+  font-weight:650;border:1px solid rgba(0,0,0,.2);cursor:grab;user-select:none
+}
+#board tr.morning-zone-row td{border-bottom:6px solid #333 !important}
+#board tr.extended-zone-row td{border-top:6px solid #333 !important}
+#board td.day-boundary-right{border-right:3px solid #777 !important}
+#board td.incomplete-activity{background:#f5f5f5 !important}
+#board td.incomplete-activity .subject-text{background:#f5f5f5;border-color:#f5f5f5}
+#board td.sidebar-item-highlight{background:#e2f6e5 !important}
+#board td.sidebar-item-highlight .subject-text{background:#e2f6e5;border-color:#b7dcbc}
+#board td.schedule-conflict{
+  background:#ffe2e2 !important;
+  box-shadow:inset 0 0 0 2px #d97777
+}
+#board td.schedule-conflict .subject-text{background:#fff0f0;border-color:#e3aaaa}
+#board td.teacher-overused-cell{
+  background:#ffe2e2 !important;
+  box-shadow:inset 0 0 0 2px #d97777
+}
+#board td.teacher-overused-cell .subject-text{background:#fff0f0;border-color:#e3aaaa}
+.sidebar-highlight-active{box-shadow:inset 0 0 0 3px #58a96a !important}
+
+dialog{border:0;border-radius:12px;box-shadow:0 12px 40px #0004;padding:18px;min-width:310px}
+dialog label{display:block;margin:10px 0 4px}
+dialog input[type=text]{width:100%;padding:7px}
+.format-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.format-row label{margin:0}
+.format-row input[type=number]{width:76px;padding:6px}
+.fet-teacher-import-toolbar{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  margin:8px 0 10px;padding-bottom:8px;border-bottom:1px solid #e1e5ea
+}
+.fet-teacher-import-list{
+  display:flex;flex-direction:column;gap:6px;
+  min-width:min(560px,75vw);max-height:52vh;overflow:auto;padding:2px
+}
+.fet-teacher-choice{
+  display:grid;grid-template-columns:auto minmax(0,1fr);gap:9px;align-items:start;
+  margin:0;padding:8px 9px;border:1px solid #d7dde5;border-radius:8px;background:#fafbfc
+}
+.fet-teacher-choice input{margin-top:3px}
+.fet-teacher-choice-main{display:flex;flex-direction:column;gap:2px;min-width:0}
+.fet-teacher-choice-name{font-weight:700;overflow-wrap:anywhere}
+.fet-teacher-choice-meta{font-size:12px;color:#667085;overflow-wrap:anywhere}
+.format-row .check{display:flex;align-items:center;gap:4px}
+.toolbar-group{
+  display:inline-flex;gap:2px;padding:2px;
+  border:1px solid #cfcfcf;border-radius:7px;background:#f7f7f7
+}
+.toolbar-separator{
+  display:inline-block;width:1px;height:26px;
+  background:#b8b8b8;margin:0 7px;vertical-align:middle
+}
+.sidebar-add{
+  width:100%;
+  display:block;
+  margin-top:8px;
+  box-sizing:border-box;
+  font-weight:700;
+}
+.sidebar-divider{
+  border:0;
+  border-top:1px solid #cfcfcf;
+  width:70%;
+  margin:18px auto 0;
+}
+.department-choice-list{
+  max-height:220px;overflow:auto;border:1px solid #d5d5d5;border-radius:8px;
+  padding:8px;margin-top:6px;background:#fafafa
+}
+.department-choice-list label{
+  display:flex;align-items:center;gap:7px;margin:4px 0;padding:3px 2px
+}
+.actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+.design-dialog{width:min(720px,calc(100vw - 28px));max-height:calc(100vh - 28px);overflow:auto}
+.design-dialog h3{margin:0 0 6px}
+.design-help{margin:0 0 16px;color:#666;font-size:13px;line-height:1.45}
+.design-section{border:1px solid #d2d2d2;border-radius:10px;padding:12px;margin-top:12px}
+.design-section legend{font-weight:750;padding:0 7px}
+.design-zone-tag{
+  display:grid;grid-template-columns:minmax(190px,1fr) 170px;gap:12px;align-items:center;margin-bottom:12px
+}
+.design-zone-tag span{font-size:13px;font-weight:700;color:#555}
+.design-zone-tag input{width:100%;padding:7px}
+.design-head,.design-period{
+  display:grid;grid-template-columns:minmax(190px,1fr) 170px auto;gap:12px;align-items:center
+}
+.design-head{font-size:12px;font-weight:700;color:#666;padding:0 2px 5px}
+.design-period{margin-top:8px}
+.design-period label{margin:0}
+.design-period input[type=text],.design-period input[type=number]{width:100%;padding:7px}
+.design-period input[type=number]{text-align:center}
+.design-exception-toggle{display:flex;align-items:center;gap:6px;white-space:nowrap;font-size:13px}
+.design-exceptions{
+  grid-column:1/-1;display:grid;grid-template-columns:repeat(5,minmax(90px,1fr));gap:8px;
+  padding:10px;margin-top:2px;background:#f7f7f7;border:1px solid #ddd;border-radius:8px
+}
+.design-exceptions[hidden]{display:none}
+.design-exceptions label{display:grid;gap:4px;font-size:12px;font-weight:700;color:#555}
+.design-exceptions input[type=number]{background:white}
+
+@media(max-width:800px){
+  main{grid-template-columns:1fr}
+  aside{position:static;height:auto;overflow:visible;border-right:0;border-bottom:1px solid #ccc}
+  .board-usage-summary{left:12px}
+  .status{left:206px;right:170px}
+}
+
+
+@media print{
+  @page{
+    size: landscape;
+    margin: 10mm;
+  }
+
+  html,body{
+    margin:0 !important;
+    padding:0 !important;
+    background:#fff !important;
+    width:auto !important;
+    height:auto !important;
+    overflow:visible !important;
+  }
+
+  header,aside,dialog,.board-zoom-controls,.board-usage-summary,.status{
+    display:none !important;
+  }
+
+  #board{
+    zoom:1 !important;
+  }
+
+  main{
+    display:block !important;
+    min-height:0 !important;
+    margin:0 !important;
+    padding:0 !important;
+  }
+
+  #boardWrap{
+    display:none !important;
+    padding:0 !important;
+    margin:0 !important;
+    overflow:visible !important;
+    width:auto !important;
+    max-width:none !important;
+  }
+
+  #printPages{
+    display:block !important;
+    margin:0 !important;
+    padding:0 !important;
+  }
+
+  #printPages .print-page{
+    display:block;
+    margin:0 !important;
+    padding:0 !important;
+    break-after:page;
+    page-break-after:always;
+  }
+
+  #printPages .print-page:last-child{
+    break-after:auto;
+    page-break-after:auto;
+  }
+
+  #board{
+    margin:0 !important;
+    break-inside:auto;
+    width:auto !important;
+    min-width:0 !important;
+    max-width:none !important;
+    table-layout:auto !important;
+  }
+
+  #board col{
+    width:auto !important;
+  }
+
+  #board tr{
+    break-inside:avoid;
+    break-after:auto;
+    height:auto !important;
+  }
+
+  #board td,
+  #board th{
+    border:2px solid #000 !important;
+    height:auto !important;
+    min-height:0 !important;
+    padding:0 !important;
+    -webkit-print-color-adjust:exact !important;
+    print-color-adjust:exact !important;
+  }
+
+  #board .cell-content-stack{
+    position:static !important;
+    inset:auto !important;
+    width:100% !important;
+    height:auto !important;
+    min-height:0 !important;
+    gap:5px !important;
+    line-height:1.15 !important;
+    padding:6px 0 !important;
+    box-sizing:border-box !important;
+  }
+
+  #board .cell-text{
+    position:static !important;
+    inset:auto !important;
+    width:auto !important;
+    height:auto !important;
+    min-height:0 !important;
+    padding:2px 3px !important;
+    line-height:1 !important;
+    box-sizing:border-box !important;
+  }
+
+  #board .cell-html{
+    line-height:1 !important;
+  }
+
+  #board .teacher-slot,
+  #board .subject-slot,
+  #board .lower-slot{
+    min-height:0 !important;
+    height:auto !important;
+    margin:0 !important;
+    padding:0 !important;
+    line-height:1.15 !important;
+  }
+
+  #board .lower-slot{
+    gap:1px !important;
+    align-items:center !important;
+  }
+
+  #board .subject-slot{
+    margin-top:4px !important;
+    margin-bottom:4px !important;
+  }
+
+  #board .card,
+  #board .subject-text,
+  #board .lower-tag{
+    min-height:0 !important;
+    margin:0 !important;
+    padding:0 2px !important;
+    line-height:1.15 !important;
+  }
+
+  #board td.day-boundary-right{
+    border-right-width:3px !important;
+  }
+
+  #board td.day-heading{
+    font-size:20px !important;
+    font-weight:800 !important;
+  }
+
+  #board td.day-heading .cell-text,
+  #board td.day-heading .cell-html{
+    font-family:Arial,"DejaVu Sans",sans-serif !important;
+    font-weight:900 !important;
+  }
+
+  #board .printed-day-name{
+    font-family:Arial,"DejaVu Sans",sans-serif !important;
+    font-size:20px !important;
+    font-weight:900 !important;
+    line-height:1 !important;
+    letter-spacing:.25px;
+    -webkit-text-stroke:.2px currentColor;
+  }
+
+  #board td.time-heading{
+    font-size:16px !important;
+  }
+
+  #board .card,
+  #board .subject-text{
+    font-size:16px !important;
+    line-height:1.15 !important;
+  }
+
+  #board .lower-tag{
+    font-size:14px !important;
+    line-height:1.15 !important;
+  }
+
+  #board .card{
+    background:transparent !important;
+    border:none !important;
+    color:#000 !important;
+    box-shadow:none !important;
+  }
+
+  #board .lower-slot>*{
+    display:none !important;
+  }
+
+  #board .lower-slot{
+    display:block !important;
+    font-size:0 !important;
+    min-height:0 !important;
+    padding:0 2px !important;
+    background:transparent !important;
+    border:none !important;
+    box-shadow:none !important;
+  }
+
+  #board .lower-slot::after{
+    content:attr(data-print-short);
+    display:block;
+    width:100%;
+    color:#000;
+    font-size:14px;
+    font-weight:700;
+    line-height:1.15;
+    text-align:center;
+  }
+
+  #board .teacher-over-warning{
+    color:#d00000 !important;
+  }
+
+  #board td.drop{
+    outline:none !important;
+  }
+
+  #board td.specialty-teacher-cell{
+    background:#d7ecff !important;
+  }
+
+  #board td.teacher-overused-cell{
+    background:#ffe2e2 !important;
+    box-shadow:inset 0 0 0 2px #d97777 !important;
+  }
+
+  #board .subject-text{
+    background:transparent !important;
+    border:none !important;
+    border-radius:0 !important;
+    box-shadow:none !important;
+  }
+
+  #board tr>td:first-child{
+    position:relative !important;
+    left:auto !important;
+    z-index:auto !important;
+    box-shadow:none !important;
+  }
+
+  body.print-short #board{
+    zoom:.78 !important;
+  }
+
+  body.print-short #board .card>*,
+  body.print-short #board .subject-text>*,
+  body.print-short #board .lower-slot>*{
+    display:none !important;
+  }
+
+  body.print-short #board .card,
+  body.print-short #board .subject-text{
+    font-size:0 !important;
+    line-height:1.15 !important;
+    min-height:0 !important;
+    padding:0 2px !important;
+  }
+
+  body.print-short #board .lower-slot{
+    display:block !important;
+    font-size:0 !important;
+    line-height:1.15 !important;
+    min-height:0 !important;
+    padding:0 2px !important;
+    background:transparent !important;
+    border:none !important;
+    box-shadow:none !important;
+  }
+
+  body.print-short #board .card::after,
+  body.print-short #board .subject-text::after{
+    content:attr(data-print-short);
+    display:block;
+    width:100%;
+    color:#000;
+    font-size:14px;
+    font-weight:700;
+    line-height:1.15;
+    text-align:center;
+  }
+
+  body.print-short #board .lower-slot::after{
+    content:attr(data-print-short);
+    display:block;
+    width:100%;
+    color:#000;
+    font-size:14px;
+    font-weight:700;
+    line-height:1.15;
+    text-align:center;
+  }
+
+}
+
+#printPages{display:none}
+
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">Ολοήμερο Designer <span id="appVersion" class="small">v0.78</span></div>
+  <button id="newProgram">+ Νέο...</button>
+  <button id="openData">Άνοιγμα...</button>
+  <button id="saveData">Αποθήκευση...</button>
+  <input id="openDataFile" type="file" accept=".csv,text/csv" style="display:none">
+  <input id="openFetFile" type="file" accept=".fet,text/xml,application/xml" style="display:none">
+  <span class="toolbar-separator" aria-hidden="true"></span>
+  <button id="openDesign">Σχεδιασμός...</button>
+
+  <span class="sep"></span>
+  <button id="undoPlacement" disabled title="Αναίρεση τελευταίας αλλαγής τοποθέτησης">↶ Undo</button>
+  <button id="redoPlacement" disabled title="Επανάληψη αλλαγής τοποθέτησης">↷ Redo</button>
+  <button id="initialPlacement" disabled title="Επαναφορά στην αρχική τοποθέτηση">Αρχικό</button>
+  <span class="sep"></span>
+  <button id="copyBoard">Αντιγραφή πίνακα</button>
+  <span class="print-control">
+    <button id="printBoard">Εκτύπωση...</button>
+    <select id="printMode" aria-label="Μορφή εκτύπωσης">
+      <option value="full">Πλήρης πίνακας</option>
+      <option value="short">Σύντομος πίνακας</option>
+    </select>
+  </span>
+
+  <div class="header-right">
+    <button type="button" id="fetFileState" class="file-state warn">FET: όχι</button>
+    <button type="button" id="csvFileState" class="file-state warn">CSV: όχι</button>
+  </div>
+</header>
+
+<main>
+<aside>
+  <h2 class="section-heading">
+    <span class="section-label">Εκπαιδευτικοί <span id="teacherCount"></span></span>
+    <span class="section-heading-actions">
+      <button type="button" id="importTeachers" class="section-import" title="Προσθήκη εκπαιδευτικών από FET" aria-label="Προσθήκη εκπαιδευτικών από FET"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 20h14"></path></svg></button>
+      <button type="button" class="section-style-edit" data-section="teacher" title="Κοινή μορφοποίηση Εκπαιδευτικών">✎</button>
+    </span>
+  </h2>
+  <input id="teachersFetFile" type="file" accept=".fet,text/xml,application/xml" style="display:none">
+  <div id="templates"></div>
+  <button id="newTeacher" class="sidebar-add">+ Νέος Εκπαιδευτικός</button>
+  <hr class="sidebar-divider">
+
+  <h2 class="section-title section-heading">
+    <span class="section-label">Μαθήματα <span id="subjectCount"></span></span>
+    <span class="section-heading-actions">
+      <button type="button" id="importSubjects" class="section-import" title="Προσθήκη μαθημάτων από FET" aria-label="Προσθήκη μαθημάτων από FET"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 20h14"></path></svg></button>
+      <button type="button" class="section-style-edit" data-section="subject" title="Κοινή μορφοποίηση Μαθημάτων">✎</button>
+    </span>
+  </h2>
+  <input id="subjectsFetFile" type="file" accept=".fet,text/xml,application/xml" style="display:none">
+  <div id="subjects"></div>
+  <button id="newSubject" class="sidebar-add">+ Νέο Μάθημα</button>
+  <hr class="sidebar-divider">
+
+  <h2 class="section-title section-heading">
+    <span class="section-label">Τμήματα <span id="departmentCount"></span></span>
+    <button type="button" class="section-style-edit" data-section="department" title="Κοινή μορφοποίηση Τμημάτων">✎</button>
+  </h2>
+  
+  <div id="departments"></div>
+  <button id="newDepartment" class="sidebar-add">+ Νέο Τμήμα</button>
+  <hr class="sidebar-divider">
+
+  <h2 class="section-title section-heading">
+    <span class="section-label">Συνενώσεις <span id="unionCount"></span></span>
+    <button type="button" class="section-style-edit" data-section="union" title="Κοινή μορφοποίηση Συνενώσεων">✎</button>
+  </h2>
+  <div id="unions"></div>
+  <button id="newUnion" class="sidebar-add">+ Νέα Συνένωση</button>
+</aside>
+
+<section id="boardWrap">
+  <table id="board"><tbody></tbody></table>
+
+  <div id="emptyProjectDrop" class="empty-project-drop" aria-live="polite">
+    <div class="empty-project-drop-icon" aria-hidden="true">⇩</div>
+    <div class="empty-project-drop-title">Σύρετε και αφήστε εδώ τα αρχεία του προγράμματος</div>
+    <div class="empty-project-drop-text">
+      Το αρχείο <span class="empty-project-drop-files">CSV</span> ανοίγει το αποθηκευμένο πρόγραμμα του Ολοήμερου Designer.<br>
+      Το αρχείο <span class="empty-project-drop-files">FET</span> ελέγχει τις ώρες και συνδέει εκπαιδευτικούς, μαθήματα και Τάξεις-Έτη.<br>
+      Μπορείτε να αφήσετε και τα δύο αρχεία μαζί.
+    </div>
+  </div>
+
+  <div class="board-zoom-controls" aria-label="Μεγέθυνση πίνακα">
+    <button type="button" id="zoomOut" title="Σμίκρυνση πίνακα">−</button>
+    <span id="zoomLevel">100%</span>
+    <button type="button" id="zoomIn" title="Μεγέθυνση πίνακα">+</button>
+  </div>
+
+  <span class="status" id="status" role="status" aria-live="polite">Έτοιμο</span>
+
+  <div id="usageSummary" class="board-usage-summary" aria-label="Σύνοψη ωρών" aria-live="polite">
+    <div class="usage-summary-row"><span class="usage-summary-label">Δάσκαλοι:</span><span id="generalistUsage" class="usage-summary-value">0/0</span></div>
+    <div class="usage-summary-row"><span class="usage-summary-label">Ειδικότητες:</span><span id="specialtyUsage" class="usage-summary-value">0/0</span></div>
+    <div class="usage-summary-row combined-total"><span class="usage-summary-label">Σύνολο:</span><span id="combinedTeacherUsage" class="usage-summary-value">0/0</span></div>
+    <div class="usage-summary-row program-total"><span class="usage-summary-label">Πρόγραμμα:</span><span id="programUsage" class="usage-summary-value">0/0</span></div>
+  </div>
+</section>
+</main>
+
+<dialog id="newProgramDialog">
+  <h3>Νέο πρόγραμμα</h3>
+  <p>Όλα τα τρέχοντα δεδομένα θα χαθούν.</p>
+  <p>Θέλετε να κάνετε πρώτα αποθήκευση των τρεχουσών δεδομένων;</p>
+  <div class="actions">
+    <button type="button" id="newSave">Αποθήκευση...</button>
+    <button type="button" id="newContinue">Συνέχεια</button>
+    <button type="button" id="newCancel">Άκυρο</button>
+  </div>
+</dialog>
+
+<dialog id="fetSubjectImportDialog">
+<form id="fetSubjectImportForm">
+  <h3>Προσθήκη μαθημάτων από FET</h3>
+  <p class="hint">Εμφανίζονται μόνο τα μαθήματα του FET που δεν υπάρχουν στον Designer.</p>
+  <div class="fet-teacher-import-toolbar">
+    <label><input type="checkbox" id="selectAllFetSubjects" checked> Επιλογή όλων</label>
+    <span id="missingFetSubjectCount" class="small"></span>
+  </div>
+  <div id="fetSubjectImportList" class="fet-teacher-import-list"></div>
+  <div class="actions">
+    <button type="button" id="cancelFetSubjectImport">Άκυρο</button>
+    <button type="submit">Προσθήκη επιλεγμένων</button>
+  </div>
+</form>
+</dialog>
+
+<dialog id="fetTeacherImportDialog">
+<form id="fetTeacherImportForm">
+  <h3>Προσθήκη εκπαιδευτικών από FET</h3>
+  <p class="hint">Εμφανίζονται μόνο οι εκπαιδευτικοί του FET που δεν υπάρχουν στον Designer.</p>
+  <div class="fet-teacher-import-toolbar">
+    <label><input type="checkbox" id="selectAllFetTeachers" checked> Επιλογή όλων</label>
+    <span id="missingFetTeacherCount" class="small"></span>
+  </div>
+  <div id="fetTeacherImportList" class="fet-teacher-import-list"></div>
+  <div class="actions">
+    <button type="button" id="cancelFetTeacherImport">Άκυρο</button>
+    <button type="submit">Προσθήκη επιλεγμένων</button>
+  </div>
+</form>
+</dialog>
+
+<dialog id="csvExportDialog">
+<form id="csvExportForm">
+  <h3>Αποθήκευση έργου CSV</h3>
+  <label>Όνομα αρχείου</label>
+  <input id="csvExportFilename" type="text" value="oloimero_activities.csv" required>
+  <div class="actions">
+    <button type="button" id="cancelCsvExport">Άκυρο</button>
+    <button type="submit">Αποθήκευση</button>
+  </div>
+</form>
+</dialog>
+
+<dialog id="designDialog" class="design-dialog">
+<form id="designForm">
+  <h3>Σχεδιασμός προγράμματος</h3>
+  <p class="design-help">Οι ημέρες είναι πάντα Δευτέρα–Παρασκευή. Ώρα με 0 τμήματα δεν εμφανίζεται στον πίνακα.</p>
+
+  <fieldset class="design-section">
+    <legend>Πρωινή Ζώνη</legend>
+    <label class="design-zone-tag">
+      <span>Ετικέτα FET</span>
+      <input type="text" data-design-zone-tag="morning" placeholder="Χωρίς ετικέτα" aria-label="Ετικέτα FET Πρωινής Ζώνης">
+    </label>
+    <div class="design-head"><span>Ώρα</span><span>Αριθμός τμημάτων (0–20)</span><span></span></div>
+    <div class="design-period">
+      <label><input type="text" data-design-label="morning" aria-label="Ώρα Πρωινής Ζώνης"></label>
+      <label><input type="number" min="0" max="20" step="1" data-design-count="morning" aria-label="Αριθμός τμημάτων Πρωινής Ζώνης"></label>
+      <label class="design-exception-toggle"><input type="checkbox" data-design-exception-toggle="morning"> Με εξαιρέσεις</label>
+      <div class="design-exceptions" data-design-exceptions="morning" hidden></div>
+    </div>
+  </fieldset>
+
+  <fieldset class="design-section">
+    <legend>Ολοήμερο</legend>
+    <label class="design-zone-tag">
+      <span>Ετικέτα FET</span>
+      <input type="text" data-design-zone-tag="all_day" aria-label="Ετικέτα FET Ολοήμερου">
+    </label>
+    <div class="design-head"><span>Ώρα</span><span>Αριθμός τμημάτων (0–20)</span><span></span></div>
+    <div class="design-period">
+      <label><input type="text" data-design-label="all_day_1" aria-label="Πρώτη ώρα Ολοήμερου"></label>
+      <label><input type="number" min="0" max="20" step="1" data-design-count="all_day_1" aria-label="Αριθμός τμημάτων πρώτης ώρας Ολοήμερου"></label>
+      <label class="design-exception-toggle"><input type="checkbox" data-design-exception-toggle="all_day_1"> Με εξαιρέσεις</label>
+      <div class="design-exceptions" data-design-exceptions="all_day_1" hidden></div>
+    </div>
+    <div class="design-period">
+      <label><input type="text" data-design-label="all_day_2" aria-label="Δεύτερη ώρα Ολοήμερου"></label>
+      <label><input type="number" min="0" max="20" step="1" data-design-count="all_day_2" aria-label="Αριθμός τμημάτων δεύτερης ώρας Ολοήμερου"></label>
+      <label class="design-exception-toggle"><input type="checkbox" data-design-exception-toggle="all_day_2"> Με εξαιρέσεις</label>
+      <div class="design-exceptions" data-design-exceptions="all_day_2" hidden></div>
+    </div>
+    <div class="design-period">
+      <label><input type="text" data-design-label="all_day_3" aria-label="Τρίτη ώρα Ολοήμερου"></label>
+      <label><input type="number" min="0" max="20" step="1" data-design-count="all_day_3" aria-label="Αριθμός τμημάτων τρίτης ώρας Ολοήμερου"></label>
+      <label class="design-exception-toggle"><input type="checkbox" data-design-exception-toggle="all_day_3"> Με εξαιρέσεις</label>
+      <div class="design-exceptions" data-design-exceptions="all_day_3" hidden></div>
+    </div>
+  </fieldset>
+
+  <fieldset class="design-section">
+    <legend>Διευρυμένο</legend>
+    <label class="design-zone-tag">
+      <span>Ετικέτα FET</span>
+      <input type="text" data-design-zone-tag="extended" aria-label="Ετικέτα FET Διευρυμένου">
+    </label>
+    <div class="design-head"><span>Ώρα</span><span>Αριθμός τμημάτων (0–20)</span><span></span></div>
+    <div class="design-period">
+      <label><input type="text" data-design-label="extended_1" aria-label="Πρώτη ώρα Διευρυμένου"></label>
+      <label><input type="number" min="0" max="20" step="1" data-design-count="extended_1" aria-label="Αριθμός τμημάτων πρώτης ώρας Διευρυμένου"></label>
+      <label class="design-exception-toggle"><input type="checkbox" data-design-exception-toggle="extended_1"> Με εξαιρέσεις</label>
+      <div class="design-exceptions" data-design-exceptions="extended_1" hidden></div>
+    </div>
+    <div class="design-period">
+      <label><input type="text" data-design-label="extended_2" aria-label="Δεύτερη ώρα Διευρυμένου"></label>
+      <label><input type="number" min="0" max="20" step="1" data-design-count="extended_2" aria-label="Αριθμός τμημάτων δεύτερης ώρας Διευρυμένου"></label>
+      <label class="design-exception-toggle"><input type="checkbox" data-design-exception-toggle="extended_2"> Με εξαιρέσεις</label>
+      <div class="design-exceptions" data-design-exceptions="extended_2" hidden></div>
+    </div>
+  </fieldset>
+
+  <div class="actions">
+    <button type="button" id="cancelDesign">Άκυρο</button>
+    <button type="submit">Εφαρμογή</button>
+  </div>
+</form>
+</dialog>
+
+<dialog id="editor">
+<form id="teacherForm">
+  <h3 id="dlgTitle">Νέος εκπαιδευτικός</h3>
+  <label>Όνομα</label>
+  <input id="teacherName" type="text" required>
+  <div id="teacherFetLinkNote" class="fet-link-note" hidden><span class="fet-link-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 17H7A5 5 0 0 1 7 7h3"></path><path d="M15 7h2a5 5 0 1 1 0 10h-3"></path><path d="M8 12h8"></path></svg></span> Το όνομα είναι συνδεδεμένο με το FET και ενημερώνεται από εκεί.</div>
+  <label>Χρώμα</label>
+  <input id="teacherColor" type="color" value="#a8d8ff">
+  <label>Διαθέσιμες ώρες</label>
+  <div class="teacher-hours-input-row">
+    <input id="teacherAvailableHours" type="number" min="0" max="99" step="1" value="0">
+    <span id="teacherFetHours" class="teacher-fet-hours" title="Συνολικές ώρες εκπαιδευτικού στο FET" hidden></span>
+  </div>
+  <div class="actions">
+    <button type="button" id="cancelTeacher">Άκυρο</button>
+    <button type="submit">Αποθήκευση</button>
+  </div>
+</form>
+</dialog>
+
+<dialog id="subjectEditor">
+<form id="subjectForm">
+  <h3 id="subjectDlgTitle">Νέο μάθημα</h3>
+  <label>Όνομα μαθήματος</label>
+  <input id="subjectName" type="text" required>
+  <div id="subjectFetLinkNote" class="fet-link-note" hidden><span class="fet-link-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 17H7A5 5 0 0 1 7 7h3"></path><path d="M15 7h2a5 5 0 1 1 0 10h-3"></path><path d="M8 12h8"></path></svg></span> Το όνομα είναι συνδεδεμένο με το FET και ενημερώνεται από εκεί.</div>
+  <div class="actions">
+    <button type="button" id="cancelSubject">Άκυρο</button>
+    <button type="submit">Αποθήκευση</button>
+  </div>
+</form>
+</dialog>
+
+<dialog id="departmentEditor">
+<form id="departmentForm">
+  <h3 id="departmentDlgTitle">Νέο τμήμα</h3>
+  <label>Όνομα τμήματος</label>
+  <input id="departmentName" type="text" required>
+  <div id="departmentFetLinkNote" class="fet-link-note" hidden><span class="fet-link-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 17H7A5 5 0 0 1 7 7h3"></path><path d="M15 7h2a5 5 0 1 1 0 10h-3"></path><path d="M8 12h8"></path></svg></span> Το όνομα είναι συνδεδεμένο με το FET και ενημερώνεται από εκεί.</div>
+  <div class="actions">
+    <button type="button" id="cancelDepartment">Άκυρο</button>
+    <button type="submit">Αποθήκευση</button>
+  </div>
+</form>
+</dialog>
+
+<dialog id="unionEditor">
+<form id="unionForm">
+  <h3 id="unionDlgTitle">Νέα συνένωση</h3>
+  <label>Όνομα συνένωσης</label>
+  <input id="unionName" type="text" required>
+  <div id="unionFetLinkNote" class="fet-link-note" hidden><span class="fet-link-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 17H7A5 5 0 0 1 7 7h3"></path><path d="M15 7h2a5 5 0 1 1 0 10h-3"></path><path d="M8 12h8"></path></svg></span> Το όνομα είναι συνδεδεμένο με το FET και ενημερώνεται από εκεί.</div>
+  <label>Τμήματα που συνενώνονται</label>
+  <div id="unionDepartments" class="department-choice-list"></div>
+  <div class="actions">
+    <button type="button" id="cancelUnion">Άκυρο</button>
+    <button type="submit">Αποθήκευση</button>
+  </div>
+</form>
+</dialog>
+
+<dialog id="sectionStyleEditor">
+<form id="sectionStyleForm">
+  <h3 id="sectionStyleTitle">Κοινή μορφοποίηση</h3>
+  <div class="format-row">
+    <label>Μέγεθος <input id="sectionFontSize" type="number" min="8" max="48" value="16"></label>
+    <label class="check"><input id="sectionBold" type="checkbox" checked> Bold</label>
+    <label class="check"><input id="sectionItalic" type="checkbox"> Italic</label>
+  </div>
+  <div class="actions">
+    <button type="button" id="cancelSectionStyle">Άκυρο</button>
+    <button type="submit">Αποθήκευση</button>
+  </div>
+</form>
+</dialog>
+
+<script>
+"use strict";
+
+const APP_VERSION="0.78";
+const APP_TITLE=`Ολοήμερο Designer v${APP_VERSION}`;
+document.title=APP_TITLE;
+document.querySelector("#appVersion").textContent=`v${APP_VERSION}`;
+
+const WEEK_DAYS=["Δευτέρα","Τρίτη","Τετάρτη","Πέμπτη","Παρασκευή"];
+const WEEK_DAY_ABBREVIATIONS=["Δε","Τρ","Τε","Πε","Πα"];
+const PERIOD_DEFINITIONS=[
+  {id:"morning",group:"morning",label:"07:15-08:00",count:1},
+  {id:"all_day_1",group:"all_day",label:"13:20-14:00",count:5},
+  {id:"all_day_2",group:"all_day",label:"14:10-14:55",count:5},
+  {id:"all_day_3",group:"all_day",label:"15:05-15:50",count:2},
+  {id:"extended_1",group:"extended",label:"15:55-16:40",count:1},
+  {id:"extended_2",group:"extended",label:"16:45-17:30",count:1}
+];
+const DEFAULT_ZONE_TAGS={
+  morning:"",
+  all_day:"[Ολοήμερο]",
+  extended:"[Διευρυμένο]"
+};
+
+function normalizeDesign(raw){
+  const incoming=Array.isArray(raw?.periods)?raw.periods:[];
+  const incomingTags=raw?.zoneTags && typeof raw.zoneTags==="object" ? raw.zoneTags : {};
+  return {
+    zoneTags:Object.fromEntries(Object.entries(DEFAULT_ZONE_TAGS).map(([zone,defaultTag])=>[
+      zone,
+      typeof incomingTags[zone]==="string" ? incomingTags[zone].trim() : defaultTag
+    ])),
+    periods:PERIOD_DEFINITIONS.map(def=>{
+      const saved=incoming.find(x=>x && x.id===def.id) || {};
+      const label=typeof saved.label==="string" && saved.label.trim()
+        ? saved.label.trim()
+        : def.label;
+      const count=Math.max(0,Math.min(20,Math.floor(Number(saved.count ?? def.count)||0)));
+      const exceptionsEnabled=!!saved.exceptionsEnabled;
+      const savedDayCounts=saved.dayCounts && typeof saved.dayCounts==="object"
+        ? saved.dayCounts
+        : {};
+      const dayCounts=Object.fromEntries(WEEK_DAYS.map(day=>[
+        day,
+        Math.max(0,Math.min(20,Math.floor(Number(savedDayCounts[day] ?? count)||0)))
+      ]));
+      return {...def,label,count,exceptionsEnabled,dayCounts};
+    })
+  };
+}
+
+function periodCountForDay(period,day){
+  return period.exceptionsEnabled ? period.dayCounts[day] : period.count;
+}
+
+function activeDesignPeriods(design){
+  return design.periods.filter(period=>
+    WEEK_DAYS.some(day=>periodCountForDay(period,day)>0)
+  );
+}
+
+function requiredTimeColumnWidth(design){
+  const longest=activeDesignPeriods(design)
+    .reduce((max,period)=>Math.max(max,Array.from(period.label).length),4);
+  return Math.max(110,longest*9+28);
+}
+
+let state={
+  rows:6,cols:5,cells:{},merges:{},colWidths:[],rowHeights:[]
+};
+
+let scheduleDesign=normalizeDesign(state.design);
+
+state.rows=Number.isInteger(state.rows)?state.rows:6;
+state.cols=Number.isInteger(state.cols)?state.cols:5;
+state.cells=state.cells||{};
+state.merges=state.merges||{};
+state.colWidths=Array.isArray(state.colWidths)?state.colWidths:[];
+state.rowHeights=Array.isArray(state.rowHeights)?state.rowHeights:[];
+while(state.colWidths.length<state.cols) state.colWidths.push(150);
+while(state.rowHeights.length<state.rows) state.rowHeights.push(74);
+if(state.design){
+  state.colWidths[0]=Math.max(Number(state.colWidths[0])||0,requiredTimeColumnWidth(scheduleDesign));
+}
+
+let teachers=[];
+let subjects=[];
+let departments=[];
+let unions=[];
+
+function normalizedFetHours(value){
+  if(value===null || value===undefined || String(value).trim()==="")return null;
+  const numeric=Number(value);
+  return Number.isFinite(numeric)?Math.max(0,Math.floor(numeric)):null;
+}
+
+teachers=teachers.map(t=>({
+  ...t,
+  availableHours:Math.max(0,Math.floor(Number(t.availableHours)||0)),
+  fet_hours:normalizedFetHours(t.fet_hours),
+  fontSize:Number(t.fontSize)||16,
+  bold:t.bold!==false,
+  italic:!!t.italic
+}));
+subjects=subjects.map(sub=>({...sub,fontSize:Number(sub.fontSize)||16,bold:sub.bold!==false,italic:!!sub.italic}));
+departments=departments.map(dep=>({...dep,fontSize:Number(dep.fontSize)||16,bold:dep.bold!==false,italic:!!dep.italic}));
+unions=unions.map(u=>({
+  ...u,
+  departmentIds:Array.isArray(u.departmentIds)?u.departmentIds.filter(id=>typeof id==="string"):[],
+  fontSize:Number(u.fontSize)||16,
+  bold:u.bold!==false,
+  italic:!!u.italic
+}));
+
+function normalizedSharedStyle(v,fallbackItem=null){
+  const src=(v && typeof v==="object") ? v : (fallbackItem||{});
+  return {
+    fontSize:Math.max(8,Math.min(48,Number(src.fontSize)||16)),
+    bold:src.bold!==false,
+    italic:!!src.italic
+  };
+}
+
+let categoryStyles={};
+
+categoryStyles={
+  teacher:normalizedSharedStyle(categoryStyles.teacher,teachers[0]),
+  subject:normalizedSharedStyle(categoryStyles.subject,subjects[0]),
+  department:normalizedSharedStyle(categoryStyles.department,departments[0]),
+  union:normalizedSharedStyle(categoryStyles.union,unions[0])
+};
+
+function syncSharedStylesToItems(){
+  teachers.forEach(x=>Object.assign(x,categoryStyles.teacher));
+  subjects.forEach(x=>Object.assign(x,categoryStyles.subject));
+  departments.forEach(x=>Object.assign(x,categoryStyles.department));
+  unions.forEach(x=>Object.assign(x,categoryStyles.union));
+}
+syncSharedStylesToItems();
+
+let mode="select";
+let selected=new Set();
+let activeKey=null;
+const sidebarHighlights=new Set();
+let editingTeacher=null;
+let editingSubject=null;
+let editingDepartment=null;
+let editingUnion=null;
+let editingSectionStyle=null;
+let movingCard=null;
+let cardDroppedOnTable=false;
+let subjectDroppedOnTable=false;
+let departmentDroppedOnTable=false;
+let unionDroppedOnTable=false;
+
+const boardTable=document.querySelector("#board");
+const board=document.querySelector("#board tbody");
+const emptyProjectDrop=document.querySelector("#emptyProjectDrop");
+
+let boardZoom=80;
+
+const boardWrap=document.querySelector("#boardWrap");
+
+boardWrap.addEventListener("dblclick",e=>{
+  if(e.target.closest("#board") || e.target.closest(".board-zoom-controls") || e.target.closest(".board-usage-summary") || e.target.closest(".status"))return;
+  if(!sidebarHighlights.size)return;
+  e.preventDefault();
+  sidebarHighlights.clear();
+  renderAll();
+  setStatus("Αφαιρέθηκαν όλες οι πράσινες επισημάνσεις");
+});
+
+let boardPanning=false;
+let boardPanStartX=0;
+let boardPanStartY=0;
+let boardPanStartScrollLeft=0;
+let boardPanStartScrollTop=0;
+
+boardWrap.addEventListener("mousedown",e=>{
+  // Pan μόνο από κενό χώρο γύρω από τον πίνακα.
+  // Δεν παρεμβαίνουμε σε κελιά, resize handles ή zoom controls.
+  if(e.button!==0)return;
+  if(e.target.closest("#board"))return;
+  if(e.target.closest("#emptyProjectDrop"))return;
+  if(e.target.closest(".board-zoom-controls"))return;
+  if(e.target.closest(".board-usage-summary"))return;
+  if(e.target.closest(".status"))return;
+
+  boardPanning=true;
+  boardPanStartX=e.clientX;
+  boardPanStartY=e.clientY;
+  boardPanStartScrollLeft=boardWrap.scrollLeft;
+  boardPanStartScrollTop=boardWrap.scrollTop;
+  boardWrap.classList.add("panning");
+  e.preventDefault();
+});
+
+document.addEventListener("mousemove",e=>{
+  if(!boardPanning)return;
+
+  const dx=e.clientX-boardPanStartX;
+  const dy=e.clientY-boardPanStartY;
+
+  boardWrap.scrollLeft=boardPanStartScrollLeft-dx;
+  boardWrap.scrollTop=boardPanStartScrollTop-dy;
+});
+
+document.addEventListener("mouseup",()=>{
+  if(!boardPanning)return;
+  boardPanning=false;
+  boardWrap.classList.remove("panning");
+});
+
+document.addEventListener("mouseleave",()=>{
+  if(!boardPanning)return;
+  boardPanning=false;
+  boardWrap.classList.remove("panning");
+});
+
+function applyBoardZoom(){
+  boardTable.style.zoom=(boardZoom/100);
+  const label=document.querySelector("#zoomLevel");
+  if(label)label.textContent=boardZoom+"%";
+}
+
+function setBoardZoom(value){
+  boardZoom=Math.max(50,Math.min(200,Math.round(value/10)*10));
+  applyBoardZoom();
+}
+const templatesEl=document.querySelector("#templates");
+const subjectsEl=document.querySelector("#subjects");
+const departmentsEl=document.querySelector("#departments");
+const unionsEl=document.querySelector("#unions");
+const statusEl=document.querySelector("#status");
+const dialog=document.querySelector("#editor");
+const subjectDialog=document.querySelector("#subjectEditor");
+const departmentDialog=document.querySelector("#departmentEditor");
+const unionDialog=document.querySelector("#unionEditor");
+const sectionStyleDialog=document.querySelector("#sectionStyleEditor");
+const designDialog=document.querySelector("#designDialog");
+
+const key=(r,c)=>`${r}-${c}`;
+const parseKey=k=>k.split("-").map(Number);
+let currentProjectFileName="oloimero_activities.csv";
+let loadedCsvSourceName="";
+let projectLastModified=null;
+let placementUndoStack=[];
+let placementRedoStack=[];
+let initialPlacementSnapshot="";
+let currentPlacementSnapshot="";
+
+function capturePlacementSnapshot(){
+  const entries=[];
+  const layout=designLayout(scheduleDesign);
+  layout.slotRoots.forEach((cellKey,semanticKey)=>{
+    const cell=normalizeCell(state.cells[cellKey]);
+    if(!cell.cards.length && !cell.subjectId && !cell.lowerItems.length)return;
+    entries.push([semanticKey,{
+      cards:[...cell.cards],
+      subjectId:cell.subjectId,
+      lowerItems:cell.lowerItems.map(item=>({type:item.type,id:item.id}))
+    }]);
+  });
+  entries.sort((a,b)=>a[0].localeCompare(b[0],"en",{numeric:true}));
+  return JSON.stringify(entries);
+}
+
+function updatePlacementHistoryButtons(){
+  const undo=document.querySelector("#undoPlacement");
+  const redo=document.querySelector("#redoPlacement");
+  const initial=document.querySelector("#initialPlacement");
+  if(undo)undo.disabled=!placementUndoStack.length;
+  if(redo)redo.disabled=!placementRedoStack.length;
+  if(initial)initial.disabled=!initialPlacementSnapshot || currentPlacementSnapshot===initialPlacementSnapshot;
+}
+
+function resetPlacementHistory(){
+  const snapshot=capturePlacementSnapshot();
+  placementUndoStack=[];
+  placementRedoStack=[];
+  initialPlacementSnapshot=snapshot;
+  currentPlacementSnapshot=snapshot;
+  updatePlacementHistoryButtons();
+}
+
+function recordPlacementChange(){
+  const snapshot=capturePlacementSnapshot();
+  if(!currentPlacementSnapshot){
+    currentPlacementSnapshot=snapshot;
+    if(!initialPlacementSnapshot)initialPlacementSnapshot=snapshot;
+    updatePlacementHistoryButtons();
+    return;
+  }
+  if(snapshot===currentPlacementSnapshot)return;
+  placementUndoStack.push(currentPlacementSnapshot);
+  if(placementUndoStack.length>100)placementUndoStack.shift();
+  placementRedoStack=[];
+  currentPlacementSnapshot=snapshot;
+  updatePlacementHistoryButtons();
+}
+
+function save(){
+  recordPlacementChange();
+  projectLastModified=new Date().toISOString();
+}
+
+function getProjectLastModified(){
+  return projectLastModified;
+}
+
+function restorePlacementSnapshot(snapshot){
+  let entries;
+  try{
+    entries=JSON.parse(snapshot);
+  }catch{
+    return false;
+  }
+  if(!Array.isArray(entries))return false;
+
+  const saved=new Map(entries);
+  const layout=designLayout(scheduleDesign);
+  layout.slotRoots.forEach((cellKey,semanticKey)=>{
+    const cell=cellObj(cellKey);
+    cell.cards=[];
+    cell.subjectId=null;
+    cell.lowerItems=[];
+    cell.text="";
+
+    const value=saved.get(semanticKey);
+    if(!value)return;
+    cell.cards=Array.isArray(value.cards)?[...value.cards]:[];
+    cell.subjectId=typeof value.subjectId==="string"?value.subjectId:null;
+    cell.lowerItems=Array.isArray(value.lowerItems)
+      ? value.lowerItems.map(item=>({type:item.type,id:item.id}))
+      : [];
+    sortCellLowerItems(cell);
+  });
+  activeKey=null;
+  selected.clear();
+  currentPlacementSnapshot=snapshot;
+  projectLastModified=new Date().toISOString();
+  renderAll();
+  updatePlacementHistoryButtons();
+  return true;
+}
+
+function undoPlacementChange(){
+  if(!placementUndoStack.length)return;
+  const previous=placementUndoStack.pop();
+  placementRedoStack.push(currentPlacementSnapshot);
+  if(restorePlacementSnapshot(previous))setStatus("Αναιρέθηκε η τελευταία αλλαγή τοποθέτησης");
+}
+
+function redoPlacementChange(){
+  if(!placementRedoStack.length)return;
+  const next=placementRedoStack.pop();
+  placementUndoStack.push(currentPlacementSnapshot);
+  if(restorePlacementSnapshot(next))setStatus("Επαναλήφθηκε η αλλαγή τοποθέτησης");
+}
+
+function restoreInitialPlacement(){
+  if(!initialPlacementSnapshot || currentPlacementSnapshot===initialPlacementSnapshot)return;
+  placementUndoStack.push(currentPlacementSnapshot);
+  if(placementUndoStack.length>100)placementUndoStack.shift();
+  placementRedoStack=[];
+  if(restorePlacementSnapshot(initialPlacementSnapshot))setStatus("Επαναφέρθηκε η αρχική τοποθέτηση του πίνακα");
+}
+
+function setStatus(t){statusEl.textContent=t}
+
+function textColor(h){
+  const r=parseInt(h.slice(1,3),16),g=parseInt(h.slice(3,5),16),b=parseInt(h.slice(5,7),16);
+  return (r*299+g*587+b*114)/1000>150?"#111":"#fff";
+}
+
+function esc(s){
+  return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+}
+
+function lowerItemDisplayName(item){
+  const records=item.type==="department" ? departments : unions;
+  return records.find(record=>record.id===item.id)?.name || "";
+}
+
+function sortCellLowerItems(cell){
+  cell.lowerItems.sort((a,b)=>
+    lowerItemDisplayName(a).localeCompare(
+      lowerItemDisplayName(b),
+      "el",
+      {sensitivity:"base",numeric:true}
+    ) || a.type.localeCompare(b.type) || a.id.localeCompare(b.id)
+  );
+}
+
+function normalizeCell(v){
+  if(Array.isArray(v)) return {cards:v,subjectId:null,lowerItems:[],text:"",fmt:{align:"left",valign:"top",size:16,bold:false,italic:false}};
+  v=v||{};
+  v.cards=Array.isArray(v.cards)?v.cards:[];
+  v.subjectId=typeof v.subjectId==="string"?v.subjectId:null;
+  const legacyDepartment=typeof v.departmentId==="string"?v.departmentId:null;
+  const legacyUnion=typeof v.unionId==="string"?v.unionId:null;
+  v.lowerItems=Array.isArray(v.lowerItems)
+    ? v.lowerItems.filter(item=>
+        item && (item.type==="department" || item.type==="union") && typeof item.id==="string"
+      ).map(item=>({type:item.type,id:item.id}))
+    : [];
+  if(legacyDepartment && !v.lowerItems.some(item=>item.type==="department" && item.id===legacyDepartment)){
+    v.lowerItems.push({type:"department",id:legacyDepartment});
+  }
+  if(legacyUnion && !v.lowerItems.some(item=>item.type==="union" && item.id===legacyUnion)){
+    v.lowerItems.push({type:"union",id:legacyUnion});
+  }
+  sortCellLowerItems(v);
+  delete v.departmentId;
+  delete v.unionId;
+  v.text=typeof v.text==="string"?v.text:"";
+  v.fmt=v.fmt||{};
+  v.fmt.align=v.fmt.align||"left";
+  v.fmt.size=v.fmt.size||16;
+  v.fmt.bold=!!v.fmt.bold;
+  v.fmt.italic=!!v.fmt.italic;
+  return v;
+}
+for(const k of Object.keys(state.cells)){
+  state.cells[k]=normalizeCell(state.cells[k]);
+  // From now on each cell can contain at most one teacher.
+  if(state.cells[k].cards.length>1) state.cells[k].cards=state.cells[k].cards.slice(0,1);
+}
+
+function cellObj(k){
+  if(!state.cells[k]) state.cells[k]=normalizeCell(null);
+  return state.cells[k];
+}
+
+function gcd(a,b){
+  a=Math.abs(a);b=Math.abs(b);
+  while(b)[a,b]=[b,a%b];
+  return a||1;
+}
+
+function fractionKey(n,d){
+  if(n===0)return "0/1";
+  if(n===d)return "1/1";
+  const g=gcd(n,d);
+  return `${n/g}/${d/g}`;
+}
+
+function addMerge(merges,r,c,rowspan=1,colspan=1){
+  if(rowspan<=1 && colspan<=1)return;
+  const root=key(r,c);
+  merges[root]={rowspan,colspan};
+  for(let rr=r;rr<r+rowspan;rr++){
+    for(let cc=c;cc<c+colspan;cc++){
+      const k=key(rr,cc);
+      if(k!==root)merges[k]={root};
+    }
+  }
+}
+
+function designLayout(design){
+  const activePeriods=activeDesignPeriods(design);
+  const fractions=new Map([["0/1",0],["1/1",1]]);
+
+  activePeriods.forEach(period=>{
+    WEEK_DAYS.forEach(day=>{
+      const count=periodCountForDay(period,day);
+      for(let i=1;i<count;i++)fractions.set(fractionKey(i,count),i/count);
+    });
+  });
+
+  const boundaries=[...fractions.entries()]
+    .map(([fraction,value])=>({fraction,value}))
+    .sort((a,b)=>a.value-b.value);
+  const boundaryIndex=new Map(boundaries.map((x,i)=>[x.fraction,i]));
+  const segmentCount=Math.max(1,boundaries.length-1);
+  const merges={};
+  const cells={};
+  const slotRoots=new Map();
+
+  const labelCell=(text,role,size)=>normalizeCell({
+    cards:[],subjectId:null,lowerItems:[],
+    text,locked:true,structureRole:role,
+    fmt:{align:"center",valign:"middle",size,bold:true,italic:false}
+  });
+
+  cells[key(0,0)]=labelCell("Ώρα","corner",15);
+
+  WEEK_DAYS.forEach((day,dayIndex)=>{
+    const startCol=1+dayIndex*segmentCount;
+    cells[key(0,startCol)]=labelCell(day,"day",18);
+    addMerge(merges,0,startCol,1,segmentCount);
+  });
+
+  activePeriods.forEach((period,periodIndex)=>{
+    const row=periodIndex+1;
+    cells[key(row,0)]=labelCell(period.label,"time",16);
+
+    WEEK_DAYS.forEach((day,dayIndex)=>{
+      const dayStart=1+dayIndex*segmentCount;
+      const count=periodCountForDay(period,day);
+      if(count===0){
+        cells[key(row,dayStart)]=labelCell("","inactive-period",12);
+        addMerge(merges,row,dayStart,1,segmentCount);
+      }
+      for(let slot=0;slot<count;slot++){
+        const from=boundaryIndex.get(fractionKey(slot,count));
+        const to=boundaryIndex.get(fractionKey(slot+1,count));
+        const col=dayStart+from;
+        const colspan=Math.max(1,to-from);
+        const root=key(row,col);
+        slotRoots.set(`${period.id}|${dayIndex}|${slot}`,root);
+        addMerge(merges,row,col,1,colspan);
+      }
+    });
+  });
+
+  const dayWidth=435;
+  const baseWidths=[];
+  for(let i=0;i<segmentCount;i++){
+    baseWidths.push(Math.max(10,dayWidth*(boundaries[i+1].value-boundaries[i].value)));
+  }
+
+  // Η στήλη των ωρών μένει σε μία γραμμή και προσαρμόζεται
+  // αυτόματα στο μεγαλύτερο όνομα ώρας.
+  const colWidths=[requiredTimeColumnWidth(design)];
+  WEEK_DAYS.forEach(()=>colWidths.push(...baseWidths));
+
+  return {
+    rows:1+activePeriods.length,
+    cols:1+WEEK_DAYS.length*segmentCount,
+    cells,merges,slotRoots,colWidths,
+    rowHeights:[34,...activePeriods.map(()=>92)]
+  };
+}
+
+function cloneCellForSchedule(value){
+  const copy=normalizeCell(JSON.parse(JSON.stringify(value||{})));
+  delete copy.locked;
+  delete copy.structureRole;
+  return copy;
+}
+
+function stateHasUserData(sourceState=state){
+  return Object.values(sourceState.cells||{}).some(v=>{
+    if(v?.locked)return false;
+    return cellContainsData(v);
+  });
+}
+
+function applyScheduleDesign(nextDesign,{confirmLoss=true,render=true,preserve=true}={}){
+  const normalized=normalizeDesign(nextDesign);
+  const nextLayout=designLayout(normalized);
+  const preserved=new Map();
+  let willLoseData=false;
+
+  if(preserve && state.design){
+    const oldLayout=designLayout(normalizeDesign(state.design));
+    oldLayout.slotRoots.forEach((oldKey,semanticKey)=>{
+      const value=state.cells[oldKey];
+      if(!value || !cellContainsData(value))return;
+      const nextKey=nextLayout.slotRoots.get(semanticKey);
+      if(nextKey)preserved.set(nextKey,cloneCellForSchedule(value));
+      else willLoseData=true;
+    });
+  }else if(preserve && stateHasUserData()){
+    willLoseData=true;
+  }
+
+  if(willLoseData && confirmLoss){
+    const ok=confirm(
+      "Η νέα σχεδίαση αφαιρεί κελιά που περιέχουν δεδομένα.\n\n"+
+      "Οι τοποθετήσεις σε αυτά τα κελιά θα χαθούν. Συνέχεια;"
+    );
+    if(!ok)return false;
+  }
+
+  preserved.forEach((value,k)=>{nextLayout.cells[k]=value});
+
+  state={
+    rows:nextLayout.rows,
+    cols:nextLayout.cols,
+    cells:nextLayout.cells,
+    merges:nextLayout.merges,
+    colWidths:nextLayout.colWidths,
+    rowHeights:nextLayout.rowHeights,
+    design:normalized
+  };
+  scheduleDesign=normalized;
+  activeKey=null;
+  selected.clear();
+  setMode("select");
+  save();
+  // Η αλλαγή της δομής δημιουργεί νέο ασφαλές σημείο αναφοράς για
+  // το ιστορικό των τοποθετήσεων.
+  resetPlacementHistory();
+  if(render)renderAll();
+  return true;
+}
+
+function teacherCount(id){
+  let n=0;
+  for(const v of Object.values(state.cells)) n+=normalizeCell(v).cards.filter(x=>x===id).length;
+  return n;
+}
+
+function teacherUsageDayIndexes(id){
+  const days=new Set();
+  const layout=designLayout(scheduleDesign);
+  layout.slotRoots.forEach((cellKey,semanticKey)=>{
+    const cell=normalizeCell(state.cells[cellKey]);
+    if(!cell.cards.includes(id))return;
+    const dayIndex=Number(semanticKey.split("|")[1]);
+    if(Number.isInteger(dayIndex))days.add(dayIndex);
+  });
+  return [...days].sort((a,b)=>a-b);
+}
+
+function teacherAvailableHours(t){
+  return Math.max(0,Math.floor(Number(t?.availableHours)||0));
+}
+
+function teacherIsOverLimit(t,uses=teacherCount(t.id)){
+  const available=teacherAvailableHours(t);
+  return available>0 && uses>available;
+}
+
+function teacherHoursExactlyMet(t,uses=teacherCount(t.id)){
+  const available=teacherAvailableHours(t);
+  return available>0 && uses===available;
+}
+
+function teacherSidebarStatusHtml(t,uses=teacherCount(t.id)){
+  const available=teacherAvailableHours(t);
+  if(available<=0)return "";
+  if(uses>available){
+    return `<span class="teacher-over-warning" title="Υπέρβαση διαθέσιμων ωρών: ${uses}/${available}">!</span>`;
+  }
+  if(uses===available){
+    return `<span class="teacher-hours-ok" title="Οι διαθέσιμες ώρες καλύφθηκαν ακριβώς: ${uses}/${available}">✓</span>`;
+  }
+  return "";
+}
+
+
+function subjectCount(id){
+  let n=0;
+  for(const v of Object.values(state.cells)){
+    if(normalizeCell(v).subjectId===id)n++;
+  }
+  return n;
+}
+
+function sidebarHighlightKey(type,id){
+  return `${type}:${id}`;
+}
+
+function sidebarHighlightIsActive(type,id){
+  return sidebarHighlights.has(sidebarHighlightKey(type,id));
+}
+
+function toggleSidebarHighlight(type,id,name){
+  const highlightKey=sidebarHighlightKey(type,id);
+  const enabled=!sidebarHighlights.has(highlightKey);
+  if(enabled)sidebarHighlights.add(highlightKey);
+  else sidebarHighlights.delete(highlightKey);
+  renderAll();
+  if(enabled){
+    requestAnimationFrame(()=>scrollBoardToFirstSidebarItem(type,id));
+  }
+  setStatus(enabled ? `Επισήμανση: ${name}` : `Η επισήμανση αφαιρέθηκε: ${name}`);
+}
+
+function cellMatchesSidebarItem(cell,type,id){
+  if(type==="teacher")return cell.cards.includes(id);
+  if(type==="subject")return cell.subjectId===id;
+
+  return cell.lowerItems.some(item=>{
+    if(type==="union")return item.type==="union" && item.id===id;
+    if(type!=="department")return false;
+    if(item.type==="department")return item.id===id;
+    if(item.type!=="union")return false;
+    const union=unions.find(record=>record.id===item.id);
+    return !!union?.departmentIds.includes(id);
+  });
+}
+
+function cellMatchesSidebarHighlights(cell){
+  if(!sidebarHighlights.size)return false;
+  return [...sidebarHighlights].some(highlight=>{
+    const separator=highlight.indexOf(":");
+    const type=highlight.slice(0,separator);
+    const id=highlight.slice(separator+1);
+    return cellMatchesSidebarItem(cell,type,id);
+  });
+}
+
+function scrollBoardToFirstSidebarItem(type,id){
+  const layout=designLayout(scheduleDesign);
+  let firstDay=null;
+
+  layout.slotRoots.forEach((cellKey,semanticKey)=>{
+    if(!cellMatchesSidebarItem(normalizeCell(state.cells[cellKey]),type,id))return;
+    const dayIndex=Number(semanticKey.split("|")[1]);
+    if(Number.isInteger(dayIndex) && (firstDay===null || dayIndex<firstDay)){
+      firstDay=dayIndex;
+    }
+  });
+  if(firstDay===null)return;
+
+  scrollBoardToDay(firstDay);
+}
+
+function scrollBoardToDay(firstDay){
+  if(!Number.isInteger(firstDay) || firstDay<0 || firstDay>=WEEK_DAYS.length)return;
+  const daySegmentCount=(state.cols-1)/WEEK_DAYS.length;
+  if(!Number.isInteger(daySegmentCount))return;
+  const dayHeading=board.querySelector(`[data-key="${key(0,1+firstDay*daySegmentCount)}"]`);
+  const timeHeading=board.querySelector(`[data-key="${key(0,0)}"]`);
+  if(!dayHeading || !timeHeading)return;
+
+  const wrapRect=boardWrap.getBoundingClientRect();
+  const dayRect=dayHeading.getBoundingClientRect();
+  const timeRect=timeHeading.getBoundingClientRect();
+  const targetLeft=boardWrap.scrollLeft+dayRect.left-(wrapRect.left+timeRect.width);
+  boardWrap.scrollTo({left:Math.max(0,targetLeft),behavior:"smooth"});
+}
+
+function fetLinkIconHtml(record){
+  return record?.fet_code
+    ? '<span class="fet-link-icon" title="Συνδεδεμένο με FET" aria-label="Συνδεδεμένο με FET"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 17H7A5 5 0 0 1 7 7h3"></path><path d="M15 7h2a5 5 0 1 1 0 10h-3"></path><path d="M8 12h8"></path></svg></span>'
+    : "";
+}
+
+const SIDEBAR_EDIT_ICON=`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l4.5-1 10-10a2.1 2.1 0 0 0-3-3l-10 10L4 20z"></path><path d="m14.5 7.5 3 3"></path></svg>`;
+const SIDEBAR_DELETE_ICON=`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg>`;
+
+document.querySelectorAll(".section-style-edit").forEach(button=>{
+  button.innerHTML=SIDEBAR_EDIT_ICON;
+  button.setAttribute("aria-label",button.title||"Κοινή μορφοποίηση");
+});
+
+function renderSubjects(){
+  subjectsEl.innerHTML="";
+  document.querySelector("#subjectCount").textContent=`(${subjects.length})`;
+
+  if(!subjects.length){
+    subjectsEl.innerHTML='<div class="hint"><b>Δεν υπάρχουν μαθήματα.</b><br>Πάτησε «+ Νέο μάθημα».</div>';
+    return;
+  }
+
+  subjects.slice().sort((a,b)=>a.name.localeCompare(b.name,"el",{sensitivity:"base"})).forEach(sub=>{
+    const d=document.createElement("div");
+    d.className="subject-item";
+    if(sidebarHighlightIsActive("subject",sub.id))d.classList.add("sidebar-highlight-active");
+    d.draggable=true;
+    const uses=subjectCount(sub.id);
+
+    d.innerHTML=`<span class="name">${esc(sub.name)}</span>
+      <span class="sidebar-item-actions">
+        ${sub.fet_code?"":`<button type="button" class="editSubject sidebar-action-icon edit-icon" title="Επεξεργασία" aria-label="Επεξεργασία">${SIDEBAR_EDIT_ICON}</button>`}
+        <button type="button" class="deleteSubject sidebar-action-icon delete-icon" title="Διαγραφή" aria-label="Διαγραφή">${SIDEBAR_DELETE_ICON}</button>
+      </span>
+      <span class="sidebar-link-row"><span class="sidebar-meta-text">${uses} ${uses===1?"ώρα":"ώρες"}</span>${fetLinkIconHtml(sub)}</span>`;
+
+    const subjectNameEl=d.querySelector(".name");
+    subjectNameEl.style.fontSize=categoryStyles.subject.fontSize+"px";
+    subjectNameEl.style.fontWeight=categoryStyles.subject.bold?"700":"400";
+    subjectNameEl.style.fontStyle=categoryStyles.subject.italic?"italic":"normal";
+    d.addEventListener("dragstart",e=>{
+      if(e.target.closest("button")){
+        e.preventDefault();
+        return;
+      }
+      e.dataTransfer.setData("text/plain","subject:"+sub.id);
+    });
+    d.addEventListener("dblclick",e=>{
+      if(e.target.closest("button"))return;
+      toggleSidebarHighlight("subject",sub.id,sub.name);
+    });
+    d.querySelector(".editSubject")?.addEventListener("click",()=>openSubject(sub.id));
+    d.querySelector(".deleteSubject").addEventListener("click",()=>deleteSubject(sub.id));
+    subjectsEl.appendChild(d);
+  });
+}
+
+
+function departmentCount(id){
+  let n=0;
+  for(const v of Object.values(state.cells)){
+    const c=normalizeCell(v);
+    for(const item of c.lowerItems){
+      if(item.type==="department" && item.id===id)n++;
+      if(item.type==="union"){
+        const u=unions.find(x=>x.id===item.id);
+        if(u && u.departmentIds.includes(id))n++;
+      }
+    }
+  }
+  return n;
+}
+
+function unionUsageCount(id){
+  let n=0;
+  for(const v of Object.values(state.cells)){
+    n+=normalizeCell(v).lowerItems.filter(item=>item.type==="union" && item.id===id).length;
+  }
+  return n;
+}
+
+function findScheduleConflicts(){
+  const conflicts=new Map();
+  const teacherConflictIds=new Set();
+  const groups=new Map();
+  const teacherZonesByDay=new Map();
+  const layout=designLayout(scheduleDesign);
+
+  layout.slotRoots.forEach((cellKey,semanticKey)=>{
+    const [periodId,dayIndex]=semanticKey.split("|");
+    const groupKey=`${periodId}|${dayIndex}`;
+    if(!groups.has(groupKey))groups.set(groupKey,new Set());
+    groups.get(groupKey).add(cellKey);
+
+    const period=PERIOD_DEFINITIONS.find(item=>item.id===periodId);
+    const zone=period?.group==="morning" ? "morning" : "later";
+    const cell=normalizeCell(state.cells[cellKey]);
+    new Set(cell.cards).forEach(teacherId=>{
+      const teacherDayKey=`${dayIndex}|${teacherId}`;
+      if(!teacherZonesByDay.has(teacherDayKey)){
+        teacherZonesByDay.set(teacherDayKey,{teacherId,morning:new Set(),later:new Set()});
+      }
+      teacherZonesByDay.get(teacherDayKey)[zone].add(cellKey);
+    });
+  });
+
+  const addConflict=(cellKey,message)=>{
+    if(!conflicts.has(cellKey))conflicts.set(cellKey,new Set());
+    conflicts.get(cellKey).add(message);
+  };
+
+  groups.forEach(cellKeys=>{
+    const teachersById=new Map();
+    const departmentsById=new Map();
+
+    cellKeys.forEach(cellKey=>{
+      const cell=normalizeCell(state.cells[cellKey]);
+      const teacherIds=new Set(cell.cards);
+      const departmentIds=new Set();
+
+      cell.lowerItems.forEach(item=>{
+        if(item.type==="department")departmentIds.add(item.id);
+        if(item.type==="union"){
+          const union=unions.find(x=>x.id===item.id);
+          union?.departmentIds.forEach(id=>departmentIds.add(id));
+        }
+      });
+
+      teacherIds.forEach(id=>{
+        if(!teachersById.has(id))teachersById.set(id,new Set());
+        teachersById.get(id).add(cellKey);
+      });
+      departmentIds.forEach(id=>{
+        if(!departmentsById.has(id))departmentsById.set(id,new Set());
+        departmentsById.get(id).add(cellKey);
+      });
+    });
+
+    teachersById.forEach((keys,id)=>{
+      if(keys.size<2)return;
+      teacherConflictIds.add(id);
+      const name=teachers.find(x=>x.id===id)?.name || id;
+      keys.forEach(cellKey=>addConflict(cellKey,`Εκπαιδευτικός: ${name}`));
+    });
+    departmentsById.forEach((keys,id)=>{
+      if(keys.size<2)return;
+      const name=departments.find(x=>x.id===id)?.name || id;
+      keys.forEach(cellKey=>addConflict(cellKey,`Τμήμα: ${name}`));
+    });
+  });
+
+  teacherZonesByDay.forEach(entry=>{
+    if(!entry.morning.size || !entry.later.size)return;
+    teacherConflictIds.add(entry.teacherId);
+    const name=teachers.find(x=>x.id===entry.teacherId)?.name || entry.teacherId;
+    [...entry.morning,...entry.later].forEach(cellKey=>{
+      addConflict(cellKey,`Πρωινή Ζώνη και Ολοήμερο/Διευρυμένο: ${name}`);
+    });
+  });
+
+  conflicts.teacherIds=teacherConflictIds;
+  return conflicts;
+}
+
+function cellHasCompleteActivity(cell){
+  const hasTeacher=cell.cards.some(id=>teachers.some(teacher=>teacher.id===id));
+  const hasSubject=subjects.some(subject=>subject.id===cell.subjectId);
+  const hasStudentSet=cell.lowerItems.some(item=>
+    item.type==="department"
+      ? departments.some(department=>department.id===item.id)
+      : unions.some(union=>union.id===item.id)
+  );
+  return hasTeacher && hasSubject && hasStudentSet;
+}
+
+function renderUnions(){
+  unionsEl.innerHTML="";
+  document.querySelector("#unionCount").textContent=`(${unions.length})`;
+
+  if(!unions.length){
+    unionsEl.innerHTML='<div class="hint"><b>Δεν υπάρχουν συνενώσεις.</b><br>Πάτησε «+ Νέα Συνένωση».</div>';
+    return;
+  }
+
+  unions.slice().sort((a,b)=>a.name.localeCompare(b.name,"el",{sensitivity:"base"})).forEach(u=>{
+    const d=document.createElement("div");
+    d.className="union-item";
+    if(sidebarHighlightIsActive("union",u.id))d.classList.add("sidebar-highlight-active");
+    d.draggable=true;
+    const uses=unionUsageCount(u.id);
+    const depNames=u.departmentIds.map(id=>departments.find(x=>x.id===id)?.name).filter(Boolean);
+
+    d.innerHTML=`<span class="name">${esc(u.name)}</span>
+      <span class="sidebar-item-actions">
+        ${u.fet_code?"":`<button type="button" class="editUnion sidebar-action-icon edit-icon" title="Επεξεργασία" aria-label="Επεξεργασία">${SIDEBAR_EDIT_ICON}</button>`}
+        <button type="button" class="deleteUnion sidebar-action-icon delete-icon" title="Διαγραφή" aria-label="Διαγραφή">${SIDEBAR_DELETE_ICON}</button>
+      </span>
+      <span class="sidebar-link-row"><span class="sidebar-meta-text">${depNames.length?esc(depNames.join(" + ")):"Χωρίς τμήματα"} · ${uses} ${uses===1?"ώρα":"ώρες"}</span>${fetLinkIconHtml(u)}</span>`;
+
+    const nameEl=d.querySelector(".name");
+    nameEl.style.fontSize=categoryStyles.union.fontSize+"px";
+    nameEl.style.fontWeight=categoryStyles.union.bold?"700":"400";
+    nameEl.style.fontStyle=categoryStyles.union.italic?"italic":"normal";
+
+    d.addEventListener("dragstart",e=>{
+      if(e.target.closest("button")){
+        e.preventDefault();
+        return;
+      }
+      e.dataTransfer.setData("text/plain","union:"+u.id);
+    });
+    d.addEventListener("dblclick",e=>{
+      if(e.target.closest("button"))return;
+      toggleSidebarHighlight("union",u.id,u.name);
+    });
+    d.querySelector(".editUnion")?.addEventListener("click",()=>openUnion(u.id));
+    d.querySelector(".deleteUnion").addEventListener("click",()=>deleteUnion(u.id));
+    unionsEl.appendChild(d);
+  });
+}
+
+function renderDepartments(){
+  departmentsEl.innerHTML="";
+  document.querySelector("#departmentCount").textContent=`(${departments.length})`;
+
+  if(!departments.length){
+    departmentsEl.innerHTML='<div class="hint"><b>Δεν υπάρχουν τμήματα.</b><br>Πάτησε «+ Νέο τμήμα».</div>';
+    return;
+  }
+
+  departments.slice().sort((a,b)=>a.name.localeCompare(b.name,"el",{sensitivity:"base"})).forEach(dep=>{
+    const d=document.createElement("div");
+    d.className="department-item";
+    if(sidebarHighlightIsActive("department",dep.id))d.classList.add("sidebar-highlight-active");
+    d.draggable=true;
+    const uses=departmentCount(dep.id);
+
+    d.innerHTML=`<span class="name">${esc(dep.name)}</span>
+      <span class="sidebar-item-actions">
+        ${dep.fet_code?"":`<button type="button" class="editDepartment sidebar-action-icon edit-icon" title="Επεξεργασία" aria-label="Επεξεργασία">${SIDEBAR_EDIT_ICON}</button>`}
+        <button type="button" class="deleteDepartment sidebar-action-icon delete-icon" title="Διαγραφή" aria-label="Διαγραφή">${SIDEBAR_DELETE_ICON}</button>
+      </span>
+      <span class="sidebar-link-row"><span class="sidebar-meta-text">${uses} ${uses===1?"ώρα":"ώρες"}</span>${fetLinkIconHtml(dep)}</span>`;
+
+    const departmentNameEl=d.querySelector(".name");
+    departmentNameEl.style.fontSize=categoryStyles.department.fontSize+"px";
+    departmentNameEl.style.fontWeight=categoryStyles.department.bold?"700":"400";
+    departmentNameEl.style.fontStyle=categoryStyles.department.italic?"italic":"normal";
+
+    d.addEventListener("dragstart",e=>{
+      if(e.target.closest("button")){
+        e.preventDefault();
+        return;
+      }
+      e.dataTransfer.setData("text/plain","department:"+dep.id);
+    });
+    d.addEventListener("dblclick",e=>{
+      if(e.target.closest("button"))return;
+      toggleSidebarHighlight("department",dep.id,dep.name);
+    });
+    d.querySelector(".editDepartment")?.addEventListener("click",()=>openDepartment(dep.id));
+    d.querySelector(".deleteDepartment").addEventListener("click",()=>deleteDepartment(dep.id));
+    departmentsEl.appendChild(d);
+  });
+}
+
+function renderTeachers(){
+  templatesEl.innerHTML="";
+  document.querySelector("#teacherCount").textContent=`(${teachers.length})`;
+
+  if(!teachers.length){
+    templatesEl.innerHTML='<div class="hint"><b>Δεν υπάρχουν εκπαιδευτικοί.</b><br>Πάτησε «+ Νέο εκπαιδευτικό».</div>';
+    return;
+  }
+
+  const teacherConflictIds=findScheduleConflicts().teacherIds||new Set();
+
+  teachers.slice().sort((a,b)=>{
+    const groupA=teacherIsGeneralistName(a.name)?0:1;
+    const groupB=teacherIsGeneralistName(b.name)?0:1;
+    return groupA-groupB || a.name.localeCompare(b.name,"el",{sensitivity:"base"});
+  }).forEach(t=>{
+    const d=document.createElement("div");
+    d.className="template";
+    if(sidebarHighlightIsActive("teacher",t.id))d.classList.add("sidebar-highlight-active");
+    if(teacherConflictIds.has(t.id)){
+      d.classList.add("teacher-conflict");
+      d.title="Ο εκπαιδευτικός έχει σύγκρουση στο πρόγραμμα";
+    }
+    d.draggable=true;
+    d.style.background=t.color;
+    d.style.color=textColor(t.color);
+
+    const uses=teacherCount(t.id);
+    const available=teacherAvailableHours(t);
+    const usageText=available>0
+      ? `${uses}/${available} ώρες`
+      : `${uses} ${uses===1?"ώρα":"ώρες"}`;
+    const usageDays=teacherUsageDayIndexes(t.id);
+    const usageDayText=usageDays.map(index=>WEEK_DAY_ABBREVIATIONS[index]).join(", ");
+    const usageDayTitle=usageDays.map(index=>WEEK_DAYS[index]).join(", ");
+
+    const longName=String(t.fet_long_name||"").trim();
+    d.innerHTML=`<span class="name"><span>${esc(t.name)}</span></span>
+      <span class="teacher-actions">
+        ${teacherSidebarStatusHtml(t,uses)}
+        <button type="button" class="editTeacher sidebar-action-icon edit-icon" title="Επεξεργασία" aria-label="Επεξεργασία">${SIDEBAR_EDIT_ICON}</button>
+        <button type="button" class="deleteTeacher sidebar-action-icon delete-icon" title="Διαγραφή" aria-label="Διαγραφή">${SIDEBAR_DELETE_ICON}</button>
+      </span>
+      ${(longName||t.fet_code)?`<span class="teacher-long-row">${longName?`<span class="teacher-long-name" title="Πλήρες όνομα FET">${esc(longName)}</span>`:"<span></span>"}${fetLinkIconHtml(t)}</span>`:""}
+      <small>${usageText}</small>
+      <span class="teacher-days" title="${esc(usageDayTitle)}">${esc(usageDayText)}</span>`;
+
+    const teacherNameEl=d.querySelector(".name");
+    teacherNameEl.style.fontSize=categoryStyles.teacher.fontSize+"px";
+    teacherNameEl.style.fontWeight=categoryStyles.teacher.bold?"700":"400";
+    teacherNameEl.style.fontStyle=categoryStyles.teacher.italic?"italic":"normal";
+    d.addEventListener("dragstart",e=>{
+      if(e.target.closest("button")){
+        e.preventDefault();
+        return;
+      }
+      e.dataTransfer.setData("text/plain","new:"+t.id);
+    });
+    d.addEventListener("dblclick",e=>{
+      if(e.target.closest("button"))return;
+      toggleSidebarHighlight("teacher",t.id,t.name);
+    });
+
+    d.querySelector(".editTeacher").addEventListener("click",()=>openTeacher(t.id));
+    d.querySelector(".deleteTeacher").addEventListener("click",()=>deleteTeacher(t.id));
+    templatesEl.appendChild(d);
+  });
+}
+
+function mergeInfo(r,c){
+  const m=state.merges[key(r,c)];
+  if(m?.root) return {hidden:true,root:m.root};
+  if(m?.rowspan||m?.colspan) return {root:true,rowspan:m.rowspan||1,colspan:m.colspan||1};
+  return null;
+}
+function effectiveRoot(k){
+  if(!k)return null;
+  return state.merges[k]?.root||k;
+}
+
+function safeCellHtml(raw){
+  const template=document.createElement("template");
+  template.innerHTML=String(raw||"");
+
+  const allowed=new Set(["SUP","SUB","B","STRONG","I","EM","U","BR"]);
+
+  function clean(parent){
+    [...parent.childNodes].forEach(node=>{
+      if(node.nodeType===Node.ELEMENT_NODE){
+        if(!allowed.has(node.tagName)){
+          const text=document.createTextNode(node.textContent||"");
+          node.replaceWith(text);
+          return;
+        }
+        [...node.attributes].forEach(attr=>node.removeAttribute(attr.name));
+        clean(node);
+      }
+    });
+  }
+
+  clean(template.content);
+  return template.innerHTML;
+}
+
+function applyTextFormat(el,f){
+  el.style.textAlign=f.align;
+  el.style.fontSize=f.size+"px";
+  el.style.fontWeight=f.bold?"700":"400";
+  el.style.fontStyle=f.italic?"italic":"normal";
+}
+
+function updateToolbar(){
+  // Η μορφοποίηση και η δομή του πίνακα ορίζονται πλέον από τον Σχεδιασμό.
+}
+
+
+function setMode(newMode){
+  mode=newMode;
+}
+
+function hasTeacherOrSubject(obj){
+  return !!(obj.cards.length || obj.subjectId);
+}
+
+function swapTeacherSubjectPair(source,target){
+  const sourceCards=[...source.cards];
+  const sourceSubject=source.subjectId;
+  source.cards=[...target.cards];
+  source.subjectId=target.subjectId;
+  target.cards=sourceCards;
+  target.subjectId=sourceSubject;
+  source.text="";
+  target.text="";
+}
+
+let textMeasureContext=null;
+let rowAutoFitPending=false;
+
+function measuredLabelWidth(text,style,padding=20){
+  if(!textMeasureContext){
+    textMeasureContext=document.createElement("canvas").getContext("2d");
+  }
+  const size=Math.max(8,Number(style?.fontSize)||16);
+  const weight=style?.bold===false?"400":"700";
+  const italic=style?.italic?"italic ":"";
+  textMeasureContext.font=`${italic}${weight} ${size}px system-ui, sans-serif`;
+  return Math.ceil(textMeasureContext.measureText(String(text||"")).width+padding);
+}
+
+function preferredCellWidth(obj){
+  const candidates=[80];
+
+  if(obj.cards.length){
+    const teacher=teachers.find(x=>x.id===obj.cards[0]);
+    if(teacher)candidates.push(measuredLabelWidth(teacher.name,categoryStyles.teacher,34));
+  }
+  if(obj.subjectId){
+    const subject=subjects.find(x=>x.id===obj.subjectId);
+    if(subject)candidates.push(measuredLabelWidth(subject.name,categoryStyles.subject,20));
+  }
+
+  const tagWidths=obj.lowerItems.map(item=>{
+    const record=item.type==="department"
+      ? departments.find(x=>x.id===item.id)
+      : unions.find(x=>x.id===item.id);
+    const style=categoryStyles[item.type==="department"?"department":"union"];
+    return record ? measuredLabelWidth(record.name,style,16) : 0;
+  }).filter(Boolean);
+
+  // Έως τρεις ετικέτες στην ίδια σειρά· οι περισσότερες αναδιπλώνονται
+  // σε επόμενη σειρά και αναλαμβάνει η αυτόματη αύξηση ύψους.
+  if(tagWidths.length){
+    let widestTagRow=0;
+    for(let i=0;i<tagWidths.length;i+=3){
+      const rowWidth=tagWidths.slice(i,i+3).reduce((sum,w)=>sum+w,0)+Math.max(0,Math.min(3,tagWidths.length-i)-1)*4;
+      widestTagRow=Math.max(widestTagRow,rowWidth);
+    }
+    candidates.push(widestTagRow+10);
+  }
+
+  return Math.min(520,Math.max(...candidates));
+}
+
+function autoGrowBoardColumns(){
+  const previousWidths=state.colWidths.slice(0,state.cols).map(Number);
+  if(state.design){
+    // Ξεκινάμε κάθε φορά από τη βασική γεωμετρία του Σχεδιασμού.
+    // Έτσι, όταν ένα μάθημα χωρά όμορφα σε δύο γραμμές ή αφαιρεθεί,
+    // η στήλη μπορεί να μικρύνει ξανά αντί να κρατά παλιό κενό.
+    state.colWidths=designLayout(scheduleDesign).colWidths.slice();
+  }
+  const handled=new Set();
+
+  for(const [k,value] of Object.entries(state.cells)){
+    const root=effectiveRoot(k)||k;
+    if(root!==k || handled.has(root))continue;
+    handled.add(root);
+
+    const obj=normalizeCell(value);
+    if(obj.locked || !cellContainsData(obj))continue;
+    const [,c]=parseKey(root);
+    const colspan=Math.max(1,Number(state.merges[root]?.colspan)||1);
+    const currentWidth=Array.from({length:colspan},(_,i)=>Number(state.colWidths[c+i])||150)
+      .reduce((sum,w)=>sum+w,0);
+    const desiredWidth=preferredCellWidth(obj);
+    if(desiredWidth<=currentWidth+1)continue;
+
+    const extra=(desiredWidth-currentWidth)/colspan;
+    for(let i=0;i<colspan;i++){
+      state.colWidths[c+i]=Math.round(((Number(state.colWidths[c+i])||150)+extra)*100)/100;
+    }
+  }
+  const currentWidths=state.colWidths.slice(0,state.cols).map(Number);
+  return currentWidths.length!==previousWidths.length ||
+    currentWidths.some((width,index)=>Math.abs(width-(previousWidths[index]||0))>0.01);
+}
+
+function scheduleRowAutoFit(){
+  if(rowAutoFitPending)return;
+  rowAutoFitPending=true;
+  requestAnimationFrame(()=>{
+    rowAutoFitPending=false;
+    let changed=false;
+    const baseHeights=state.design
+      ? designLayout(scheduleDesign).rowHeights
+      : Array.from({length:state.rows},(_,r)=>r===0?34:74);
+
+    [...board.querySelectorAll("tr")].forEach((tr,r)=>{
+      // Επανυπολογισμός από το βασικό ύψος, ώστε η γραμμή να μπορεί
+      // τόσο να μεγαλώσει όσο και να ξαναμικρύνει όταν περισσεύει χώρος.
+      let needed=Number(baseHeights[r])||(r===0?34:74);
+      tr.querySelectorAll(".cell-content-stack").forEach(stack=>{
+        const children=[...stack.children];
+        if(!children.length)return;
+        const gap=Number.parseFloat(getComputedStyle(stack).rowGap)||0;
+        const contentHeight=children.reduce(
+          (sum,child)=>sum+Math.max(child.scrollHeight,child.offsetHeight),
+          0
+        )+gap*Math.max(0,children.length-1)+12;
+        needed=Math.max(needed,contentHeight);
+      });
+
+      const fittedHeight=Math.ceil(needed);
+      const currentHeight=Number(state.rowHeights[r])||(r===0?34:74);
+      if(Math.abs(fittedHeight-currentHeight)>1){
+        state.rowHeights[r]=fittedHeight;
+        changed=true;
+      }
+    });
+
+    if(changed){
+      save();
+      renderBoard();
+    }
+  });
+}
+
+function renderBoard(){
+  if(autoGrowBoardColumns())save();
+  const conflictCells=findScheduleConflicts();
+  // Το tbody περιέχει μόνο τις γραμμές.
+  board.innerHTML="";
+
+  // Το colgroup ανήκει στο TABLE, όχι στο tbody.
+  const oldColgroup=boardTable.querySelector("colgroup");
+  if(oldColgroup)oldColgroup.remove();
+
+  const totalBoardWidth=state.colWidths
+    .slice(0,state.cols)
+    .reduce((sum,w)=>sum+(Number(w)||150),0);
+
+  // Το συνολικό πλάτος του πραγματικού TABLE είναι απολύτως σταθερό
+  // και εξαρτάται μόνο από τα αποθηκευμένα πλάτη των στηλών.
+  boardTable.style.width=totalBoardWidth+"px";
+  boardTable.style.minWidth=totalBoardWidth+"px";
+  boardTable.style.maxWidth=totalBoardWidth+"px";
+
+  const colgroup=document.createElement("colgroup");
+  for(let c=0;c<state.cols;c++){
+    const col=document.createElement("col");
+    const w=Number(state.colWidths[c])||150;
+    col.style.width=w+"px";
+    col.setAttribute("width",String(w));
+    colgroup.appendChild(col);
+  }
+  boardTable.insertBefore(colgroup,board);
+
+  const daySegmentCount=(state.cols-1)/WEEK_DAYS.length;
+
+  for(let r=0;r<state.rows;r++){
+    const tr=document.createElement("tr");
+    const activePeriods=activeDesignPeriods(scheduleDesign);
+    if(r>0 && activePeriods[r-1]?.id==="morning"){
+      tr.classList.add("morning-zone-row");
+    }
+    if(r>0 && activePeriods[r-1]?.id==="extended_1"){
+      tr.classList.add("extended-zone-row");
+    }
+
+    for(let c=0;c<state.cols;c++){
+      const k=key(r,c);
+      const mi=mergeInfo(r,c);
+      if(mi?.hidden)continue;
+
+      const td=document.createElement("td");
+      td.dataset.key=k;
+      td.style.height=(state.rowHeights[r]||74)+"px";
+
+      if(mi?.root){td.rowSpan=mi.rowspan;td.colSpan=mi.colspan}
+      const rightEdge=c+(mi?.root ? (mi.colspan||1) : 1);
+      if(
+        c>=1 && rightEdge<state.cols && Number.isInteger(daySegmentCount) &&
+        (rightEdge-1)%daySegmentCount===0
+      ){
+        td.classList.add("day-boundary-right");
+      }
+      if(conflictCells.has(k)){
+        td.classList.add("schedule-conflict");
+        td.title="Σύγκρουση:\n"+[...conflictCells.get(k)].join("\n");
+      }
+
+      const obj=cellObj(k);
+      const cellTeacher=obj.cards?.length
+        ? teachers.find(teacher=>teacher.id===obj.cards[0])
+        : null;
+      if(cellTeacher && !teacherIsGeneralistName(cellTeacher.name)){
+        td.classList.add("specialty-teacher-cell");
+      }
+      const hasOverusedTeacher=obj.cards.some(teacherId=>{
+        const teacher=teachers.find(item=>item.id===teacherId);
+        return teacher && teacherIsOverLimit(teacher);
+      });
+      if(hasOverusedTeacher)td.classList.add("teacher-overused-cell");
+      if(cellMatchesSidebarHighlights(obj))td.classList.add("sidebar-item-highlight");
+      const isLocked=!!obj.locked;
+      if(!isLocked && !cellHasCompleteActivity(obj)){
+        td.classList.add("incomplete-activity");
+      }
+      if(isLocked){
+        td.classList.add("structure-cell");
+        if(obj.structureRole==="day")td.classList.add("day-heading");
+        if(obj.structureRole==="time")td.classList.add("time-heading");
+      }
+
+      const hasLower=obj.lowerItems.length>0;
+      const hasStructured=!!(obj.cards.length || obj.subjectId || hasLower);
+      let teacherSlot=null, subjectSlot=null, lowerSlot=null;
+
+      if(hasStructured){
+        const stack=document.createElement("div");
+        stack.className="cell-content-stack";
+
+        // If a lower level exists, keep all preceding positions reserved,
+        // even when Teacher or Subject is missing.
+        if(obj.cards.length || obj.subjectId || hasLower){
+          teacherSlot=document.createElement("div");
+          teacherSlot.className="teacher-slot";
+          stack.appendChild(teacherSlot);
+        }
+        if(obj.subjectId || hasLower){
+          subjectSlot=document.createElement("div");
+          subjectSlot.className="subject-slot";
+          stack.appendChild(subjectSlot);
+        }
+        if(hasLower){
+          lowerSlot=document.createElement("div");
+          lowerSlot.className="lower-slot";
+          lowerSlot.dataset.printShort=obj.lowerItems.map(item=>{
+            const record=item.type==="department"
+              ? departments.find(x=>x.id===item.id)
+              : unions.find(x=>x.id===item.id);
+            return record?.name||"";
+          }).filter(Boolean).join(", ");
+          stack.appendChild(lowerSlot);
+        }
+
+        td.appendChild(stack);
+      }
+
+      for(let i=0;i<obj.cards.length;i++){
+        const id=obj.cards[i];
+        const t=teachers.find(x=>x.id===id);
+        if(!t)continue;
+
+        const card=document.createElement("span");
+        card.className="card";
+        card.style.display="flex";
+        card.style.alignItems="center";
+        card.style.justifyContent="center";
+        card.style.width="100%";
+        card.style.position="relative";
+        card.dataset.printShort=teacherPrintShortName(t);
+
+        const teacherName=document.createElement("span");
+        teacherName.textContent=t.name;
+        teacherName.style.minWidth="0";
+        teacherName.style.width="100%";
+        teacherName.style.textAlign="center";
+        card.appendChild(teacherName);
+
+        const uses=teacherCount(t.id);
+        if(teacherIsOverLimit(t,uses)){
+          const warning=document.createElement("span");
+          warning.className="teacher-over-warning";
+          warning.textContent="!";
+          warning.title=`Υπέρβαση διαθέσιμων ωρών: ${uses}/${teacherAvailableHours(t)}`;
+          warning.style.position="absolute";
+          warning.style.right="6px";
+          warning.style.marginLeft="0";
+          warning.style.paddingLeft="0";
+          card.appendChild(warning);
+        }
+        card.style.background=t.color;
+        card.style.color=textColor(t.color);
+        card.style.fontSize=categoryStyles.teacher.fontSize+"px";
+        card.style.fontWeight=categoryStyles.teacher.bold?"700":"400";
+        card.style.fontStyle=categoryStyles.teacher.italic?"italic":"normal";
+        card.draggable=true;
+        card.title="Σύρε σε άλλο κελί για ανταλλαγή του ζευγαριού εκπαιδευτικός + μάθημα. Με Ctrl αντικαθίσταται μόνο ο εκπαιδευτικός στο νέο κελί. Διπλό κλικ για αφαίρεση.";
+
+        card.addEventListener("dblclick",e=>{
+          e.preventDefault();
+          e.stopPropagation();
+          const source=cellObj(k);
+          const index=source.cards.indexOf(id);
+          if(index!==-1)source.cards.splice(index,1);
+          save();
+          renderAll();
+          setStatus("Ο εκπαιδευτικός αφαιρέθηκε από το κελί");
+        });
+
+        card.addEventListener("dragstart",e=>{
+          e.stopPropagation();
+          movingCard={sourceKey:k,index:i,id};
+          cardDroppedOnTable=false;
+          e.dataTransfer.effectAllowed="copyMove";
+          e.dataTransfer.setData("text/plain",`move:${k}:${i}:${id}`);
+        });
+
+        card.addEventListener("dragend",()=>{
+          if(movingCard && !cardDroppedOnTable){
+            const source=cellObj(movingCard.sourceKey);
+            const idx=source.cards.indexOf(movingCard.id);
+            if(idx!==-1) source.cards.splice(idx,1);
+            save();
+            renderAll();
+            setStatus("Η τοποθέτηση του εκπαιδευτικού αφαιρέθηκε");
+          }
+          movingCard=null;
+          cardDroppedOnTable=false;
+        });
+
+        (teacherSlot||td).appendChild(card);
+      }
+
+      if(obj.subjectId){
+        const sub=subjects.find(x=>x.id===obj.subjectId);
+        if(sub){
+          const st=document.createElement("div");
+          st.className="subject-text";
+          st.textContent=sub.name;
+          st.dataset.printShort=subjectPrintShortName(sub.name);
+          st.style.fontSize=categoryStyles.subject.fontSize+"px";
+          st.style.fontWeight=categoryStyles.subject.bold?"700":"400";
+          st.style.fontStyle=categoryStyles.subject.italic?"italic":"normal";
+          st.draggable=true;
+          st.title="Σύρε σε άλλο κελί για ανταλλαγή του ζευγαριού εκπαιδευτικός + μάθημα. Με Ctrl αντικαθίσταται μόνο το μάθημα στο νέο κελί. Διπλό κλικ για αφαίρεση.";
+          st.addEventListener("mousedown",e=>e.stopPropagation());
+          st.addEventListener("click",e=>e.stopPropagation());
+          st.addEventListener("dblclick",e=>{
+            e.preventDefault();
+            e.stopPropagation();
+            if(cellObj(k).subjectId===sub.id)cellObj(k).subjectId=null;
+            save();
+            renderAll();
+            setStatus("Το μάθημα αφαιρέθηκε από το κελί");
+          });
+          st.addEventListener("dragstart",e=>{
+            e.stopPropagation();
+            subjectDroppedOnTable=false;
+            e.dataTransfer.effectAllowed="copyMove";
+            e.dataTransfer.setData("text/plain",`movesubject:${k}:${sub.id}`);
+          });
+          st.addEventListener("dragend",()=>{
+            if(!subjectDroppedOnTable && cellObj(k).subjectId===sub.id){
+              cellObj(k).subjectId=null;
+              save();renderAll();
+              setStatus("Το μάθημα αφαιρέθηκε από το κελί");
+            }
+            subjectDroppedOnTable=false;
+          });
+          (subjectSlot||td).appendChild(st);
+        }
+      }
+
+      obj.lowerItems.forEach((item,itemIndex)=>{
+        const isDepartment=item.type==="department";
+        const record=isDepartment
+          ? departments.find(x=>x.id===item.id)
+          : unions.find(x=>x.id===item.id);
+        if(!record)return;
+
+        const tag=document.createElement("div");
+        tag.className=`lower-tag ${isDepartment?"department-text":"union-text"}`;
+        tag.textContent=record.name;
+        tag.dataset.printShort=fourLetterPrintName(record.name);
+        const style=categoryStyles[isDepartment?"department":"union"];
+        tag.style.fontSize=style.fontSize+"px";
+        tag.style.fontWeight=style.bold?"700":"400";
+        tag.style.fontStyle=style.italic?"italic":"normal";
+        tag.draggable=true;
+        tag.title="Σύρε σε άλλο κελί για μετακίνηση, με Ctrl για αντιγραφή ή έξω από τον πίνακα για διαγραφή. Διπλό κλικ για αφαίρεση.";
+        tag.addEventListener("mousedown",e=>e.stopPropagation());
+        tag.addEventListener("click",e=>e.stopPropagation());
+        tag.addEventListener("dblclick",e=>{
+          e.preventDefault();
+          e.stopPropagation();
+          const source=cellObj(k);
+          const index=source.lowerItems.findIndex(x=>x.type===item.type && x.id===item.id);
+          if(index!==-1)source.lowerItems.splice(index,1);
+          save();
+          renderAll();
+          setStatus(isDepartment?"Το τμήμα αφαιρέθηκε από το κελί":"Η συνένωση αφαιρέθηκε από το κελί");
+        });
+        tag.addEventListener("dragstart",e=>{
+          e.stopPropagation();
+          if(isDepartment)departmentDroppedOnTable=false;
+          else unionDroppedOnTable=false;
+          e.dataTransfer.effectAllowed="copyMove";
+          e.dataTransfer.setData(
+            "text/plain",
+            `${isDepartment?"movedepartment":"moveunion"}:${k}:${itemIndex}:${item.id}`
+          );
+        });
+        tag.addEventListener("dragend",()=>{
+          const wasDropped=isDepartment?departmentDroppedOnTable:unionDroppedOnTable;
+          if(!wasDropped){
+            const source=cellObj(k);
+            const index=source.lowerItems.findIndex(x=>x.type===item.type && x.id===item.id);
+            if(index!==-1)source.lowerItems.splice(index,1);
+            save();renderAll();
+            setStatus(isDepartment?"Το τμήμα αφαιρέθηκε από το κελί":"Η συνένωση αφαιρέθηκε από το κελί");
+          }
+          if(isDepartment)departmentDroppedOnTable=false;
+          else unionDroppedOnTable=false;
+        });
+        (lowerSlot||td).appendChild(tag);
+      });
+
+      if(obj.cards.length===0 && !obj.subjectId && obj.lowerItems.length===0){
+        const txt=document.createElement("div");
+        txt.className="cell-text valign-"+(obj.fmt.valign||"top");
+        const htmlWrap=document.createElement("span");
+        htmlWrap.className="cell-html";
+        htmlWrap.innerHTML=safeCellHtml(obj.text);
+        txt.appendChild(htmlWrap);
+        applyTextFormat(txt,obj.fmt);
+        td.appendChild(txt);
+      }
+
+      td.addEventListener("dragover",e=>{
+        e.preventDefault();
+        if(isLocked){
+          e.dataTransfer.dropEffect="none";
+          return;
+        }
+        e.dataTransfer.dropEffect=e.ctrlKey?"copy":"move";
+        td.classList.add("drop");
+      });
+      td.addEventListener("dragleave",()=>td.classList.remove("drop"));
+      td.addEventListener("drop",e=>{
+        e.preventDefault();
+        td.classList.remove("drop");
+        if(isLocked){
+          cardDroppedOnTable=true;
+          subjectDroppedOnTable=true;
+          departmentDroppedOnTable=true;
+          unionDroppedOnTable=true;
+          setStatus("Οι επικεφαλίδες του πίνακα δεν δέχονται τοποθετήσεις");
+          return;
+        }
+        const data=e.dataTransfer.getData("text/plain").split(":");
+        const target=cellObj(k);
+        const copyInsteadOfMove=e.ctrlKey;
+        let pairWasSwapped=false;
+        let itemWasReplaced=false;
+
+        if(data[0]==="new"){
+          target.cards=[data[1]];
+          target.text="";
+          cardDroppedOnTable=true;
+        }else if(data[0]==="move"){
+          const old=data[1],id=data[3];
+          const source=cellObj(old);
+          if(!copyInsteadOfMove && old!==k && hasTeacherOrSubject(target)){
+            swapTeacherSubjectPair(source,target);
+            pairWasSwapped=true;
+          }else if(!copyInsteadOfMove && old!==k){
+            const oldIndex=source.cards.indexOf(id);
+            if(oldIndex!==-1) source.cards.splice(oldIndex,1);
+            target.cards=[id];
+            target.text="";
+          }else if(copyInsteadOfMove && old!==k){
+            target.cards=[id];
+            target.text="";
+            itemWasReplaced=true;
+          }
+          cardDroppedOnTable=true;
+        }else if(data[0]==="subject"){
+          target.subjectId=data[1];
+          target.text="";
+          subjectDroppedOnTable=true;
+        }else if(data[0]==="movesubject"){
+          const old=data[1],id=data[2];
+          const source=cellObj(old);
+          subjectDroppedOnTable=true;
+          if(!copyInsteadOfMove && old!==k && hasTeacherOrSubject(target)){
+            swapTeacherSubjectPair(source,target);
+            pairWasSwapped=true;
+          }else if(!copyInsteadOfMove && old!==k){
+            if(source.subjectId===id)source.subjectId=null;
+            target.subjectId=id;
+            target.text="";
+          }else if(copyInsteadOfMove && old!==k){
+            target.subjectId=id;
+            target.text="";
+            itemWasReplaced=true;
+          }
+        }else if(data[0]==="department"){
+          if(!target.lowerItems.some(item=>item.type==="department" && item.id===data[1])){
+            target.lowerItems.push({type:"department",id:data[1]});
+          }
+          target.text="";
+          departmentDroppedOnTable=true;
+        }else if(data[0]==="movedepartment"){
+          const old=data[1],id=data[3];
+          departmentDroppedOnTable=true;
+          if(!copyInsteadOfMove && old!==k){
+            const source=cellObj(old);
+            const oldIndex=source.lowerItems.findIndex(item=>item.type==="department" && item.id===id);
+            if(oldIndex!==-1)source.lowerItems.splice(oldIndex,1);
+          }
+          if(!target.lowerItems.some(item=>item.type==="department" && item.id===id)){
+            target.lowerItems.push({type:"department",id});
+          }
+          target.text="";
+        }else if(data[0]==="union"){
+          if(!target.lowerItems.some(item=>item.type==="union" && item.id===data[1])){
+            target.lowerItems.push({type:"union",id:data[1]});
+          }
+          target.text="";
+          unionDroppedOnTable=true;
+        }else if(data[0]==="moveunion"){
+          const old=data[1],id=data[3];
+          unionDroppedOnTable=true;
+          if(!copyInsteadOfMove && old!==k){
+            const source=cellObj(old);
+            const oldIndex=source.lowerItems.findIndex(item=>item.type==="union" && item.id===id);
+            if(oldIndex!==-1)source.lowerItems.splice(oldIndex,1);
+          }
+          if(!target.lowerItems.some(item=>item.type==="union" && item.id===id)){
+            target.lowerItems.push({type:"union",id});
+          }
+          target.text="";
+        }
+        save();renderAll();
+        if(pairWasSwapped)setStatus("Ανταλλάχθηκαν ο εκπαιδευτικός και το μάθημα των δύο κελιών");
+        else if(itemWasReplaced)setStatus("Έγινε αντικατάσταση στο νέο κελί με Ctrl");
+      });
+
+      tr.appendChild(td);
+    }
+    board.appendChild(tr);
+  }
+  applyBoardZoom();
+  updateToolbar();
+  scheduleRowAutoFit();
+}
+
+function renderAll(){
+  renderTeachers();
+  renderSubjects();
+  renderDepartments();
+  renderUnions();
+  renderBoard();
+  updateEmptyProjectDrop();
+  updateFileIndicators();
+  updateUsageSummary();
+}
+
+function updateUsageSummary(){
+  let generalistUsed=0;
+  let generalistAvailable=0;
+  let specialtyUsed=0;
+  let specialtyAvailable=0;
+
+  teachers.forEach(teacher=>{
+    const used=teacherCount(teacher.id);
+    const available=teacherAvailableHours(teacher);
+    if(teacherIsGeneralistName(teacher.name)){
+      generalistUsed+=used;
+      generalistAvailable+=available;
+    }else{
+      specialtyUsed+=used;
+      specialtyAvailable+=available;
+    }
+  });
+
+  const layout=designLayout(scheduleDesign);
+  const programCells=[...new Set(layout.slotRoots.values())];
+  const completedCells=programCells.reduce((count,cellKey)=>
+    count+(cellHasCompleteActivity(normalizeCell(state.cells[cellKey]))?1:0),0
+  );
+
+  const teacherConflictIds=findScheduleConflicts().teacherIds||new Set();
+  const hasGeneralistConflict=teachers.some(teacher=>
+    teacherIsGeneralistName(teacher.name) && teacherConflictIds.has(teacher.id)
+  );
+  const hasSpecialtyConflict=teachers.some(teacher=>
+    !teacherIsGeneralistName(teacher.name) && teacherConflictIds.has(teacher.id)
+  );
+
+  const generalistValue=document.querySelector("#generalistUsage");
+  const specialtyValue=document.querySelector("#specialtyUsage");
+  const programValue=document.querySelector("#programUsage");
+  generalistValue.textContent=`${generalistUsed}/${generalistAvailable}`;
+  specialtyValue.textContent=`${specialtyUsed}/${specialtyAvailable}`;
+  document.querySelector("#combinedTeacherUsage").textContent=`${generalistUsed+specialtyUsed}/${generalistAvailable+specialtyAvailable}`;
+  programValue.textContent=`${completedCells}/${programCells.length}`;
+
+  const generalistRow=generalistValue.closest(".usage-summary-row");
+  const specialtyRow=specialtyValue.closest(".usage-summary-row");
+  generalistRow.classList.toggle("status-error",hasGeneralistConflict);
+  specialtyRow.classList.toggle("status-error",hasSpecialtyConflict);
+  generalistRow.title=hasGeneralistConflict?"Κλικ για μετάβαση στην πρώτη σύγκρουση δασκάλου":"";
+  specialtyRow.title=hasSpecialtyConflict?"Κλικ για μετάβαση στην πρώτη σύγκρουση ειδικότητας":"";
+  const programRow=programValue.closest(".usage-summary-row");
+  const programComplete=programCells.length>0 && completedCells===programCells.length;
+  programRow.classList.toggle("status-error",!programComplete);
+  programRow.title=!programComplete?"Κλικ για μετάβαση στο πρώτο ελλιπές κελί":"";
+}
+
+function firstSummaryProblemDay(kind){
+  const layout=designLayout(scheduleDesign);
+  const conflicts=findScheduleConflicts();
+  const teacherConflictIds=conflicts.teacherIds||new Set();
+  let firstDay=null;
+
+  layout.slotRoots.forEach((cellKey,semanticKey)=>{
+    const dayIndex=Number(semanticKey.split("|")[1]);
+    if(!Number.isInteger(dayIndex))return;
+    const cell=normalizeCell(state.cells[cellKey]);
+    let problem=false;
+
+    if(kind==="program"){
+      problem=!cellHasCompleteActivity(cell);
+    }else if(conflicts.has(cellKey)){
+      problem=cell.cards.some(teacherId=>{
+        if(!teacherConflictIds.has(teacherId))return false;
+        const teacher=teachers.find(item=>item.id===teacherId);
+        if(!teacher)return false;
+        const isGeneralist=teacherIsGeneralistName(teacher.name);
+        return kind==="generalist" ? isGeneralist : !isGeneralist;
+      });
+    }
+
+    if(problem && (firstDay===null || dayIndex<firstDay))firstDay=dayIndex;
+  });
+  return firstDay;
+}
+
+function openFirstSummaryProblem(kind,label){
+  const valueId=kind==="generalist"?"generalistUsage":kind==="specialty"?"specialtyUsage":"programUsage";
+  const row=document.querySelector(`#${valueId}`).closest(".usage-summary-row");
+  if(!row.classList.contains("status-error"))return;
+  const dayIndex=firstSummaryProblemDay(kind);
+  if(dayIndex===null)return;
+  scrollBoardToDay(dayIndex);
+  setStatus(`${label}: πρώτο πρόβλημα — ${WEEK_DAYS[dayIndex]}`);
+}
+
+document.querySelector("#generalistUsage").closest(".usage-summary-row").addEventListener("click",()=>{
+  openFirstSummaryProblem("generalist","Δάσκαλοι");
+});
+document.querySelector("#specialtyUsage").closest(".usage-summary-row").addEventListener("click",()=>{
+  openFirstSummaryProblem("specialty","Ειδικότητες");
+});
+document.querySelector("#programUsage").closest(".usage-summary-row").addEventListener("click",()=>{
+  openFirstSummaryProblem("program","Πρόγραμμα");
+});
+
+function updateEmptyProjectDrop(){
+  emptyProjectDrop.classList.toggle("visible",!stateHasUserData());
+}
+
+function updateFileIndicators(){
+  const fetState=document.querySelector("#fetFileState");
+  const csvState=document.querySelector("#csvFileState");
+  const fetName=loadedFetSourceFile?.name||"";
+  fetState.textContent=`FET: ${fetName||"όχι"}`;
+  fetState.className=`file-state ${fetName?"ok":"warn"}`;
+  fetState.title=fetName
+    ? `Φορτωμένο FET: ${fetName} — πατήστε για αντικατάσταση`
+    : "Πατήστε για φόρτωση αρχείου FET";
+  csvState.textContent=`CSV: ${loadedCsvSourceName||"όχι"}`;
+  csvState.className=`file-state ${loadedCsvSourceName?"ok":"warn"}`;
+  csvState.title=loadedCsvSourceName
+    ? `Φορτωμένο CSV: ${loadedCsvSourceName} — πατήστε για αντικατάσταση`
+    : "Πατήστε για φόρτωση αρχείου CSV";
+}
+
+function clearSelectionAfterStructure(message){
+  activeKey=null;
+  selected.clear();
+  save();
+  renderAll();
+  setStatus(message);
+}
+
+const SECTION_STYLE_META={
+  teacher:{title:"Εκπαιδευτικοί"},
+  subject:{title:"Μαθήματα"},
+  department:{title:"Τμήματα"},
+  union:{title:"Συνενώσεις"}
+};
+
+function openSectionStyle(section){
+  if(!SECTION_STYLE_META[section])return;
+  editingSectionStyle=section;
+  const f=categoryStyles[section];
+  document.querySelector("#sectionStyleTitle").textContent=`Μορφοποίηση — ${SECTION_STYLE_META[section].title}`;
+  document.querySelector("#sectionFontSize").value=f.fontSize;
+  document.querySelector("#sectionBold").checked=f.bold;
+  document.querySelector("#sectionItalic").checked=f.italic;
+  sectionStyleDialog.showModal();
+}
+
+document.querySelectorAll(".section-style-edit").forEach(btn=>{
+  btn.addEventListener("click",()=>openSectionStyle(btn.dataset.section));
+});
+
+document.querySelector("#sectionStyleForm").addEventListener("submit",e=>{
+  e.preventDefault();
+  if(!editingSectionStyle)return;
+
+  categoryStyles[editingSectionStyle]={
+    fontSize:Math.max(8,Math.min(48,Number(document.querySelector("#sectionFontSize").value)||16)),
+    bold:document.querySelector("#sectionBold").checked,
+    italic:document.querySelector("#sectionItalic").checked
+  };
+
+  syncSharedStylesToItems();
+  save();
+  sectionStyleDialog.close();
+  renderAll();
+  setStatus(`Εφαρμόστηκε κοινή μορφοποίηση: ${SECTION_STYLE_META[editingSectionStyle].title}`);
+});
+
+document.querySelector("#cancelSectionStyle").addEventListener("click",()=>sectionStyleDialog.close());
+
+function setFetLinkedNameState(inputId,noteId,record){
+  const input=document.querySelector(`#${inputId}`);
+  const linked=!!record?.fet_code;
+  input.disabled=linked;
+  input.classList.toggle("fet-linked-name",linked);
+  document.querySelector(`#${noteId}`).hidden=!linked;
+}
+
+function openTeacher(id=null){
+  editingTeacher=id;
+  const t=id?teachers.find(x=>x.id===id):null;
+  document.querySelector("#dlgTitle").textContent=t?"Επεξεργασία εκπαιδευτικού":"Νέος εκπαιδευτικός";
+  document.querySelector("#teacherName").value=t?t.name:"";
+  setFetLinkedNameState("teacherName","teacherFetLinkNote",t);
+  document.querySelector("#teacherColor").value=t?t.color:"#a8d8ff";
+  const availableHoursInput=document.querySelector("#teacherAvailableHours");
+  availableHoursInput.value=t?teacherAvailableHours(t):0;
+  const fetHours=document.querySelector("#teacherFetHours");
+  const linkedFetHours=normalizedFetHours(t?.fet_hours);
+  const hasFetHours=linkedFetHours!==null;
+  availableHoursInput.max=hasFetHours?String(linkedFetHours):"99";
+  fetHours.hidden=!hasFetHours;
+  fetHours.textContent=hasFetHours?`/ ${linkedFetHours}`:"";
+  dialog.showModal();
+}
+
+document.querySelector("#teacherForm").addEventListener("submit",e=>{
+  e.preventDefault();
+  const name=document.querySelector("#teacherName").value.trim();
+  if(!name)return;
+  const color=document.querySelector("#teacherColor").value;
+  const availableHours=Math.max(
+    0,
+    Math.floor(Number(document.querySelector("#teacherAvailableHours").value)||0)
+  );
+  if(editingTeacher){
+    const t=teachers.find(x=>x.id===editingTeacher);
+    if(t){
+      if(!t.fet_code)t.name=name;
+      t.color=color;
+      t.availableHours=availableHours;
+      Object.assign(t,categoryStyles.teacher);
+    }
+  }else{
+    teachers.push({
+      id:crypto.randomUUID(),
+      name,
+      color,
+      availableHours,
+      ...categoryStyles.teacher
+    });
+  }
+  save();
+  dialog.close();
+  renderAll();
+  setStatus("Οι αλλαγές του εκπαιδευτικού εφαρμόστηκαν αμέσως");
+});
+document.querySelector("#cancelTeacher").addEventListener("click",()=>dialog.close());
+document.querySelector("#newTeacher").addEventListener("click",()=>openTeacher());
+
+function csvDelimiter(text){
+  const firstLine=String(text).split(/\r?\n/,1)[0]||"";
+  let commas=0,semicolons=0,inQuotes=false;
+  for(let i=0;i<firstLine.length;i++){
+    const ch=firstLine[i];
+    if(ch==='"'){
+      if(inQuotes && firstLine[i+1]==='"')i++;
+      else inQuotes=!inQuotes;
+    }else if(!inQuotes && ch===",")commas++;
+    else if(!inQuotes && ch===";")semicolons++;
+  }
+  return semicolons>commas ? ";" : ",";
+}
+
+function parseCsv(text){
+  const source=String(text||"").replace(/^\uFEFF/,"");
+  const delimiter=csvDelimiter(source);
+  const rows=[];
+  let row=[],field="",inQuotes=false;
+
+  for(let i=0;i<source.length;i++){
+    const ch=source[i];
+    if(inQuotes){
+      if(ch==='"'){
+        if(source[i+1]==='"'){
+          field+='"';
+          i++;
+        }else{
+          inQuotes=false;
+        }
+      }else{
+        field+=ch;
+      }
+    }else if(ch==='"' && field===""){
+      inQuotes=true;
+    }else if(ch===delimiter){
+      row.push(field);
+      field="";
+    }else if(ch==="\n" || ch==="\r"){
+      if(ch==="\r" && source[i+1]==="\n")i++;
+      row.push(field);
+      if(row.some(value=>value!==""))rows.push(row);
+      row=[];
+      field="";
+    }else{
+      field+=ch;
+    }
+  }
+
+  if(field!=="" || row.length){
+    row.push(field);
+    if(row.some(value=>value!==""))rows.push(row);
+  }
+  return rows;
+}
+
+function normalizedTeacherName(name){
+  return String(name||"").normalize("NFC").trim().toLocaleLowerCase("el-GR");
+}
+
+function teacherIsGeneralistName(name){
+  const pePrefix=/^\[ΠΕ[^\]]*\]\s*-\s*/iu;
+  const pe70Prefix=/^\[ΠΕ70\]\s*-\s*/iu;
+  return pe70Prefix.test(name) || !pePrefix.test(name);
+}
+
+function importedTeacherColor(name){
+  return teacherIsGeneralistName(name) ? "#fff2a8" : "#bfe3ff";
+}
+
+function withoutGreekTones(value){
+  return String(value||"").normalize("NFD").replace(/\p{M}+/gu,"").normalize("NFC");
+}
+
+function fourLetterPrintName(value){
+  const normalized=withoutGreekTones(value).toLocaleUpperCase("el-GR");
+  const words=normalized.match(/[\p{L}\p{N}]+/gu)||[];
+  if(words.length>=2){
+    return words
+      .map((word,index)=>[...word].slice(0,index===0?3:2).join("")+".")
+      .join("");
+  }
+  const letters=[...normalized].filter(character=>/\p{L}/u.test(character));
+  return letters.slice(0,4).join("") || String(value||"");
+}
+
+function subjectPrintShortName(value){
+  const normalized=withoutGreekTones(value).toLocaleUpperCase("el-GR");
+  const words=normalized.match(/[\p{L}\p{N}]+/gu)||[];
+  if(words.length!==1)return fourLetterPrintName(value);
+  const letters=[...words[0]];
+  const shortName=letters.slice(0,6).join("");
+  return shortName+(letters.length>6?".":"");
+}
+
+function teacherPrintShortName(teacher){
+  const longName=String(teacher?.fet_long_name||"").trim();
+  if(!longName)return teacher?.name||"";
+  const words=longName.match(/[\p{L}\p{M}]+/gu)||[];
+  return words
+    .map(word=>[...withoutGreekTones(word).toLocaleUpperCase("el-GR")].slice(0,3).join("")+".")
+    .join("");
+}
+
+let pendingMissingFetTeachers=[];
+
+function teachersMissingFromDesigner(fetTeachers){
+  const designerCodes=new Set(
+    teachers.map(teacher=>normalizedEntityName(teacher.fet_code)).filter(Boolean)
+  );
+  const designerNames=new Set(
+    teachers.map(teacher=>normalizedEntityName(teacher.name)).filter(Boolean)
+  );
+  return fetTeachers.filter(reference=>{
+    const code=normalizedEntityName(reference.code);
+    const name=normalizedEntityName(reference.name);
+    return !((code && designerCodes.has(code)) || (name && designerNames.has(name)));
+  });
+}
+
+async function showMissingFetTeachers(file){
+  try{
+    const reference=parseFetReferenceData(await file.text());
+    const missing=teachersMissingFromDesigner(reference.teachers);
+    const allFetTeacherIndexes=fetReferenceIndexes(reference.teachers);
+    loadedFetSourceFile=file;
+    updateFileIndicators();
+
+    if(!missing.length){
+      alert(`Όλοι οι εκπαιδευτικοί του FET «${file.name}» υπάρχουν ήδη στον Designer.`);
+      setStatus("Δεν βρέθηκαν νέοι εκπαιδευτικοί στο FET");
+      return;
+    }
+
+    pendingMissingFetTeachers=missing.map(teacher=>({
+      ...teacher,
+      codeIsUnique:!!teacher.code &&
+        allFetTeacherIndexes.byCode.get(normalizedEntityName(teacher.code))?.length===1
+    }));
+    const list=document.querySelector("#fetTeacherImportList");
+    list.innerHTML=missing.map((teacher,index)=>{
+      const meta=[];
+      if(teacher.longName)meta.push(`Πλήρες όνομα: ${esc(teacher.longName)}`);
+      if(teacher.code)meta.push(`CODE: ${esc(teacher.code)}`);
+      else meta.push("Χωρίς CODE");
+      return `<label class="fet-teacher-choice">
+        <input type="checkbox" data-fet-teacher-index="${index}" checked>
+        <span class="fet-teacher-choice-main">
+          <span class="fet-teacher-choice-name">${esc(teacher.name)}</span>
+          <span class="fet-teacher-choice-meta">${meta.join(" · ")}</span>
+        </span>
+      </label>`;
+    }).join("");
+    document.querySelector("#selectAllFetTeachers").checked=true;
+    document.querySelector("#missingFetTeacherCount").textContent=`${missing.length} διαθέσιμοι`;
+    document.querySelector("#fetTeacherImportDialog").showModal();
+  }catch(error){
+    alert("Το αρχείο FET δεν μπορεί να διαβαστεί.\n\n"+(error?.message||String(error)));
+  }
+}
+
+document.querySelector("#importTeachers").addEventListener("click",async()=>{
+  if(loadedFetSourceFile){
+    await showMissingFetTeachers(loadedFetSourceFile);
+  }else{
+    document.querySelector("#teachersFetFile").click();
+  }
+});
+
+document.querySelector("#teachersFetFile").addEventListener("change",async e=>{
+  const file=e.target.files?.[0];
+  if(file)await showMissingFetTeachers(file);
+  e.target.value="";
+});
+
+document.querySelector("#selectAllFetTeachers").addEventListener("change",e=>{
+  document.querySelectorAll("[data-fet-teacher-index]").forEach(checkbox=>{
+    checkbox.checked=e.target.checked;
+  });
+});
+
+document.querySelector("#fetTeacherImportList").addEventListener("change",()=>{
+  const checkboxes=[...document.querySelectorAll("[data-fet-teacher-index]")];
+  document.querySelector("#selectAllFetTeachers").checked=
+    !!checkboxes.length && checkboxes.every(checkbox=>checkbox.checked);
+});
+
+document.querySelector("#cancelFetTeacherImport").addEventListener("click",()=>{
+  pendingMissingFetTeachers=[];
+  document.querySelector("#fetTeacherImportDialog").close();
+});
+
+document.querySelector("#fetTeacherImportForm").addEventListener("submit",e=>{
+  e.preventDefault();
+  const selectedIndexes=[...document.querySelectorAll("[data-fet-teacher-index]:checked")]
+    .map(checkbox=>Number(checkbox.dataset.fetTeacherIndex))
+    .filter(Number.isInteger);
+  let added=0;
+
+  selectedIndexes.forEach(index=>{
+    const reference=pendingMissingFetTeachers[index];
+    if(!reference)return;
+    teachers.push({
+      id:crypto.randomUUID(),
+      name:reference.name,
+      fet_code:reference.codeIsUnique?reference.code:"",
+      fet_long_name:reference.longName||"",
+      fet_hours:normalizedFetHours(reference.targetHours),
+      color:importedTeacherColor(reference.name),
+      availableHours:0,
+      ...categoryStyles.teacher
+    });
+    added++;
+  });
+
+  pendingMissingFetTeachers=[];
+  document.querySelector("#fetTeacherImportDialog").close();
+  if(added){
+    save();
+    renderAll();
+  }
+  setStatus(added?`Προστέθηκαν ${added} εκπαιδευτικοί από το FET`:"Δεν επιλέχθηκε εκπαιδευτικός για προσθήκη");
+});
+
+let pendingMissingFetSubjects=[];
+
+function subjectsMissingFromDesigner(fetSubjects){
+  const designerCodes=new Set(
+    subjects.map(subject=>normalizedEntityName(subject.fet_code)).filter(Boolean)
+  );
+  const designerNames=new Set(
+    subjects.map(subject=>normalizedEntityName(subject.name)).filter(Boolean)
+  );
+  return fetSubjects.filter(reference=>{
+    const code=normalizedEntityName(reference.code);
+    const name=normalizedEntityName(reference.name);
+    return !((code && designerCodes.has(code)) || (name && designerNames.has(name)));
+  });
+}
+
+async function showMissingFetSubjects(file){
+  try{
+    const reference=parseFetReferenceData(await file.text());
+    const missing=subjectsMissingFromDesigner(reference.subjects);
+    const allFetSubjectIndexes=fetReferenceIndexes(reference.subjects);
+    loadedFetSourceFile=file;
+    updateFileIndicators();
+
+    if(!missing.length){
+      alert(`Όλα τα μαθήματα του FET «${file.name}» υπάρχουν ήδη στον Designer.`);
+      setStatus("Δεν βρέθηκαν νέα μαθήματα στο FET");
+      return;
+    }
+
+    pendingMissingFetSubjects=missing.map(subject=>({
+      ...subject,
+      codeIsUnique:!!subject.code &&
+        allFetSubjectIndexes.byCode.get(normalizedEntityName(subject.code))?.length===1
+    }));
+    document.querySelector("#fetSubjectImportList").innerHTML=pendingMissingFetSubjects.map((subject,index)=>
+      `<label class="fet-teacher-choice">
+        <input type="checkbox" data-fet-subject-index="${index}" checked>
+        <span class="fet-teacher-choice-main">
+          <span class="fet-teacher-choice-name">${esc(subject.name)}</span>
+          <span class="fet-teacher-choice-meta">${subject.code?`CODE: ${esc(subject.code)}`:"Χωρίς CODE"}</span>
+        </span>
+      </label>`
+    ).join("");
+    document.querySelector("#selectAllFetSubjects").checked=true;
+    document.querySelector("#missingFetSubjectCount").textContent=`${missing.length} διαθέσιμα`;
+    document.querySelector("#fetSubjectImportDialog").showModal();
+  }catch(error){
+    alert("Το αρχείο FET δεν μπορεί να διαβαστεί.\n\n"+(error?.message||String(error)));
+  }
+}
+
+document.querySelector("#importSubjects").addEventListener("click",async()=>{
+  if(loadedFetSourceFile){
+    await showMissingFetSubjects(loadedFetSourceFile);
+  }else{
+    document.querySelector("#subjectsFetFile").click();
+  }
+});
+
+document.querySelector("#subjectsFetFile").addEventListener("change",async e=>{
+  const file=e.target.files?.[0];
+  if(file)await showMissingFetSubjects(file);
+  e.target.value="";
+});
+
+document.querySelector("#selectAllFetSubjects").addEventListener("change",e=>{
+  document.querySelectorAll("[data-fet-subject-index]").forEach(checkbox=>{
+    checkbox.checked=e.target.checked;
+  });
+});
+
+document.querySelector("#fetSubjectImportList").addEventListener("change",()=>{
+  const checkboxes=[...document.querySelectorAll("[data-fet-subject-index]")];
+  document.querySelector("#selectAllFetSubjects").checked=
+    !!checkboxes.length && checkboxes.every(checkbox=>checkbox.checked);
+});
+
+document.querySelector("#cancelFetSubjectImport").addEventListener("click",()=>{
+  pendingMissingFetSubjects=[];
+  document.querySelector("#fetSubjectImportDialog").close();
+});
+
+document.querySelector("#fetSubjectImportForm").addEventListener("submit",e=>{
+  e.preventDefault();
+  const selectedIndexes=[...document.querySelectorAll("[data-fet-subject-index]:checked")]
+    .map(checkbox=>Number(checkbox.dataset.fetSubjectIndex))
+    .filter(Number.isInteger);
+  let added=0;
+
+  selectedIndexes.forEach(index=>{
+    const reference=pendingMissingFetSubjects[index];
+    if(!reference)return;
+    subjects.push({
+      id:crypto.randomUUID(),
+      name:reference.name,
+      fet_code:reference.codeIsUnique?reference.code:"",
+      ...categoryStyles.subject
+    });
+    added++;
+  });
+
+  pendingMissingFetSubjects=[];
+  document.querySelector("#fetSubjectImportDialog").close();
+  if(added){
+    save();
+    renderAll();
+  }
+  setStatus(added?`Προστέθηκαν ${added} μαθήματα από το FET`:"Δεν επιλέχθηκε μάθημα για προσθήκη");
+});
+
+document.querySelector("#subjectForm").addEventListener("submit",e=>{
+  e.preventDefault();
+  const name=document.querySelector("#subjectName").value.trim();
+  if(!name)return;
+  if(editingSubject){
+    const sub=subjects.find(x=>x.id===editingSubject);
+    if(sub){if(!sub.fet_code)sub.name=name;Object.assign(sub,categoryStyles.subject)}
+  }else{
+    subjects.push({id:crypto.randomUUID(),name,...categoryStyles.subject});
+  }
+
+  save();
+  subjectDialog.close();
+  renderAll();
+  setStatus("Οι αλλαγές του μαθήματος εφαρμόστηκαν αμέσως");
+});
+document.querySelector("#cancelSubject").addEventListener("click",()=>subjectDialog.close());
+document.querySelector("#newSubject").addEventListener("click",()=>openSubject());
+
+document.querySelector("#departmentForm").addEventListener("submit",e=>{
+  e.preventDefault();
+  const name=document.querySelector("#departmentName").value.trim();
+  if(!name)return;
+
+  if(editingDepartment){
+    const dep=departments.find(x=>x.id===editingDepartment);
+    if(dep){if(!dep.fet_code)dep.name=name;Object.assign(dep,categoryStyles.department)}
+  }else{
+    departments.push({id:crypto.randomUUID(),name,...categoryStyles.department});
+  }
+
+  save();
+  departmentDialog.close();
+  renderAll();
+  setStatus("Οι αλλαγές του τμήματος εφαρμόστηκαν αμέσως");
+});
+document.querySelector("#cancelDepartment").addEventListener("click",()=>departmentDialog.close());
+document.querySelector("#newDepartment").addEventListener("click",()=>openDepartment());
+
+document.querySelector("#unionForm").addEventListener("submit",e=>{
+  e.preventDefault();
+  const name=document.querySelector("#unionName").value.trim();
+  if(!name)return;
+
+  const departmentIds=[...document.querySelectorAll("#unionDepartments input[type=checkbox]:checked")].map(x=>x.value);
+  if(!departmentIds.length){
+    alert("Επίλεξε τουλάχιστον ένα τμήμα για τη συνένωση.");
+    return;
+  }
+
+  if(editingUnion){
+    const u=unions.find(x=>x.id===editingUnion);
+    if(u){
+      if(!u.fet_code)u.name=name;
+      u.departmentIds=departmentIds;
+      Object.assign(u,categoryStyles.union);
+    }
+  }else{
+    unions.push({id:crypto.randomUUID(),name,departmentIds,...categoryStyles.union});
+  }
+
+  save();
+  unionDialog.close();
+  renderAll();
+  setStatus("Οι αλλαγές της συνένωσης εφαρμόστηκαν αμέσως");
+});
+document.querySelector("#cancelUnion").addEventListener("click",()=>unionDialog.close());
+document.querySelector("#newUnion").addEventListener("click",()=>openUnion());
+
+
+
+function openUnion(id=null){
+  editingUnion=id;
+  const u=id?unions.find(x=>x.id===id):null;
+  document.querySelector("#unionDlgTitle").textContent=u?"Επεξεργασία συνένωσης":"Νέα συνένωση";
+  document.querySelector("#unionName").value=u?u.name:"";
+  setFetLinkedNameState("unionName","unionFetLinkNote",u);
+
+  const chosen=new Set(u?.departmentIds||[]);
+  const box=document.querySelector("#unionDepartments");
+  box.innerHTML="";
+  if(!departments.length){
+    box.innerHTML='<div class="hint">Δημιούργησε πρώτα τουλάχιστον ένα Τμήμα.</div>';
+  }else{
+    departments.forEach(dep=>{
+      const label=document.createElement("label");
+      const cb=document.createElement("input");
+      cb.type="checkbox";
+      cb.value=dep.id;
+      cb.checked=chosen.has(dep.id);
+      label.appendChild(cb);
+      label.appendChild(document.createTextNode(dep.name));
+      box.appendChild(label);
+    });
+  }
+  unionDialog.showModal();
+}
+
+function deleteUnion(id){
+  const u=unions.find(x=>x.id===id);
+  if(!u)return;
+  const uses=unionUsageCount(id);
+  const msg=uses>0
+    ? `Να διαγραφεί η συνένωση «${u.name}»; Θα αφαιρεθεί και από ${uses} κελιά του πίνακα.`
+    : `Να διαγραφεί η συνένωση «${u.name}»;`;
+  if(!confirm(msg))return;
+
+  unions=unions.filter(x=>x.id!==id);
+  for(const obj of Object.values(state.cells)){
+    const c=normalizeCell(obj);
+    c.lowerItems=c.lowerItems.filter(item=>!(item.type==="union" && item.id===id));
+  }
+  save();
+  resetPlacementHistory();
+  renderAll();
+  setStatus("Η συνένωση διαγράφηκε");
+}
+
+
+function openSubject(id=null){
+  editingSubject=id;
+  const sub=id?subjects.find(x=>x.id===id):null;
+  document.querySelector("#subjectDlgTitle").textContent=sub?"Επεξεργασία μαθήματος":"Νέο μάθημα";
+  document.querySelector("#subjectName").value=sub?sub.name:"";
+  setFetLinkedNameState("subjectName","subjectFetLinkNote",sub);
+  subjectDialog.showModal();
+}
+
+function deleteSubject(id){
+  const sub=subjects.find(x=>x.id===id);
+  if(!sub)return;
+
+  const uses=subjectCount(id);
+  const msg=uses>0
+    ? `Να διαγραφεί το μάθημα «${sub.name}»; Θα αφαιρεθεί και από ${uses} κελιά του πίνακα.`
+    : `Να διαγραφεί το μάθημα «${sub.name}»;`;
+
+  if(!confirm(msg))return;
+
+  subjects=subjects.filter(x=>x.id!==id);
+  for(const obj of Object.values(state.cells)){
+    const c=normalizeCell(obj);
+    if(c.subjectId===id)c.subjectId=null;
+  }
+  save();
+  resetPlacementHistory();
+  renderAll();
+  setStatus("Το μάθημα διαγράφηκε");
+}
+
+
+function openDepartment(id=null){
+  editingDepartment=id;
+  const dep=id?departments.find(x=>x.id===id):null;
+  document.querySelector("#departmentDlgTitle").textContent=dep?"Επεξεργασία τμήματος":"Νέο τμήμα";
+  document.querySelector("#departmentName").value=dep?dep.name:"";
+  setFetLinkedNameState("departmentName","departmentFetLinkNote",dep);
+  departmentDialog.showModal();
+}
+
+function deleteDepartment(id){
+  const dep=departments.find(x=>x.id===id);
+  if(!dep)return;
+  const uses=departmentCount(id);
+  const msg=uses>0
+    ? `Να διαγραφεί το τμήμα «${dep.name}»; Θα αφαιρεθεί και από ${uses} κελιά του πίνακα.`
+    : `Να διαγραφεί το τμήμα «${dep.name}»;`;
+  if(!confirm(msg))return;
+
+  departments=departments.filter(x=>x.id!==id);
+  unions.forEach(u=>u.departmentIds=u.departmentIds.filter(depId=>depId!==id));
+  for(const obj of Object.values(state.cells)){
+    const c=normalizeCell(obj);
+    c.lowerItems=c.lowerItems.filter(item=>!(item.type==="department" && item.id===id));
+  }
+  save();
+  resetPlacementHistory();
+  renderAll();
+  setStatus("Το τμήμα διαγράφηκε");
+}
+
+function deleteTeacher(id){
+  const t=teachers.find(x=>x.id===id);
+  if(!t)return;
+
+  const uses=teacherCount(id);
+  const msg = uses>0
+    ? `Να διαγραφεί ο/η «${t.name}»; Θα αφαιρεθούν και οι ${uses} τοποθετήσεις του/της από τον πίνακα.`
+    : `Να διαγραφεί ο/η «${t.name}»;`;
+
+  if(!confirm(msg))return;
+
+  teachers = teachers.filter(x=>x.id!==id);
+
+  for(const obj of Object.values(state.cells)){
+    const c=normalizeCell(obj);
+    c.cards = c.cards.filter(cardId=>cardId!==id);
+  }
+
+  save();
+  resetPlacementHistory();
+  renderAll();
+  setStatus("Ο εκπαιδευτικός διαγράφηκε");
+}
+
+function selectionRect(){
+  const coords=[...selected].map(parseKey);
+  if(coords.length<2)return null;
+  const rs=coords.map(x=>x[0]),cs=coords.map(x=>x[1]);
+  const minR=Math.min(...rs),maxR=Math.max(...rs),minC=Math.min(...cs),maxC=Math.max(...cs);
+  const needed=[];
+  for(let r=minR;r<=maxR;r++)for(let c=minC;c<=maxC;c++)needed.push(key(r,c));
+  if(needed.some(k=>!selected.has(k)))return null;
+  return {minR,maxR,minC,maxC,needed};
+}
+
+function mergeSelected(){
+  const s=selectionRect();
+  if(!s){alert("Επίλεξε συνεχόμενα κελιά που σχηματίζουν ορθογώνιο.");return}
+  if(s.needed.some(k=>state.merges[k])){alert("Κάποιο κελί είναι ήδη ενωμένο.");return}
+
+  const root=key(s.minR,s.minC),ro=cellObj(root);
+  for(const k of s.needed){
+    if(k===root)continue;
+    const o=cellObj(k);
+    if(ro.cards.length===0 && o.cards.length) ro.cards=[o.cards[0]];
+    if(!ro.subjectId && o.subjectId) ro.subjectId=o.subjectId;
+    for(const item of o.lowerItems){
+      if(!ro.lowerItems.some(existing=>existing.type===item.type && existing.id===item.id)){
+        ro.lowerItems.push({...item});
+      }
+    }
+    if(o.text && ro.cards.length===0 && !ro.subjectId && ro.lowerItems.length===0)ro.text+=(ro.text?"\n":"")+o.text;
+    delete state.cells[k];
+    state.merges[k]={root};
+  }
+  state.merges[root]={rowspan:s.maxR-s.minR+1,colspan:s.maxC-s.minC+1};
+  clearSelectionAfterStructure("Τα κελιά ενώθηκαν");
+}
+
+function splitCurrent(){
+  const root=effectiveRoot(activeKey || (selected.size===1?[...selected][0]:null));
+  if(!root){alert("Επίλεξε ένα ενωμένο κελί.");return}
+  const m=state.merges[root];
+  if(!m||(!m.rowspan&&!m.colspan)){alert("Το κελί δεν είναι ενωμένο.");return}
+
+  const [r0,c0]=parseKey(root),rs=m.rowspan||1,cs=m.colspan||1;
+  for(let r=r0;r<r0+rs;r++)for(let c=c0;c<c0+cs;c++){
+    const k=key(r,c);
+    if(k!==root){delete state.merges[k];cellObj(k)}
+  }
+  delete state.merges[root];
+  clearSelectionAfterStructure("Το κελί διαχωρίστηκε");
+}
+
+function mergeRects(){
+  const out=[];
+  for(const [k,m] of Object.entries(state.merges)){
+    if(m.rowspan||m.colspan){
+      const [r,c]=parseKey(k);
+      out.push({r,c,rs:m.rowspan||1,cs:m.colspan||1});
+    }
+  }
+  return out;
+}
+function rebuildMerges(rects){
+  state.merges={};
+  for(const q of rects){
+    if(q.rs<=1&&q.cs<=1)continue;
+    const root=key(q.r,q.c);
+    state.merges[root]={rowspan:q.rs,colspan:q.cs};
+    for(let r=q.r;r<q.r+q.rs;r++)for(let c=q.c;c<q.c+q.cs;c++){
+      const k=key(r,c);if(k!==root)state.merges[k]={root};
+    }
+  }
+}
+
+function insertRow(){
+  let at=state.rows;
+  if(activeKey){
+    const root=effectiveRoot(activeKey);
+    const [r]=parseKey(root);
+    at=r+(state.merges[root]?.rowspan||1);
+  }
+
+  const next={};
+  for(const [k,v] of Object.entries(state.cells)){
+    let [r,c]=parseKey(k);
+    if(r>=at)r++;
+    next[key(r,c)]=v;
+  }
+  state.cells=next;
+
+  const rects=mergeRects();
+  rects.forEach(q=>{
+    if(at<=q.r)q.r++;
+    else if(at>q.r&&at<q.r+q.rs)q.rs++;
+  });
+
+  state.rows++;
+  state.rowHeights.splice(at,0,74);
+  rebuildMerges(rects);
+  clearSelectionAfterStructure("Προστέθηκε γραμμή");
+}
+
+function cellContainsData(obj){
+  if(!obj)return false;
+  const o=normalizeCell(obj);
+  return !!(
+    o.cards.length ||
+    o.subjectId ||
+    o.lowerItems.length ||
+    String(o.text||"").trim()
+  );
+}
+
+function rowsContainData(rowIndexes){
+  const targets=new Set(rowIndexes);
+  const checkedRoots=new Set();
+
+  for(const [k,v] of Object.entries(state.cells)){
+    if(!cellContainsData(v))continue;
+
+    const root=effectiveRoot(k) || k;
+    if(checkedRoots.has(root))continue;
+    checkedRoots.add(root);
+
+    const rootObj=state.cells[root] || v;
+    if(!cellContainsData(rootObj))continue;
+
+    const [r]=parseKey(root);
+    const rowspan=Math.max(1,Number(state.merges[root]?.rowspan)||1);
+
+    for(let i=0;i<rowspan;i++){
+      if(targets.has(r+i))return true;
+    }
+  }
+
+  return false;
+}
+
+function columnsContainData(colIndexes){
+  const targets=new Set(colIndexes);
+  const checkedRoots=new Set();
+
+  for(const [k,v] of Object.entries(state.cells)){
+    if(!cellContainsData(v))continue;
+
+    const root=effectiveRoot(k) || k;
+    if(checkedRoots.has(root))continue;
+    checkedRoots.add(root);
+
+    const rootObj=state.cells[root] || v;
+    if(!cellContainsData(rootObj))continue;
+
+    const [,c]=parseKey(root);
+    const colspan=Math.max(1,Number(state.merges[root]?.colspan)||1);
+
+    for(let i=0;i<colspan;i++){
+      if(targets.has(c+i))return true;
+    }
+  }
+
+  return false;
+}
+
+function selectedRowIndexes(){
+  const keys=selected.size ? [...selected] : (activeKey ? [activeKey] : []);
+  const rows=new Set();
+
+  for(const k of keys){
+    const root=effectiveRoot(k);
+    if(!root)continue;
+    const [r]=parseKey(root);
+    const rowspan=Math.max(1,Number(state.merges[root]?.rowspan)||1);
+    for(let i=0;i<rowspan;i++){
+      if(r+i>=0 && r+i<state.rows)rows.add(r+i);
+    }
+  }
+
+  return [...rows].sort((a,b)=>a-b);
+}
+
+function deleteRow(){
+  const deleteRows=selectedRowIndexes();
+
+  if(!deleteRows.length){
+    setStatus("Επίλεξε ένα ή περισσότερα κελιά για αφαίρεση γραμμής.");
+    return;
+  }
+
+  if(state.rows-deleteRows.length<1){
+    alert("Πρέπει να παραμείνει τουλάχιστον μία γραμμή.");
+    return;
+  }
+
+  if(rowsContainData(deleteRows)){
+    const msg=deleteRows.length===1
+      ? "Η γραμμή που πρόκειται να διαγραφεί περιέχει δεδομένα.\n\nΕίστε σίγουρος ότι θέλετε να τη διαγράψετε;"
+      : `Οι ${deleteRows.length} γραμμές που πρόκειται να διαγραφούν περιέχουν δεδομένα.\n\nΕίστε σίγουρος ότι θέλετε να τις διαγράψετε;`;
+
+    if(!confirm(msg))return;
+  }
+
+  const deleted=new Set(deleteRows);
+  const oldRects=mergeRects();
+  const oldMerges=state.merges;
+  const oldCells=state.cells;
+
+  const shiftRow=r=>{
+    let n=r;
+    for(const d of deleteRows){
+      if(d<r)n--;
+      else break;
+    }
+    return n;
+  };
+
+  const next={};
+
+  // Μεταφέρουμε πρώτα τα απλά, μη συγχωνευμένα κελιά.
+  for(const [k,v] of Object.entries(oldCells)){
+    if(oldMerges[k]?.root)continue;
+    if(oldMerges[k]?.rowspan || oldMerges[k]?.colspan)continue;
+
+    const [r,c]=parseKey(k);
+    if(deleted.has(r))continue;
+    next[key(shiftRow(r),c)]=v;
+  }
+
+  const newRects=[];
+
+  // Οι συγχωνεύσεις μικραίνουν σωστά. Αν διαγραφεί η αρχική
+  // γραμμή τους αλλά παραμένει τμήμα της συγχώνευσης, το περιεχόμενο
+  // μεταφέρεται στη νέα επάνω-αριστερή ρίζα.
+  for(const q of oldRects){
+    const survivingRows=[];
+    for(let r=q.r;r<q.r+q.rs;r++){
+      if(!deleted.has(r))survivingRows.push(r);
+    }
+    if(!survivingRows.length)continue;
+
+    const newR=shiftRow(survivingRows[0]);
+    const newQ={r:newR,c:q.c,rs:survivingRows.length,cs:q.cs};
+    newRects.push(newQ);
+
+    const oldRoot=key(q.r,q.c);
+    if(oldCells[oldRoot]){
+      next[key(newQ.r,newQ.c)]=oldCells[oldRoot];
+    }
+  }
+
+  state.cells=next;
+  state.rows-=deleteRows.length;
+  state.rowHeights=state.rowHeights.filter((_,i)=>!deleted.has(i));
+  rebuildMerges(newRects);
+
+  clearSelectionAfterStructure(
+    deleteRows.length===1
+      ? "Αφαιρέθηκε γραμμή"
+      : `Αφαιρέθηκαν ${deleteRows.length} γραμμές`
+  );
+}
+
+function insertCol(){
+  let at=state.cols;
+  if(activeKey){
+    const root=effectiveRoot(activeKey);
+    const [,c]=parseKey(root);
+    at=c+(state.merges[root]?.colspan||1);
+  }
+
+  const next={};
+  for(const [k,v] of Object.entries(state.cells)){
+    let [r,c]=parseKey(k);
+    if(c>=at)c++;
+    next[key(r,c)]=v;
+  }
+  state.cells=next;
+
+  const rects=mergeRects();
+  rects.forEach(q=>{
+    if(at<=q.c)q.c++;
+    else if(at>q.c&&at<q.c+q.cs)q.cs++;
+  });
+
+  state.cols++;
+  state.colWidths.splice(at,0,20);
+  rebuildMerges(rects);
+  clearSelectionAfterStructure("Προστέθηκε στήλη");
+}
+
+function selectedColumnIndexesForDelete(){
+  const keys=selected.size ? [...selected] : (activeKey ? [activeKey] : []);
+  const cols=new Set();
+
+  for(const k of keys){
+    const root=effectiveRoot(k);
+    if(!root)continue;
+    const [,c]=parseKey(root);
+    const colspan=Math.max(1,Number(state.merges[root]?.colspan)||1);
+    for(let i=0;i<colspan;i++){
+      if(c+i>=0 && c+i<state.cols)cols.add(c+i);
+    }
+  }
+
+  return [...cols].sort((a,b)=>a-b);
+}
+
+function deleteCol(){
+  const deleteCols=selectedColumnIndexesForDelete();
+
+  if(!deleteCols.length){
+    setStatus("Επίλεξε ένα ή περισσότερα κελιά για αφαίρεση στήλης.");
+    return;
+  }
+
+  if(state.cols-deleteCols.length<1){
+    alert("Πρέπει να παραμείνει τουλάχιστον μία στήλη.");
+    return;
+  }
+
+  if(columnsContainData(deleteCols)){
+    const msg=deleteCols.length===1
+      ? "Η στήλη που πρόκειται να διαγραφεί περιέχει δεδομένα.\n\nΕίστε σίγουρος ότι θέλετε να τη διαγράψετε;"
+      : `Οι ${deleteCols.length} στήλες που πρόκειται να διαγραφούν περιέχουν δεδομένα.\n\nΕίστε σίγουρος ότι θέλετε να τις διαγράψετε;`;
+
+    if(!confirm(msg))return;
+  }
+
+  const deleted=new Set(deleteCols);
+  const oldRects=mergeRects();
+  const oldMerges=state.merges;
+  const oldCells=state.cells;
+
+  const shiftCol=c=>{
+    let n=c;
+    for(const d of deleteCols){
+      if(d<c)n--;
+      else break;
+    }
+    return n;
+  };
+
+  const next={};
+
+  // Μεταφέρουμε πρώτα τα απλά, μη συγχωνευμένα κελιά.
+  for(const [k,v] of Object.entries(oldCells)){
+    if(oldMerges[k]?.root)continue;
+    if(oldMerges[k]?.rowspan || oldMerges[k]?.colspan)continue;
+
+    const [r,c]=parseKey(k);
+    if(deleted.has(c))continue;
+    next[key(r,shiftCol(c))]=v;
+  }
+
+  const newRects=[];
+
+  // Οι συγχωνεύσεις μικραίνουν σωστά και κρατούν το περιεχόμενό τους
+  // ακόμη κι αν διαγραφεί η αρχική αριστερή στήλη.
+  for(const q of oldRects){
+    const survivingCols=[];
+    for(let c=q.c;c<q.c+q.cs;c++){
+      if(!deleted.has(c))survivingCols.push(c);
+    }
+    if(!survivingCols.length)continue;
+
+    const newC=shiftCol(survivingCols[0]);
+    const newQ={r:q.r,c:newC,rs:q.rs,cs:survivingCols.length};
+    newRects.push(newQ);
+
+    const oldRoot=key(q.r,q.c);
+    if(oldCells[oldRoot]){
+      next[key(newQ.r,newQ.c)]=oldCells[oldRoot];
+    }
+  }
+
+  state.cells=next;
+  state.cols-=deleteCols.length;
+  state.colWidths=state.colWidths.filter((_,i)=>!deleted.has(i));
+  rebuildMerges(newRects);
+
+  clearSelectionAfterStructure(
+    deleteCols.length===1
+      ? "Αφαιρέθηκε στήλη"
+      : `Αφαιρέθηκαν ${deleteCols.length} στήλες`
+  );
+}
+
+function selectedTextCellKeys(){
+  const keys=selected.size ? [...selected] : (activeKey ? [effectiveRoot(activeKey)] : []);
+  return [...new Set(keys.map(effectiveRoot))].filter(k=>{
+    const obj=cellObj(k);
+    return obj.cards.length===0 && !obj.subjectId && obj.lowerItems.length===0 && obj.text.trim()!=="";
+  });
+}
+
+function formatActive(prop,value){
+  if(!activeKey && selected.size===0){
+    setStatus("Επίλεξε πρώτα ένα ή περισσότερα κελιά.");
+    return;
+  }
+
+  const keys=selectedTextCellKeys();
+  if(!keys.length){
+    setStatus("Η μορφοποίηση εφαρμόζεται στα επιλεγμένα κελιά που περιέχουν κείμενο.");
+    return;
+  }
+
+  keys.forEach(k=>cellObj(k).fmt[prop]=value);
+  save();
+  renderBoard();
+  setStatus(`Ενημερώθηκαν ${keys.length} ${keys.length===1?"κελί":"κελιά"} κειμένου`);
+}
+
+document.querySelector("#zoomOut").addEventListener("click",()=>{
+  setBoardZoom(boardZoom-10);
+});
+
+document.querySelector("#zoomLevel").addEventListener("click",()=>{
+  setBoardZoom(100);
+});
+
+document.querySelector("#zoomIn").addEventListener("click",()=>{
+  setBoardZoom(boardZoom+10);
+});
+
+function fillDesignForm(){
+  Object.entries(scheduleDesign.zoneTags).forEach(([zone,tag])=>{
+    const input=document.querySelector(`[data-design-zone-tag="${zone}"]`);
+    if(input)input.value=tag;
+  });
+  scheduleDesign.periods.forEach(period=>{
+    const label=document.querySelector(`[data-design-label="${period.id}"]`);
+    const count=document.querySelector(`[data-design-count="${period.id}"]`);
+    const toggle=document.querySelector(`[data-design-exception-toggle="${period.id}"]`);
+    const exceptions=document.querySelector(`[data-design-exceptions="${period.id}"]`);
+    if(label)label.value=period.label;
+    if(count)count.value=period.count;
+    if(toggle){
+      toggle.checked=period.exceptionsEnabled;
+      toggle.dataset.hadExceptions=period.exceptionsEnabled ? "1" : "0";
+    }
+    if(exceptions){
+      exceptions.replaceChildren();
+      WEEK_DAYS.forEach(day=>{
+        const dayLabel=document.createElement("label");
+        dayLabel.textContent=day;
+        const input=document.createElement("input");
+        input.type="number";
+        input.min="0";
+        input.max="20";
+        input.step="1";
+        input.value=period.dayCounts[day];
+        input.dataset.designDayCount=period.id;
+        input.dataset.day=day;
+        input.setAttribute("aria-label",`Αριθμός τμημάτων ${day}, ${period.label}`);
+        dayLabel.appendChild(input);
+        exceptions.appendChild(dayLabel);
+      });
+      exceptions.hidden=!period.exceptionsEnabled;
+    }
+  });
+}
+
+document.querySelector("#openDesign").addEventListener("click",()=>{
+  fillDesignForm();
+  designDialog.showModal();
+});
+
+document.querySelector("#cancelDesign").addEventListener("click",()=>designDialog.close());
+
+document.querySelector("#designForm").addEventListener("change",e=>{
+  const toggle=e.target.closest("[data-design-exception-toggle]");
+  if(!toggle)return;
+  const periodId=toggle.dataset.designExceptionToggle;
+  const exceptions=document.querySelector(`[data-design-exceptions="${periodId}"]`);
+  if(toggle.checked && toggle.dataset.hadExceptions!=="1"){
+    const defaultValue=document.querySelector(`[data-design-count="${periodId}"]`).value;
+    exceptions.querySelectorAll("[data-design-day-count]").forEach(input=>{
+      input.value=defaultValue;
+    });
+    toggle.dataset.hadExceptions="1";
+  }
+  exceptions.hidden=!toggle.checked;
+});
+
+document.querySelector("#designForm").addEventListener("submit",e=>{
+  e.preventDefault();
+
+  const zoneTags={};
+  for(const zone of Object.keys(DEFAULT_ZONE_TAGS)){
+    const input=document.querySelector(`[data-design-zone-tag="${zone}"]`);
+    zoneTags[zone]=input.value.trim();
+  }
+
+  const periods=[];
+  for(const def of PERIOD_DEFINITIONS){
+    const labelInput=document.querySelector(`[data-design-label="${def.id}"]`);
+    const countInput=document.querySelector(`[data-design-count="${def.id}"]`);
+    const exceptionToggle=document.querySelector(`[data-design-exception-toggle="${def.id}"]`);
+    const label=labelInput.value.trim();
+    const rawCount=Number(countInput.value);
+
+    if(!label){
+      alert("Κάθε ώρα πρέπει να έχει όνομα.");
+      labelInput.focus();
+      return;
+    }
+    if(!Number.isInteger(rawCount) || rawCount<0 || rawCount>20){
+      alert("Ο αριθμός τμημάτων πρέπει να είναι ακέραιος από 0 έως 20.");
+      countInput.focus();
+      return;
+    }
+
+    const exceptionsEnabled=exceptionToggle.checked;
+    const dayCounts={};
+    for(const day of WEEK_DAYS){
+      const input=document.querySelector(
+        `[data-design-day-count="${def.id}"][data-day="${day}"]`
+      );
+      const value=exceptionsEnabled ? Number(input.value) : rawCount;
+      if(!Number.isInteger(value) || value<0 || value>20){
+        alert(`Ο αριθμός τμημάτων για ${day} πρέπει να είναι ακέραιος από 0 έως 20.`);
+        input.focus();
+        return;
+      }
+      dayCounts[day]=value;
+    }
+
+    periods.push({...def,label,count:rawCount,exceptionsEnabled,dayCounts});
+  }
+
+  if(applyScheduleDesign({zoneTags,periods})){
+    designDialog.close();
+    setStatus("Η σχεδίαση του πίνακα εφαρμόστηκε");
+  }
+});
+
+document.querySelector("#boardWrap").addEventListener("click",e=>{
+  if(e.target===document.querySelector("#boardWrap")){
+    activeKey=null;selected.clear();renderBoard();setStatus("Δεν υπάρχει ενεργό κελί");
+  }
+});
+
+function startNewProgram(){
+  teachers=[];
+  subjects=[];
+  departments=[];
+  unions=[];
+  categoryStyles={
+    teacher:normalizedSharedStyle(null),
+    subject:normalizedSharedStyle(null),
+    department:normalizedSharedStyle(null),
+    union:normalizedSharedStyle(null)
+  };
+  scheduleDesign=normalizeDesign(null);
+  state={rows:6,cols:5,cells:{},merges:{},colWidths:[],rowHeights:[]};
+  currentProjectFileName="oloimero_activities.csv";
+  loadedCsvSourceName="";
+  projectLastModified=null;
+  loadedFetSourceFile=null;
+  activeKey=null;
+  selected.clear();
+  sidebarHighlights.clear();
+  applyScheduleDesign(scheduleDesign,{confirmLoss:false,render:false,preserve:false});
+  renderAll();
+  setStatus("Δημιουργήθηκε νέο πρόγραμμα — δεν έχει ακόμη αποθηκευτεί");
+}
+
+function csvQuoted(value){
+  return `"${String(value??"").replace(/"/g,'""')}"`;
+}
+
+function cellStudentSetNames(cell){
+  const names=[];
+  const seen=new Set();
+  const add=(type,id)=>{
+    const itemKey=`${type}:${id}`;
+    if(typeof id==="string" && !seen.has(itemKey)){
+      const record=type==="department"
+        ? departments.find(x=>x.id===id)
+        : unions.find(x=>x.id===id);
+      if(!record)return;
+      seen.add(itemKey);
+      names.push(record.name);
+    }
+  };
+
+  cell.lowerItems.forEach(item=>{
+    if(item.type==="department" || item.type==="union")add(item.type,item.id);
+  });
+
+  return names;
+}
+
+function fetConstraintTags(period,dayIndex,{includeZoneTag=true}={}){
+  const timeTags={
+    morning:"ΩΡΑ_ΟΛΟ_ΠΖ",
+    all_day_1:"ΩΡΑ_ΟΛΟ_1",
+    all_day_2:"ΩΡΑ_ΟΛΟ_2",
+    all_day_3:"ΩΡΑ_ΟΛΟ_3",
+    extended_1:"ΩΡΑ_ΟΛΟ_4",
+    extended_2:"ΩΡΑ_ΟΛΟ_5"
+  };
+  const tags=[];
+  const zoneTag=(scheduleDesign.zoneTags[period.group]||"").trim();
+  if(includeZoneTag && zoneTag)tags.push(zoneTag);
+  tags.push(`ΜΕΡΑ_ΟΛΟ_${WEEK_DAYS[dayIndex]}`);
+  tags.push(timeTags[period.id]);
+  return tags.filter(Boolean).join("+");
+}
+
+function fetActivityCsvLine(fields,durations=[1]){
+  const totalDuration=durations.reduce((sum,value)=>sum+value,0);
+  const isSplit=durations.length>1;
+  return [
+    csvQuoted(fields.students),
+    csvQuoted(fields.subject),
+    csvQuoted(fields.teacher),
+    csvQuoted(fields.tag),
+    totalDuration,
+    csvQuoted(isSplit?durations.join("+"):""),
+    isSplit?1:"",
+    isSplit?100:"",
+    isSplit?1:"",
+    csvQuoted("")
+  ].join(",");
+}
+
+function csvProjectMetadataPayload(){
+  const emptyState=JSON.parse(JSON.stringify(state));
+  emptyState.cells=Object.fromEntries(
+    Object.entries(emptyState.cells||{}).map(([cellKey,value])=>{
+      const cell=normalizeCell(value);
+      if(!cell.locked){
+        cell.cards=[];
+        cell.subjectId=null;
+        cell.lowerItems=[];
+        cell.text="";
+      }
+      return [cellKey,cell];
+    })
+  );
+
+  return {
+    format:"programma-oloimerou-data-v1",
+    container:"fet-activities-csv-comments-v1",
+    exportedAt:new Date().toISOString(),
+    lastModified:getProjectLastModified(),
+    state:emptyState,
+    teachers,
+    subjects,
+    departments,
+    unions,
+    categoryStyles
+  };
+}
+
+function appendCsvProjectMetadata(lines){
+  lines.push("","","# OLOIMERO_DESIGNER_JSON_BEGIN");
+  JSON.stringify(csvProjectMetadataPayload(),null,2)
+    .split("\n")
+    .forEach(line=>lines.push(`# ${line}`));
+  lines.push("# OLOIMERO_DESIGNER_JSON_END");
+}
+
+function buildFetActivitiesCsv(){
+  const layout=designLayout(scheduleDesign);
+  const completeCells=[];
+  let incompleteCells=0;
+
+  layout.slotRoots.forEach((cellKey,semanticKey)=>{
+    const cell=normalizeCell(state.cells[cellKey]);
+    const hasAnyData=!!(cell.cards.length || cell.subjectId || cell.lowerItems.length);
+    if(!hasAnyData)return;
+
+    const [periodId,dayIndexText,slotText]=semanticKey.split("|");
+    const period=PERIOD_DEFINITIONS.find(x=>x.id===periodId);
+    const teacher=teachers.find(x=>x.id===cell.cards[0]);
+    const subject=subjects.find(x=>x.id===cell.subjectId);
+    const studentSets=cellStudentSetNames(cell);
+
+    if(!period || !teacher || !subject || !studentSets.length){
+      incompleteCells++;
+      return;
+    }
+
+    const isAllDayMeal=
+      period.group==="all_day" &&
+      subject.name.trim().localeCompare("Γεύμα","el",{sensitivity:"base"})===0;
+    const dayIndex=Number(dayIndexText);
+    const fields={
+      students:studentSets.join("+"),
+      subject:subject.name,
+      teacher:teacher.name,
+      tag:fetConstraintTags(period,dayIndex,{includeZoneTag:!isAllDayMeal})
+    };
+    completeCells.push({
+      fields,
+      zone:period.group,
+      dayIndex,
+      periodId,
+      periodIndex:PERIOD_DEFINITIONS.findIndex(x=>x.id===periodId),
+      slot:Number(slotText)
+    });
+  });
+
+  completeCells.sort((a,b)=>
+    a.dayIndex-b.dayIndex || a.periodIndex-b.periodIndex || a.slot-b.slot
+  );
+
+  const teacherUsageForZones=zones=>{
+    const usage=new Map();
+    completeCells.filter(item=>zones.includes(item.zone)).forEach(item=>{
+      if(!usage.has(item.fields.teacher)){
+        usage.set(item.fields.teacher,{
+          name:item.fields.teacher,
+          firstDay:item.dayIndex,
+          days:new Set()
+        });
+      }
+      usage.get(item.fields.teacher).days.add(item.dayIndex);
+    });
+    return usage;
+  };
+
+  const appendTeacherGroups=(lines,usage,{separateDayGroups=true}={})=>{
+    let hasGroup=false;
+    WEEK_DAYS.forEach((_,firstDay)=>{
+      const group=[...usage.values()].filter(item=>item.firstDay===firstDay);
+      if(!group.length)return;
+      if(hasGroup && separateDayGroups)lines.push("");
+      group.forEach(item=>{
+        const dayNames=[...item.days]
+          .sort((a,b)=>a-b)
+          .map(dayIndex=>WEEK_DAYS[dayIndex]);
+        lines.push(`# ${item.name} [${dayNames.join("-")}]`);
+      });
+      hasGroup=true;
+    });
+  };
+
+  const header='"Students Sets","Subject","Teachers","Activity Tags","Total Duration","Split Duration","Min Days","Weight","Consecutive","Comments"';
+  const lines=["\uFEFF"+header,""];
+  let exportedActivities=0;
+
+  lines.push("# Πρωινή Ζώνη #");
+  completeCells.filter(item=>item.zone==="morning").forEach(item=>{
+    lines.push(fetActivityCsvLine(item.fields));
+    exportedActivities++;
+  });
+  lines.push("","");
+
+  WEEK_DAYS.forEach((day,dayIndex)=>{
+    const dayActivities=completeCells.filter(item=>
+      item.zone==="all_day" && item.dayIndex===dayIndex
+    );
+    if(!dayActivities.length)return;
+
+    lines.push(`# Ολοήμερο ${day} #`);
+    PERIOD_DEFINITIONS.filter(period=>period.group==="all_day").forEach(period=>{
+      const periodActivities=dayActivities.filter(item=>item.periodId===period.id);
+      if(!periodActivities.length)return;
+      periodActivities.forEach(item=>{
+        lines.push(fetActivityCsvLine(item.fields));
+        exportedActivities++;
+      });
+      lines.push("");
+    });
+    lines.push("");
+  });
+
+  lines.push("# Διευρυμένο #");
+  completeCells.filter(item=>item.zone==="extended").forEach(item=>{
+    lines.push(fetActivityCsvLine(item.fields));
+    exportedActivities++;
+  });
+  lines.push("","","# Εκπαιδευτικοί που απασχολούνται στην πρωινή ζώνη #");
+  appendTeacherGroups(
+    lines,
+    teacherUsageForZones(["morning"]),
+    {separateDayGroups:false}
+  );
+  lines.push("","","# Εκπαιδευτικοί που απασχολούνται στο ολοήμερο #","");
+  appendTeacherGroups(lines,teacherUsageForZones(["all_day","extended"]));
+  appendCsvProjectMetadata(lines);
+
+  return {csv:lines.join("\n")+"\n",exportedActivities,incompleteCells};
+}
+
+function exportSummaryMessage(result){
+  return (
+    `Η αποθήκευση CSV ολοκληρώθηκε.\n\n`+
+    `Δραστηριότητες που αποθηκεύτηκαν: ${result.exportedActivities}\n`+
+    `Κελιά που δεν εξήχθησαν λόγω ελλιπών πληροφοριών: ${result.incompleteCells}`
+  );
+}
+
+function showExportSummary(result){
+  setStatus(
+    `CSV: ${result.exportedActivities} δραστηριότητες, `+
+    `${result.incompleteCells} μη πλήρη κελιά`
+  );
+  alert(exportSummaryMessage(result));
+}
+
+let pendingCsvExport=null;
+let pendingNewProgramAfterSave=false;
+
+function downloadCsvFallback(result,filename){
+  const blob=new Blob([result.csv],{type:"text/csv;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;
+  a.download=filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),0);
+}
+
+async function exportFetActivitiesCsv(){
+  const result=buildFetActivitiesCsv();
+
+  if(typeof window.showSaveFilePicker==="function"){
+    try{
+      const handle=await window.showSaveFilePicker({
+        suggestedName:currentProjectFileName,
+        types:[{
+          description:"Αρχείο δραστηριοτήτων FET",
+          accept:{"text/csv":[".csv"]}
+        }]
+      });
+      const writable=await handle.createWritable();
+      await writable.write(new Blob([result.csv],{type:"text/csv;charset=utf-8"}));
+      await writable.close();
+      currentProjectFileName=handle.name || currentProjectFileName;
+      loadedCsvSourceName=currentProjectFileName;
+      updateFileIndicators();
+      showExportSummary(result);
+      if(pendingNewProgramAfterSave){
+        pendingNewProgramAfterSave=false;
+        startNewProgram();
+      }
+      return;
+    }catch(error){
+      if(error?.name==="AbortError"){
+        pendingNewProgramAfterSave=false;
+        return;
+      }
+    }
+  }
+
+  pendingCsvExport=result;
+  document.querySelector("#csvExportFilename").value=currentProjectFileName;
+  document.querySelector("#csvExportDialog").showModal();
+}
+
+document.querySelector("#cancelCsvExport").addEventListener("click",()=>{
+  pendingCsvExport=null;
+  pendingNewProgramAfterSave=false;
+  document.querySelector("#csvExportDialog").close();
+});
+
+document.querySelector("#csvExportForm").addEventListener("submit",e=>{
+  e.preventDefault();
+  if(!pendingCsvExport)return;
+  let filename=document.querySelector("#csvExportFilename").value.trim();
+  if(!filename)return;
+  if(!filename.toLocaleLowerCase("el-GR").endsWith(".csv"))filename+=".csv";
+  const result=pendingCsvExport;
+  pendingCsvExport=null;
+  currentProjectFileName=filename;
+  loadedCsvSourceName=filename;
+  updateFileIndicators();
+  document.querySelector("#csvExportDialog").close();
+  downloadCsvFallback(result,filename);
+  showExportSummary(result);
+  if(pendingNewProgramAfterSave){
+    pendingNewProgramAfterSave=false;
+    startNewProgram();
+  }
+});
+
+function extractCsvProjectParts(text){
+  const source=String(text||"").replace(/^\uFEFF/,"");
+  const lines=source.split(/\r?\n/);
+  const begin=lines.findIndex(line=>line.trim()==="# OLOIMERO_DESIGNER_JSON_BEGIN");
+  const end=lines.findIndex((line,index)=>
+    index>begin && line.trim()==="# OLOIMERO_DESIGNER_JSON_END"
+  );
+  if(begin===-1 || end===-1)throw new Error("Δεν βρέθηκαν τα ενσωματωμένα δεδομένα JSON.");
+
+  const jsonText=lines.slice(begin+1,end).map(line=>{
+    if(!line.startsWith("#"))throw new Error("Μη έγκυρη γραμμή στην ενότητα JSON.");
+    return line.replace(/^# ?/,"");
+  }).join("\n");
+
+  return {
+    payload:JSON.parse(jsonText),
+    activitiesText:lines.slice(0,begin).join("\n")
+  };
+}
+
+function normalizedEntityName(value){
+  return String(value||"").normalize("NFC").trim().toLocaleLowerCase("el-GR");
+}
+
+function findEntityByName(records,name){
+  const wanted=normalizedEntityName(name);
+  return records.find(record=>normalizedEntityName(record.name)===wanted);
+}
+
+function studentSetItemsFromCsv(value){
+  const source=String(value||"").normalize("NFC").trim();
+  if(!source)return null;
+
+  const exactUnion=findEntityByName(unions,source);
+  if(exactUnion)return [{type:"union",id:exactUnion.id}];
+
+  const candidates=[
+    ...unions.map(record=>({type:"union",record})),
+    ...departments.map(record=>({type:"department",record}))
+  ].filter(item=>item.record.name).sort((a,b)=>
+    b.record.name.length-a.record.name.length ||
+    a.record.name.localeCompare(b.record.name,"el",{sensitivity:"base"})
+  );
+
+  const memo=new Map();
+  const parseFrom=position=>{
+    if(position===source.length)return [];
+    if(memo.has(position))return memo.get(position);
+    for(const candidate of candidates){
+      const name=String(candidate.record.name).normalize("NFC").trim();
+      if(!source.startsWith(name,position))continue;
+      const next=position+name.length;
+      if(next<source.length && source[next]!=="+")continue;
+      const rest=parseFrom(next<source.length ? next+1 : next);
+      if(rest){
+        const result=[{type:candidate.type,id:candidate.record.id},...rest];
+        memo.set(position,result);
+        return result;
+      }
+    }
+    memo.set(position,null);
+    return null;
+  };
+
+  const parsed=parseFrom(0);
+  if(!parsed)return null;
+  return parsed.filter((item,index,array)=>
+    array.findIndex(other=>other.type===item.type && other.id===item.id)===index
+  );
+}
+
+function activityPlacementFromTags(rawTags){
+  const tags=String(rawTags||"").split("+").map(tag=>tag.trim()).filter(Boolean);
+  const dayTag=tags.find(tag=>tag.startsWith("ΜΕΡΑ_ΟΛΟ_"));
+  const timeTag=tags.find(tag=>tag.startsWith("ΩΡΑ_ΟΛΟ_"));
+  if(!dayTag || !timeTag)return null;
+
+  const dayName=dayTag.slice("ΜΕΡΑ_ΟΛΟ_".length);
+  const dayIndex=WEEK_DAYS.findIndex(day=>
+    day.localeCompare(dayName,"el",{sensitivity:"base"})===0
+  );
+  const periodByTag={
+    ΩΡΑ_ΟΛΟ_ΠΖ:"morning",
+    ΩΡΑ_ΟΛΟ_1:"all_day_1",
+    ΩΡΑ_ΟΛΟ_2:"all_day_2",
+    ΩΡΑ_ΟΛΟ_3:"all_day_3",
+    ΩΡΑ_ΟΛΟ_4:"extended_1",
+    ΩΡΑ_ΟΛΟ_5:"extended_2"
+  };
+  const periodId=periodByTag[timeTag];
+  return dayIndex===-1 || !periodId ? null : {dayIndex,periodId};
+}
+
+function loadProjectMetadata(payload){
+  if(!payload || payload.format!=="programma-oloimerou-data-v1" ||
+     !payload.state || typeof payload.state!=="object" ||
+     !Array.isArray(payload.teachers) ||
+     !Array.isArray(payload.subjects) ||
+     !Array.isArray(payload.departments) ||
+     !Array.isArray(payload.unions) ||
+     !payload.categoryStyles || typeof payload.categoryStyles!=="object"){
+    throw new Error("Τα ενσωματωμένα δεδομένα του Designer είναι ελλιπή ή κατεστραμμένα.");
+  }
+
+  teachers=payload.teachers.map(t=>({
+    ...t,
+    availableHours:Math.max(0,Math.floor(Number(t.availableHours)||0)),
+    fontSize:Number(t.fontSize)||16,
+    bold:t.bold!==false,
+    italic:!!t.italic
+  }));
+  subjects=payload.subjects.map(item=>({...item,fontSize:Number(item.fontSize)||16,bold:item.bold!==false,italic:!!item.italic}));
+  departments=payload.departments.map(item=>({...item,fontSize:Number(item.fontSize)||16,bold:item.bold!==false,italic:!!item.italic}));
+  unions=payload.unions.map(item=>({
+    ...item,
+    departmentIds:Array.isArray(item.departmentIds)?item.departmentIds.filter(id=>typeof id==="string"):[],
+    fontSize:Number(item.fontSize)||16,
+    bold:item.bold!==false,
+    italic:!!item.italic
+  }));
+  categoryStyles={
+    teacher:normalizedSharedStyle(payload.categoryStyles.teacher,teachers[0]),
+    subject:normalizedSharedStyle(payload.categoryStyles.subject,subjects[0]),
+    department:normalizedSharedStyle(payload.categoryStyles.department,departments[0]),
+    union:normalizedSharedStyle(payload.categoryStyles.union,unions[0])
+  };
+  syncSharedStylesToItems();
+
+  scheduleDesign=normalizeDesign(payload.state.design);
+  const layout=designLayout(scheduleDesign);
+  state={
+    rows:layout.rows,
+    cols:layout.cols,
+    cells:layout.cells,
+    merges:layout.merges,
+    colWidths:layout.colWidths,
+    rowHeights:layout.rowHeights,
+    design:scheduleDesign
+  };
+  if(Array.isArray(payload.state.colWidths) && payload.state.colWidths.length===state.cols){
+    state.colWidths=payload.state.colWidths.map(value=>Math.max(10,Number(value)||150));
+  }
+  if(Array.isArray(payload.state.rowHeights) && payload.state.rowHeights.length===state.rows){
+    state.rowHeights=payload.state.rowHeights.map((value,index)=>Math.max(index===0?24:40,Number(value)||(index===0?34:92)));
+  }
+  projectLastModified=
+    (typeof payload.lastModified==="string" && payload.lastModified) ||
+    (typeof payload.exportedAt==="string" && payload.exportedAt) || null;
+}
+
+function loadActivitiesFromCsv(text){
+  const rows=parseCsv(text);
+  const headerIndex=rows.findIndex(row=>
+    normalizedEntityName(row[0])===normalizedEntityName("Students Sets")
+  );
+  if(headerIndex===-1)throw new Error("Δεν βρέθηκε η επικεφαλίδα δραστηριοτήτων του FET.");
+
+  const headers=rows[headerIndex].map(value=>String(value).trim().toLocaleLowerCase("en-US"));
+  const columns={
+    students:headers.indexOf("students sets"),
+    subject:headers.indexOf("subject"),
+    teacher:headers.indexOf("teachers"),
+    tags:headers.indexOf("activity tags")
+  };
+  if(Object.values(columns).some(index=>index===-1)){
+    throw new Error("Λείπουν απαραίτητες στήλες από το CSV δραστηριοτήτων.");
+  }
+
+  const layout=designLayout(scheduleDesign);
+  let loaded=0,notPlaced=0,ignored=0;
+  rows.slice(headerIndex+1).forEach(row=>{
+    if(!row.some(value=>String(value).trim()))return;
+    if(String(row[0]||"").trim().startsWith("#"))return;
+
+    const placement=activityPlacementFromTags(row[columns.tags]);
+    if(!placement){ignored++;return;}
+    const teacher=findEntityByName(teachers,row[columns.teacher]);
+    const subject=findEntityByName(subjects,row[columns.subject]);
+    const lowerItems=studentSetItemsFromCsv(row[columns.students]);
+    if(!teacher || !subject || !lowerItems?.length){notPlaced++;return;}
+
+    const period=scheduleDesign.periods.find(item=>item.id===placement.periodId);
+    const count=period ? periodCountForDay(period,WEEK_DAYS[placement.dayIndex]) : 0;
+    let targetKey=null;
+    for(let slot=0;slot<count;slot++){
+      const candidate=layout.slotRoots.get(`${placement.periodId}|${placement.dayIndex}|${slot}`);
+      if(!candidate)continue;
+      const cell=normalizeCell(state.cells[candidate]);
+      if(!cell.cards.length && !cell.subjectId && !cell.lowerItems.length){
+        targetKey=candidate;
+        break;
+      }
+    }
+    if(!targetKey){notPlaced++;return;}
+
+    // Τα κελιά που δεν έχουν ακόμη περιεχόμενο δεν υπάρχουν υποχρεωτικά
+    // στο state.cells. Χρησιμοποιούμε cellObj ώστε το νέο κελί να
+    // καταχωρίζεται πραγματικά στον πίνακα πριν συμπληρωθεί.
+    const cell=cellObj(targetKey);
+    cell.cards=[teacher.id];
+    cell.subjectId=subject.id;
+    cell.lowerItems=lowerItems;
+    cell.text="";
+    sortCellLowerItems(cell);
+    loaded++;
+  });
+  return {loaded,notPlaced,ignored};
+}
+
+async function importProjectCsv(file){
+  if((stateHasUserData() || teachers.length || subjects.length || departments.length || unions.length) &&
+     !confirm("Το άνοιγμα του CSV θα αντικαταστήσει το τρέχον πρόγραμμα. Συνέχεια;")){
+    return false;
+  }
+
+  try{
+    const {payload,activitiesText}=extractCsvProjectParts(await file.text());
+    loadProjectMetadata(payload);
+    const result=loadActivitiesFromCsv(activitiesText);
+    currentProjectFileName=file.name || "oloimero_activities.csv";
+    loadedCsvSourceName=currentProjectFileName;
+    // Το νέο CSV χρειάζεται νέα διασταύρωση με το σωστό αρχείο FET.
+    loadedFetSourceFile=null;
+    activeKey=null;
+    selected.clear();
+    sidebarHighlights.clear();
+    resetPlacementHistory();
+    renderAll();
+    setStatus(`Άνοιγμα CSV: ${result.loaded} δραστηριότητες φορτώθηκαν`);
+    alert(
+      "Το αρχείο CSV φορτώθηκε.\n\n"+
+      `Δραστηριότητες που τοποθετήθηκαν: ${result.loaded}\n`+
+      `Δραστηριότητες που δεν τοποθετήθηκαν: ${result.notPlaced}\n`+
+      `Γραμμές χωρίς tags Designer που αγνοήθηκαν: ${result.ignored}`
+    );
+    return true;
+  }catch(error){
+    alert("Το αρχείο CSV δεν μπορεί να φορτωθεί.\n\n"+(error?.message||String(error)));
+    return false;
+  }
+}
+
+function directXmlChildText(element,tagName){
+  const child=[...element.children].find(item=>item.tagName===tagName);
+  return child?.textContent?.normalize("NFC").trim()||"";
+}
+
+function parseFetReferenceData(text){
+  const xml=new DOMParser().parseFromString(String(text||"").replace(/^\uFEFF/,""),"application/xml");
+  if(xml.querySelector("parsererror") || xml.documentElement.tagName!=="fet"){
+    throw new Error("Το αρχείο δεν είναι έγκυρο αρχείο XML του FET.");
+  }
+
+  const records=(parentTag,itemTag)=>{
+    const parent=xml.querySelector(parentTag);
+    if(!parent)return [];
+    return [...parent.children]
+      .filter(item=>item.tagName===itemTag)
+      .map(item=>({
+        name:directXmlChildText(item,"Name"),
+        code:directXmlChildText(item,"Code"),
+        longName:directXmlChildText(item,"Long_Name"),
+        targetHours:directXmlChildText(item,"Target_Number_of_Hours")
+      }))
+      .filter(item=>item.name);
+  };
+
+  const hours=[...(xml.querySelector("Hours_List")?.children||[])]
+    .filter(item=>item.tagName==="Hour")
+    .map(item=>({
+      name:directXmlChildText(item,"Name"),
+      longName:directXmlChildText(item,"Long_Name")
+    }));
+
+  return {
+    hours,
+    teachers:records("Teachers_List","Teacher"),
+    subjects:records("Subjects_List","Subject"),
+    years:records("Students_List","Year")
+  };
+}
+
+function fetReferenceIndexes(records){
+  const byCode=new Map(),byName=new Map();
+  records.forEach(record=>{
+    const code=normalizedEntityName(record.code);
+    const name=normalizedEntityName(record.name);
+    if(code){
+      if(!byCode.has(code))byCode.set(code,[]);
+      byCode.get(code).push(record);
+    }
+    if(name){
+      if(!byName.has(name))byName.set(name,[]);
+      byName.get(name).push(record);
+    }
+  });
+  return {byCode,byName};
+}
+
+function syncDesignerRecordsWithFet(designerRecords,fetRecords,createRecord,{allowImport=true,syncLongName=false,syncTargetHours=false}={}){
+  const stats={imported:0,linked:0,renamed:0,longNames:0,unmatched:0,ambiguous:0,withoutCode:0};
+  const {byCode,byName}=fetReferenceIndexes(fetRecords);
+  const empty=designerRecords.length===0;
+  const designerNameCounts=new Map();
+  const designerCodeCounts=new Map();
+  designerRecords.forEach(record=>{
+    const nameKey=normalizedEntityName(record.name);
+    const codeKey=normalizedEntityName(record.fet_code);
+    if(nameKey)designerNameCounts.set(nameKey,(designerNameCounts.get(nameKey)||0)+1);
+    if(codeKey)designerCodeCounts.set(codeKey,(designerCodeCounts.get(codeKey)||0)+1);
+  });
+
+  if(empty && allowImport){
+    fetRecords.forEach(reference=>{
+      const codeKey=normalizedEntityName(reference.code);
+      const uniqueCode=codeKey && byCode.get(codeKey)?.length===1;
+      const record=createRecord(reference.name,reference);
+      if(uniqueCode)record.fet_code=reference.code;
+      if(syncLongName)record.fet_long_name=reference.longName||"";
+      if(syncTargetHours)record.fet_hours=normalizedFetHours(reference.targetHours);
+      else if(!reference.code)stats.withoutCode++;
+      else stats.ambiguous++;
+      designerRecords.push(record);
+      stats.imported++;
+    });
+    return stats;
+  }
+
+  designerRecords.forEach(record=>{
+    if(record.fet_code){
+      const designerCodeKey=normalizedEntityName(record.fet_code);
+      if((designerCodeCounts.get(designerCodeKey)||0)>1){
+        stats.ambiguous++;
+        return;
+      }
+      const matches=byCode.get(designerCodeKey)||[];
+      if(matches.length===1){
+        if(syncLongName && String(record.fet_long_name||"")!==String(matches[0].longName||"")){
+          record.fet_long_name=matches[0].longName||"";
+          stats.longNames++;
+        }
+        if(syncTargetHours){
+          record.fet_hours=normalizedFetHours(matches[0].targetHours);
+        }
+        if(record.name!==matches[0].name){
+          record.name=matches[0].name;
+          stats.renamed++;
+        }
+      }else if(matches.length>1){
+        stats.ambiguous++;
+      }else{
+        stats.unmatched++;
+      }
+      return;
+    }
+
+    const designerNameKey=normalizedEntityName(record.name);
+    if((designerNameCounts.get(designerNameKey)||0)>1){
+      stats.ambiguous++;
+      return;
+    }
+    const matches=byName.get(designerNameKey)||[];
+    if(matches.length!==1){
+      if(matches.length>1)stats.ambiguous++;
+      else stats.unmatched++;
+      return;
+    }
+    const reference=matches[0];
+    if(!reference.code){
+      stats.withoutCode++;
+      return;
+    }
+    if((byCode.get(normalizedEntityName(reference.code))||[]).length!==1){
+      stats.ambiguous++;
+      return;
+    }
+    record.fet_code=reference.code;
+    if(syncLongName){
+      record.fet_long_name=reference.longName||"";
+      if(reference.longName)stats.longNames++;
+    }
+    if(syncTargetHours){
+      record.fet_hours=normalizedFetHours(reference.targetHours);
+    }
+    stats.linked++;
+  });
+  return stats;
+}
+
+function fetSyncStatsLine(label,stats){
+  const parts=[];
+  if(stats.imported)parts.push(`${stats.imported} εισαγωγές`);
+  if(stats.linked)parts.push(`${stats.linked} νέες συνδέσεις`);
+  if(stats.renamed)parts.push(`${stats.renamed} ενημερώσεις ονόματος`);
+  if(stats.longNames)parts.push(`${stats.longNames} ενημερώσεις Long Name`);
+  if(stats.unmatched)parts.push(`${stats.unmatched} χωρίς αντιστοίχιση`);
+  if(stats.ambiguous)parts.push(`${stats.ambiguous} αμφίσημες αντιστοιχίσεις`);
+  if(stats.withoutCode)parts.push(`${stats.withoutCode} χωρίς CODE`);
+  return `${label}: ${parts.length?parts.join(", "):"χωρίς αλλαγές"}`;
+}
+
+function missingDesignerHours(fetHours){
+  const available=new Set();
+  fetHours.forEach(hour=>{
+    if(hour.name)available.add(normalizedEntityName(hour.name));
+    if(hour.longName)available.add(normalizedEntityName(hour.longName));
+  });
+  return activeDesignPeriods(scheduleDesign)
+    .map(period=>period.label.trim())
+    .filter(label=>label && !available.has(normalizedEntityName(label)));
+}
+
+async function syncWithFetFile(file){
+  try{
+    const reference=parseFetReferenceData(await file.text());
+    const teacherStats=syncDesignerRecordsWithFet(
+      teachers,reference.teachers,
+      (name,referenceItem)=>({
+        id:crypto.randomUUID(),name,
+        fet_long_name:referenceItem.longName||"",
+        fet_hours:normalizedFetHours(referenceItem.targetHours),
+        color:importedTeacherColor(name),availableHours:0,
+        ...categoryStyles.teacher
+      }),
+      {syncLongName:true,syncTargetHours:true}
+    );
+    const subjectStats=syncDesignerRecordsWithFet(
+      subjects,reference.subjects,
+      name=>({id:crypto.randomUUID(),name,...categoryStyles.subject})
+    );
+
+    // Τα Years αντιστοιχίζονται από κοινού με Τμήματα και Συνενώσεις,
+    // ώστε ένα Year όπως «Α'-Στ'» να συνδέεται με την υπάρχουσα συνένωση.
+    const studentSets=[...departments,...unions];
+    const studentSetsWereEmpty=studentSets.length===0;
+    const studentStats=syncDesignerRecordsWithFet(
+      studentSets,reference.years,
+      name=>({id:crypto.randomUUID(),name,...categoryStyles.department}),
+      {allowImport:false}
+    );
+    if(studentSetsWereEmpty){
+      reference.years.forEach(year=>{
+        const indexes=fetReferenceIndexes(reference.years);
+        const codeKey=normalizedEntityName(year.code);
+        const record={id:crypto.randomUUID(),name:year.name,...categoryStyles.department};
+        if(codeKey && indexes.byCode.get(codeKey)?.length===1)record.fet_code=year.code;
+        else if(!year.code)studentStats.withoutCode++;
+        else studentStats.ambiguous++;
+        departments.push(record);
+        studentStats.imported++;
+      });
+    }
+
+    const missingHours=missingDesignerHours(reference.hours);
+    const uncoded={
+      teachers:reference.teachers.filter(item=>!item.code).length,
+      subjects:reference.subjects.filter(item=>!item.code).length,
+      years:reference.years.filter(item=>!item.code).length
+    };
+    const uncodedTotal=uncoded.teachers+uncoded.subjects+uncoded.years;
+
+    loadedFetSourceFile=file;
+    save();
+    renderAll();
+    setStatus(`Διασταύρωση FET ολοκληρώθηκε: ${file.name}`);
+
+    const lines=[
+      `Η διασταύρωση με το FET «${file.name}» ολοκληρώθηκε.`,
+      "",
+      fetSyncStatsLine("Εκπαιδευτικοί",teacherStats),
+      fetSyncStatsLine("Μαθήματα",subjectStats),
+      fetSyncStatsLine("Τμήματα/Συνενώσεις",studentStats)
+    ];
+    if(missingHours.length){
+      lines.push("",`Ώρες που δεν βρέθηκαν στο FET: ${missingHours.join(", ")}`,
+        "Διορθώστε τις παραπάνω ώρες μέσω του «Σχεδιασμός…».");
+    }else{
+      lines.push("","Όλες οι ώρες του Designer βρέθηκαν στο FET.");
+    }
+    if(uncodedTotal){
+      lines.push("",
+        `Εγγραφές FET χωρίς CODE: ${uncoded.teachers} εκπαιδευτικοί, ${uncoded.subjects} μαθήματα, ${uncoded.years} Τάξεις-Έτη.`,
+        "Προσθέστε μοναδικά CODE στο FET και εισαγάγετε ξανά το αρχείο για να δημιουργηθούν σταθερές συνδέσεις."
+      );
+    }
+    alert(lines.join("\n"));
+    return true;
+  }catch(error){
+    alert("Το αρχείο FET δεν μπορεί να χρησιμοποιηθεί.\n\n"+(error?.message||String(error)));
+    return false;
+  }
+}
+
+let loadedFetSourceFile=null;
+
+function clearProjectFileDragState(){
+  boardWrap.classList.remove("file-drag-over");
+  emptyProjectDrop.classList.remove("drag-over");
+}
+
+function isExternalFileDrag(event){
+  return [...(event.dataTransfer?.types||[])].includes("Files");
+}
+
+async function handleDroppedProjectFiles(files){
+  const csvFile=files.find(file=>file.name.toLocaleLowerCase("el-GR").endsWith(".csv"));
+  const fetFile=files.find(file=>file.name.toLocaleLowerCase("el-GR").endsWith(".fet"));
+
+  if(!csvFile && !fetFile){
+    alert("Μπορείτε να αφήσετε στην ελεύθερη επιφάνεια ένα αρχείο CSV ή FET.");
+    return;
+  }
+
+  if(csvFile){
+    const csvLoaded=await importProjectCsv(csvFile);
+    if(!csvLoaded)return;
+  }
+
+  if(fetFile){
+    await syncWithFetFile(fetFile);
+  }
+}
+
+boardWrap.addEventListener("dragenter",e=>{
+  if(!isExternalFileDrag(e) || e.target.closest("#board") || e.target.closest(".board-zoom-controls"))return;
+  e.preventDefault();
+  boardWrap.classList.add("file-drag-over");
+  if(emptyProjectDrop.classList.contains("visible"))emptyProjectDrop.classList.add("drag-over");
+});
+
+boardWrap.addEventListener("dragover",e=>{
+  if(!isExternalFileDrag(e))return;
+  if(e.target.closest("#board") || e.target.closest(".board-zoom-controls")){
+    e.preventDefault();
+    e.dataTransfer.dropEffect="none";
+    clearProjectFileDragState();
+    return;
+  }
+  e.preventDefault();
+  e.dataTransfer.dropEffect="copy";
+  boardWrap.classList.add("file-drag-over");
+  if(emptyProjectDrop.classList.contains("visible"))emptyProjectDrop.classList.add("drag-over");
+});
+
+boardWrap.addEventListener("dragleave",e=>{
+  if(e.relatedTarget && boardWrap.contains(e.relatedTarget))return;
+  clearProjectFileDragState();
+});
+
+boardWrap.addEventListener("drop",async e=>{
+  if(!isExternalFileDrag(e))return;
+  e.preventDefault();
+  clearProjectFileDragState();
+  if(e.target.closest("#board") || e.target.closest(".board-zoom-controls"))return;
+  await handleDroppedProjectFiles([...(e.dataTransfer?.files||[])]);
+});
+
+const newProgramDialog=document.querySelector("#newProgramDialog");
+
+document.querySelector("#newProgram").addEventListener("click",()=>{
+  newProgramDialog.showModal();
+});
+
+document.querySelector("#newCancel").addEventListener("click",()=>{
+  newProgramDialog.close();
+});
+
+document.querySelector("#newContinue").addEventListener("click",()=>{
+  newProgramDialog.close();
+  startNewProgram();
+});
+
+document.querySelector("#newSave").addEventListener("click",()=>{
+  newProgramDialog.close();
+  pendingNewProgramAfterSave=true;
+  exportFetActivitiesCsv();
+});
+
+document.querySelector("#saveData").addEventListener("click",()=>{
+  pendingNewProgramAfterSave=false;
+  exportFetActivitiesCsv();
+});
+
+function excelEscape(value){
+  return String(value??"")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;");
+}
+
+function excelRichText(text){
+  return excelEscape(text);
+}
+
+function makeBoardClipboardHtml(){
+  const source=document.querySelector("#board");
+  const rows=[];
+
+  const tableStyle=[
+    "border-collapse:collapse",
+    "table-layout:fixed",
+    "background:#fff"
+  ].join(";");
+
+  rows.push(
+    `<table border="1" cellspacing="0" cellpadding="0" style="${tableStyle}">`
+  );
+
+  source.querySelectorAll("tr").forEach(tr=>{
+    rows.push("<tr>");
+
+    [...tr.cells].forEach(td=>{
+      const keyValue=td.dataset.key;
+      const obj=keyValue ? cellObj(keyValue) : null;
+      const cs=getComputedStyle(td);
+
+      const attrs=[];
+      if(td.rowSpan>1)attrs.push(`rowspan="${td.rowSpan}"`);
+      if(td.colSpan>1)attrs.push(`colspan="${td.colSpan}"`);
+
+      const width=Math.max(1,Math.round(parseFloat(cs.width)||td.offsetWidth||150));
+      const height=Math.max(1,Math.round(parseFloat(cs.height)||td.offsetHeight||74));
+
+      const hasStructured=!!(
+        obj && (obj.cards?.length || obj.subjectId || obj.lowerItems?.length)
+      );
+
+      let textAlign="left";
+      let verticalAlign="top";
+      if(hasStructured){
+        // Όπως στην εκτύπωση: οι δομημένες εγγραφές είναι κεντραρισμένες.
+        textAlign="center";
+        verticalAlign="top";
+      }else if(obj){
+        textAlign=obj.fmt?.align || "left";
+        verticalAlign=
+          obj.fmt?.valign==="middle" ? "middle" :
+          obj.fmt?.valign==="bottom" ? "bottom" : "top";
+      }
+
+      attrs.push(`align="${textAlign}"`);
+      attrs.push(`valign="${verticalAlign}"`);
+
+      const cellStyle=[
+        "border:1.5pt solid #000",
+        "background:#fff",
+        `width:${width}px`,
+        `height:${height}px`,
+        "padding:4px",
+        "white-space:normal",
+        "mso-wrap-text:yes",
+        `text-align:${textAlign}`,
+        `vertical-align:${verticalAlign}`,
+        `mso-vertical-align-alt:${verticalAlign}`,
+        "color:#000"
+      ].join(";");
+
+      let content="";
+
+      if(hasStructured){
+        const lines=[];
+
+        if(obj.cards?.length){
+          const teacher=teachers.find(x=>x.id===obj.cards[0]);
+          if(teacher){
+            const teacherUses=teacherCount(teacher.id);
+            const teacherLabel=teacher.name+(teacherIsOverLimit(teacher,teacherUses)?" !":"");
+            lines.push(excelRichText(teacherLabel));
+          }
+        }
+
+        if(obj.subjectId){
+          const sub=subjects.find(x=>x.id===obj.subjectId);
+          if(sub){
+            lines.push(excelRichText(sub.name));
+          }
+        }
+
+        obj.lowerItems?.forEach(item=>{
+          const record=item.type==="department"
+            ? departments.find(x=>x.id===item.id)
+            : unions.find(x=>x.id===item.id);
+          if(record)lines.push(excelRichText(record.name));
+        });
+
+        content=lines.join('<br style="mso-data-placement:same-cell;">');
+      }else if(obj && obj.text){
+        // Απλό κείμενο: η μορφοποίηση βρίσκεται στο ίδιο το TD,
+        // κάτι που το Excel διατηρεί πιο αξιόπιστα.
+        const raw=String(obj.text)
+          .replace(/<br\s*\/?>/gi,"\n")
+          .replace(/<\/?(sup|sub|b|strong|i|em|u)>/gi,"");
+        const plain=document.createElement("div");
+        plain.innerHTML=raw;
+        content=(plain.textContent||"")
+          .split(/\r?\n/)
+          .map(excelEscape)
+          .join('<br style="mso-data-placement:same-cell;">');
+      }
+
+      rows.push(`<td ${attrs.join(" ")} style="${cellStyle}">${content}</td>`);
+    });
+
+    rows.push("</tr>");
+  });
+
+  rows.push("</table>");
+
+  return [
+    '<html xmlns:o="urn:schemas-microsoft-com:office:office" ',
+    'xmlns:x="urn:schemas-microsoft-com:office:excel" ',
+    'xmlns="http://www.w3.org/TR/REC-html40">',
+    '<head><meta charset="utf-8"></head><body>',
+    rows.join(""),
+    "</body></html>"
+  ].join("");
+}
+
+function boardPlainText(){
+  const rows=[];
+
+  document.querySelectorAll("#board tr").forEach(tr=>{
+    const cells=[...tr.cells].map(td=>{
+      const keyValue=td.dataset.key;
+      const obj=keyValue ? cellObj(keyValue) : null;
+
+      if(obj && (obj.cards?.length || obj.subjectId || obj.lowerItems?.length)){
+        const lines=[];
+
+        if(obj.cards?.length){
+          const teacher=teachers.find(x=>x.id===obj.cards[0]);
+          if(teacher){
+            const teacherUses=teacherCount(teacher.id);
+            lines.push(teacher.name+(teacherIsOverLimit(teacher,teacherUses)?" !":""));
+          }
+        }
+        if(obj.subjectId){
+          const sub=subjects.find(x=>x.id===obj.subjectId);
+          if(sub)lines.push(sub.name);
+        }
+        obj.lowerItems?.forEach(item=>{
+          const record=item.type==="department"
+            ? departments.find(x=>x.id===item.id)
+            : unions.find(x=>x.id===item.id);
+          if(record)lines.push(record.name);
+        });
+
+        return lines.join("\n");
+      }
+
+      return obj?.text
+        ? String(obj.text).replace(/<br\s*\/?>/gi,"\n").replace(/<[^>]+>/g,"").trim()
+        : "";
+    });
+
+    rows.push(cells.map(v=>`"${String(v).replace(/"/g,'""')}"`).join("\t"));
+  });
+
+  return rows.join("\r\n");
+}
+
+async function copyBoardForSpreadsheet(){
+  const html=makeBoardClipboardHtml();
+  const text=boardPlainText();
+
+  try{
+    if(navigator.clipboard && window.ClipboardItem && navigator.clipboard.write){
+      const item=new ClipboardItem({
+        "text/html":new Blob([html],{type:"text/html"}),
+        "text/plain":new Blob([text],{type:"text/plain"})
+      });
+      await navigator.clipboard.write([item]);
+    }else{
+      throw new Error("rich clipboard unavailable");
+    }
+  }catch(err){
+    // Fallback για Firefox/file://: εισάγουμε προσωρινά το Excel-friendly table
+    // στη σελίδα και αντιγράφουμε τη rendered HTML επιλογή.
+    const holder=document.createElement("div");
+    holder.style.position="fixed";
+    holder.style.left="-10000px";
+    holder.style.top="0";
+    holder.style.background="#fff";
+    holder.innerHTML=html;
+    document.body.appendChild(holder);
+
+    const table=holder.querySelector("table") || holder;
+    const range=document.createRange();
+    range.selectNodeContents(table);
+    const sel=window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    const ok=document.execCommand("copy");
+    sel.removeAllRanges();
+    holder.remove();
+
+    if(!ok){
+      alert("Δεν ήταν δυνατή η αντιγραφή του πίνακα από τον browser.");
+      return;
+    }
+  }
+
+  setStatus("Ο πίνακας αντιγράφηκε — κάντε επικόλληση σε Excel ή Calc");
+}
+
+document.querySelector("#copyBoard").addEventListener("click",copyBoardForSpreadsheet);
+
+function applySelectedPrintMode(){
+  const mode=document.querySelector("#printMode").value;
+  document.body.classList.toggle("print-short",mode==="short");
+}
+
+function printDayGroups(){
+  const dayCount=WEEK_DAYS.length;
+  const mode=document.querySelector("#printMode").value;
+  const daysPerPage=mode==="short"?3:2;
+  const groups=[];
+  for(let firstDay=0;firstDay<dayCount;firstDay+=daysPerPage){
+    groups.push([firstDay,Math.min(firstDay+daysPerPage-1,dayCount-1)]);
+  }
+  return groups;
+}
+
+function cloneBoardForPrintDays(firstDay,lastDay){
+  const dayCount=WEEK_DAYS.length;
+  const segmentCount=(state.cols-1)/dayCount;
+  const firstColumn=1+firstDay*segmentCount;
+  const lastColumnExclusive=1+(lastDay+1)*segmentCount;
+  const table=document.createElement("table");
+  table.id="board";
+  table.className="print-board";
+  const tbody=document.createElement("tbody");
+
+  board.querySelectorAll("tr").forEach(sourceRow=>{
+    const row=sourceRow.cloneNode(false);
+    sourceRow.querySelectorAll(":scope > td").forEach(sourceCell=>{
+      const keyValue=sourceCell.dataset.key||"";
+      const column=Number(keyValue.split("-")[1]);
+      if(column===0 || (column>=firstColumn && column<lastColumnExclusive)){
+        const clonedCell=sourceCell.cloneNode(true);
+        if(clonedCell.classList.contains("day-heading")){
+          const dayName=clonedCell.querySelector(".cell-html")||clonedCell;
+          const printedName=withoutGreekTones(dayName.textContent).toLocaleUpperCase("el-GR");
+          dayName.innerHTML=`<strong class="printed-day-name">${esc(printedName)}</strong>`;
+        }
+        row.appendChild(clonedCell);
+      }
+    });
+    tbody.appendChild(row);
+  });
+
+  table.appendChild(tbody);
+  return table;
+}
+
+function buildPrintPages(){
+  document.querySelector("#printPages")?.remove();
+  const pages=document.createElement("section");
+  pages.id="printPages";
+
+  printDayGroups().forEach(([firstDay,lastDay])=>{
+    const page=document.createElement("div");
+    page.className="print-page";
+    page.appendChild(cloneBoardForPrintDays(firstDay,lastDay));
+    pages.appendChild(page);
+  });
+
+  document.querySelector("main").appendChild(pages);
+}
+
+function preparePrint(){
+  applySelectedPrintMode();
+  buildPrintPages();
+}
+
+function finishPrint(){
+  document.body.classList.remove("print-short");
+  document.querySelector("#printPages")?.remove();
+}
+
+document.querySelector("#printBoard").addEventListener("click",()=>{
+  preparePrint();
+  window.print();
+});
+
+window.addEventListener("beforeprint",preparePrint);
+window.addEventListener("afterprint",finishPrint);
+
+document.querySelector("#undoPlacement").addEventListener("click",undoPlacementChange);
+document.querySelector("#redoPlacement").addEventListener("click",redoPlacementChange);
+document.querySelector("#initialPlacement").addEventListener("click",restoreInitialPlacement);
+
+document.querySelector("#openData").addEventListener("click",()=>{
+  document.querySelector("#openDataFile").click();
+});
+
+document.querySelector("#csvFileState").addEventListener("click",()=>{
+  document.querySelector("#openDataFile").click();
+});
+
+document.querySelector("#fetFileState").addEventListener("click",()=>{
+  document.querySelector("#openFetFile").click();
+});
+
+document.querySelector("#openDataFile").addEventListener("change",async e=>{
+  const file=e.target.files?.[0];
+  if(file) await importProjectCsv(file);
+  e.target.value="";
+});
+
+document.querySelector("#openFetFile").addEventListener("change",async e=>{
+  const file=e.target.files?.[0];
+  if(file)await syncWithFetFile(file);
+  e.target.value="";
+});
+
+applyScheduleDesign(scheduleDesign,{confirmLoss:false,render:false,preserve:false});
+renderAll();
+
+
+
+</script>
+</body>
+</html>

@@ -1,0 +1,3416 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FET Timetable Editor v0.77</title>
+<style>
+:root{
+  --bg:#f5f6f8;--panel:#fff;--line:#d8dee8;--text:#1f2937;--muted:#667085;
+  --accent:#2563eb;--danger:#b42318;--ok:#027a48;--warn:#b54708;
+  --cell:116px;--hour:160px
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
+button,input,select{font:inherit}
+button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 10px;cursor:pointer}
+button:hover{background:#f3f4f6}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button:disabled{opacity:.45;cursor:not-allowed}
+.app{height:100vh;display:grid;grid-template-rows:auto 1fr}
+header{
+  background:#fff;
+  border-bottom:1px solid var(--line);
+  padding:9px 12px;
+  display:flex;
+  gap:8px;
+  align-items:center;
+  flex-wrap:nowrap;
+  white-space:nowrap;
+  overflow:hidden;
+}
+.header-left{
+  min-width:max-content;
+  display:flex;
+  gap:8px;
+  align-items:center;
+  flex-wrap:nowrap;
+  white-space:nowrap;
+  flex:0 0 auto;
+}
+.brand{font-weight:850;margin-right:8px}
+header button,header select,.brand{white-space:nowrap;flex:0 0 auto}
+.grow{flex:1}
+.header-separator{
+  width:1px;
+  height:26px;
+  background:var(--line);
+  margin:0 2px;
+  flex:0 0 auto;
+}
+.file-state{
+  font-size:12px;
+  padding:4px 7px;
+  border-radius:999px;
+  border:1px solid var(--line);
+  color:var(--muted);
+  cursor:pointer;
+}
+.file-state:hover{filter:brightness(.97)}
+.file-state.ok{color:var(--ok);border-color:#a6f4c5;background:#ecfdf3}
+.file-state.warn{color:var(--warn);border-color:#fedf89;background:#fffaeb}
+.header-print-group{
+  display:flex;
+  align-items:stretch;
+  flex:0 0 auto;
+}
+.header-print-group button{
+  border-top-right-radius:0;
+  border-bottom-right-radius:0;
+}
+.header-print-group select{
+  min-width:118px;
+  border:1px solid var(--line);
+  background:#fff;
+  padding:7px 28px 7px 9px;
+  border-radius:0 8px 8px 0;
+  margin-left:-1px;
+  color:var(--text);
+}
+.header-print-group select:disabled{opacity:.45}
+.file-state-wrap{
+  min-width:72px;
+  flex:1 1 auto;
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:8px;
+  white-space:nowrap;
+  overflow:hidden;
+}
+.file-state-wrap .file-state{
+  min-width:0;
+  flex:0 1 auto;
+  max-width:260px;
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  overflow:hidden;
+  white-space:nowrap;
+}
+.file-state-label{
+  flex:0 0 auto;
+}
+.file-state-name{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.main{display:grid;grid-template-columns:280px 1fr;min-height:0}
+aside{background:#fff;border-right:1px solid var(--line);padding:10px;overflow:auto}
+.tabs{display:flex;gap:6px;margin-bottom:8px}
+.tabs button{flex:1}
+.tabs button.active{background:#eef4ff;border-color:#84adff;color:#1849a9;font-weight:750}
+#search{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:8px}
+.entity{display:block;width:100%;text-align:left;margin:3px 0;padding:8px 9px}
+.entity.active{background:#eef4ff;border-color:#84adff;font-weight:750}
+.entity-teacher-main{
+  display:flex;
+  align-items:baseline;
+  gap:8px;
+  width:100%;
+}
+.entity-teacher-short{
+  flex:1;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.entity-teacher-hours{
+  flex:0 0 auto;
+  font-size:12px;
+  line-height:1;
+  font-weight:650;
+  color:#667085;
+  font-variant-numeric:tabular-nums;
+}
+.entity-teacher-full{
+  margin-top:3px;
+  font-size:12px;
+  line-height:1.25;
+  font-weight:400;
+  color:#667085;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.entity.active .entity-teacher-hours,
+.entity.active .entity-teacher-full{
+  color:#475467;
+}
+.entity-class-main{
+  display:flex;
+  align-items:baseline;
+  gap:8px;
+  width:100%;
+}
+.entity-class-name{
+  flex:0 0 auto;
+  font-weight:650;
+  white-space:nowrap;
+}
+.entity-class-teacher{
+  flex:1 1 auto;
+  min-width:0;
+  text-align:right;
+  font-size:12px;
+  line-height:1.15;
+  font-weight:400;
+  color:#667085;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.entity.active .entity-class-teacher{
+  color:#475467;
+}
+.workspace{padding:12px;overflow:auto;position:relative}
+.workspace.welcome-mode{
+  display:grid;
+  grid-template-rows:auto 1fr;
+  min-height:0;
+}
+.workspace.welcome-mode .welcome{
+  align-self:center;
+  justify-self:center;
+}
+.notice{padding:10px 12px;border-radius:9px;margin-bottom:10px;font-size:13px}
+.notice.info{background:#eff8ff;border:1px solid #b2ddff;color:#175cd3}
+.notice.warn{background:#fffaeb;border:1px solid #fedf89;color:#93370d}
+.notice.error{background:#fff1f0;border:1px solid #fda29b;color:#912018;white-space:pre-wrap}
+.welcome{
+  width:min(960px,94%);
+  padding:0;
+}
+.drop-hint{
+  border:2px dashed #79a2ff;
+  border-radius:14px;
+  padding:30px 26px 32px;
+  text-align:center;
+  background:#f3f7ff;
+  color:#1455c0;
+}
+.drop-hint .drop-icon{
+  display:block;
+  font-size:40px;
+  line-height:1;
+  font-weight:300;
+  margin-bottom:10px;
+}
+.drop-title{
+  font-size:20px;
+  font-weight:650;
+  margin-bottom:8px;
+}
+.drop-text{
+  color:#7f8fa6;
+  font-size:15px;
+  line-height:1.5;
+}
+.drop-text b{
+  color:#1455c0;
+  font-weight:650;
+}
+code{background:#f2f4f7;padding:2px 5px;border-radius:4px}
+.toolbar{display:block;margin-bottom:10px}
+.toolbar-title-row{
+  display:flex;
+  align-items:center;
+  min-height:28px;
+  margin-bottom:8px;
+}
+.toolbar .title{font-size:18px;font-weight:850}
+.toolbar-controls{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+.toolbar label{font-size:13px}
+.legend{font-size:12px;color:var(--muted)}
+table.grid{border-collapse:separate;border-spacing:0;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;min-width:max-content}
+.grid th,.grid td{border-right:1px solid var(--line);border-bottom:1px solid var(--line);vertical-align:top}
+.grid tr:last-child td,.grid tr:last-child th{border-bottom:0}
+.grid th:last-child,.grid td:last-child{border-right:0}
+.grid tr.print-section-boundary > th,
+.grid tr.print-section-boundary > td{
+  border-top:2px solid #98a2b3;
+}
+.grid thead th{position:sticky;top:0;z-index:4;background:#f9fafb;padding:8px;text-align:center;min-width:var(--cell)}
+.grid .hour{position:sticky;left:0;z-index:3;background:#f9fafb;width:var(--hour);min-width:var(--hour);padding:8px;text-align:left;font-size:13px}
+.grid thead .hour{z-index:5}
+.grid td.slot{width:var(--cell);min-width:var(--cell);height:80px;padding:5px;background:#fff}
+.grid td.slot.drag-allowed{
+  background:#ecfdf3;
+  box-shadow:inset 0 0 0 1px #a6f4c5;
+}
+.grid td.slot.drag-allowed.dragover{
+  outline:3px solid #32d583;
+  outline-offset:-3px;
+  background:#dcfae6;
+}
+.grid td.slot.drag-unavailable{
+  background:#fff4e5;
+  box-shadow:inset 0 0 0 1px #f7b955;
+}
+.grid td.slot.drag-unavailable.dragover{
+  outline:3px solid #f79009;
+  outline-offset:-3px;
+  background:#ffead5;
+}
+.grid td.slot.dragover:not(.drag-allowed):not(.drag-unavailable){
+  outline:3px solid #84adff;
+  outline-offset:-3px;
+  background:#eff8ff;
+}
+.grid td.break-slot{background:#f2f4f7;color:#667085;text-align:center;vertical-align:middle;font-weight:700;cursor:not-allowed}
+.card{border:1px solid #d0d5dd;border-left:5px solid var(--card,#667085);background:#fff;border-radius:8px;padding:6px 7px;margin-bottom:5px;box-shadow:0 1px 2px rgba(16,24,40,.05);cursor:grab;user-select:none}
+.card.specialty-teacher{background:#eef7ff;border-color:#b9d8fb}
+.card.non-homeroom-classroom{background:#fff9db;border-color:#f2d675}
+.card.conflict{background:#fff1f0;border-color:#f04438}
+.card:active{cursor:grabbing}
+.subject{font-weight:850;line-height:1.15;text-align:center}
+.meta{font-size:11px;color:#475467;margin-top:3px;line-height:1.25}
+.teacher-name{text-align:center}
+.badge{display:block;width:max-content;max-width:100%;font-size:10px;border:1px solid #d0d5dd;border-radius:999px;padding:1px 5px;margin:4px auto 0;background:#f9fafb;text-align:center}
+.small{font-size:12px;color:var(--muted)}
+dialog{border:0;border-radius:12px;padding:0;box-shadow:0 20px 60px rgba(0,0,0,.25);width:min(760px,94vw)}
+dialog::backdrop{background:rgba(0,0,0,.35)}
+.dlg-h{padding:14px 16px;border-bottom:1px solid var(--line);font-weight:850}
+.dlg-b{padding:14px 16px;max-height:70vh;overflow:auto}
+.dlg-f{padding:12px 16px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px}
+.order-cols{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.order-list{list-style:none;margin:8px 0;padding:0}
+.order-list li{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:8px;padding:6px;margin:5px 0;background:#fff}
+.order-list .name{flex:1}
+.source-note{font-size:12px;color:var(--muted);margin-top:5px}
+.olo-update-info{
+  background:#f8fafc;
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:12px 14px;
+  font-size:13px;
+  line-height:1.5;
+  margin-bottom:14px;
+}
+.olo-update-info b{font-weight:750}
+.olo-form-row{
+  display:grid;
+  grid-template-columns:160px minmax(0,1fr);
+  gap:10px;
+  align-items:center;
+  margin:10px 0;
+}
+.olo-form-row input[type="text"]{
+  width:100%;
+  padding:8px 10px;
+  border:1px solid var(--line);
+  border-radius:8px;
+}
+.olo-file-line{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-width:0;
+}
+#oloimeroDesignerName{
+  color:var(--muted);
+  font-size:12px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+#oloimeroUpdateStatus{
+  min-height:18px;
+  margin-top:10px;
+  font-size:12px;
+  color:var(--muted);
+}
+#oloimeroUpdateStatus.error{color:var(--danger)}
+#oloimeroUpdateStatus.ok{color:var(--ok)}
+@media(max-width:700px){
+  .olo-form-row{grid-template-columns:1fr}
+}
+@media(max-width:900px){.main{grid-template-columns:220px 1fr}:root{--cell:96px;--hour:130px}}
+
+.print-effective-row{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-top:12px;
+}
+.print-effective-row label{
+  font-size:13px;
+  font-weight:650;
+}
+.print-effective-row input[type="date"]{
+  padding:6px 8px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:#fff;
+  color:var(--text);
+}
+.print-select-columns{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:18px;
+  margin-top:10px;
+}
+.print-select-column{
+  min-width:0;
+}
+.print-select-column h3{
+  margin:0 0 8px;
+  font-size:15px;
+}
+.print-select-actions{
+  display:flex;
+  gap:6px;
+  margin-bottom:8px;
+}
+.print-select-actions button{
+  padding:5px 9px;
+}
+.print-select-list{
+  display:flex;
+  flex-direction:column;
+  gap:0;
+  max-height:48vh;
+  overflow:auto;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:#fff;
+}
+.print-select-item{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:7px 9px;
+  border-bottom:1px solid #eaecf0;
+  cursor:pointer;
+}
+.print-select-item:last-child{
+  border-bottom:0;
+}
+.print-select-item:hover{
+  background:#f9fafb;
+}
+@media(max-width:700px){
+  .print-select-columns{grid-template-columns:1fr}
+.file-state-wrap{gap:4px}
+}
+
+@media print{
+  header,aside,.toolbar button,.toolbar .screen-only,.legend,.notice{display:none!important}
+  .main{display:block}.workspace{padding:0;overflow:visible}body{background:#fff}
+  table.grid{width:100%;border-radius:0}.grid thead th,.grid .hour{position:static}.card{box-shadow:none}
+  @page{size:A4 landscape;margin:8mm}
+}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+  <div class="header-left">
+
+  <div class="brand">FET Timetable Editor <span class="small">v0.77</span></div>
+  <input id="csvInput" type="file" accept=".csv,text/csv" hidden>
+  <input id="fetInput" type="file" accept=".fet,text/xml,application/xml" hidden>
+  <button id="openBtn">Άνοιγμα...</button>
+  <button id="exportBtn" disabled>Αποθήκευση...</button>
+  <span class="header-separator" aria-hidden="true"></span>
+  <button id="orderBtn" disabled>Σειρά ημερών / ωρών</button>
+  <span class="header-separator" aria-hidden="true"></span>
+  <button id="undoBtn" disabled>↶ Undo</button>
+  <button id="redoBtn" disabled>↷ Redo</button>
+  <button id="initialBtn" disabled>Αρχικό</button>
+  <span class="header-separator" aria-hidden="true"></span>
+  <button id="updateOloimeroBtn" disabled>Ενημέρωση Ολοήμερου...</button>
+  <div class="header-print-group">
+    <button id="printBtn" disabled>Εκτύπωση</button>
+    <select id="printMode" disabled aria-label="Τύπος εκτύπωσης">
+      <option value="classes">Τμήματα</option>
+      <option value="staff">Προσωπικό</option>
+      <option value="classroom">Δάσκαλοι</option>
+      <option value="specialties">Ειδικότητες</option>
+    </select>
+  </div>
+  </div>
+  <div class="file-state-wrap">
+    <button type="button" id="fetState" class="file-state warn" title="Κλικ για φόρτωση νέου αρχείου FET"><span class="file-state-label">FET: </span><span class="file-state-name">όχι</span></button>
+    <button type="button" id="csvState" class="file-state warn" title="Κλικ για φόρτωση νέου αρχείου CSV"><span class="file-state-label">CSV: </span><span class="file-state-name">όχι</span></button>
+  </div>
+</header>
+
+<div class="main">
+<aside>
+  <div class="tabs">
+    <button id="studentsTab" class="active">Τμήματα</button>
+    <button id="teachersTab">Εκπαιδευτικοί</button>
+  </div>
+  <input id="search" placeholder="Αναζήτηση…" disabled>
+  <div id="entityList"></div>
+</aside>
+
+<main class="workspace welcome-mode">
+  <div id="notice"></div>
+
+  <div id="welcome" class="welcome">
+    <div class="drop-hint">
+      <span class="drop-icon">⇩</span>
+      <div class="drop-title">Σύρετε και αφήστε εδώ τα αρχεία του προγράμματος</div>
+      <div class="drop-text">
+        Το αρχείο <b>CSV</b> ανοίγει το πρόγραμμα στο FET Timetable Editor.<br>
+        Το αρχείο <b>FET</b> ελέγχει τις ώρες και τη σωστή σειρά τους.<br>
+        Μπορείτε να αφήσετε και τα δύο αρχεία μαζί.
+      </div>
+    </div>
+  </div>
+
+  <div id="editor" hidden>
+    <div class="toolbar">
+      <div class="toolbar-title-row">
+        <span class="title" id="viewTitle"></span>
+      </div>
+      <div class="toolbar-controls">
+        <label>Λειτουργία:
+          <select id="mode">
+            <option value="safe">Ασφαλής</option>
+            <option value="free">Ελεύθερη</option>
+          </select>
+        </label>
+        <label><input type="checkbox" id="showSubject" checked> Μάθημα</label>
+        <label><input type="checkbox" id="showTeachers" checked> Εκπαιδευτικοί</label>
+        <input type="checkbox" id="showRooms" hidden>
+        <input type="checkbox" id="showBreaks" hidden>
+        <input type="checkbox" id="showTags" hidden>
+        <input type="checkbox" id="showActivityId" hidden>
+        <label>Ώρες:
+          <select id="hourFilter">
+            <option value="all">Όλες οι ώρες</option>
+            <option value="morning">Πρωινό</option>
+            <option value="extended">Ολοήμερο</option>
+          </select>
+        </label>
+        <label id="teacherAssignmentFilterWrap">Εκπαιδευτικοί:
+          <select id="teacherAssignmentFilter">
+            <option value="all">Όλοι</option>
+            <option value="classroom">Δάσκαλοι</option>
+            <option value="specialties">Ειδικότητες</option>
+          </select>
+        </label>
+        <span class="legend">Κόκκινο = σύγκρουση εκπαιδευτικού ή student set.</span>
+      </div>
+    </div>
+    <div id="gridWrap"></div>
+  </div>
+</main>
+</div>
+</div>
+
+
+<dialog id="printClassesDialog">
+  <div class="dlg-h" id="printClassesDialogTitle">Εκτύπωση τμημάτων</div>
+  <div class="dlg-b">
+    <div class="small">Επίλεξε τα τμήματα και τις ώρες που θέλεις να συμπεριληφθούν.</div>
+
+    <div class="print-effective-row">
+      <label for="printClassesEffectiveDate">Ισχύει από:</label>
+      <input type="date" id="printClassesEffectiveDate">
+    </div>
+
+    <div class="print-select-columns">
+      <section class="print-select-column">
+        <h3>Τμήματα</h3>
+        <div class="print-select-actions">
+          <button type="button" id="printClassesAll">Όλα</button>
+          <button type="button" id="printClassesNone">Κανένα</button>
+        </div>
+        <div id="printClassesList" class="print-select-list"></div>
+      </section>
+
+      <section class="print-select-column">
+        <h3>Ώρες</h3>
+        <div class="print-select-actions">
+          <button type="button" id="printHoursAll">Όλες</button>
+          <button type="button" id="printHoursNone">Καμία</button>
+          <button type="button" id="printHoursMorning">Πρωϊνό</button>
+          <button type="button" id="printHoursExtended">Ολοήμερο</button>
+        </div>
+        <div id="printHoursList" class="print-select-list"></div>
+      </section>
+    </div>
+  </div>
+  <div class="dlg-f">
+    <button id="cancelPrintClasses">Άκυρο</button>
+    <button id="confirmPrintClasses" class="primary">Εκτύπωση</button>
+  </div>
+</dialog>
+
+
+<dialog id="printTeachersDialog">
+  <div class="dlg-h" id="printTeachersDialogTitle">Εκτύπωση προσωπικού</div>
+  <div class="dlg-b">
+    <div class="small">Επίλεξε τους εκπαιδευτικούς και τις ώρες που θέλεις να συμπεριληφθούν.</div>
+
+    <div class="print-effective-row">
+      <label for="printTeachersEffectiveDate">Ισχύει από:</label>
+      <input type="date" id="printTeachersEffectiveDate">
+    </div>
+
+    <div class="print-select-columns">
+      <section class="print-select-column">
+        <h3>Εκπαιδευτικοί</h3>
+        <div class="print-select-actions">
+          <button type="button" id="printTeachersAll">Όλοι</button>
+          <button type="button" id="printTeachersNone">Κανένας</button>
+          <button type="button" id="printTeachersClassroom">Δάσκαλοι</button>
+          <button type="button" id="printTeachersSpecialties">Ειδικότητες</button>
+        </div>
+        <div id="printTeachersList" class="print-select-list"></div>
+      </section>
+
+      <section class="print-select-column">
+        <h3>Ώρες</h3>
+        <div class="print-select-actions">
+          <button type="button" id="printTeacherHoursAll">Όλες</button>
+          <button type="button" id="printTeacherHoursNone">Καμία</button>
+          <button type="button" id="printTeacherHoursMorning">Πρωϊνό</button>
+          <button type="button" id="printTeacherHoursExtended">Ολοήμερο</button>
+        </div>
+        <div id="printTeacherHoursList" class="print-select-list"></div>
+      </section>
+    </div>
+  </div>
+  <div class="dlg-f">
+    <button id="cancelPrintTeachers">Άκυρο</button>
+    <button id="confirmPrintTeachers" class="primary">Εκτύπωση</button>
+  </div>
+</dialog>
+
+<dialog id="updateOloimeroDialog">
+  <div class="dlg-h">Ενημέρωση Ολοημέρου</div>
+  <div class="dlg-b">
+    <div class="olo-update-info">
+      Το CSV του <b>Ολοήμερου Designer</b> χρησιμοποιείται μόνο για να ενημερώσει
+      τα πεδία <b>Μάθημα</b>, <b>Τμήματα / Students Sets</b> και
+      <b>Εκπαιδευτικοί / Teachers</b> των activities που θα ορίσετε.<br><br>
+      <b>Δεν αλλάζονται</b> οι ημέρες, οι ώρες, τα Activity Tags,
+      οι αίθουσες ή άλλα στοιχεία του φορτωμένου timetable CSV.<br><br>
+      Οι γραμμές του Designer αντιστοιχίζονται με τη σειρά στα Activity IDs του
+      επιλεγμένου εύρους. Αν οι αριθμοί δεν ταιριάζουν, η ενημέρωση δεν εκτελείται.
+      Οι αλλαγές γίνονται μόνο στο φορτωμένο πρόγραμμα· για να τις κρατήσετε σε αρχείο,
+      χρησιμοποιήστε το κουμπί <b>«Αποθήκευση...»</b>.
+    </div>
+
+    <input id="oloimeroDesignerInput" type="file" accept=".csv,text/csv" hidden>
+
+    <div class="olo-form-row">
+      <b>CSV Ολοήμερου</b>
+      <div class="olo-file-line">
+        <button type="button" id="chooseOloimeroDesigner">Επιλογή CSV...</button>
+        <span id="oloimeroDesignerName">Δεν έχει επιλεγεί αρχείο.</span>
+      </div>
+    </div>
+
+    <div class="olo-form-row">
+      <b>Εύρος Activity IDs</b>
+      <input id="oloimeroActivityRange" type="text" inputmode="numeric"
+             placeholder="π.χ. 1-76" autocomplete="off">
+    </div>
+
+    <div id="oloimeroUpdateStatus"></div>
+  </div>
+
+  <div class="dlg-f">
+    <button type="button" id="cancelUpdateOloimero">Άκυρο</button>
+    <button type="button" id="applyUpdateOloimero" class="primary">Ενημέρωση</button>
+  </div>
+</dialog>
+
+<dialog id="orderDialog">
+  <div class="dlg-h">Σειρά ημερών / ωρών</div>
+  <div class="dlg-b">
+    <div class="source-note" id="orderSource"></div>
+    <p class="small">Η σειρά από το .fet θεωρείται η κανονική. Μπορείς παρ’ όλα αυτά να την αλλάξεις προσωρινά εδώ για την προβολή.</p>
+    <div class="order-cols">
+      <section><b>Ημέρες</b><ul class="order-list" id="daysOrder"></ul></section>
+      <section><b>Ώρες</b><ul class="order-list" id="hoursOrder"></ul></section>
+    </div>
+  </div>
+  <div class="dlg-f">
+    <button id="cancelOrder">Άκυρο</button>
+    <button id="restoreFetOrder">Επαναφορά από .fet</button>
+    <button id="saveOrder" class="primary">Εφαρμογή</button>
+  </div>
+</dialog>
+
+<script>
+(() => {
+'use strict';
+const $=s=>document.querySelector(s);
+const SEP='\u0000';
+const state={
+  fetName:'',csvName:'',
+  headers:[],rows:[],
+  days:[],hours:[],
+  fetDays:[],fetHours:[],
+  fetDayItems:[],fetHourItems:[],
+  breakSlots:new Set(),
+  teacherLongNames:{},
+  teacherTargetHours:{},
+  teacherUnavailableRaw:[],
+  teacherUnavailableSlots:{},
+  studentChildren:{},studentParents:{},studentLeaves:[],studentGroups:[],studentNodes:[],
+  entityType:'students',selected:'',
+  undo:[],redo:[],
+  initialSnap:'',
+  oloimeroDesignerName:'',
+  oloimeroDesignerRows:[],
+  printEffectiveDate:'',
+  draggedId:null
+};
+const REQUIRED=["Activity Id","Day","Hour","Students Sets","Subject","Teachers","Activity Tags","Room","Comments"];
+
+function setNotice(type,msg){
+  const n=$('#notice');
+  if(!msg){n.innerHTML='';return;}
+  n.innerHTML=`<div class="notice ${type}">${escapeHtml(msg).replaceAll('\n','<br>')}</div>`;
+}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function uniq(a){return [...new Set(a)]}
+function splitNames(s){return String(s||'').split('+').map(x=>x.trim()).filter(Boolean)}
+function slotKey(d,h){return d+SEP+h}
+function colorFor(text){
+  let h=0;for(const ch of String(text))h=(h*31+ch.charCodeAt(0))%360;
+  return `hsl(${h} 58% 48%)`;
+}
+
+function detectDelimiter(text){
+  const first=text.replace(/^\uFEFF/,'').split(/\r?\n/).find(x=>x.trim())||'';
+  let best=',',score=-1;
+  for(const d of [',',';','|']){
+    let q=false,c=0;
+    for(let i=0;i<first.length;i++){
+      const x=first[i];
+      if(x==='"'){
+        if(q&&first[i+1]==='"'){i++;continue}
+        q=!q;
+      }else if(!q&&x===d)c++;
+    }
+    if(c>score){score=c;best=d}
+  }
+  return best;
+}
+function parseCSV(text,d){
+  text=text.replace(/^\uFEFF/,'');
+  const out=[];let row=[],field='',q=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){
+      if(c==='"'&&text[i+1]==='"'){field+='"';i++}
+      else if(c==='"')q=false;
+      else field+=c;
+    }else{
+      if(c==='"')q=true;
+      else if(c===d){row.push(field);field=''}
+      else if(c==='\n'){row.push(field);out.push(row);row=[];field=''}
+      else if(c!=='\r')field+=c;
+    }
+  }
+  if(field.length||row.length){row.push(field);out.push(row)}
+  return out.filter(r=>r.some(v=>String(v).trim()!==''));
+}
+function csvEscape(v,d=','){
+  v=String(v??'');
+  return '"'+v.replaceAll('"','""')+'"';
+}
+
+function parseFet(text){
+  const doc=new DOMParser().parseFromString(text,'application/xml');
+  const pe=doc.getElementsByTagName('parsererror');
+  if(pe.length)throw new Error('Το .fet δεν είναι έγκυρο XML.');
+
+  function itemList(listTag,itemTag){
+    const list=doc.getElementsByTagName(listTag)[0];
+    if(!list)return [];
+    return [...list.getElementsByTagName(itemTag)].map(el=>{
+      const name=(el.getElementsByTagName('Name')[0]?.textContent||'').trim();
+      const long=(el.getElementsByTagName('Long_Name')[0]?.textContent||'').trim();
+      return {name,long};
+    }).filter(x=>x.name||x.long);
+  }
+
+  const dayItems=itemList('Days_List','Day');
+  const hourItems=itemList('Hours_List','Hour');
+  if(!dayItems.length||!hourItems.length)throw new Error('Δεν βρήκα Days_List / Hours_List μέσα στο .fet.');
+
+  const rawBreaks=[];
+  for(const con of [...doc.getElementsByTagName('ConstraintBreakTimes')]){
+    for(const bt of [...con.getElementsByTagName('Break_Time')]){
+      const d=(bt.getElementsByTagName('Day')[0]?.textContent||'').trim();
+      const h=(bt.getElementsByTagName('Hour')[0]?.textContent||'').trim();
+      if(d&&h)rawBreaks.push({day:d,hour:h});
+    }
+  }
+
+  // Teacher not-available constraints from the FET file.
+  // We keep the native FET day/hour names here and map them to the CSV aliases later.
+  const rawTeacherUnavailable=[];
+  for(const con of [...doc.getElementsByTagName('ConstraintTeacherNotAvailableTimes')]){
+    const active=(con.getElementsByTagName('Active')[0]?.textContent||'true').trim().toLowerCase();
+    if(active==='false')continue;
+
+    const weightRaw=(con.getElementsByTagName('Weight_Percentage')[0]?.textContent||'100').trim();
+    const weight=Number(weightRaw);
+    if(Number.isFinite(weight) && weight<=0)continue;
+
+    const teacher=(con.getElementsByTagName('Teacher')[0]?.textContent||'').trim();
+    if(!teacher)continue;
+
+    for(const nt of [...con.getElementsByTagName('Not_Available_Time')]){
+      const day=(nt.getElementsByTagName('Day')[0]?.textContent||'').trim();
+      const hour=(nt.getElementsByTagName('Hour')[0]?.textContent||'').trim();
+      if(day&&hour){
+        rawTeacherUnavailable.push({teacher,day,hour,weight:Number.isFinite(weight)?weight:100});
+      }
+    }
+  }
+
+  // Student-set hierarchy: Year -> Group -> Subgroup (or any nested combination).
+  // We keep only direct structural children so parent activities can be inherited by leaf sections.
+  const studentChildren={};
+  const studentParents={};
+  const studentNodes=[];
+  const studentsList=doc.getElementsByTagName('Students_List')[0];
+  const structuralTags=new Set(['Year','Group','Subgroup']);
+  function directName(el){
+    for(const ch of el.children||[]){
+      if(ch.tagName==='Name')return (ch.textContent||'').trim();
+    }
+    return '';
+  }
+  function walkStudent(el,parentName=''){
+    if(!structuralTags.has(el.tagName))return;
+    const name=directName(el);
+    if(!name)return;
+    if(!studentChildren[name])studentChildren[name]=[];
+    if(!studentParents[name])studentParents[name]=[];
+    studentNodes.push({name,type:el.tagName});
+    if(parentName){
+      if(!studentChildren[parentName])studentChildren[parentName]=[];
+      if(!studentChildren[parentName].includes(name))studentChildren[parentName].push(name);
+      if(!studentParents[name].includes(parentName))studentParents[name].push(parentName);
+    }
+    for(const ch of el.children||[]){
+      if(structuralTags.has(ch.tagName))walkStudent(ch,name);
+    }
+  }
+  if(studentsList){
+    for(const ch of studentsList.children||[]){
+      if(structuralTags.has(ch.tagName))walkStudent(ch,'');
+    }
+  }
+  const studentLeaves=studentNodes.map(x=>x.name).filter((n,i,a)=>a.indexOf(n)===i).filter(n=>(studentChildren[n]||[]).length===0);
+  // In FET, the actual school sections/classes we want to browse are Groups.
+  // Subgroups (e.g. E1-German / E1-French) remain in the hierarchy for inheritance/conflicts,
+  // but are intentionally not shown as separate timetable choices.
+  const studentGroups=uniq(studentNodes.filter(x=>x.type==='Group').map(x=>x.name));
+
+  // Teacher short name -> full/long name and target hours from the FET file.
+  const teacherLongNames={};
+  const teacherTargetHours={};
+  const teachersList=doc.getElementsByTagName('Teachers_List')[0];
+  if(teachersList){
+    for(const teacher of teachersList.children||[]){
+      if(teacher.tagName!=='Teacher')continue;
+
+      let name='';
+      let longName='';
+      let targetHours='';
+
+      for(const ch of teacher.children||[]){
+        if(ch.tagName==='Name'){
+          name=(ch.textContent||'').trim();
+        }else if(ch.tagName==='Long_Name'){
+          longName=(ch.textContent||'').trim();
+        }else if(ch.tagName==='Target_Number_of_Hours'){
+          targetHours=(ch.textContent||'').trim();
+        }
+      }
+
+      if(name){
+        teacherLongNames[name]=longName;
+        teacherTargetHours[name]=targetHours;
+      }
+    }
+  }
+
+  return {
+    dayItems,hourItems,rawBreaks,
+    teacherLongNames,teacherTargetHours,rawTeacherUnavailable,
+    studentChildren,studentParents,studentLeaves,studentGroups,studentNodes
+  };
+}
+
+function chooseAliases(items,values){
+  const vals=new Set(values);
+  return items.map(x=>{
+    if(x.name&&vals.has(x.name))return x.name;
+    if(x.long&&vals.has(x.long))return x.long;
+    return x.name||x.long;
+  }).filter(Boolean);
+}
+function aliasMap(items,values){
+  const vals=new Set(values), map=new Map();
+  for(const x of items){
+    const chosen=(x.name&&vals.has(x.name))?x.name:(x.long&&vals.has(x.long))?x.long:(x.name||x.long);
+    if(x.name)map.set(x.name,chosen);
+    if(x.long)map.set(x.long,chosen);
+  }
+  return map;
+}
+function rebuildTeacherUnavailableSlots(dayMap=null,hourMap=null){
+  const out={};
+
+  for(const item of state.teacherUnavailableRaw||[]){
+    const day=dayMap?.get(item.day)||item.day;
+    const hour=hourMap?.get(item.hour)||item.hour;
+
+    if(!out[item.teacher])out[item.teacher]=new Set();
+    out[item.teacher].add(slotKey(day,hour));
+  }
+
+  state.teacherUnavailableSlots=out;
+}
+
+function chronologicalHours(values){
+  const parse=s=>{
+    const m=String(s).match(/(?:^|\D)([01]?\d|2[0-3]):([0-5]\d)/);
+    return m?Number(m[1])*60+Number(m[2]):null;
+  };
+  const arr=uniq(values);
+  if(arr.every(x=>parse(x)!==null))return arr.sort((a,b)=>parse(a)-parse(b));
+  return arr;
+}
+function fallbackDays(values){
+  const arr=uniq(values);
+  const order=['Δευτέρα','Τρίτη','Τετάρτη','Πέμπτη','Παρασκευή','Σάββατο','Κυριακή',
+               'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  if(arr.every(x=>order.includes(x)))return arr.sort((a,b)=>order.indexOf(a)-order.indexOf(b));
+  return arr;
+}
+
+function applyFetOrder(){
+  if(!state.fetDayItems.length||!state.fetHourItems.length)return;
+  const csvDays=uniq(state.rows.map(r=>r.Day).filter(Boolean));
+  const csvHours=uniq(state.rows.map(r=>r.Hour).filter(Boolean));
+  state.fetDays=chooseAliases(state.fetDayItems,csvDays);
+  state.fetHours=chooseAliases(state.fetHourItems,csvHours);
+  state.days=[...state.fetDays];
+  state.hours=[...state.fetHours];
+
+  const dm=aliasMap(state.fetDayItems,csvDays);
+  const hm=aliasMap(state.fetHourItems,csvHours);
+
+  // Rebuild break slots with the aliases that the CSV/view actually uses.
+  const old=[...state.breakSlotsRaw||[]];
+  state.breakSlots=new Set(old.map(b=>slotKey(dm.get(b.day)||b.day,hm.get(b.hour)||b.hour)));
+
+  // Rebuild teacher not-available slots using the same aliases as the timetable CSV.
+  rebuildTeacherUnavailableSlots(dm,hm);
+
+  // Warn about CSV values that cannot be found in the FET order.
+  const missingDays=csvDays.filter(x=>!state.days.includes(x));
+  const missingHours=csvHours.filter(x=>!state.hours.includes(x));
+  if(missingDays.length)state.days.push(...missingDays);
+  if(missingHours.length)state.hours.push(...missingHours);
+
+  if(missingDays.length||missingHours.length){
+    setNotice('warn',
+      'Το .fet φορτώθηκε και χρησιμοποιείται για τη σειρά, αλλά ορισμένες τιμές του CSV δεν ταίριαξαν ακριβώς.\n'+
+      (missingDays.length?'Ημέρες: '+missingDays.join(', ')+'\n':'')+
+      (missingHours.length?'Ώρες: '+missingHours.join(', '):'')
+    );
+  }else{
+    setNotice('info','Η σειρά ημερών και ωρών προέρχεται από το .fet — όχι από τη σειρά των activities στο CSV.');
+  }
+}
+
+function applyFallbackOrder(){
+  const csvDays=state.rows.map(r=>r.Day).filter(Boolean);
+  const csvHours=state.rows.map(r=>r.Hour).filter(Boolean);
+  state.days=fallbackDays(csvDays);
+  state.hours=chronologicalHours(csvHours);
+  setNotice('warn','Έχει φορτωθεί μόνο το CSV. Οι ώρες ταξινομήθηκαν από την ώρα έναρξης και οι γνωστές ημέρες εβδομάδας ημερολογιακά. Για απόλυτα πιστή σειρά φόρτωσε και το αρχικό .fet.');
+}
+
+function resetFET(){
+  state.fetName='';
+  state.fetDays=[];
+  state.fetHours=[];
+  state.fetDayItems=[];
+  state.fetHourItems=[];
+  state.breakSlotsRaw=[];
+  state.breakSlots=new Set();
+  state.teacherLongNames={};
+  state.teacherTargetHours={};
+  state.teacherUnavailableRaw=[];
+  state.teacherUnavailableSlots={};
+  state.studentChildren={};
+  state.studentParents={};
+  state.studentLeaves=[];
+  state.studentGroups=[];
+  state.studentNodes=[];
+
+  $('#fetState .file-state-name').textContent='όχι';
+  $('#fetState').className='file-state warn';
+  $('#fetState').title='Κλικ για φόρτωση νέου αρχείου FET';
+}
+
+function loadCSV(text,name){
+  const d=detectDelimiter(text),p=parseCSV(text,d);
+  if(p.length<2)throw new Error('Το CSV δεν περιέχει δεδομένα.');
+  const headers=p[0].map(x=>x.trim());
+  const missing=REQUIRED.filter(h=>!headers.includes(h));
+  if(missing.length)throw new Error('Δεν αναγνωρίστηκε ως FET TimeTable.csv. Λείπουν: '+missing.join(', '));
+
+  // Νέο CSV => το προηγούμενο FET αποσυνδέεται.
+  // Αν CSV + FET πέσουν μαζί, το loadFiles() φορτώνει πρώτα το CSV
+  // και αμέσως μετά το νέο FET.
+  resetFET();
+
+  state.headers=headers;
+  state.rows=p.slice(1).map(vals=>{
+    const o={};headers.forEach((h,i)=>o[h]=vals[i]??'');return o;
+  });
+  state.csvName=name;
+  state.undo=[];state.redo=[];
+  $('#csvState .file-state-name').textContent=name;$('#csvState').className='file-state ok';$('#csvState').title='CSV: '+name+'\nΚλικ για φόρτωση νέου αρχείου CSV';
+  $('#exportBtn').disabled=false;
+  $('#orderBtn').disabled=false;
+  $('#updateOloimeroBtn').disabled=false;
+  $('#printBtn').disabled=false;
+  $('#printMode').disabled=false;
+  $('#search').disabled=false;
+  if(state.fetDayItems.length)applyFetOrder();else applyFallbackOrder();
+  captureInitialState();
+  rebuildEntities();updateUndoRedo();render();
+}
+function loadFET(text,name){
+  const f=parseFet(text);
+  state.fetName=name;
+  state.fetDayItems=f.dayItems;state.fetHourItems=f.hourItems;
+  state.breakSlotsRaw=f.rawBreaks;
+  state.teacherLongNames=f.teacherLongNames||{};
+  state.teacherTargetHours=f.teacherTargetHours||{};
+  state.teacherUnavailableRaw=f.rawTeacherUnavailable||[];
+  state.studentChildren=f.studentChildren||{};
+  state.studentParents=f.studentParents||{};
+  state.studentLeaves=f.studentLeaves||[];
+  state.studentGroups=f.studentGroups||[];
+  state.studentNodes=f.studentNodes||[];
+  $('#fetState .file-state-name').textContent=name;$('#fetState').className='file-state ok';$('#fetState').title='FET: '+name+'\nΚλικ για φόρτωση νέου αρχείου FET';
+  $('#orderBtn').disabled=false;
+  if(state.rows.length){
+    applyFetOrder();
+    updateInitialOrderFromCurrent();
+  }
+  else{
+    // No CSV yet: show the native Names from FET so manual order dialog is still meaningful.
+    state.fetDays=f.dayItems.map(x=>x.name||x.long);
+    state.fetHours=f.hourItems.map(x=>x.name||x.long);
+    state.days=[...state.fetDays];state.hours=[...state.fetHours];
+    state.breakSlots=new Set(f.rawBreaks.map(b=>slotKey(b.day,b.hour)));
+    rebuildTeacherUnavailableSlots();
+    setNotice('info','Το .fet φορτώθηκε. Τώρα φόρτωσε και το TimeTable.csv για να εμφανιστούν οι τοποθετήσεις.');
+  }
+  updateUI();
+}
+async function loadFiles(files){
+  setNotice('','');
+
+  const accepted=[...files].filter(f=>/\.(fet|csv)$/i.test(f.name));
+  const ordered=[
+    ...accepted.filter(f=>/\.csv$/i.test(f.name)),
+    ...accepted.filter(f=>/\.fet$/i.test(f.name))
+  ];
+
+  for(const f of ordered){
+    const text=await f.text();
+    try{
+      if(/\.csv$/i.test(f.name))loadCSV(text,f.name);
+      else if(/\.fet$/i.test(f.name))loadFET(text,f.name);
+    }catch(err){
+      setNotice('error',`${f.name}: ${err.message||err}`);
+    }
+  }
+
+  updateUI();
+}
+function updateUI(){
+  const hasCSV=state.rows.length>0;
+  $('#welcome').hidden=hasCSV;
+  $('#editor').hidden=!hasCSV;
+  document.querySelector('.workspace').classList.toggle('welcome-mode',!hasCSV);
+  if(hasCSV){rebuildEntities();render()}
+}
+
+function setOloimeroStatus(type,msg){
+  const el=$('#oloimeroUpdateStatus');
+  el.className=type||'';
+  el.textContent=msg||'';
+}
+
+function parseOloimeroDesignerCSV(text){
+  const cleanLines=String(text)
+    .replace(/^\uFEFF/,'')
+    .split(/\r?\n/)
+    .filter(line=>{
+      const t=line.trim();
+      return t!=='' && !t.startsWith('#');
+    });
+
+  if(!cleanLines.length){
+    throw new Error('Το CSV του Ολοήμερου Designer είναι κενό.');
+  }
+
+  const cleanText=cleanLines.join('\n');
+  const delimiter=detectDelimiter(cleanText);
+  const parsed=parseCSV(cleanText,delimiter);
+
+  if(parsed.length<2){
+    throw new Error('Το CSV του Ολοήμερου Designer δεν περιέχει δραστηριότητες.');
+  }
+
+  const headers=parsed[0].map(x=>x.trim());
+  const required=['Students Sets','Subject','Teachers','Activity Tags','Total Duration'];
+  const missing=required.filter(h=>!headers.includes(h));
+
+  if(missing.length){
+    throw new Error(
+      'Το αρχείο δεν αναγνωρίστηκε ως CSV του Ολοήμερου Designer. Λείπουν: '+
+      missing.join(', ')
+    );
+  }
+
+  return parsed.slice(1).map(vals=>{
+    const row={};
+    headers.forEach((h,i)=>row[h]=vals[i]??'');
+    return row;
+  });
+}
+
+function parseActivityRange(value){
+  const s=String(value||'').trim();
+
+  let m=s.match(/^(\d+)\s*-\s*(\d+)$/);
+  if(m){
+    const from=Number(m[1]),to=Number(m[2]);
+    if(from>to)throw new Error('Το πρώτο Activity ID πρέπει να είναι μικρότερο ή ίσο από το δεύτερο.');
+    return {from,to};
+  }
+
+  m=s.match(/^(\d+)$/);
+  if(m){
+    const n=Number(m[1]);
+    return {from:n,to:n};
+  }
+
+  throw new Error('Δώστε το εύρος σε μορφή π.χ. 1-76.');
+}
+
+function timetableActivityIdsInRange(from,to){
+  const ids=new Set();
+
+  state.rows.forEach(row=>{
+    const n=Number(String(row['Activity Id']||'').trim());
+    if(Number.isInteger(n) && n>=from && n<=to){
+      ids.add(n);
+    }
+  });
+
+  return [...ids].sort((a,b)=>a-b);
+}
+
+async function loadOloimeroDesignerFile(file){
+  if(!file)return;
+
+  try{
+    const rows=parseOloimeroDesignerCSV(await file.text());
+
+    state.oloimeroDesignerName=file.name;
+    state.oloimeroDesignerRows=rows;
+
+    $('#oloimeroDesignerName').textContent=
+      `${file.name} — ${rows.length} activities`;
+
+    if(!$('#oloimeroActivityRange').value.trim()){
+      $('#oloimeroActivityRange').value=`1-${rows.length}`;
+    }
+
+    setOloimeroStatus('ok',`Το αρχείο αναγνωρίστηκε: ${rows.length} activities.`);
+  }catch(err){
+    state.oloimeroDesignerName='';
+    state.oloimeroDesignerRows=[];
+    $('#oloimeroDesignerName').textContent='Δεν έχει επιλεγεί έγκυρο αρχείο.';
+    setOloimeroStatus('error',err.message||String(err));
+  }
+}
+
+function openUpdateOloimeroDialog(){
+  if(!state.rows.length)return;
+
+  setOloimeroStatus('','');
+
+  if(state.oloimeroDesignerName){
+    $('#oloimeroDesignerName').textContent=
+      `${state.oloimeroDesignerName} — ${state.oloimeroDesignerRows.length} activities`;
+  }else{
+    $('#oloimeroDesignerName').textContent='Δεν έχει επιλεγεί αρχείο.';
+  }
+
+  $('#updateOloimeroDialog').showModal();
+}
+
+function applyOloimeroUpdate(){
+  try{
+    if(!state.rows.length){
+      throw new Error('Δεν έχει φορτωθεί timetable CSV.');
+    }
+
+    const designerRows=state.oloimeroDesignerRows;
+    if(!designerRows.length){
+      throw new Error('Επιλέξτε πρώτα CSV του Ολοήμερου Designer.');
+    }
+
+    const {from,to}=parseActivityRange($('#oloimeroActivityRange').value);
+    const ids=timetableActivityIdsInRange(from,to);
+
+    if(!ids.length){
+      throw new Error(`Δεν βρέθηκαν Activity IDs στο εύρος ${from}-${to}.`);
+    }
+
+    if(ids.length!==designerRows.length){
+      throw new Error(
+        `Το CSV του Designer έχει ${designerRows.length} activities, ενώ στο εύρος `+
+        `${from}-${to} βρέθηκαν ${ids.length} διαφορετικά Activity IDs. `+
+        `Η ενημέρωση ακυρώθηκε για να μη γίνει λάθος αντιστοίχιση.`
+      );
+    }
+
+    const sourceById=new Map();
+    ids.forEach((id,index)=>sourceById.set(id,designerRows[index]));
+
+    let changedActivities=0;
+    let changedRows=0;
+
+    ids.forEach(id=>{
+      const src=sourceById.get(id);
+      const rows=state.rows.filter(r=>Number(r['Activity Id'])===id);
+
+      let activityChanged=false;
+
+      rows.forEach(row=>{
+        const newStudents=src['Students Sets']??'';
+        const newSubject=src['Subject']??'';
+        const newTeachers=src['Teachers']??'';
+
+        if(
+          row['Students Sets']!==newStudents ||
+          row['Subject']!==newSubject ||
+          row['Teachers']!==newTeachers
+        ){
+          activityChanged=true;
+          changedRows++;
+        }
+      });
+
+      if(activityChanged)changedActivities++;
+    });
+
+    if(changedActivities===0){
+      setOloimeroStatus('ok','Δεν βρέθηκαν αλλαγές σε Μάθημα, Τμήματα ή Εκπαιδευτικούς.');
+      return;
+    }
+
+    snapshot();
+
+    ids.forEach(id=>{
+      const src=sourceById.get(id);
+
+      state.rows.forEach(row=>{
+        if(Number(row['Activity Id'])!==id)return;
+
+        row['Students Sets']=src['Students Sets']??'';
+        row['Subject']=src['Subject']??'';
+        row['Teachers']=src['Teachers']??'';
+      });
+    });
+
+    rebuildEntities();
+    render();
+    updateUndoRedo();
+
+    $('#updateOloimeroDialog').close();
+
+    setNotice(
+      'info',
+      `Η ενημέρωση Ολοημέρου ολοκληρώθηκε. `+
+      `Ενημερώθηκαν ${changedActivities} activities στο εύρος ${from}-${to}. `+
+      `Ημέρες και ώρες παρέμειναν αμετάβλητες. `+
+      `Για αποθήκευση των αλλαγών χρησιμοποιήστε «Αποθήκευση...».`
+    );
+  }catch(err){
+    setOloimeroStatus('error',err.message||String(err));
+  }
+}
+
+function currentSnap(){
+  return JSON.stringify({
+    rows:state.rows,
+    days:state.days,
+    hours:state.hours,
+    breakSlots:[...state.breakSlots]
+  });
+}
+
+function captureInitialState(){
+  state.initialSnap=currentSnap();
+  updateUndoRedo();
+}
+
+function updateInitialOrderFromCurrent(){
+  if(!state.rows.length)return;
+
+  if(!state.initialSnap){
+    captureInitialState();
+    return;
+  }
+
+  const original=JSON.parse(state.initialSnap);
+  original.days=[...state.days];
+  original.hours=[...state.hours];
+  original.breakSlots=[...state.breakSlots];
+  state.initialSnap=JSON.stringify(original);
+  updateUndoRedo();
+}
+
+function snapshot(){
+  state.undo.push(currentSnap());
+  if(state.undo.length>80)state.undo.shift();
+  state.redo=[];updateUndoRedo();
+}
+function restoreSnap(raw){
+  const x=JSON.parse(raw);
+  state.rows=x.rows;state.days=x.days;state.hours=x.hours;state.breakSlots=new Set(x.breakSlots||[]);
+  rebuildEntities();render();
+}
+function restoreInitial(){
+  if(!state.initialSnap)return;
+  if(currentSnap()===state.initialSnap)return;
+
+  // Κρατάμε την τρέχουσα κατάσταση ως ένα Undo, ώστε η επαναφορά
+  // στο αρχικό να μπορεί να αναιρεθεί με μία κίνηση αν χρειαστεί.
+  snapshot();
+  restoreSnap(state.initialSnap);
+  updateUndoRedo();
+}
+function updateUndoRedo(){
+  $('#undoBtn').disabled=!state.undo.length;
+  $('#redoBtn').disabled=!state.redo.length;
+  $('#initialBtn').disabled=!state.initialSnap;
+}
+
+function buildActivities(){
+  const map=new Map();
+  state.rows.forEach((row,idx)=>{
+    const id=row["Activity Id"];
+    if(!map.has(id))map.set(id,{id,entries:[]});
+    map.get(id).entries.push({row,idx});
+  });
+  for(const a of map.values()){
+    a.entries.sort((A,B)=>{
+      const dd=state.days.indexOf(A.row.Day)-state.days.indexOf(B.row.Day);
+      if(dd)return dd;
+      return state.hours.indexOf(A.row.Hour)-state.hours.indexOf(B.row.Hour);
+    });
+  }
+  return map;
+}
+function info(a){
+  const r=a.entries[0].row;
+  return {
+    id:a.id,subject:r.Subject||'',teachers:splitNames(r.Teachers),
+    students:splitNames(r["Students Sets"]),tags:r["Activity Tags"]||'',
+    room:r.Room||'',comments:r.Comments||'',duration:a.entries.length
+  };
+}
+function descendantLeaves(name){
+  if(!name)return [];
+  const children=state.studentChildren[name]||[];
+  if(!children.length)return [name];
+  const out=[];
+  const seen=new Set();
+  function walk(n){
+    if(seen.has(n))return; seen.add(n);
+    const ch=state.studentChildren[n]||[];
+    if(!ch.length){out.push(n);return;}
+    ch.forEach(walk);
+  }
+  walk(name);
+  return uniq(out);
+}
+function expandedStudents(names){
+  return uniq(names.flatMap(n=>descendantLeaves(n)));
+}
+function studentSetsOverlap(namesA,namesB){
+  const A=new Set(expandedStudents(namesA));
+  return expandedStudents(namesB).some(x=>A.has(x));
+}
+function activityAppliesToSection(studentNames,section){
+  // A visible section is a Group, not necessarily a leaf.
+  // An activity applies if its student set intersects any descendant subgroup of that Group,
+  // or if it is assigned to a parent (e.g. the whole year) that contains that Group.
+  return studentSetsOverlap(studentNames,[section]);
+}
+function overlaps(a,b){
+  const A=info(a),B=info(b);
+  return A.teachers.some(x=>B.teachers.includes(x))||studentSetsOverlap(A.students,B.students);
+}
+function conflictsFor(id){
+  const acts=buildActivities(),a=acts.get(id);if(!a)return false;
+  for(const b of acts.values()){
+    if(b.id===id||!overlaps(a,b))continue;
+    for(const e of a.entries){
+      if(b.entries.some(x=>x.row.Day===e.row.Day&&x.row.Hour===e.row.Hour))return true;
+    }
+  }
+  return false;
+}
+function teacherUnavailableAt(teacher,day,hour){
+  return !!state.teacherUnavailableSlots?.[teacher]?.has(slotKey(day,hour));
+}
+
+function teacherUnavailableViolationsForProbe(probe){
+  const out=[];
+  const seen=new Set();
+
+  for(const row of probe||[]){
+    for(const teacher of splitNames(row.Teachers)){
+      if(!teacherUnavailableAt(teacher,row.Day,row.Hour))continue;
+
+      const key=teacher+SEP+row.Day+SEP+row.Hour;
+      if(seen.has(key))continue;
+      seen.add(key);
+
+      out.push({
+        teacher,
+        fullName:teacherFullName(teacher),
+        day:row.Day,
+        hour:row.Hour
+      });
+    }
+  }
+
+  return out;
+}
+
+function teacherUnavailableWarningText(violations,actionLabel){
+  const rows=(violations||[]).slice(0,8).map(v=>{
+    const who=v.fullName ? `${v.teacher} (${v.fullName})` : v.teacher;
+    return `• ${who}: ${v.day}, ${v.hour}`;
+  });
+
+  const more=(violations||[]).length>8
+    ? `\n• και ${(violations||[]).length-8} ακόμη περίπτωση/περιπτώσεις`
+    : '';
+
+  return (
+    `${actionLabel} τοποθετεί εκπαιδευτικό σε ώρα που έχει δηλωθεί ως μη διαθέσιμη στο FET:\n\n`+
+    rows.join('\n')+more+
+    `\n\nΘέλεις να συνεχίσεις;`
+  );
+}
+
+function confirmTeacherUnavailable(violations,actionLabel){
+  if($('#mode').value!=='safe' || !(violations||[]).length)return true;
+  return confirm(teacherUnavailableWarningText(violations,actionLabel));
+}
+
+function destinationFor(id,day,startHour,ignoreActivityIds=[]){
+  const acts=buildActivities(),a=acts.get(id);
+  if(!a)return {ok:false,reason:'Η δραστηριότητα δεν βρέθηκε.'};
+
+  const dur=a.entries.length,start=state.hours.indexOf(startHour);
+  if(start<0||start+dur>state.hours.length){
+    return {ok:false,reason:'Η δραστηριότητα δεν χωράει μέχρι το τέλος της ημέρας.'};
+  }
+
+  const hs=state.hours.slice(start,start+dur);
+  for(const h of hs){
+    if(state.breakSlots.has(slotKey(day,h))){
+      return {ok:false,reason:`Το «${h}» είναι Break στο .fet.`};
+    }
+  }
+
+  const ignoredIds=new Set([String(id),...ignoreActivityIds.map(String)]);
+  const movingIdx=new Set(a.entries.map(e=>e.idx));
+  const probe=a.entries.map((e,i)=>({...e.row,Day:day,Hour:hs[i]}));
+  const conflicts=[];
+
+  state.rows.forEach((r,idx)=>{
+    if(movingIdx.has(idx))return;
+    if(ignoredIds.has(String(r["Activity Id"])))return;
+
+    for(const p of probe){
+      if(r.Day!==p.Day||r.Hour!==p.Hour)continue;
+
+      const t1=splitNames(r.Teachers),t2=splitNames(p.Teachers);
+      const s1=splitNames(r["Students Sets"]),s2=splitNames(p["Students Sets"]);
+      const teacher=t1.filter(x=>t2.includes(x));
+      const leaves1=expandedStudents(s1),leaves2=expandedStudents(s2);
+      const set2=new Set(leaves2);
+      const students=leaves1.filter(x=>set2.has(x));
+
+      if(teacher.length||students.length){
+        conflicts.push({teacher,students});
+      }
+    }
+  });
+
+  const unavailable=teacherUnavailableViolationsForProbe(probe);
+  return {ok:true,a,probe,conflicts,unavailable};
+}
+
+function safeModeAllows(result,actionLabel='Η μετακίνηση'){
+  if(!result.ok){
+    alert(result.reason);
+    return false;
+  }
+
+  if(result.conflicts.length&&$('#mode').value==='safe'){
+    const c=result.conflicts[0];
+    const why=[
+      c.teacher.length?'εκπαιδευτικός: '+c.teacher.join(', '):'',
+      c.students.length?'τμήμα/student set: '+c.students.join(', '):''
+    ].filter(Boolean).join(' · ');
+
+    alert(actionLabel+' μπλοκαρίστηκε λόγω σύγκρουσης ('+why+').');
+    return false;
+  }
+
+  if(!confirmTeacherUnavailable(result.unavailable,actionLabel)){
+    return false;
+  }
+
+  return true;
+}
+
+function applyActivityDestination(result,day){
+  result.a.entries.forEach((e,i)=>{
+    state.rows[e.idx].Day=day;
+    state.rows[e.idx].Hour=result.probe[i].Hour;
+  });
+}
+
+function moveActivity(id,day,hour){
+  const t=destinationFor(id,day,hour);
+  if(!safeModeAllows(t,'Η μετακίνηση'))return;
+
+  snapshot();
+  applyActivityDestination(t,day);
+  render();
+}
+
+function activityStartEntry(a){
+  return a.entries[0];
+}
+
+function activitySlots(a){
+  return a.entries.map(e=>({
+    day:e.row.Day,
+    hour:e.row.Hour,
+    idx:e.idx
+  }));
+}
+
+function footprintTargetActivities(draggedId,day,startHour){
+  const acts=buildActivities();
+  const dragged=acts.get(String(draggedId))||acts.get(draggedId);
+  if(!dragged)return {ok:false,reason:'Η δραστηριότητα δεν βρέθηκε.'};
+
+  const start=state.hours.indexOf(startHour);
+  const dur=dragged.entries.length;
+  if(start<0||start+dur>state.hours.length){
+    return {ok:false,reason:'Η δραστηριότητα δεν χωράει μέχρι το τέλος της ημέρας.'};
+  }
+
+  const targetHours=state.hours.slice(start,start+dur);
+  for(const h of targetHours){
+    if(state.breakSlots.has(slotKey(day,h))){
+      return {ok:false,reason:`Το «${h}» είναι Break στο .fet.`};
+    }
+  }
+
+  const targetIds=new Set();
+
+  // Το swap αφορά μόνο τις δραστηριότητες που είναι ορατές στην
+  // τρέχουσα προβολή (τρέχον τμήμα ή τρέχων εκπαιδευτικός).
+  // Έτσι δεν επηρεάζονται άσχετες δραστηριότητες άλλων τμημάτων
+  // που τυχαίνει να βρίσκονται στις ίδιες ώρες.
+  for(const a of relevantActivities()){
+    if(String(a.id)===String(dragged.id))continue;
+
+    const i=info(a);
+    const touches=a.entries.some(e=>
+      e.row.Day===day &&
+      targetHours.includes(e.row.Hour) &&
+      (
+        state.entityType!=='students' ||
+        activityMatchesTeacherAssignmentFilter(
+          i.teachers,
+          state.selected,
+          e.row.Hour
+        )
+      )
+    );
+
+    if(touches)targetIds.add(String(a.id));
+  }
+
+  return {
+    ok:true,
+    dragged,
+    targetHours,
+    targetIds:[...targetIds],
+    acts
+  };
+}
+
+function buildFootprintSwapPlan(draggedId,day,startHour){
+  const scan=footprintTargetActivities(draggedId,day,startHour);
+  if(!scan.ok)return scan;
+
+  const {dragged,targetHours,targetIds,acts}=scan;
+
+  if(!targetIds.length){
+    return {ok:true,type:'move',dragged,day,startHour};
+  }
+
+  const draggedStart=activityStartEntry(dragged).row;
+  const originalStartIndex=state.hours.indexOf(draggedStart.Hour);
+  const targetStartIndex=state.hours.indexOf(startHour);
+
+  if(originalStartIndex<0||targetStartIndex<0){
+    return {ok:false,reason:'Δεν βρέθηκαν οι ώρες του swap.'};
+  }
+
+  const footprintSet=new Set(targetHours.map(h=>slotKey(day,h)));
+  const targets=targetIds.map(id=>acts.get(id)).filter(Boolean);
+
+  // Κάθε δραστηριότητα που ακουμπά το αποτύπωμα προορισμού
+  // πρέπει να βρίσκεται ολόκληρη μέσα σε αυτό. Έτσι δεν "κόβουμε"
+  // κατά λάθος μια άλλη δίωρη/πολύωρη δραστηριότητα.
+  for(const a of targets){
+    const whollyInside=a.entries.every(e=>
+      footprintSet.has(slotKey(e.row.Day,e.row.Hour))
+    );
+    if(!whollyInside){
+      return {
+        ok:false,
+        reason:'Το swap δεν μπορεί να γίνει γιατί μία δραστηριότητα του προορισμού εκτείνεται έξω από τις ώρες που καλύπτει η μετακινούμενη δραστηριότητα.'
+      };
+    }
+  }
+
+  // Δεν επιτρέπουμε πάνω από μία διαφορετική δραστηριότητα στο ίδιο
+  // destination slot, γιατί τότε δεν υπάρχει μονοσήμαντη αντιστοίχιση.
+  for(const h of targetHours){
+    const ids=new Set();
+    for(const a of targets){
+      if(a.entries.some(e=>e.row.Day===day&&e.row.Hour===h)){
+        ids.add(String(a.id));
+      }
+    }
+    if(ids.size>1){
+      return {
+        ok:false,
+        reason:'Στο ίδιο κελί υπάρχουν περισσότερες από μία δραστηριότητες και δεν είναι σαφές πώς πρέπει να γίνει το swap.'
+      };
+    }
+  }
+
+  const ignored=[String(dragged.id),...targetIds];
+
+  // Έλεγχος της δίωρης/πολύωρης δραστηριότητας στη νέα θέση.
+  const draggedDest=destinationFor(
+    dragged.id,
+    day,
+    startHour,
+    ignored
+  );
+  if(!draggedDest.ok)return draggedDest;
+
+  // Κάθε target activity μεταφέρεται στην αντίστοιχη σχετική θέση
+  // του αρχικού αποτυπώματος της dragged activity.
+  const targetMoves=[];
+  for(const a of targets){
+    const first=activityStartEntry(a).row;
+    const firstTargetIndex=state.hours.indexOf(first.Hour);
+    const offset=firstTargetIndex-targetStartIndex;
+    const newStartIndex=originalStartIndex+offset;
+
+    if(newStartIndex<0||newStartIndex>=state.hours.length){
+      return {ok:false,reason:'Μία από τις δραστηριότητες του swap δεν χωράει στην αρχική θέση.'};
+    }
+
+    const newHour=state.hours[newStartIndex];
+    const dest=destinationFor(
+      a.id,
+      draggedStart.Day,
+      newHour,
+      ignored
+    );
+
+    if(!dest.ok)return dest;
+    targetMoves.push({
+      result:dest,
+      day:draggedStart.Day,
+      sourceOffset:offset
+    });
+  }
+
+  return {
+    ok:true,
+    type:'swap',
+    draggedDest,
+    draggedDay:day,
+    targetMoves
+  };
+}
+
+function safeModeAllowsSwapPlan(plan){
+  if(!plan.ok){
+    alert(plan.reason);
+    return false;
+  }
+
+  if($('#mode').value!=='safe')return true;
+
+  const results=[];
+  if(plan.type==='swap'){
+    results.push(plan.draggedDest,...plan.targetMoves.map(x=>x.result));
+  }
+
+  for(const result of results){
+    if(result.conflicts.length){
+      const c=result.conflicts[0];
+      const why=[
+        c.teacher.length?'εκπαιδευτικός: '+c.teacher.join(', '):'',
+        c.students.length?'τμήμα/student set: '+c.students.join(', '):''
+      ].filter(Boolean).join(' · ');
+
+      alert('Το swap μπλοκαρίστηκε λόγω σύγκρουσης ('+why+').');
+      return false;
+    }
+  }
+
+  const unavailable=results.flatMap(result=>result.unavailable||[]);
+  if(!confirmTeacherUnavailable(unavailable,'Το swap')){
+    return false;
+  }
+
+  return true;
+}
+
+function moveOrSwapEligibility(id,day,hour){
+  const plan=buildFootprintSwapPlan(id,day,hour);
+  if(!plan.ok)return {allowed:false,warning:false};
+
+  if(plan.type==='move'){
+    const result=destinationFor(id,day,hour);
+    if(!result.ok)return {allowed:false,warning:false};
+
+    if($('#mode').value==='safe' && result.conflicts.length){
+      return {allowed:false,warning:false};
+    }
+
+    return {
+      allowed:true,
+      warning:$('#mode').value==='safe' && (result.unavailable||[]).length>0
+    };
+  }
+
+  const results=[
+    plan.draggedDest,
+    ...plan.targetMoves.map(x=>x.result)
+  ];
+
+  if($('#mode').value==='safe' && results.some(result=>result.conflicts.length)){
+    return {allowed:false,warning:false};
+  }
+
+  return {
+    allowed:true,
+    warning:$('#mode').value==='safe' &&
+      results.some(result=>(result.unavailable||[]).length>0)
+  };
+}
+
+function moveOrSwapAllowedSilently(id,day,hour){
+  return moveOrSwapEligibility(id,day,hour).allowed;
+}
+
+function clearDragAllowedCells(){
+  document.querySelectorAll(
+    '.grid td.slot.drag-allowed,.grid td.slot.drag-unavailable,.grid td.slot.dragover'
+  ).forEach(td=>{
+    td.classList.remove('drag-allowed','drag-unavailable','dragover');
+    if(td.dataset.dragWarningTitle){
+      td.removeAttribute('title');
+      delete td.dataset.dragWarningTitle;
+    }
+  });
+}
+
+function highlightAllowedDropCells(activityId){
+  clearDragAllowedCells();
+
+  // Η πράσινη προεπισκόπηση ζητήθηκε μόνο στην προβολή Τμήματος.
+  if(state.entityType!=='students')return;
+
+  document.querySelectorAll('.grid td.slot[data-day][data-hour]').forEach(td=>{
+    const day=td.dataset.day;
+    const hour=td.dataset.hour;
+
+    const eligibility=moveOrSwapEligibility(activityId,day,hour);
+    if(!eligibility.allowed)return;
+
+    if(eligibility.warning){
+      td.classList.add('drag-unavailable');
+      td.title='Προειδοποίηση FET: κάποιος εκπαιδευτικός είναι μη διαθέσιμος σε ώρα που θα προκύψει από αυτή τη μετακίνηση/swap.';
+      td.dataset.dragWarningTitle='1';
+    }else{
+      td.classList.add('drag-allowed');
+    }
+  });
+}
+
+function moveOrSwapActivity(id,day,hour){
+  const plan=buildFootprintSwapPlan(id,day,hour);
+
+  if(!plan.ok){
+    alert(plan.reason);
+    return;
+  }
+
+  if(plan.type==='move'){
+    moveActivity(id,day,hour);
+    return;
+  }
+
+  if(!safeModeAllowsSwapPlan(plan))return;
+
+  snapshot();
+
+  applyActivityDestination(plan.draggedDest,plan.draggedDay);
+  plan.targetMoves.forEach(x=>
+    applyActivityDestination(x.result,x.day)
+  );
+
+  render();
+}
+
+function sortTeachersClassroomFirst(names){
+  return [...names].sort((a,b)=>{
+    const aSpecialty=isSpecialtyTeacher(a);
+    const bSpecialty=isSpecialtyTeacher(b);
+
+    if(aSpecialty!==bSpecialty){
+      return aSpecialty ? 1 : -1;
+    }
+
+    return a.localeCompare(b,'el',{numeric:true,sensitivity:'base'});
+  });
+}
+
+function entities(){
+  if(state.entityType==='students'){
+    // With a .fet loaded, show only FET Groups (actual sections such as Α1, Ε1, Στ2).
+    // Years/classes and Subgroups (e.g. Ε1-Γερμ, Ε1-Γαλλ) stay hidden from the sidebar.
+    const base=state.studentGroups.length
+      ? state.studentGroups
+      : uniq(state.rows.flatMap(r=>splitNames(r["Students Sets"])));
+    return uniq(base).sort((a,b)=>a.localeCompare(b,'el',{numeric:true,sensitivity:'base'}));
+  }
+
+  return sortTeachersClassroomFirst(
+    uniq(state.rows.flatMap(r=>splitNames(r.Teachers)))
+  );
+}
+function rebuildEntities(){
+  const all=entities();
+  if(!all.includes(state.selected))state.selected=all[0]||'';
+  renderEntityList();
+}
+function teacherAssignedHours(teacherName){
+  let total=0;
+  state.rows.forEach(row=>{
+    if(splitNames(row.Teachers).includes(teacherName)){
+      total++;
+    }
+  });
+  return total;
+}
+
+function teacherTargetHours(teacherName){
+  const raw=String(state.teacherTargetHours?.[teacherName]??'').trim();
+  if(raw==='')return '—';
+
+  const n=Number(raw);
+  if(Number.isFinite(n)){
+    return Number.isInteger(n) ? String(n) : String(n);
+  }
+
+  return raw;
+}
+
+function renderEntityList(){
+  const q=$('#search').value.trim().toLocaleLowerCase('el');
+  const list=$('#entityList');list.innerHTML='';
+
+  entities().filter(name=>{
+    if(state.entityType==='teachers'){
+      const full=teacherFullName(name);
+      return (
+        name.toLocaleLowerCase('el').includes(q) ||
+        full.toLocaleLowerCase('el').includes(q)
+      );
+    }
+
+    const homeroomShort=homeroomTeacherForSection(name);
+    const homeroomFull=teacherFullName(homeroomShort);
+    return (
+      name.toLocaleLowerCase('el').includes(q) ||
+      homeroomFull.toLocaleLowerCase('el').includes(q)
+    );
+  }).forEach(name=>{
+    const b=document.createElement('button');
+    b.className='entity'+(name===state.selected?' active':'');
+
+    if(state.entityType==='teachers'){
+      const main=document.createElement('div');
+      main.className='entity-teacher-main';
+
+      const shortName=document.createElement('span');
+      shortName.className='entity-teacher-short';
+      shortName.textContent=name;
+
+      const hours=document.createElement('span');
+      hours.className='entity-teacher-hours';
+      hours.textContent=`${teacherAssignedHours(name)}/${teacherTargetHours(name)}`;
+
+      main.append(shortName,hours);
+      b.appendChild(main);
+
+      const full=teacherFullName(name);
+      if(full){
+        const fullName=document.createElement('div');
+        fullName.className='entity-teacher-full';
+        fullName.textContent=full;
+        b.appendChild(fullName);
+      }
+    }else{
+      const main=document.createElement('div');
+      main.className='entity-class-main';
+
+      const className=document.createElement('span');
+      className.className='entity-class-name';
+      className.textContent=name;
+      main.appendChild(className);
+
+      const homeroomShort=homeroomTeacherForSection(name);
+      const homeroomFull=teacherFullName(homeroomShort);
+
+      if(homeroomFull){
+        const teacher=document.createElement('span');
+        teacher.className='entity-class-teacher';
+        teacher.textContent=homeroomFull;
+        teacher.title=homeroomFull;
+        main.appendChild(teacher);
+      }
+
+      b.appendChild(main);
+    }
+
+    b.onclick=()=>{state.selected=name;renderEntityList();render()};
+    list.appendChild(b);
+  });
+}
+function teacherFullName(shortName){
+  const longName=String(state.teacherLongNames?.[shortName]||'').trim();
+  if(!longName || longName===String(shortName).trim())return '';
+  return longName;
+}
+
+function homeroomTeacherForSection(sectionName){
+  const teacherNames=uniq(state.rows.flatMap(r=>splitNames(r.Teachers)));
+  return teacherNames.find(name=>isHomeroomTeacherForSection(name,sectionName))||'';
+}
+
+function isHomeroomTeacherForSection(name,sectionName){
+  if(!sectionName)return false;
+  return String(name).trimStart().startsWith(`[${sectionName}]`);
+}
+
+function teachersForAssignmentFilter(teachers,sectionName=state.selected,hour=''){
+  const filter=$('#teacherAssignmentFilter').value;
+
+  if(filter==='classroom'){
+    // Δάσκαλοι = [ΠΕ70] και κάθε άλλος εκπαιδευτικός που δεν είναι ειδικότητα.
+    // Εξαίρεση στο κανονικό πρωινό 08:15-13:15:
+    // εμφανίζεται μόνο ο υπεύθυνος δάσκαλος του συγκεκριμένου τμήματος.
+    return teachers.filter(name=>
+      !isSpecialtyTeacher(name) &&
+      (
+        !isRegularMorningProgramHour(hour) ||
+        isHomeroomTeacherForSection(name,sectionName)
+      )
+    );
+  }
+
+  if(filter==='specialties'){
+    // Οι πραγματικές ειδικότητες εμφανίζονται πάντα.
+    // Εξαίρεση: στο κανονικό πρωινό 08:15-13:15 εμφανίζονται επίσης
+    // δάσκαλοι που διδάσκουν στο τμήμα αλλά δεν είναι ο υπεύθυνός του.
+    return teachers.filter(name=>
+      isSpecialtyTeacher(name) ||
+      (
+        isRegularMorningProgramHour(hour) &&
+        !isSpecialtyTeacher(name) &&
+        !isHomeroomTeacherForSection(name,sectionName)
+      )
+    );
+  }
+
+  return [...teachers];
+}
+
+function activityMatchesTeacherAssignmentFilter(teachers,sectionName=state.selected,hour=''){
+  const filter=$('#teacherAssignmentFilter').value;
+  if(filter==='all') return true;
+  return teachersForAssignmentFilter(teachers,sectionName,hour).length>0;
+}
+
+function relevantActivities(){
+  const out=[];
+  for(const a of buildActivities().values()){
+    const i=info(a);
+
+    const ok=state.entityType==='students'
+      ? (
+          activityAppliesToSection(i.students,state.selected) &&
+          a.entries.some(e=>
+            activityMatchesTeacherAssignmentFilter(
+              i.teachers,
+              state.selected,
+              e.row.Hour
+            )
+          )
+        )
+      : i.teachers.includes(state.selected);
+
+    if(ok)out.push(a);
+  }
+  return out;
+}
+function isRegularMorningProgramHour(hour){
+  const start=hourStartMinutes(hour);
+  const end=hourEndMinutes(hour);
+
+  return (
+    start!==null &&
+    end!==null &&
+    start>=(8*60+15) &&
+    end<=(13*60+15)
+  );
+}
+
+function cardFor(a,entryIndex){
+  const i=info(a),div=document.createElement('div');
+  const entryHour=a.entries?.[entryIndex]?.row?.Hour||'';
+
+  const showSpecialtyBlue=
+    state.entityType==='students' &&
+    $('#teacherAssignmentFilter').value==='all' &&
+    i.teachers.some(name=>isSpecialtyTeacher(name));
+
+  const showNonHomeroomClassroomYellow=
+    state.entityType==='students' &&
+    isRegularMorningProgramHour(entryHour) &&
+    !i.teachers.some(name=>isSpecialtyTeacher(name)) &&
+    i.teachers.some(name=>
+      !isSpecialtyTeacher(name) &&
+      !isHomeroomTeacherForSection(name,state.selected)
+    );
+
+  div.className=
+    'card'+
+    (showSpecialtyBlue?' specialty-teacher':'')+
+    (showNonHomeroomClassroomYellow?' non-homeroom-classroom':'')+
+    (conflictsFor(a.id)?' conflict':'');
+  div.style.setProperty('--card',colorFor(i.subject));
+  div.draggable=true;div.dataset.id=a.id;
+  div.title=$('#showActivityId').checked ? ('Activity ID '+a.id+' — σύρε για μετακίνηση') : 'Σύρε για μετακίνηση';
+  div.addEventListener('dragstart',e=>{
+    state.draggedId=a.id;
+    e.dataTransfer.effectAllowed='move';
+    e.dataTransfer.setData('text/plain',a.id);
+
+    // Περιμένουμε να ολοκληρωθεί το native dragstart πριν χρωματίσουμε
+    // τα επιτρεπτά destination cells.
+    requestAnimationFrame(()=>highlightAllowedDropCells(a.id));
+  });
+  div.addEventListener('dragend',()=>{
+    state.draggedId=null;
+    clearDragAllowedCells();
+  });
+  if($('#showSubject').checked){
+    const s=document.createElement('div');
+    s.className='subject';
+    s.textContent=entryIndex===0?i.subject:'↳ '+i.subject;
+    div.appendChild(s);
+  }
+  if(state.entityType==='students'){
+    if($('#showTeachers').checked){
+      const m=document.createElement('div');
+      m.className='meta teacher-name';
+      const visibleTeachers=teachersForAssignmentFilter(
+        i.teachers,
+        state.selected,
+        entryHour
+      );
+      m.textContent=visibleTeachers.join(', ')||'—';
+      div.appendChild(m);
+    }
+  }else{
+    const m=document.createElement('div');
+    m.className=$('#showSubject').checked ? 'meta' : 'subject';
+    m.textContent=i.students.join(', ')||'—';
+    div.appendChild(m);
+  }
+  if($('#showRooms').checked&&i.room){const x=document.createElement('div');x.className='meta';x.textContent='Αίθουσα: '+i.room;div.appendChild(x)}
+  if($('#showTags').checked&&i.tags){const x=document.createElement('div');x.className='meta';x.textContent='Tags: '+i.tags;div.appendChild(x)}
+  if(entryIndex===0){
+    const showId=$('#showActivityId').checked;
+    if(i.duration>1 || showId){
+      const b=document.createElement('span');
+      b.className='badge';
+      if(i.duration>1 && showId) b.textContent=i.duration+' ώρες · Activity '+i.id;
+      else if(i.duration>1) b.textContent=i.duration+' ώρες';
+      else b.textContent='Activity '+i.id;
+      div.appendChild(b);
+    }
+  }
+  return div;
+}
+function rowIsGlobalBreak(hour){
+  return state.days.length>0&&state.days.every(d=>state.breakSlots.has(slotKey(d,hour)));
+}
+function render(){
+  if(!state.rows.length)return;
+
+  $('#teacherAssignmentFilterWrap').hidden=state.entityType!=='students';
+  $('#viewTitle').textContent=(state.entityType==='students'?'Τμήμα: ':'Εκπαιδευτικός: ')+(state.selected||'—');
+  const wrap=$('#gridWrap');wrap.innerHTML='';
+  const table=document.createElement('table');table.className='grid';
+  const thead=document.createElement('thead'),tr=document.createElement('tr');
+  const c=document.createElement('th');c.className='hour';c.textContent='Ώρα';tr.appendChild(c);
+  state.days.forEach(d=>{const th=document.createElement('th');th.textContent=d;tr.appendChild(th)});
+  thead.appendChild(tr);table.appendChild(thead);
+
+  const bySlot=new Map();
+  for(const a of relevantActivities()){
+    const i=info(a);
+
+    a.entries.forEach((e,idx)=>{
+      if(
+        state.entityType==='students' &&
+        !activityMatchesTeacherAssignmentFilter(
+          i.teachers,
+          state.selected,
+          e.row.Hour
+        )
+      ){
+        return;
+      }
+
+      const k=slotKey(e.row.Day,e.row.Hour);
+      if(!bySlot.has(k))bySlot.set(k,[]);
+      bySlot.get(k).push({a,idx});
+    });
+  }
+
+  const tbody=document.createElement('tbody');
+  const displayHours=state.hours.filter(h=>
+    hourVisibleByFilter(h) &&
+    ($('#showBreaks').checked || !rowIsGlobalBreak(h))
+  );
+  displayHours.forEach(h=>{
+    const row=document.createElement('tr');
+    const boundaryClass=printBoundaryClass(h,displayHours).trim();
+    if(boundaryClass)row.classList.add(boundaryClass);
+    const th=document.createElement('th');th.className='hour';th.textContent=h;row.appendChild(th);
+    state.days.forEach(d=>{
+      const td=document.createElement('td');
+      const isBreak=state.breakSlots.has(slotKey(d,h));
+      if(isBreak){
+        td.className='slot break-slot';td.textContent='ΔΙΑΛΕΙΜΜΑ';
+      }else{
+        td.className='slot';td.dataset.day=d;td.dataset.hour=h;
+        td.addEventListener('dragover',e=>{
+          if(!state.draggedId)return;
+
+          // Στην προβολή Τμήματος επιτρέπουμε drop μόνο στα κελιά
+          // που έχουν ήδη περάσει τον έλεγχο move/swap.
+          if(
+            state.entityType==='students' &&
+            !td.classList.contains('drag-allowed') &&
+            !td.classList.contains('drag-unavailable')
+          ){
+            return;
+          }
+
+          e.preventDefault();
+          td.classList.add('dragover');
+          e.dataTransfer.dropEffect='move';
+        });
+        td.addEventListener('dragleave',()=>td.classList.remove('dragover'));
+        const arr=bySlot.get(slotKey(d,h))||[];
+        td.addEventListener('drop',e=>{
+          const id=e.dataTransfer.getData('text/plain')||state.draggedId;
+          if(!id)return;
+
+          if(
+            state.entityType==='students' &&
+            !td.classList.contains('drag-allowed') &&
+            !td.classList.contains('drag-unavailable')
+          ){
+            return;
+          }
+
+          e.preventDefault();
+          clearDragAllowedCells();
+          moveOrSwapActivity(id,d,h);
+        });
+        arr.forEach(x=>td.appendChild(cardFor(x.a,x.idx)));
+      }
+      row.appendChild(td);
+    });
+    tbody.appendChild(row);
+  });
+  table.appendChild(tbody);wrap.appendChild(table);
+}
+
+function makeOrderLi(name,index,total){
+  const li=document.createElement('li');li.dataset.name=name;
+  const nm=document.createElement('span');nm.className='name';nm.textContent=name;li.appendChild(nm);
+  const up=document.createElement('button');up.textContent='↑';up.disabled=index===0;
+  const dn=document.createElement('button');dn.textContent='↓';dn.disabled=index===total-1;
+  up.onclick=()=>{const p=li.previousElementSibling;if(p){li.parentNode.insertBefore(li,p);refreshOrderButtons(li.parentNode)}};
+  dn.onclick=()=>{const n=li.nextElementSibling;if(n){li.parentNode.insertBefore(n,li);refreshOrderButtons(li.parentNode)}};
+  li.append(up,dn);return li;
+}
+function refreshOrderButtons(ul){
+  [...ul.children].forEach((li,i)=>{
+    const b=li.querySelectorAll('button');b[0].disabled=i===0;b[1].disabled=i===ul.children.length-1;
+  });
+}
+function openOrder(){
+  $('#daysOrder').innerHTML='';$('#hoursOrder').innerHTML='';
+  state.days.forEach((x,i)=>$('#daysOrder').appendChild(makeOrderLi(x,i,state.days.length)));
+  state.hours.forEach((x,i)=>$('#hoursOrder').appendChild(makeOrderLi(x,i,state.hours.length)));
+  $('#orderSource').textContent=state.fetName?'Πηγή κανονικής σειράς: '+state.fetName:'Δεν έχει φορτωθεί .fet — χρησιμοποιείται fallback σειρά.';
+  $('#restoreFetOrder').disabled=!state.fetDays.length;
+  $('#orderDialog').showModal();
+}
+function saveOrder(){
+  snapshot();
+  state.days=[...$('#daysOrder').children].map(x=>x.dataset.name);
+  state.hours=[...$('#hoursOrder').children].map(x=>x.dataset.name);
+  $('#orderDialog').close();render();
+}
+function restoreFetOrder(){
+  if(!state.fetDays.length)return;
+  $('#daysOrder').innerHTML='';$('#hoursOrder').innerHTML='';
+  state.fetDays.forEach((x,i)=>$('#daysOrder').appendChild(makeOrderLi(x,i,state.fetDays.length)));
+  state.fetHours.forEach((x,i)=>$('#hoursOrder').appendChild(makeOrderLi(x,i,state.fetHours.length)));
+}
+
+
+function getRealClassNames(){
+  const base=state.studentGroups.length
+    ? state.studentGroups
+    : uniq(state.rows.flatMap(r=>splitNames(r["Students Sets"])));
+  return uniq(base).sort((a,b)=>a.localeCompare(b,'el',{numeric:true,sensitivity:'base'}));
+}
+
+function hourStartMinutes(label){
+  const m=String(label).match(/(?:^|\D)([01]?\d|2[0-3]):([0-5]\d)/);
+  return m ? Number(m[1])*60+Number(m[2]) : null;
+}
+
+function hourEndMinutes(label){
+  const matches=[...String(label).matchAll(/([01]?\d|2[0-3]):([0-5]\d)/g)];
+  if(matches.length<2) return null;
+  const m=matches[1];
+  return Number(m[1])*60+Number(m[2]);
+}
+
+function hourVisibleByFilter(hour){
+  const filter=$('#hourFilter').value;
+  if(filter==='all') return true;
+
+  const start=hourStartMinutes(hour);
+  const end=hourEndMinutes(hour);
+
+  if(filter==='morning'){
+    // Χρησιμοποιούμε τα όρια της πραγματικής 1ης και 6ης ώρας μέσα
+    // στη σειρά του FET. Έτσι φαίνονται τα ενδιάμεσα διαλείμματα,
+    // αλλά όχι όσα βρίσκονται πριν από 08:15 ή μετά από 13:15.
+    const firstIndex=state.hours.findIndex(h=>hourStartMinutes(h)===8*60+15);
+    let lastIndex=-1;
+    state.hours.forEach((h,i)=>{
+      if(hourEndMinutes(h)===13*60+15) lastIndex=i;
+    });
+    const currentIndex=state.hours.indexOf(hour);
+
+    if(firstIndex>=0 && lastIndex>=firstIndex && currentIndex>=0){
+      return currentIndex>=firstIndex && currentIndex<=lastIndex;
+    }
+
+    // Fallback αν δεν βρεθούν τα ακριβή όρια.
+    if(start===null || end===null) return false;
+    return start>=8*60+15 && end<=13*60+15;
+  }
+
+  if(filter==='extended'){
+    // Όπως και στο Πρωινό, χρησιμοποιούμε τα πραγματικά όρια
+    // των ωρών του FET ώστε να φαίνονται μόνο τα ενδιάμεσα
+    // διαλείμματα του ολοήμερου, όχι όσα είναι πριν από 13:20.
+    const firstIndex=state.hours.findIndex(h=>hourStartMinutes(h)===13*60+20);
+    let lastIndex=-1;
+    state.hours.forEach((h,i)=>{
+      if(hourEndMinutes(h)===17*60+30) lastIndex=i;
+    });
+    const currentIndex=state.hours.indexOf(hour);
+
+    if(firstIndex>=0 && lastIndex>=firstIndex && currentIndex>=0){
+      return currentIndex>=firstIndex && currentIndex<=lastIndex;
+    }
+
+    // Fallback αν δεν βρεθούν τα ακριβή όρια.
+    if(start===null || end===null) return false;
+    return start>=13*60+20 && end<=17*60+30;
+  }
+
+  return true;
+}
+
+
+function isExtendedProgramHour(hour){
+  const start=hourStartMinutes(hour);
+  const end=hourEndMinutes(hour);
+
+  return (
+    start!==null &&
+    end!==null &&
+    start>=(13*60+20) &&
+    end<=(17*60+30)
+  );
+}
+
+function printableProgramHours(){
+  return state.hours.filter(h=>!rowIsGlobalBreak(h));
+}
+
+function setPrintHourPreset(selector,preset){
+  document.querySelectorAll(selector).forEach(cb=>{
+    if(preset==='all'){
+      cb.checked=true;
+    }else if(preset==='none'){
+      cb.checked=false;
+    }else if(preset==='morning'){
+      cb.checked=isRegularMorningProgramHour(cb.value);
+    }else if(preset==='extended'){
+      cb.checked=isExtendedProgramHour(cb.value);
+    }
+  });
+}
+
+function defaultPrintHours(){
+  // First try the standard Greek Primary School 2nd–6th teaching periods.
+  const wantedStarts=new Set([8*60+15,9*60,10*60,10*60+45,11*60+45,12*60+35]);
+  const exact=state.hours.filter(h=>wantedStarts.has(hourStartMinutes(h)));
+  if(exact.length) return new Set(exact);
+
+  // Also support hour labels such as "2η", "3η", ... "6η".
+  const ordinal=state.hours.filter(h=>/^\s*[1-6](?:η|η\s|η\.|η$)/i.test(String(h)));
+  if(ordinal.length) return new Set(ordinal);
+
+  // Generic fallback: choose the 2nd through 6th non-break hour.
+  const teaching=state.hours.filter(h=>!rowIsGlobalBreak(h));
+  return new Set(teaching.slice(0,6));
+}
+
+function makePrintCheck(list,name,cssClass,checked=false){
+  const lab=document.createElement('label');
+  lab.className='print-select-item';
+
+  const cb=document.createElement('input');
+  cb.type='checkbox';
+  cb.value=name;
+  cb.className=cssClass;
+  cb.checked=checked;
+
+  const span=document.createElement('span');
+  span.textContent=name;
+
+  lab.append(cb,span);
+  list.appendChild(lab);
+}
+
+function defaultClassPrintHourSelected(hour,defaults=defaultPrintHours()){
+  if(defaults.has(hour)) return true;
+
+  if($('#showBreaks').checked && rowIsGlobalBreak(hour)){
+    const start=hourStartMinutes(hour);
+    const end=hourEndMinutes(hour);
+
+    // Στην προεπιλογή «Πρωϊνό» της εκτύπωσης τμημάτων
+    // κρατάμε μόνο τα διαλείμματα από 08:15 έως και 13:20.
+    if(start===null || end===null) return false;
+    return start>=8*60+15 && end<=13*60+20;
+  }
+
+  return false;
+}
+
+function openPrintClassesDialog(){
+  const classList=$('#printClassesList');
+  const hourList=$('#printHoursList');
+  classList.innerHTML='';
+  hourList.innerHTML='';
+  $('#printClassesDialogTitle').textContent='Εκτύπωση τμημάτων';
+  $('#printClassesEffectiveDate').value=rememberedPrintEffectiveDate();
+
+  getRealClassNames().forEach(name=>{
+    makePrintCheck(classList,name,'print-class-check',true);
+  });
+
+  printableProgramHours().forEach(hour=>{
+    makePrintCheck(
+      hourList,
+      hour,
+      'print-hour-check',
+      isRegularMorningProgramHour(hour)
+    );
+  });
+
+  $('#printClassesDialog').showModal();
+}
+
+function selectedPrintClasses(){
+  return [...document.querySelectorAll('.print-class-check:checked')].map(x=>x.value);
+}
+
+function selectedPrintHours(){
+  const selected=new Set(
+    [...document.querySelectorAll('.print-hour-check:checked')].map(x=>x.value)
+  );
+  return printableProgramHours().filter(h=>selected.has(h));
+}
+
+function printActivityHtml(a,className,hour=''){
+  const i=info(a);
+
+  // Αν η δραστηριότητα έχει ανατεθεί στον υπεύθυνο δάσκαλο
+  // του τμήματος, δεν εκτυπώνεται καθόλου: το κελί μένει κενό.
+  if(i.teachers.some(name=>isHomeroomTeacherForSection(name,className))){
+    return '';
+  }
+
+  const parts=[];
+
+  if(i.subject){
+    parts.push(`<div class="print-subject">${escapeHtml(i.subject)}</div>`);
+  }
+
+  if(i.teachers.length){
+    parts.push(`<div class="print-detail">${escapeHtml(i.teachers.join(', '))}</div>`);
+  }
+
+  // Στην τελική εκτύπωση τμήματος εμφανίζονται μόνο αναθέσεις
+  // εκπαιδευτικών που δεν είναι ο υπεύθυνος του τμήματος.
+  return parts.join('');
+}
+
+function activityRelevantToClass(a,className){
+  const i=info(a);
+  return activityAppliesToSection(i.students,className);
+}
+
+function printHeaderLabel(value){
+  return String(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g,'')
+    .toLocaleUpperCase('el-GR');
+}
+
+function rememberedPrintEffectiveDate(){
+  if(!state.printEffectiveDate){
+    state.printEffectiveDate=todayInputDate();
+  }
+  return state.printEffectiveDate;
+}
+
+function setRememberedPrintEffectiveDate(value){
+  const v=String(value||'').trim();
+  if(!v)return;
+  state.printEffectiveDate=v;
+}
+
+function todayInputDate(){
+  const d=new Date();
+  const day=String(d.getDate()).padStart(2,'0');
+  const month=String(d.getMonth()+1).padStart(2,'0');
+  const year=d.getFullYear();
+  return `${year}-${month}-${day}`;
+}
+
+function formatPrintDate(value){
+  const m=String(value||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(m)return `${m[3]}/${m[2]}/${m[1]}`;
+
+  const d=new Date();
+  const day=String(d.getDate()).padStart(2,'0');
+  const month=String(d.getMonth()+1).padStart(2,'0');
+  const year=d.getFullYear();
+  return `${day}/${month}/${year}`;
+}
+
+function hourMatchesRange(hour,startMinutes,endMinutes){
+  return hourStartMinutes(hour)===startMinutes &&
+         hourEndMinutes(hour)===endMinutes;
+}
+
+function printBoundaryClass(hour,displayHours){
+  const hasMorningZone=displayHours.some(h=>
+    hourMatchesRange(h,7*60+15,8*60)
+  );
+  const hasFirstRegular=displayHours.some(h=>
+    hourMatchesRange(h,8*60+15,9*60)
+  );
+
+  if(
+    hasMorningZone &&
+    hasFirstRegular &&
+    hourMatchesRange(hour,8*60+15,9*60)
+  ){
+    return ' print-section-boundary';
+  }
+
+  const hasLastRegular=displayHours.some(h=>
+    hourMatchesRange(h,12*60+35,13*60+15)
+  );
+  const hasFirstExtended=displayHours.some(h=>
+    hourMatchesRange(h,13*60+20,14*60)
+  );
+
+  if(
+    hasLastRegular &&
+    hasFirstExtended &&
+    hourMatchesRange(hour,13*60+20,14*60)
+  ){
+    return ' print-section-boundary';
+  }
+
+  return '';
+}
+
+function buildClassPrintBlock(className,displayHours,effectiveDate){
+  const acts=[...buildActivities().values()].filter(a=>
+    activityRelevantToClass(a,className)
+  );
+  const bySlot=new Map();
+
+  for(const a of acts){
+    a.entries.forEach(e=>{
+      const k=slotKey(e.row.Day,e.row.Hour);
+      if(!bySlot.has(k))bySlot.set(k,[]);
+      bySlot.get(k).push(a);
+    });
+  }
+
+  let rows='';
+  for(const h of displayHours){
+    let cells=`<th class="print-hour">${escapeHtml(h)}</th>`;
+
+    for(const d of state.days){
+      const isBreak=state.breakSlots.has(slotKey(d,h));
+
+      if(isBreak){
+        cells += `<td></td>`;
+        continue;
+      }
+
+      const slotActs=bySlot.get(slotKey(d,h)) || [];
+      const uniqueActs=[];
+      const seen=new Set();
+
+      for(const a of slotActs){
+        if(!seen.has(a.id)){
+          seen.add(a.id);
+          uniqueActs.push(a);
+        }
+      }
+
+      const chunks=uniqueActs
+        .map(a=>printActivityHtml(a,className,h))
+        .filter(Boolean)
+        .map(html=>`<div class="print-activity">${html}</div>`);
+
+      cells += `<td>${chunks.join('')}</td>`;
+    }
+
+    rows += `<tr class="${printBoundaryClass(h,displayHours).trim()}">${cells}</tr>`;
+  }
+
+  const daysHead=state.days.map(d=>`<th>${escapeHtml(printHeaderLabel(d))}</th>`).join('');
+
+  const homeroomShort=homeroomTeacherForSection(className);
+  const homeroomFull=teacherFullName(homeroomShort) || homeroomShort;
+  const homeroomSubtitle=homeroomFull
+    ? `<div class="print-subtitle">${escapeHtml(homeroomFull)}</div>`
+    : '';
+
+  return `
+    <section class="class-block">
+      <div class="class-print-header">
+        <div class="class-print-spacer"></div>
+        <div class="print-title-group">
+          <h1>${escapeHtml(className)}</h1>
+          ${homeroomSubtitle}
+        </div>
+        <div class="print-date">Ισχύει από: ${escapeHtml(effectiveDate)}</div>
+      </div>
+      <table>
+        <thead>
+          <tr><th class="print-hour-head">${escapeHtml(printHeaderLabel("Ώρα"))}</th>${daysHead}</tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </section>
+  `;
+}
+
+function canPairClassesOnPage(displayHours){
+  // Με την κανονική, μεγαλύτερη γραμματοσειρά των τμημάτων,
+  // μέχρι 10 επιλεγμένες ώρες χωρούν με ασφάλεια δύο πίνακες.
+  // Πάνω από αυτό χρησιμοποιούμε ένα τμήμα ανά A4 ώστε να μην
+  // πλησιάζουν/επικαλύπτονται οι τίτλοι και οι πίνακες.
+  return displayHours.length<=10;
+}
+
+function printHtmlForClasses(classNames,displayHours,effectiveDate){
+  let pages='';
+  const pair=canPairClassesOnPage(displayHours);
+
+  if(pair){
+    for(let i=0;i<classNames.length;i+=2){
+      const first=classNames[i];
+      const second=classNames[i+1];
+
+      pages += `
+        <section class="print-page two-up">
+          ${buildClassPrintBlock(first,displayHours,effectiveDate)}
+          ${second ? buildClassPrintBlock(second,displayHours,effectiveDate) : ''}
+        </section>
+      `;
+    }
+  }else{
+    for(const className of classNames){
+      pages += `
+        <section class="print-page single">
+          ${buildClassPrintBlock(className,displayHours,effectiveDate)}
+        </section>
+      `;
+    }
+  }
+
+  return `<!doctype html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<title>Εκτύπωση προγράμματος</title>
+<style>
+  *{box-sizing:border-box}
+
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    margin:0;
+    color:#000;
+    background:#fff;
+  }
+
+  .print-page{
+    page-break-after:always;
+    break-after:page;
+  }
+
+  .print-page.two-up{
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+    gap:5mm;
+    height:272mm;
+  }
+
+  .print-page.single{
+    display:block;
+  }
+
+  .print-page:last-child{
+    page-break-after:auto;
+    break-after:auto;
+  }
+
+  .class-block{
+    min-height:0;
+    break-inside:avoid;
+    page-break-inside:avoid;
+  }
+
+  .class-print-header{
+    display:grid;
+    grid-template-columns:1fr auto 1fr;
+    align-items:end;
+    margin:0 0 3mm;
+  }
+
+  .class-print-spacer{
+    min-width:0;
+  }
+
+  .print-title-group{
+    text-align:center;
+    min-width:0;
+  }
+
+  .print-subtitle{
+    margin-top:4px;
+    font-size:9.5pt;
+    line-height:1.05;
+    font-weight:400;
+    text-align:center;
+  }
+
+  h1{
+    text-align:center;
+    font-size:18pt;
+    line-height:1;
+    margin:0;
+    font-weight:700;
+  }
+
+  .print-date{
+    justify-self:end;
+    text-align:right;
+    font-size:9.5pt;
+    line-height:1;
+    font-weight:400;
+    white-space:nowrap;
+  }
+
+  table{
+    width:100%;
+    border-collapse:collapse;
+    table-layout:fixed;
+    border:1.4pt solid #000;
+  }
+
+  th,td{
+    border:1.4pt solid #000;
+    padding:4px 4px;
+    text-align:center;
+    vertical-align:middle;
+    font-size:9.5pt;
+    font-weight:400;
+    line-height:1.15;
+  }
+
+  thead th{
+    font-size:12pt;
+    font-weight:700;
+    padding-top:5px;
+    padding-bottom:5px;
+  }
+
+  .print-hour-head,
+  .print-hour{
+    width:24mm;
+    min-width:24mm;
+    max-width:24mm;
+    padding-left:3px;
+    padding-right:3px;
+    white-space:nowrap;
+    font-size:10.5pt;
+    font-weight:700;
+  }
+
+  tbody tr{
+    height:10mm;
+  }
+
+  tbody th,
+  tbody td{
+    height:10mm;
+  }
+
+  .print-activity{
+    margin:0 0 3px;
+  }
+
+  .print-activity:last-child{
+    margin-bottom:0;
+  }
+
+  .print-subject{
+    font-size:11pt;
+    font-weight:700;
+    line-height:1.1;
+  }
+
+  .print-detail{
+    font-size:9.5pt;
+    font-weight:400;
+    line-height:1.1;
+    margin-top:1px;
+  }
+
+  .print-break{
+    font-size:8.5pt;
+    font-weight:700;
+  }
+
+  tr.print-section-boundary > th,
+  tr.print-section-boundary > td{
+    border-top:2.8pt solid #000 !important;
+  }
+
+  @page{
+    size:A4 portrait;
+    margin:10mm 8mm;
+  }
+</style>
+</head>
+<body>${pages}</body>
+</html>`;
+}
+
+function printSelectedClasses(){
+  const selectedClasses=selectedPrintClasses();
+  const selectedHours=selectedPrintHours();
+  setRememberedPrintEffectiveDate($('#printClassesEffectiveDate').value);
+  const effectiveDate=formatPrintDate(state.printEffectiveDate);
+
+  if(!selectedClasses.length){
+    alert('Επίλεξε τουλάχιστον ένα τμήμα.');
+    return;
+  }
+
+  if(!selectedHours.length){
+    alert('Επίλεξε τουλάχιστον μία ώρα.');
+    return;
+  }
+
+  const w=window.open('','_blank');
+  if(!w){
+    alert('Ο browser μπλόκαρε το παράθυρο εκτύπωσης.');
+    return;
+  }
+
+  w.document.open();
+  w.document.write(printHtmlForClasses(selectedClasses,selectedHours,effectiveDate));
+  w.document.close();
+
+  $('#printClassesDialog').close();
+
+  w.onload=()=>{
+    setTimeout(()=>{
+      w.focus();
+      w.print();
+    },150);
+  };
+}
+
+
+function getTeacherNames(){
+  return sortTeachersClassroomFirst(
+    uniq(state.rows.flatMap(r=>splitNames(r.Teachers)))
+  );
+}
+
+function isSpecialtyTeacher(name){
+  // Ειδικότητα = κωδικός που ξεκινά με [ΠΕ...], εκτός από το ακριβές [ΠΕ70].
+  // Ο [ΠΕ70] θεωρείται δάσκαλος, όπως και κάθε εκπαιδευτικός χωρίς άλλο [ΠΕ*] prefix.
+  const m=String(name).match(/^\s*\[([^\]]+)\]/u);
+  if(!m)return false;
+
+  const code=m[1].trim();
+  return code.startsWith('ΠΕ') && code!=='ΠΕ70';
+}
+
+function teacherPrintHours(){
+  return printableProgramHours();
+}
+
+function defaultTeacherHourSelected(hour){
+  const start=hourStartMinutes(hour);
+  // Οι δύο τελευταίες απογευματινές ζώνες (περίπου 16:00–17:30)
+  // ξεκινούν μη επιλεγμένες. Όλες οι προηγούμενες ώρες επιλέγονται.
+  return start===null || start < (15*60+55);
+}
+
+function openPrintTeachersDialog(mode='staff'){
+  const teacherList=$('#printTeachersList');
+  const hourList=$('#printTeacherHoursList');
+  teacherList.innerHTML='';
+  hourList.innerHTML='';
+  $('#printTeachersEffectiveDate').value=rememberedPrintEffectiveDate();
+
+  const titles={
+    staff:'Εκτύπωση προσωπικού',
+    classroom:'Εκτύπωση δασκάλων',
+    specialties:'Εκτύπωση ειδικοτήτων'
+  };
+  $('#printTeachersDialogTitle').textContent=titles[mode]||titles.staff;
+
+  getTeacherNames().forEach(name=>{
+    let checked=true;
+    if(mode==='classroom')checked=!isSpecialtyTeacher(name);
+    if(mode==='specialties')checked=isSpecialtyTeacher(name);
+
+    makePrintCheck(
+      teacherList,
+      name,
+      'print-teacher-check',
+      checked
+    );
+  });
+
+  // Και στα τρία presets εμφανίζονται όλες οι διαθέσιμες ώρες
+  // και είναι όλες προεπιλεγμένες.
+  teacherPrintHours().forEach(hour=>{
+    makePrintCheck(
+      hourList,
+      hour,
+      'print-teacher-hour-check',
+      true
+    );
+  });
+
+  $('#printTeachersDialog').showModal();
+}
+
+function selectedPrintTeachers(){
+  return [...document.querySelectorAll('.print-teacher-check:checked')].map(x=>x.value);
+}
+
+function selectedTeacherPrintHours(){
+  const selected=new Set(
+    [...document.querySelectorAll('.print-teacher-hour-check:checked')].map(x=>x.value)
+  );
+  return teacherPrintHours().filter(h=>selected.has(h));
+}
+
+function activityRelevantToTeacher(a,teacherName){
+  return info(a).teachers.includes(teacherName);
+}
+
+function printTeacherActivityHtml(a,teacherName){
+  const i=info(a);
+  const parts=[];
+  const specialty=isSpecialtyTeacher(teacherName);
+
+  // Για δασκάλους: μάθημα + τμήμα.
+  // Για ειδικότητες: μόνο τμήμα, χωρίς το όνομα του μαθήματος.
+  if(!specialty && i.subject){
+    parts.push(`<div class="print-subject">${escapeHtml(i.subject)}</div>`);
+  }
+
+  if(i.students.length){
+    const cls=specialty ? 'print-subject' : 'print-detail';
+    parts.push(`<div class="${cls}">${escapeHtml(i.students.join(', '))}</div>`);
+  }
+
+  return parts.join('');
+}
+
+function buildTeacherPrintBlock(teacherName,displayHours,effectiveDate){
+  const acts=[...buildActivities().values()].filter(a=>activityRelevantToTeacher(a,teacherName));
+  const bySlot=new Map();
+
+  for(const a of acts){
+    a.entries.forEach(e=>{
+      const k=slotKey(e.row.Day,e.row.Hour);
+      if(!bySlot.has(k))bySlot.set(k,[]);
+      bySlot.get(k).push(a);
+    });
+  }
+
+  let rows='';
+  for(const h of displayHours){
+    let cells=`<th class="print-hour">${escapeHtml(h)}</th>`;
+
+    for(const d of state.days){
+      const isBreak=state.breakSlots.has(slotKey(d,h));
+
+      if(isBreak){
+        cells += `<td></td>`;
+        continue;
+      }
+
+      const slotActs=bySlot.get(slotKey(d,h)) || [];
+      const uniqueActs=[];
+      const seen=new Set();
+
+      for(const a of slotActs){
+        if(!seen.has(a.id)){
+          seen.add(a.id);
+          uniqueActs.push(a);
+        }
+      }
+
+      const chunks=uniqueActs
+        .map(a=>printTeacherActivityHtml(a,teacherName))
+        .filter(Boolean)
+        .map(html=>`<div class="print-activity">${html}</div>`);
+
+      cells += `<td>${chunks.join('')}</td>`;
+    }
+
+    rows += `<tr class="${printBoundaryClass(h,displayHours).trim()}">${cells}</tr>`;
+  }
+
+  const daysHead=state.days.map(d=>`<th>${escapeHtml(printHeaderLabel(d))}</th>`).join('');
+
+  const fullName=teacherFullName(teacherName);
+  const fullNameSubtitle=fullName
+    ? `<div class="print-subtitle">${escapeHtml(fullName)}</div>`
+    : '';
+
+  // Πάντα το συνολικό ωράριο από ΟΛΟ το φορτωμένο timetable,
+  // ανεξάρτητα από τις ώρες που επιλέχθηκαν για εκτύπωση.
+  const assignedHours=teacherAssignedHours(teacherName);
+  const targetHours=teacherTargetHours(teacherName);
+  const teachingLoad=`${assignedHours}/${targetHours}`;
+
+  return `
+    <section class="teacher-block">
+      <div class="class-print-header">
+        <div class="class-print-spacer"></div>
+        <div class="print-title-group">
+          <h1>${escapeHtml(teacherName)}</h1>
+          ${fullNameSubtitle}
+        </div>
+        <div class="print-date">Ισχύει από: ${escapeHtml(effectiveDate)}</div>
+      </div>
+
+      <table>
+        <thead>
+          <tr><th class="print-hour-head">${escapeHtml(printHeaderLabel("Ώρα"))}</th>${daysHead}</tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+
+      <div class="print-teaching-load">Διδακτικό ωράριο: ${escapeHtml(teachingLoad)}</div>
+    </section>
+  `;
+}
+
+function canPairTeachersOnPage(displayHours){
+  // Με έως 10 επιλεγμένες γραμμές τα δύο προγράμματα χωρούν άνετα
+  // σε A4 portrait στο 100%. Για μεγαλύτερους πίνακες χρησιμοποιούμε
+  // έναν εκπαιδευτικό ανά σελίδα ώστε να μη γίνεται επικάλυψη.
+  return displayHours.length<=12;
+}
+
+function printHtmlForTeachers(teacherNames,displayHours,effectiveDate){
+  let pages='';
+  const pair=canPairTeachersOnPage(displayHours);
+
+  if(pair){
+    for(let i=0;i<teacherNames.length;i+=2){
+      const first=teacherNames[i];
+      const second=teacherNames[i+1];
+
+      pages += `
+        <section class="teacher-print-page two-up">
+          ${buildTeacherPrintBlock(first,displayHours,effectiveDate)}
+          ${second ? buildTeacherPrintBlock(second,displayHours,effectiveDate) : ''}
+        </section>
+      `;
+    }
+  }else{
+    for(const teacherName of teacherNames){
+      pages += `
+        <section class="teacher-print-page single">
+          ${buildTeacherPrintBlock(teacherName,displayHours,effectiveDate)}
+        </section>
+      `;
+    }
+  }
+
+  return `<!doctype html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<title>Εκτύπωση προγραμμάτων εκπαιδευτικών</title>
+<style>
+  *{box-sizing:border-box}
+
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    margin:0;
+    color:#000;
+    background:#fff;
+  }
+
+  .teacher-print-page{
+    page-break-after:always;
+    break-after:page;
+  }
+
+  .teacher-print-page.two-up{
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+    gap:3mm;
+    height:272mm;
+  }
+
+  .teacher-print-page.single{
+    display:block;
+  }
+
+  .teacher-print-page:last-child{
+    page-break-after:auto;
+    break-after:auto;
+  }
+
+  .teacher-block{
+    min-height:0;
+    break-inside:avoid;
+    page-break-inside:avoid;
+  }
+
+  .class-print-header{
+    display:grid;
+    grid-template-columns:1fr auto 1fr;
+    align-items:end;
+    margin:0 0 3mm;
+  }
+
+  .class-print-spacer{min-width:0}
+
+  .print-title-group{
+    text-align:center;
+    min-width:0;
+  }
+
+  .print-subtitle{
+    margin-top:3px;
+    font-size:8pt;
+    line-height:1.02;
+    font-weight:400;
+    text-align:center;
+  }
+
+  h1{
+    text-align:center;
+    font-size:15pt;
+    line-height:1;
+    margin:0;
+    font-weight:700;
+  }
+
+  .print-date{
+    justify-self:end;
+    text-align:right;
+    white-space:nowrap;
+    font-size:7.5pt;
+    line-height:1;
+    font-weight:400;
+  }
+
+  .print-teaching-load{
+    margin-top:2mm;
+    text-align:right;
+    white-space:nowrap;
+    font-size:7.5pt;
+    line-height:1;
+    font-weight:400;
+  }
+
+  table{
+    width:100%;
+    border-collapse:collapse;
+    table-layout:fixed;
+    border:1.4pt solid #000;
+  }
+
+  th,td{
+    border:1.4pt solid #000;
+    padding:2px 3px;
+    text-align:center;
+    vertical-align:middle;
+    font-size:8pt;
+    line-height:1.02;
+  }
+
+  thead th{
+    font-size:10pt;
+    font-weight:700;
+    padding-top:3px;
+    padding-bottom:3px;
+  }
+
+  .print-hour-head,
+  .print-hour{
+    width:23mm;
+    min-width:23mm;
+    max-width:23mm;
+    padding-left:2px;
+    padding-right:2px;
+    white-space:nowrap;
+    font-size:9pt;
+    font-weight:700;
+  }
+
+  tbody tr,
+  tbody th,
+  tbody td{
+    height:8mm;
+  }
+
+  .print-activity{
+    margin:0 0 1px;
+  }
+
+  .print-activity:last-child{
+    margin-bottom:0;
+  }
+
+  .print-subject{
+    font-size:9.5pt;
+    font-weight:700;
+    line-height:1.02;
+  }
+
+  .print-detail{
+    font-size:8pt;
+    font-weight:400;
+    line-height:1.02;
+    margin-top:0;
+  }
+
+  .print-break{
+    font-size:7pt;
+    font-weight:700;
+  }
+
+  tr.print-section-boundary > th,
+  tr.print-section-boundary > td{
+    border-top:2.8pt solid #000 !important;
+  }
+
+  @page{
+    size:A4 portrait;
+    margin:10mm 8mm;
+  }
+</style>
+</head>
+<body>${pages}</body>
+</html>`;
+}
+
+function printSelectedTeachers(){
+  const selectedTeachers=selectedPrintTeachers();
+  const selectedHours=selectedTeacherPrintHours();
+  setRememberedPrintEffectiveDate($('#printTeachersEffectiveDate').value);
+  const effectiveDate=formatPrintDate(state.printEffectiveDate);
+
+  if(!selectedTeachers.length){
+    alert('Επίλεξε τουλάχιστον έναν εκπαιδευτικό.');
+    return;
+  }
+
+  if(!selectedHours.length){
+    alert('Επίλεξε τουλάχιστον μία ώρα.');
+    return;
+  }
+
+  const w=window.open('','_blank');
+  if(!w){
+    alert('Ο browser μπλόκαρε το παράθυρο εκτύπωσης.');
+    return;
+  }
+
+  w.document.open();
+  w.document.write(printHtmlForTeachers(selectedTeachers,selectedHours,effectiveDate));
+  w.document.close();
+
+  $('#printTeachersDialog').close();
+
+  w.onload=()=>{
+    setTimeout(()=>{
+      w.focus();
+      w.print();
+    },150);
+  };
+}
+
+function exportCSV(){
+  const lines=[state.headers.map(h=>csvEscape(h)).join(',')];
+  state.rows.forEach(r=>lines.push(state.headers.map(h=>csvEscape(r[h]??'')).join(',')));
+  const blob=new Blob(['\uFEFF'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=(state.csvName||'TimeTable.csv').replace(/\.csv$/i,'')+'_edited.csv';
+  a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+
+$('#openBtn').onclick=()=>$('#csvInput').click();
+$('#csvState').onclick=()=>$('#csvInput').click();
+$('#fetState').onclick=()=>$('#fetInput').click();
+
+$('#csvInput').onchange=async e=>{
+  await loadFiles([...e.target.files]);
+  e.target.value='';
+};
+
+$('#fetInput').onchange=async e=>{
+  await loadFiles([...e.target.files]);
+  e.target.value='';
+};
+$('#updateOloimeroBtn').onclick=openUpdateOloimeroDialog;
+$('#cancelUpdateOloimero').onclick=()=>$('#updateOloimeroDialog').close();
+$('#chooseOloimeroDesigner').onclick=()=>$('#oloimeroDesignerInput').click();
+$('#oloimeroDesignerInput').onchange=async e=>{
+  await loadOloimeroDesignerFile(e.target.files?.[0]);
+  e.target.value='';
+};
+$('#applyUpdateOloimero').onclick=applyOloimeroUpdate;
+
+$('#studentsTab').onclick=()=>{state.entityType='students';$('#studentsTab').classList.add('active');$('#teachersTab').classList.remove('active');rebuildEntities();render()};
+$('#teachersTab').onclick=()=>{state.entityType='teachers';$('#teachersTab').classList.add('active');$('#studentsTab').classList.remove('active');rebuildEntities();render()};
+$('#search').oninput=renderEntityList;
+$('#showSubject').onchange=render;$('#showTags').onchange=render;$('#showActivityId').onchange=render;$('#showTeachers').onchange=render;$('#showRooms').onchange=render;$('#showBreaks').onchange=render;$('#hourFilter').onchange=render;$('#teacherAssignmentFilter').onchange=render;$('#mode').onchange=render;
+$('#printBtn').onclick=()=>{
+  const mode=$('#printMode').value;
+
+  if(mode==='classes'){
+    openPrintClassesDialog();
+    return;
+  }
+
+  openPrintTeachersDialog(mode);
+};
+$('#printClassesEffectiveDate').onchange=e=>{
+  setRememberedPrintEffectiveDate(e.target.value);
+};
+$('#printTeachersEffectiveDate').onchange=e=>{
+  setRememberedPrintEffectiveDate(e.target.value);
+};
+
+$('#cancelPrintClasses').onclick=()=>$('#printClassesDialog').close();
+$('#confirmPrintClasses').onclick=printSelectedClasses;
+
+$('#printClassesAll').onclick=()=>{
+  document.querySelectorAll('.print-class-check').forEach(cb=>cb.checked=true);
+};
+$('#printClassesNone').onclick=()=>{
+  document.querySelectorAll('.print-class-check').forEach(cb=>cb.checked=false);
+};
+$('#printHoursAll').onclick=()=>
+  setPrintHourPreset('.print-hour-check','all');
+$('#printHoursNone').onclick=()=>
+  setPrintHourPreset('.print-hour-check','none');
+$('#printHoursMorning').onclick=()=>
+  setPrintHourPreset('.print-hour-check','morning');
+$('#printHoursExtended').onclick=()=>
+  setPrintHourPreset('.print-hour-check','extended');
+
+$('#cancelPrintTeachers').onclick=()=>$('#printTeachersDialog').close();
+$('#confirmPrintTeachers').onclick=printSelectedTeachers;
+
+$('#printTeachersAll').onclick=()=>{
+  document.querySelectorAll('.print-teacher-check').forEach(cb=>cb.checked=true);
+};
+
+$('#printTeachersNone').onclick=()=>{
+  document.querySelectorAll('.print-teacher-check').forEach(cb=>cb.checked=false);
+};
+
+$('#printTeachersClassroom').onclick=()=>{
+  document.querySelectorAll('.print-teacher-check').forEach(cb=>{
+    cb.checked=!isSpecialtyTeacher(cb.value);
+  });
+};
+
+$('#printTeachersSpecialties').onclick=()=>{
+  document.querySelectorAll('.print-teacher-check').forEach(cb=>{
+    cb.checked=isSpecialtyTeacher(cb.value);
+  });
+};
+
+$('#printTeacherHoursAll').onclick=()=>
+  setPrintHourPreset('.print-teacher-hour-check','all');
+$('#printTeacherHoursNone').onclick=()=>
+  setPrintHourPreset('.print-teacher-hour-check','none');
+$('#printTeacherHoursMorning').onclick=()=>
+  setPrintHourPreset('.print-teacher-hour-check','morning');
+$('#printTeacherHoursExtended').onclick=()=>
+  setPrintHourPreset('.print-teacher-hour-check','extended');
+
+$('#exportBtn').onclick=exportCSV;
+$('#orderBtn').onclick=openOrder;$('#cancelOrder').onclick=()=>$('#orderDialog').close();$('#saveOrder').onclick=saveOrder;$('#restoreFetOrder').onclick=restoreFetOrder;
+$('#undoBtn').onclick=()=>{if(!state.undo.length)return;state.redo.push(currentSnap());restoreSnap(state.undo.pop());updateUndoRedo()};
+$('#redoBtn').onclick=()=>{if(!state.redo.length)return;state.undo.push(currentSnap());restoreSnap(state.redo.pop());updateUndoRedo()};
+$('#initialBtn').onclick=restoreInitial;
+
+
+// Drop .fet and/or .csv anywhere when not dragging an activity card.
+document.addEventListener('dragover',e=>{if(!state.draggedId&&e.dataTransfer?.types?.includes('Files'))e.preventDefault()});
+document.addEventListener('drop',async e=>{
+  if(state.draggedId)return;
+  const fs=[...(e.dataTransfer?.files||[])].filter(f=>/\.(fet|csv)$/i.test(f.name));
+  if(fs.length){e.preventDefault();await loadFiles(fs)}
+});
+})();
+</script>
+</body>
+</html>
