@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="el">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Εφαρμογές σχολείου</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Arial, "Noto Sans", sans-serif;
+      color: #263238;
+      background: #f4f6f8;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+    }
+    * { box-sizing: border-box; }
+    body {
+      min-width: 320px;
+      min-height: 100vh;
+      margin: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: radial-gradient(ellipse at top, #fff 0%, #f4f6f8 70%);
+    }
+    main { width: min(100%, 520px); text-align: center; }
+    h1 { margin: 0 0 10px; font-size: clamp(25px, 5vw, 34px); letter-spacing: -.4px; }
+    .intro { margin: 0 0 28px; color: #687680; font-size: 15px; }
+    .apps { display: grid; gap: 12px; }
+    .app-link {
+      display: flex;
+      min-height: 62px;
+      align-items: center;
+      justify-content: center;
+      padding: 14px 20px;
+      border: 1px solid #cbd3d9;
+      border-radius: 11px;
+      background: #fff;
+      box-shadow: 0 2px 6px #17212b0a;
+      color: #263238;
+      font-size: 17px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: background .15s, border-color .15s, box-shadow .15s, transform .15s;
+    }
+    .app-link:hover {
+      transform: translateY(-1px);
+      border-color: #8ca9c3;
+      background: #fafdff;
+      box-shadow: 0 5px 13px #17212b12;
+    }
+    .app-link:focus-visible { outline: 3px solid #78a9dc; outline-offset: 3px; }
+    footer { margin-top: 26px; color: #89939b; font-size: 12px; }
+    @media (max-width: 420px) {
+      body { padding: 18px; }
+      .app-link { min-height: 58px; font-size: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Εφαρμογές σχολείου</h1>
+    <p class="intro">Επίλεξε την εφαρμογή που θέλεις να ανοίξεις.</p>
+    <nav class="apps" aria-label="Εφαρμογές">
+      <a class="app-link" href="documents_templater.html">Documents Templater</a>
+      <a class="app-link" href="fet_timetable_editor.html">Fet Timetable Editor</a>
+      <a class="app-link" href="oloimero_designer.html">Ολοήμερο Designer</a>
+      <a class="app-link" href="school_calendar.html">Σχολικό Ημερολόγιο</a>
+    </nav>
+    <footer>Οι εφαρμογές ανοίγουν από το ίδιο αποθετήριο.</footer>
+  </main>
+</body>
+</html>
