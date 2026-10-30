@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>FET Timetable Editor v0.92</title>
+<title>FET Timetable Editor v0.93</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -118,7 +118,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="FET Timetable Editor — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>FT</span></span><span class="brand-text"><span>FET Timetable Editor</span><span class="small version">v0.92</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="FET Timetable Editor — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>FT</span></span><span class="brand-text"><span>FET Timetable Editor</span><span class="small version">v0.93</span></span></button></h1></div>
   <select id="period" aria-label="Περίοδος" disabled hidden></select>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <span class="sep" aria-hidden="true"></span>
@@ -862,15 +862,14 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     const period = periodOf(periodId);
     const mode = await schoolChoiceDialog({
       title,
-      content: 'Το ' + quoted(design.name) + ' είναι προσχέδιο του Ολοήμερου Designer. Να ανατεθεί στην περίοδο ' + quoted(period?.name || '') + ', ώστε να είναι το σχέδιο Ολοημέρου της; Αν το προσχέδιο διατηρηθεί, μένει και στα προσχέδια, με το ίδιο όνομα. Η ανάθεση γίνεται με την «Αποθήκευση».',
+      content: 'Το ' + quoted(design.name) + ' είναι προσχέδιο του Ολοήμερου Designer. Να ανατεθεί στην περίοδο ' + quoted(period?.name || '') + ', ώστε να είναι το σχέδιο Ολοημέρου της; Το προσχέδιο θα διατηρηθεί στα προσχέδια με το ίδιο όνομα. Η ανάθεση θα ολοκληρωθεί με την «Αποθήκευση».',
       actions: [
-        {label: 'Όχι'},
-        {label: 'Ανάθεση σε περίοδο (το προσχέδιο αφαιρείται)', value: 'move'},
-        {label: 'Ανάθεση σε περίοδο (το προσχέδιο διατηρείται)', accept: true, value: 'keep'}
+        {label: 'Ακύρωση'},
+        {label: 'Ανάθεση', accept: true, value: 'keep'}
       ]
     });
-    if (mode !== 'move' && mode !== 'keep') return null;
-    const base = {draftId: design.id, keep: mode === 'keep', copyId: mode === 'keep' ? crypto.randomUUID() : null};
+    if (mode !== 'keep') return null;
+    const base = {draftId: design.id, keep: true, copyId: crypto.randomUUID()};
     const old = oloimeroDesigns().find(item => item.periodId === periodId && item.id !== design.id);
     if (!old) return {...base, replace: null};
     const choice = await schoolReplaceProgram({
