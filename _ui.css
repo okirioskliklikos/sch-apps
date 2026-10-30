@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινό περιβάλλον χρήστη
- * Έκδοση αρχείου: 0.20
+ * Έκδοση αρχείου: 0.21
  * Όνομα κατά την εγκατάσταση: _ui.css
  */
 
@@ -71,7 +71,13 @@ button,select{
   border:1px solid #bbb;background:#fff;border-radius:7px;padding:var(--school-ui-control-padding-y) 10px;
   font-size:var(--school-ui-control-font-size);line-height:var(--school-ui-control-line-height)
 }
-select{min-height:var(--school-ui-control-height)}
+/* One shared dropdown arrow, including the period and print selectors. */
+select{
+  appearance:none;-webkit-appearance:none;min-height:var(--school-ui-control-height);
+  padding-right:32px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath fill='%231f2937' d='M0 2h10L5 8z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 10px center;background-size:10px 10px
+}
 /* Text fields: the same height and text size as the buttons. Editable tables set a smaller height of their own. */
 input:is(:not([type]),[type=text],[type=number],[type=password],[type=date],[type=email],[type=search],[type=tel],[type=url]){
   min-height:var(--school-ui-control-height);font-size:var(--school-ui-control-font-size)

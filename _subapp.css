@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινή διάταξη υποεφαρμογών
- * Έκδοση αρχείου: 0.29
+ * Έκδοση αρχείου: 0.31
  * Όνομα κατά την εγκατάσταση: _subapp.css
  */
 
@@ -140,17 +140,16 @@ header .app-mark::before{
 .print-mode-wrap{min-width:0}
 .print-control select{min-width:0;max-width:100%}
 .print-mode-wrap{position:relative;display:inline-flex;align-items:stretch}
-.print-mode-wrap::after{
-  content:"▼";position:absolute;z-index:1;top:0;right:0;bottom:0;width:29px;
-  display:flex;align-items:center;justify-content:center;box-sizing:border-box;padding:6px;
-  font-size:10px;line-height:1;pointer-events:none
-}
 .print-control select{
-  appearance:none;-webkit-appearance:none;cursor:pointer;
-  border-radius:0 7px 7px 0;border-left:0;
-  padding:var(--school-ui-control-padding-y) 36px var(--school-ui-control-padding-y) 9px;background:#fff
+  cursor:pointer;border-radius:0 7px 7px 0;border-left:0;
+  padding:var(--school-ui-control-padding-y) 36px var(--school-ui-control-padding-y) 9px;
+  background-color:var(--school-ui-surface)
 }
-.print-control select:hover{background:#f1f1f1}
+/* Keep the native options popup on the same light palette as the period selector.
+   The final highlight rendering of native select menus remains browser/OS-dependent. */
+.print-control select{color-scheme:light;color:var(--school-ui-text)}
+.print-control select option{background-color:var(--school-ui-surface);color:var(--school-ui-text)}
+.print-control select:hover{background-color:#f1f1f1}
 .print-control select:focus,
 .print-control select:focus-visible{outline:none;box-shadow:none;border-color:#bbb}
 .print-control button{border-radius:7px 0 0 7px}
