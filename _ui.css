@@ -1,0 +1,266 @@
+/*
+ * Εφαρμογές σχολείου — Κοινό περιβάλλον χρήστη
+ * Έκδοση αρχείου: 0.20
+ * Όνομα κατά την εγκατάσταση: _ui.css
+ */
+
+:root{
+  color-scheme:light;
+  --school-ui-font:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  /* Controls: every text button, select and text field is this tall, with this text size,
+     wherever it sits. The vertical padding follows from the height, the line and the 1px borders. */
+  --school-ui-control-height:36px;
+  --school-ui-control-font-size:16px;
+  --school-ui-control-line-height:22px;
+  --school-ui-control-padding-y:calc((var(--school-ui-control-height) - var(--school-ui-control-line-height) - 2px) / 2);
+  --school-ui-workspace-bg:#f5f6f8;
+  --school-ui-label-bg:#f0f3f7;
+  --school-ui-label-text:#405367;
+  --school-ui-row-border:#e3e8ef;
+  --school-ui-input-border:#b8c0c7;
+  --school-ui-control-border:#cbd5e1;
+  --school-ui-error:#b42318;
+  --school-ui-error-border:#d92d20;
+  /* Warning: something to check that does not stop the action (e.g. two homeroom teachers for one class).
+     Dark amber, readable on white and on the grey of disabled fields (at least 5:1). */
+  --school-ui-warning:#a14a00;
+  --school-ui-disabled-bg:#edf0f4;
+  --school-ui-disabled-text:#657182;
+  --school-ui-disabled-button-bg:#f6f8fa;
+  --school-ui-readonly-bg:#f1f3f5;
+  --school-ui-readonly-text:#4c5962;
+  --school-ui-helper:#737d85;
+  --school-ui-text:#1f2937;
+  --school-ui-muted:#667085;
+  --school-ui-surface:#fff;
+  --school-ui-border:#d8dee8;
+  --school-ui-focus:#497f9b;
+  --school-ui-primary-bg:#e8f1ff;
+  --school-ui-primary-border:#8eb4e7;
+  --school-ui-primary-text:#154c91;
+  --school-ui-success-bg:#1f8a5b;
+  --school-ui-success-hover-bg:#18764d;
+  --school-ui-success-border:#17704a;
+  --school-ui-success-text:#fff;
+  --school-ui-success-disabled-bg:#9cc9b2;
+  --school-ui-success-disabled-text:#f4fbf7;
+  --school-ui-swatch-border:#6f6f6f;
+  /* Application icons (.app-mark): one gradient per application, shared by Index and the application itself.
+     A new application adds its own --school-app-<name> here. */
+  --school-app-mark-fg:#fff;
+  --school-app-default:linear-gradient(145deg,#8387c4,#6b6fae);
+  --school-app-home:linear-gradient(145deg,#6484a0,#526c83);
+  --school-app-staff:linear-gradient(145deg,#599bbd,#497f9b);
+  --school-app-hours:linear-gradient(145deg,#7a96c2,#647b9f);
+  --school-app-docs:linear-gradient(145deg,#6b95bc,#587a9a);
+  --school-app-fet:linear-gradient(145deg,#4a9b99,#337773);
+  --school-app-oloimero:linear-gradient(145deg,#b78a53,#967044);
+  --school-app-calendar:linear-gradient(145deg,#8b79b8,#66538f);
+  --school-app-timetables:linear-gradient(145deg,#a5b4fc,#4338ca);
+}
+
+*{box-sizing:border-box}
+button,select,input{font:inherit}
+[hidden]{display:none!important}
+
+/* Buttons and selects: one look for Index and every sub-application.
+   Text size and line height are set here instead of being inherited from the surrounding text,
+   so a text button is 36px tall wherever it sits (--school-ui-control-*). Buttons with a look of
+   their own (icons, list rows, sidebar entries) set their own size in their own rules. */
+button,select{
+  border:1px solid #bbb;background:#fff;border-radius:7px;padding:var(--school-ui-control-padding-y) 10px;
+  font-size:var(--school-ui-control-font-size);line-height:var(--school-ui-control-line-height)
+}
+select{min-height:var(--school-ui-control-height)}
+/* Text fields: the same height and text size as the buttons. Editable tables set a smaller height of their own. */
+input:is(:not([type]),[type=text],[type=number],[type=password],[type=date],[type=email],[type=search],[type=tel],[type=url]){
+  min-height:var(--school-ui-control-height);font-size:var(--school-ui-control-font-size)
+}
+button{cursor:pointer;white-space:nowrap}
+button:hover:not(:disabled){background:#f1f1f1}
+button.active{background:#e3eefc;border-color:#6f98c8}
+button:disabled{opacity:.45;cursor:not-allowed}
+/* Unavailable ordinary buttons stay readable: grey label and border on a light fill, instead of fading out.
+   Buttons with a look of their own (sidebar entries, icon-only controls, .success) keep their own disabled style. */
+button:disabled:is(:not([class]),.primary,.danger,.subapp-add-button,.subapp-remove-button,.save-main,.save-menu-button,.data-action,.ui-toggle):not(.success){
+  opacity:1;color:var(--school-ui-disabled-text);background:var(--school-ui-disabled-button-bg);border-color:var(--school-ui-control-border)
+}
+button:is(.subapp-add-button,.primary){
+  background:var(--school-ui-primary-bg);border-color:var(--school-ui-primary-border);
+  color:var(--school-ui-primary-text)
+}
+button:is(.subapp-add-button,.primary):hover:not(:disabled){background:#d8e8ff;border-color:#709bd3}
+button:is(.subapp-remove-button,.danger){color:#a12626}
+/* Main completing action of an application (e.g. «Παραγωγή Εγγράφων»): solid green,
+   with the same text weight as every other button. */
+button.success{
+  background:var(--school-ui-success-bg);border-color:var(--school-ui-success-border);
+  color:var(--school-ui-success-text);box-shadow:0 1px 2px #0f3d2833
+}
+button.success:hover:not(:disabled){background:var(--school-ui-success-hover-bg);border-color:var(--school-ui-success-border)}
+button.success:disabled{
+  background:var(--school-ui-success-disabled-bg);border-color:var(--school-ui-success-disabled-bg);
+  color:var(--school-ui-success-disabled-text);opacity:1;box-shadow:none
+}
+
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{scroll-behavior:auto!important;transition-duration:.01ms!important}
+}
+
+dialog{
+  box-sizing:border-box;width:min(620px,calc(100vw - 32px));max-height:calc(100dvh - 32px);
+  margin:auto;padding:24px;border:1px solid var(--school-ui-border);border-radius:14px;
+  background:var(--school-ui-surface);color:var(--school-ui-text);
+  box-shadow:0 20px 70px #172b4d40;font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  overflow:auto
+}
+dialog::backdrop{background:#18263766}
+dialog form{margin:0}
+dialog h2,dialog h3{margin:0 0 12px;line-height:1.35;color:var(--school-ui-text)}
+dialog h2{font-size:20px}
+dialog h3{font-size:19px}
+dialog p{overflow-wrap:anywhere}
+dialog label{display:block;margin:12px 0 5px;font-weight:650}
+dialog input[type=text],dialog input[type=number],dialog select{
+  border:1px solid #b8c0c7;border-radius:7px;background:#fff;color:var(--school-ui-text);padding:var(--school-ui-control-padding-y) 9px
+}
+dialog input[type=text]{width:100%}
+dialog input[type=checkbox]{accent-color:var(--school-ui-focus)}
+dialog button{padding:var(--school-ui-control-padding-y) 13px;border-color:var(--school-ui-control-border);color:#334155}
+dialog button:hover:not(:disabled){background:#eef3f8;border-color:#8d9aa5}
+dialog button[type=submit],dialog .confirm-accept{
+  background:var(--school-ui-primary-bg);border-color:var(--school-ui-primary-border);color:var(--school-ui-primary-text)
+}
+dialog button[type=submit]:hover:not(:disabled),dialog .confirm-accept:hover:not(:disabled){background:#d8e8ff;border-color:#709bd3}
+dialog button:focus-visible,dialog input:focus-visible,dialog select:focus-visible{outline:2px solid var(--school-ui-focus);outline-offset:2px}
+
+.dialog-actions{display:flex;justify-content:flex-end;gap:10px}
+.school-message{width:min(620px,calc(100vw - 32px))}
+.school-message p{margin:0;white-space:pre-wrap;line-height:1.6}
+.school-message-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px;flex-wrap:wrap}
+
+/* Shared file-reconnection content used by Index-hosted applications (inside window.schoolChoiceDialog). */
+.reconnect-file-name{display:block;margin:12px 0;font-weight:750;overflow-wrap:anywhere}
+.reconnect-local-note{margin-top:14px!important;color:var(--school-ui-muted);font-size:13px}
+
+.school-confirm{
+  box-sizing:border-box;width:min(620px,calc(100vw - 32px));max-height:calc(100dvh - 32px);
+  margin:auto;padding:24px;border:1px solid var(--school-ui-border);border-radius:14px;
+  background:var(--school-ui-surface);color:var(--school-ui-text);box-shadow:0 20px 70px #172b4d40;
+  font:16px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif;overflow:auto
+}
+.school-confirm::backdrop{background:#18263766}
+.school-confirm h2{margin:0 0 12px;font-size:20px;line-height:1.4}
+.school-confirm p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.school-confirm .requirement-list{margin:14px 0 0;padding-left:24px;color:#334155}
+.school-confirm .requirement-list li+li{margin-top:5px}
+.school-confirm .requirement-note{margin-top:14px;color:#64748b;font-size:14px}
+.school-confirm .requirement-error{margin-top:14px;color:#c62828;font-size:14px}
+.school-confirm-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px;flex-wrap:wrap}
+.school-confirm button{font-family:inherit;padding:var(--school-ui-control-padding-y) 16px;border:1px solid var(--school-ui-control-border);border-radius:8px;background:#fff;color:#334155;cursor:pointer}
+.school-confirm .confirm-accept{background:var(--school-ui-primary-bg);border-color:var(--school-ui-primary-border);color:var(--school-ui-primary-text)}
+.school-confirm button:focus-visible{outline:2px solid var(--school-ui-focus);outline-offset:3px}
+/* Choice dialog (window.schoolChoiceDialog in _ui.js): large option buttons, one under the other,
+   and an error line that takes no room until it has a message. */
+.school-choice-options{display:grid;gap:12px;margin-top:20px}
+.school-choice-options button{text-align:left;overflow-wrap:anywhere;white-space:normal}
+.school-choice-error{margin-top:12px!important;color:var(--school-ui-error)}
+.school-choice-error:empty{display:none}
+/* A labelled field inside a choice dialog: <label class="school-choice-field">Label<input|select></label>.
+   The field goes under the label, full width, with normal text weight. */
+.school-choice-field>:is(input,select){display:block;width:100%;min-width:0;margin-top:5px;font-weight:400}
+.school-confirm.oloimero-requirements-dialog{width:min(880px,calc(100vw - 32px))}
+/* Program import dialog (window.schoolProgramImport in _ui.js): file rows, summary of the analysis,
+   errors, warnings and information. The choice for unmatched teachers uses .subapp-import-mode (_subapp.css). */
+.school-confirm.school-import{width:min(720px,calc(100vw - 32px))}
+.school-import-files{display:grid;gap:8px;margin-top:16px}
+.school-import-file{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid var(--school-ui-border);border-radius:10px}
+.school-import-file-text{display:grid;gap:1px;min-width:0;font-size:14px;line-height:1.45}
+.school-import-file-label{font-size:13px;font-weight:650;color:var(--school-ui-label-text)}
+.school-import-file-name{overflow-wrap:anywhere}
+.school-import-file-error{color:var(--school-ui-error);font-size:13px}
+.school-import-file button{flex:none}
+.school-import-result{display:grid;gap:12px;margin-top:16px}
+.school-import-result:empty{display:none}
+.school-import-waiting{color:var(--school-ui-muted);font-size:14px}
+.school-import-waiting:empty{display:none}
+.school-import-summary{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px;padding:10px 12px;
+  border-radius:10px;background:var(--school-ui-label-bg);text-align:center;font-size:14px;line-height:1.35
+}
+.school-import-summary b{display:block;font-size:20px;line-height:1.3}
+.school-import-section h3{margin:0 0 4px;font-size:15px;color:inherit}
+.school-import-section ul{margin:0;padding-left:20px;font-size:14px;line-height:1.5}
+.school-import-section li{overflow-wrap:anywhere}
+.school-import-section li+li{margin-top:3px}
+.school-import-section.error{color:var(--school-ui-error)}
+.school-import-section.warning{color:var(--school-ui-warning)}
+.school-import-section.info{color:var(--school-ui-label-text)}
+.school-import .subapp-import-mode{margin-top:0}
+.school-confirm.oloimero-requirements-dialog .school-confirm-actions{flex-wrap:nowrap}
+@media(max-width:760px){.school-confirm.oloimero-requirements-dialog .school-confirm-actions{flex-wrap:wrap}}
+
+/* Colour picker (window.schoolColorPicker in _ui.js) and the button that shows the chosen colour.
+   Use <button class="school-color-trigger"><span class="school-color-trigger-swatch"></span></button>. */
+.school-color-trigger{display:block;width:64px;height:var(--school-ui-control-height);padding:4px 5px}
+.school-color-trigger-swatch{display:block;width:100%;height:100%;border:1px solid var(--school-ui-swatch-border);border-radius:2px}
+.school-color-picker{width:min(490px,calc(100vw - 24px));padding:12px 14px 16px;overflow:hidden}
+.school-color-picker-header{display:grid;grid-template-columns:104px 1fr 104px;gap:10px;align-items:center;margin-bottom:14px}
+.school-color-picker-title{font-weight:750;text-align:center;color:var(--school-ui-text);white-space:nowrap}
+.school-color-picker-header button{height:var(--school-ui-control-height);padding:5px 12px}
+.school-color-picker-grid{display:grid;grid-template-columns:repeat(9,minmax(28px,1fr));gap:4px}
+.school-color-picker-custom-title{margin:9px 0 5px}
+.school-color-picker-custom-row{display:grid;grid-template-columns:48px repeat(8,minmax(28px,1fr));gap:4px}
+.school-color-picker-custom{display:contents}
+dialog .school-color-picker-choice{
+  position:relative;height:33px;padding:0;border:1px solid var(--school-ui-swatch-border);
+  border-radius:4px;background:var(--choice-color)
+}
+dialog .school-color-picker-choice:hover:not(:disabled){
+  background:var(--choice-color);border-color:var(--school-ui-swatch-border);
+  outline:2px solid var(--school-ui-surface);box-shadow:0 0 0 3px var(--school-ui-focus)
+}
+.school-color-picker-choice.selected{outline:1px dashed var(--school-ui-primary-text);outline-offset:-4px}
+.school-color-picker-choice.selected::after{
+  content:"✓";position:absolute;inset:0;display:grid;place-items:center;
+  color:var(--choice-ink,var(--school-ui-text));font-size:20px;font-weight:900;text-shadow:0 1px 1px #fff8
+}
+dialog .school-color-picker-add{height:33px;padding:0;border-radius:4px;font-size:25px;line-height:1}
+.school-color-picker-native{position:fixed;left:-9999px;width:1px;height:1px;opacity:0}
+
+/* Application icon: <span class="app-mark"><span>ΞΞ</span></span>, always exactly 2 letters.
+   Each page sets --app-mark-bg to its --school-app-* variable; --app-mark-fg overrides the letter colour if needed.
+   The inner span is trimmed to the cap height, so the letters sit in the middle of the box with any font.
+   The row holding the icon aligns its items on the baseline (align-items:baseline), so the letters share the
+   baseline of the text next to them. Size, shape and font size belong to Index (sidebar, home) and _subapp.css (header). */
+.app-mark{
+  display:inline-flex;align-items:center;justify-content:center;padding:0;
+  background:var(--app-mark-bg,var(--school-app-default));color:var(--app-mark-fg,var(--school-app-mark-fg));
+  font-weight:700;line-height:1;white-space:nowrap;user-select:none
+}
+.app-mark>span{display:block;text-box:trim-both cap alphabetic}
+
+/* Reusable form controls. Add ui-* classes to opt into these styles. */
+:where(button,input,select,textarea):focus-visible{outline:2px solid var(--school-ui-focus);outline-offset:2px}
+.ui-helper{font-size:12px;color:var(--school-ui-helper)}
+.ui-field{display:grid;gap:6px;margin:12px 0}
+.ui-field label{font-weight:700}
+.ui-field input,.ui-field select{
+  width:100%;min-width:0;border:1px solid var(--school-ui-input-border);
+  border-radius:6px;padding:var(--school-ui-control-padding-y) 9px;background:var(--school-ui-surface)
+}
+.ui-fields input[readonly]{background:var(--school-ui-readonly-bg);color:var(--school-ui-readonly-text)}
+fieldset.ui-fields{margin:0;padding:0;min-width:0;border:0}
+.ui-fields:disabled input,.ui-fields:disabled select{
+  background:var(--school-ui-disabled-bg);color:var(--school-ui-disabled-text);opacity:1;cursor:default
+}
+/* Message under a field: an error (stops the action) or a warning (only something to check).
+   The text alone carries the message; the field keeps its border, except for an error that sets aria-invalid. */
+.ui-validation-error,.ui-validation-warning{margin:6px 0 0;font-size:12px;line-height:1.45}
+.ui-validation-error{color:var(--school-ui-error)}
+.ui-validation-warning{color:var(--school-ui-warning)}
+.ui-fields .ui-field :is(input,select)[aria-invalid="true"]{border-color:var(--school-ui-error-border)}
+.ui-helper.danger{color:var(--school-ui-error)}
+.ui-toggle[aria-pressed="true"]{
+  background:#dceaf4;color:#244b69;border-color:#7a9eb9;box-shadow:inset 0 2px 4px #183c5b26
+}

@@ -1,3814 +1,1149 @@
-<!DOCTYPE html>
-<html lang="el">
+<!doctype html>
+<html lang="el" class="subapp-page">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>FET Timetable Editor v0.81</title>
+<title>FET Timetable Editor v0.92</title>
+<link rel="stylesheet" href="_ui.css">
+<link rel="stylesheet" href="_subapp.css">
 <style>
+/* FET Timetable Editor: the timetable (kind 'school') of a period, from the shared file (.data).
+   Shared appearance: _ui.css / _subapp.css. --ft-* : colours whose meaning exists only on this board. */
 :root{
-  --bg:#f5f6f8;--panel:#fff;--line:#d8dee8;--text:#1f2937;--muted:#667085;
-  --accent:#2563eb;--danger:#b42318;--ok:#027a48;--warn:#b54708;
-  --cell:116px;--hour:160px
+  --app-mark-bg:var(--school-app-fet);
+  --ft-cell:130px;--ft-hour:124px;
+  --ft-head-bg:#f9fafb;--ft-line:var(--school-ui-border);--ft-boundary:#98a2b3;
+  --ft-card-border:#d0d5dd;
+  --ft-conflict-bg:#fff1f0;--ft-conflict-border:#f04438;
+  --ft-specialty-bg:#eef7ff;--ft-specialty-border:#b9d8fb;
+  --ft-nonhomeroom-bg:#fff9db;--ft-nonhomeroom-border:#f2d675;
+  --ft-allowed-bg:#ecfdf3;--ft-allowed-ring:#a6f4c5;--ft-allowed-over-bg:#dcfae6;--ft-allowed-outline:#32d583;
+  --ft-unavailable-bg:#fff4e5;--ft-unavailable-ring:#f7b955;--ft-unavailable-over-bg:#ffead5;--ft-unavailable-outline:#f79009;
+  --ft-drop-bg:#eff8ff;--ft-drop-outline:#84adff;
+  --ft-note-bg:#fff7ed;--ft-note-border:#fed7aa;--ft-note-text:#9a3412
 }
-*{box-sizing:border-box}
-body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
-button,input,select{font:inherit}
-button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 10px;cursor:pointer}
-button:hover{background:#f3f4f6}
-button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
-button:disabled{opacity:.45;cursor:not-allowed}
-.app{height:100vh;display:grid;grid-template-rows:auto 1fr}
-header{
-  background:#fff;
-  border-bottom:1px solid var(--line);
-  padding:9px 12px;
-  display:flex;
-  gap:8px;
-  align-items:center;
-  flex-wrap:nowrap;
-  white-space:nowrap;
-  overflow:hidden;
-}
-.header-left{
-  min-width:max-content;
-  display:flex;
-  gap:8px;
-  align-items:center;
-  flex-wrap:nowrap;
-  white-space:nowrap;
-  flex:0 0 auto;
-}
-.brand{font-weight:850;margin-right:8px}
-header button,header select,.brand{white-space:nowrap;flex:0 0 auto}
-.grow{flex:1}
-.header-separator{
-  width:1px;
-  height:26px;
-  background:var(--line);
-  margin:0 2px;
-  flex:0 0 auto;
-}
-.file-state{
-  font-size:12px;
-  padding:4px 7px;
-  border-radius:999px;
-  border:1px solid var(--line);
-  color:var(--muted);
-  cursor:pointer;
-}
-.file-state:hover{filter:brightness(.97)}
-.file-state.ok{color:var(--ok);border-color:#a6f4c5;background:#ecfdf3}
-.file-state.warn{color:var(--warn);border-color:#fedf89;background:#fffaeb}
-.header-print-group{
-  display:flex;
-  align-items:stretch;
-  flex:0 0 auto;
-}
-.header-print-group button{
-  border-top-right-radius:0;
-  border-bottom-right-radius:0;
-}
-.header-print-group select{
-  min-width:118px;
-  border:1px solid var(--line);
-  background:#fff;
-  padding:7px 28px 7px 9px;
-  border-radius:0 8px 8px 0;
-  margin-left:-1px;
-  color:var(--text);
-}
-.header-print-group select:disabled{opacity:.45}
-.file-state-wrap{
-  min-width:72px;
-  flex:1 1 auto;
-  display:flex;
-  align-items:center;
-  justify-content:flex-end;
-  gap:8px;
-  white-space:nowrap;
-  overflow:hidden;
-}
-.file-state-wrap .file-state{
-  min-width:0;
-  flex:0 1 auto;
-  max-width:260px;
-  display:flex;
-  align-items:center;
-  justify-content:flex-start;
-  overflow:hidden;
-  white-space:nowrap;
-}
-.file-state-label{
-  flex:0 0 auto;
-}
-.file-state-name{
-  min-width:0;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-}
-.main{display:grid;grid-template-columns:280px 1fr;min-height:0}
-aside{background:#fff;border-right:1px solid var(--line);padding:10px;overflow:auto}
-.tabs{display:flex;gap:6px;margin-bottom:8px}
-.tabs button{flex:1}
-.tabs button.active{background:#eef4ff;border-color:#84adff;color:#1849a9;font-weight:750}
-#search{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:8px}
-.entity{display:block;width:100%;text-align:left;margin:3px 0;padding:8px 9px}
-.entity.active{background:#eef4ff;border-color:#84adff;font-weight:750}
-.entity-teacher-main{
-  display:flex;
-  align-items:baseline;
-  gap:8px;
-  width:100%;
-}
-.entity-teacher-short{
-  flex:1;
-  min-width:0;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-}
-.entity-teacher-hours{
-  flex:0 0 auto;
-  font-size:12px;
-  line-height:1;
-  font-weight:650;
-  color:#667085;
-  font-variant-numeric:tabular-nums;
-}
-.entity-teacher-full{
-  margin-top:3px;
-  font-size:12px;
-  line-height:1.25;
-  font-weight:400;
-  color:#667085;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-}
-.entity.active .entity-teacher-hours,
-.entity.active .entity-teacher-full{
-  color:#475467;
-}
-.entity-class-main{
-  display:flex;
-  align-items:baseline;
-  gap:8px;
-  width:100%;
-}
-.entity-class-name{
-  flex:0 0 auto;
-  font-weight:650;
-  white-space:nowrap;
-}
-.entity-class-teacher{
-  flex:1 1 auto;
-  min-width:0;
-  text-align:right;
-  font-size:12px;
-  line-height:1.15;
-  font-weight:400;
-  color:#667085;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-}
-.entity.active .entity-class-teacher{
-  color:#475467;
-}
-.workspace{padding:12px;overflow:auto;position:relative}
-.workspace.welcome-mode{
-  display:grid;
-  grid-template-rows:auto 1fr;
-  min-height:0;
-}
-.workspace.welcome-mode .welcome{
-  align-self:center;
-  justify-self:center;
-}
-.notice{padding:10px 12px;border-radius:9px;margin-bottom:10px;font-size:13px}
-.notice.info{background:#eff8ff;border:1px solid #b2ddff;color:#175cd3}
-.notice.warn{background:#fffaeb;border:1px solid #fedf89;color:#93370d}
-.notice.error{background:#fff1f0;border:1px solid #fda29b;color:#912018;white-space:pre-wrap}
-.welcome{
-  width:min(960px,94%);
-  padding:0;
-}
-.drop-hint{
-  border:2px dashed #79a2ff;
-  border-radius:14px;
-  padding:30px 26px 32px;
-  text-align:center;
-  background:#f3f7ff;
-  color:#1455c0;
-}
-.drop-hint .drop-icon{
-  display:block;
-  font-size:40px;
-  line-height:1;
-  font-weight:300;
-  margin-bottom:10px;
-}
-.drop-title{
-  font-size:20px;
-  font-weight:650;
-  margin-bottom:8px;
-}
-.drop-text{
-  color:#7f8fa6;
-  font-size:15px;
-  line-height:1.5;
-}
-.drop-text b{
-  color:#1455c0;
-  font-weight:650;
-}
-code{background:#f2f4f7;padding:2px 5px;border-radius:4px}
-.toolbar{display:block;margin-bottom:10px}
-.toolbar-title-row{
-  display:flex;
-  align-items:center;
-  min-height:28px;
-  margin-bottom:8px;
-}
-.toolbar .title{font-size:18px;font-weight:850}
-.toolbar-controls{
-  display:flex;
-  gap:10px;
-  align-items:center;
-  flex-wrap:wrap;
-}
-.toolbar label{font-size:13px}
-.legend{font-size:12px;color:var(--muted)}
-table.grid{border-collapse:separate;border-spacing:0;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;min-width:max-content}
-.grid th,.grid td{border-right:1px solid var(--line);border-bottom:1px solid var(--line);vertical-align:top}
-.grid tr:last-child td,.grid tr:last-child th{border-bottom:0}
-.grid th:last-child,.grid td:last-child{border-right:0}
-.grid tr.print-section-boundary > th,
-.grid tr.print-section-boundary > td{
-  border-top:2px solid #98a2b3;
-}
-.grid thead th{position:sticky;top:0;z-index:4;background:#f9fafb;padding:8px;text-align:center;min-width:var(--cell)}
-.grid .hour{position:sticky;left:0;z-index:3;background:#f9fafb;width:var(--hour);min-width:var(--hour);padding:8px;text-align:left;font-size:13px}
-.grid thead .hour{z-index:5}
-.grid td.slot{width:var(--cell);min-width:var(--cell);height:80px;padding:5px;background:#fff}
-.grid td.slot.drag-allowed{
-  background:#ecfdf3;
-  box-shadow:inset 0 0 0 1px #a6f4c5;
-}
-.grid td.slot.drag-allowed.dragover{
-  outline:3px solid #32d583;
-  outline-offset:-3px;
-  background:#dcfae6;
-}
-.grid td.slot.drag-unavailable{
-  background:#fff4e5;
-  box-shadow:inset 0 0 0 1px #f7b955;
-}
-.grid td.slot.drag-unavailable.dragover{
-  outline:3px solid #f79009;
-  outline-offset:-3px;
-  background:#ffead5;
-}
-.grid td.slot.dragover:not(.drag-allowed):not(.drag-unavailable){
-  outline:3px solid #84adff;
-  outline-offset:-3px;
-  background:#eff8ff;
-}
-.grid td.break-slot{background:#f2f4f7;color:#667085;text-align:center;vertical-align:middle;font-weight:700;cursor:not-allowed}
-.card{border:1px solid #d0d5dd;border-left:5px solid var(--card,#667085);background:#fff;border-radius:8px;padding:6px 7px;margin-bottom:5px;box-shadow:0 1px 2px rgba(16,24,40,.05);cursor:grab;user-select:none}
-.card.specialty-teacher{background:#eef7ff;border-color:#b9d8fb}
-.card.non-homeroom-classroom{background:#fff9db;border-color:#f2d675}
-.card.conflict{background:#fff1f0;border-color:#f04438}
-.card:active{cursor:grabbing}
-.subject{font-weight:850;line-height:1.15;text-align:center}
-.meta{font-size:11px;color:#475467;margin-top:3px;line-height:1.25}
-.teacher-name{text-align:center}
-.badge{display:block;width:max-content;max-width:100%;font-size:10px;border:1px solid #d0d5dd;border-radius:999px;padding:1px 5px;margin:4px auto 0;background:#f9fafb;text-align:center}
-.small{font-size:12px;color:var(--muted)}
-dialog{border:0;border-radius:12px;padding:0;box-shadow:0 20px 60px rgba(0,0,0,.25);width:min(760px,94vw)}
-dialog::backdrop{background:rgba(0,0,0,.35)}
-.dlg-h{padding:14px 16px;border-bottom:1px solid var(--line);font-weight:850}
-.dlg-b{padding:14px 16px;max-height:70vh;overflow:auto}
-.dlg-f{padding:12px 16px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px}
-.order-cols{display:grid;grid-template-columns:1fr 1fr;gap:18px}
-.order-list{list-style:none;margin:8px 0;padding:0}
-.order-list li{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:8px;padding:6px;margin:5px 0;background:#fff}
-.order-list .name{flex:1}
-.source-note{font-size:12px;color:var(--muted);margin-top:5px}
-.olo-update-info{
-  background:#f8fafc;
-  border:1px solid var(--line);
-  border-radius:10px;
-  padding:12px 14px;
-  font-size:13px;
-  line-height:1.5;
-  margin-bottom:14px;
-}
-.olo-update-info b{font-weight:750}
-.olo-form-row{
-  display:grid;
-  grid-template-columns:160px minmax(0,1fr);
-  gap:10px;
-  align-items:center;
-  margin:10px 0;
-}
-.olo-form-row input[type="text"]{
-  width:100%;
-  padding:8px 10px;
-  border:1px solid var(--line);
-  border-radius:8px;
-}
-.olo-file-line{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  min-width:0;
-}
-#oloimeroDesignerName{
-  color:var(--muted);
-  font-size:12px;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-}
-#oloimeroUpdateStatus{
-  min-height:18px;
-  margin-top:10px;
-  font-size:12px;
-  color:var(--muted);
-}
-#oloimeroUpdateStatus.error{color:var(--danger)}
-#oloimeroUpdateStatus.ok{color:var(--ok)}
-@media(max-width:700px){
-  .olo-form-row{grid-template-columns:1fr}
-}
-@media(max-width:900px){.main{grid-template-columns:220px 1fr}:root{--cell:96px;--hour:130px}}
+/* Header: the period list may be long; it gives up width before anything wraps out of the page. */
+#period{flex:0 1 auto;min-width:0;max-width:min(340px,100%)}
+/* Busy: the shared main.busy of _subapp.css fades the sidebar and the workspace together. */
+main.ft-single{grid-template-columns:minmax(0,1fr)}
 
-.print-effective-row{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  margin-top:12px;
-}
-.print-effective-row label{
-  font-size:13px;
-  font-weight:650;
-}
-.print-effective-row input[type="date"]{
-  padding:6px 8px;
-  border:1px solid var(--line);
-  border-radius:8px;
-  background:#fff;
-  color:var(--text);
-}
-.print-select-columns{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:18px;
-  margin-top:10px;
-}
-.print-select-column{
-  min-width:0;
-}
-.print-select-column h3{
-  margin:0 0 8px;
-  font-size:15px;
-}
-.print-select-actions{
-  display:flex;
-  gap:6px;
-  margin-bottom:8px;
-}
-.print-select-actions button{
-  padding:5px 9px;
-}
-.print-select-list{
-  display:flex;
-  flex-direction:column;
-  gap:0;
-  max-height:48vh;
-  overflow:auto;
-  border:1px solid var(--line);
-  border-radius:8px;
-  background:#fff;
-}
-.print-select-item{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  padding:7px 9px;
-  border-bottom:1px solid #eaecf0;
-  cursor:pointer;
-}
-.print-select-item:last-child{
-  border-bottom:0;
-}
-.print-select-item:hover{
-  background:#f9fafb;
-}
-@media(max-width:700px){
-  .print-select-columns{grid-template-columns:1fr}
-.file-state-wrap{gap:4px}
-}
+/* Sidebar */
+aside{display:flex;flex-direction:column;gap:0}
+#search{width:100%;margin:0 0 10px;padding:var(--school-ui-control-padding-y) 10px;border:1px solid var(--school-ui-input-border);border-radius:8px;flex:none}
+.ft-entity-list{min-height:0}
+.ft-entity-empty{margin:8px 2px;font-size:13px;color:var(--school-ui-muted)}
+/* Cards of the «Τμήματα» tab: the homeroom teacher on the same line as the class, aligned right, in smaller letters;
+   a long name wraps under itself, not under the class. */
+.subapp-sidebar-item.ft-class-item{display:flex;align-items:baseline;gap:10px}
+.ft-class-item .subapp-sidebar-item-name{flex:none}
+.ft-class-item .subapp-sidebar-item-meta{flex:1 1 auto;font-size:11px;text-align:right}
 
+/* Workspace */
+.ft-workspace{min-width:0;min-height:0;overflow:auto;padding:12px 14px}
+.ft-toolbar{margin-bottom:10px}
+.ft-title{margin:0 0 4px;font-size:18px;font-weight:850;line-height:1.3}
+/* Under the title: the line «Περίοδος · Αρχεία · …» with its notes, then the controls. */
+.ft-source-info{margin:0 0 10px}
+.ft-controls{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;font-size:14px}
+.ft-controls label{display:inline-flex;align-items:center;gap:6px;margin:0;white-space:nowrap}
+.ft-controls select{min-width:0}
+.ft-source{display:flex;flex-wrap:wrap;gap:4px 14px;margin:0;font-size:13px;color:var(--school-ui-muted);line-height:1.5}
+.ft-source b{font-weight:650;color:var(--school-ui-label-text)}
+.ft-note{margin:8px 0 0;padding:6px 9px;border:1px solid var(--ft-note-border);border-radius:8px;background:var(--ft-note-bg);color:var(--ft-note-text);font-size:13px;line-height:1.45}
+.ft-warnings .ui-validation-warning,.ft-warnings .ui-validation-error{font-size:13px}
+.ft-workspace .subapp-notice{margin:8px 0 0}
+.ft-workspace .subapp-notice:empty{display:none}
+.ft-empty{min-height:320px}
+
+/* Timetable grid */
+table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-ui-surface);border:1px solid var(--ft-line);border-radius:10px;min-width:max-content}
+.ft-grid th,.ft-grid td{border-right:1px solid var(--ft-line);border-bottom:1px solid var(--ft-line);vertical-align:top}
+.ft-grid tr:last-child>td,.ft-grid tr:last-child>th{border-bottom:0}
+.ft-grid th:last-child,.ft-grid td:last-child{border-right:0}
+.ft-grid tr.ft-boundary>th,.ft-grid tr.ft-boundary>td{border-top:2px solid var(--ft-boundary)}
+.ft-grid thead th{position:sticky;top:-12px;z-index:4;background:var(--ft-head-bg);padding:8px;text-align:center;min-width:var(--ft-cell);font-size:14px}
+.ft-grid .ft-hour{position:sticky;left:-14px;z-index:3;background:var(--ft-head-bg);width:var(--ft-hour);min-width:var(--ft-hour);padding:8px;text-align:left;font-size:13px;font-weight:650;white-space:nowrap}
+.ft-grid thead .ft-hour{z-index:5}
+.ft-grid td.ft-slot{width:var(--ft-cell);min-width:var(--ft-cell);height:80px;padding:5px;background:var(--school-ui-surface)}
+.ft-grid td.ft-slot.drag-allowed{background:var(--ft-allowed-bg);box-shadow:inset 0 0 0 1px var(--ft-allowed-ring)}
+.ft-grid td.ft-slot.drag-allowed.dragover{outline:3px solid var(--ft-allowed-outline);outline-offset:-3px;background:var(--ft-allowed-over-bg)}
+.ft-grid td.ft-slot.drag-unavailable{background:var(--ft-unavailable-bg);box-shadow:inset 0 0 0 1px var(--ft-unavailable-ring)}
+.ft-grid td.ft-slot.drag-unavailable.dragover{outline:3px solid var(--ft-unavailable-outline);outline-offset:-3px;background:var(--ft-unavailable-over-bg)}
+.ft-grid td.ft-slot.dragover:not(.drag-allowed):not(.drag-unavailable){outline:3px solid var(--ft-drop-outline);outline-offset:-3px;background:var(--ft-drop-bg)}
+.ft-card{
+  border:1px solid var(--ft-card-border);border-left:5px solid var(--card,var(--school-ui-muted));background:var(--school-ui-surface);
+  border-radius:8px;padding:6px 7px;margin-bottom:5px;box-shadow:0 1px 2px #1018280d;cursor:grab;user-select:none
+}
+.ft-card:last-child{margin-bottom:0}
+.ft-card.specialty{background:var(--ft-specialty-bg);border-color:var(--ft-specialty-border)}
+.ft-card.non-homeroom{background:var(--ft-nonhomeroom-bg);border-color:var(--ft-nonhomeroom-border)}
+.ft-card.conflict{background:var(--ft-conflict-bg);border-color:var(--ft-conflict-border)}
+.ft-card:active{cursor:grabbing}
+.ft-subject{font-size:13px;font-weight:850;line-height:1.15;text-align:center;overflow-wrap:break-word}
+.ft-meta{margin-top:3px;font-size:11px;line-height:1.25;color:#475467;text-align:center;overflow-wrap:anywhere}
+.ft-badge{display:block;width:max-content;max-width:100%;margin:4px auto 0;padding:1px 5px;border:1px solid var(--ft-card-border);border-radius:999px;background:var(--ft-head-bg);font-size:10px;text-align:center}
+.ft-unmatched{font-style:italic}
+
+/* Dialogs (inside schoolChoiceDialog) */
+.school-confirm.ft-print-dialog{width:min(780px,calc(100vw - 32px))}
+.ft-date-field{max-width:200px}
+.ft-print-columns{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:14px}
+.ft-print-column{min-width:0}
+.ft-print-column h3{margin:0 0 6px;font-size:15px}
+.ft-print-presets{display:flex;flex-wrap:wrap;gap:6px}
+.ft-print-column .subapp-check-list{max-height:42vh}
+.ft-print-column .subapp-check-list label{font-weight:400;margin:2px 0}
+.ft-dialog-info{margin-top:12px!important;padding:10px 12px;border-radius:10px;background:var(--school-ui-label-bg);font-size:14px;line-height:1.5}
+.ft-dialog-warning{margin-top:10px!important;color:var(--school-ui-warning);font-size:14px}
+.ft-check{margin-top:12px}
+.ft-check h3{margin:0 0 4px;font-size:15px}
+.ft-check ul{margin:0;padding-left:20px;font-size:14px;line-height:1.45;max-height:22vh;overflow:auto}
+.ft-check-ok{margin-top:12px!important;color:var(--school-ui-success-border);font-size:14px}
+.ft-check-note{margin-top:10px!important;font-size:13px;color:var(--school-ui-muted);line-height:1.45}
+.ft-source .ui-validation-warning{margin:0}
+
+@media(max-width:900px){:root{--ft-cell:112px;--ft-hour:108px}}
+@media(max-width:800px){
+  .ft-entity-list{max-height:40vh;overflow:auto}
+  .ft-workspace{overflow:visible}
+  .ft-grid-wrap{overflow:auto}
+  .ft-grid thead th{top:0}
+  .ft-grid .ft-hour{left:0}
+}
+@media(max-width:700px){.ft-print-columns{grid-template-columns:1fr}}
 @media print{
-  header,aside,.toolbar button,.toolbar .screen-only,.legend,.notice{display:none!important}
-  .main{display:block}.workspace{padding:0;overflow:visible}body{background:#fff}
-  table.grid{width:100%;border-radius:0}.grid thead th,.grid .hour{position:static}.card{box-shadow:none}
-  @page{size:A4 landscape;margin:8mm}
+  header,aside{display:none!important}
 }
 </style>
 </head>
 <body>
-<div class="app">
-<header>
-  <div class="header-left">
-
-  <div class="brand">FET Timetable Editor <span class="small">v0.81</span></div>
-  <input id="csvInput" type="file" accept=".csv,text/csv" hidden>
-  <input id="fetInput" type="file" accept=".fet,text/xml,application/xml" hidden>
-  <button id="openBtn">Άνοιγμα...</button>
-  <button id="exportBtn" disabled>Αποθήκευση...</button>
-  <span class="header-separator" aria-hidden="true"></span>
-  <button id="orderBtn" disabled>Σειρά ημερών / ωρών</button>
-  <span class="header-separator" aria-hidden="true"></span>
-  <button id="undoBtn" disabled>↶ Undo</button>
-  <button id="redoBtn" disabled>↷ Redo</button>
-  <button id="initialBtn" disabled>Αρχικό</button>
-  <span class="header-separator" aria-hidden="true"></span>
-  <button id="updateOloimeroBtn" disabled>Ενημέρωση Ολοήμερου...</button>
-  <div class="header-print-group">
-    <button id="printBtn" disabled>Εκτύπωση</button>
-    <select id="printMode" disabled aria-label="Τύπος εκτύπωσης">
-      <option value="classes">Τμήματα</option>
-      <option value="staff">Προσωπικό</option>
-      <option value="classroom">Δάσκαλοι</option>
-      <option value="specialties">Ειδικότητες</option>
-      <hr>
-      <option value="available">Διαθέσιμοι Εκπαιδευτικοί</option>
-    </select>
-  </div>
-  </div>
-  <div class="file-state-wrap">
-    <button type="button" id="fetState" class="file-state warn" title="Κλικ για φόρτωση νέου αρχείου FET"><span class="file-state-label">FET: </span><span class="file-state-name">όχι</span></button>
-    <button type="button" id="csvState" class="file-state warn" title="Κλικ για φόρτωση νέου αρχείου CSV"><span class="file-state-label">CSV: </span><span class="file-state-name">όχι</span></button>
-  </div>
+<header class="page-head">
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="FET Timetable Editor — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>FT</span></span><span class="brand-text"><span>FET Timetable Editor</span><span class="small version">v0.92</span></span></button></h1></div>
+  <select id="period" aria-label="Περίοδος" disabled hidden></select>
+  <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
+  <span class="sep" aria-hidden="true"></span>
+  <button id="undo" type="button" disabled title="Αναίρεση της τελευταίας ενέργειας">↶ Αναίρεση</button>
+  <button id="redo" type="button" disabled title="Επανάληψη της ενέργειας που αναιρέθηκε">↷ Επανάληψη</button>
+  <button id="undoAll" type="button" disabled>Αναίρεση όλων</button>
+  <span class="sep" aria-hidden="true"></span>
+  <button id="oloimero" type="button" disabled>Εισαγωγή Ολοημέρου…</button>
+  <span class="print-control">
+    <button id="print" type="button" disabled>Εκτύπωση…</button>
+    <span class="print-mode-wrap">
+      <select id="printMode" aria-label="Μορφή εκτύπωσης" disabled>
+        <option value="classes">Τμήματα</option>
+        <option value="staff">Προσωπικό</option>
+        <option value="classroom">Δάσκαλοι</option>
+        <option value="specialties">Ειδικότητες</option>
+        <option value="available">Διαθέσιμοι Εκπαιδευτικοί</option>
+      </select>
+    </span>
+  </span>
+  <div class="header-right"><span id="schoolYear" class="school-year-indicator" hidden><span>Σχολικό έτος:</span> <span id="schoolYearValue"></span></span></div>
 </header>
-
-<div class="main">
-<aside>
-  <div class="tabs">
-    <button id="studentsTab" class="active">Τμήματα</button>
-    <button id="teachersTab">Εκπαιδευτικοί</button>
-  </div>
-  <input id="search" placeholder="Αναζήτηση…" disabled>
-  <div id="entityList"></div>
-</aside>
-
-<main class="workspace welcome-mode">
-  <div id="notice"></div>
-
-  <div id="welcome" class="welcome">
-    <div class="drop-hint">
-      <span class="drop-icon">⇩</span>
-      <div class="drop-title">Σύρετε και αφήστε εδώ τα αρχεία του προγράμματος</div>
-      <div class="drop-text">
-        Το αρχείο <b>CSV</b> ανοίγει το πρόγραμμα στο FET Timetable Editor.<br>
-        Το αρχείο <b>FET</b> ελέγχει τις ώρες και τη σωστή σειρά τους.<br>
-        Μπορείτε να αφήσετε και τα δύο αρχεία μαζί.
-      </div>
+<main id="root" class="ft-single">
+  <aside id="side" hidden aria-label="Τμήματα και εκπαιδευτικοί">
+    <div class="subapp-sidebar-tabs" role="tablist" aria-label="Προβολή">
+      <button id="tabClasses" type="button" role="tab" aria-selected="true" aria-controls="entityList">Τμήματα</button>
+      <button id="tabTeachers" type="button" role="tab" aria-selected="false" aria-controls="entityList">Εκπαιδευτικοί</button>
     </div>
-  </div>
-
-  <div id="editor" hidden>
-    <div class="toolbar">
-      <div class="toolbar-title-row">
-        <span class="title" id="viewTitle"></span>
-      </div>
-      <div class="toolbar-controls">
-        <label>Λειτουργία:
-          <select id="mode">
-            <option value="safe">Ασφαλής</option>
-            <option value="free">Ελεύθερη</option>
-          </select>
-        </label>
-        <label><input type="checkbox" id="showSubject" checked> Μάθημα</label>
-        <label><input type="checkbox" id="showTeachers" checked> Εκπαιδευτικοί</label>
-        <input type="checkbox" id="showRooms" hidden>
-        <input type="checkbox" id="showBreaks" hidden>
-        <input type="checkbox" id="showTags" hidden>
-        <input type="checkbox" id="showActivityId" hidden>
-        <label>Ώρες:
-          <select id="hourFilter">
-            <option value="all">Όλες οι ώρες</option>
-            <option value="morning">Πρωινό</option>
-            <option value="extended">Ολοήμερο</option>
-          </select>
-        </label>
-        <label id="teacherAssignmentFilterWrap">Εκπαιδευτικοί:
-          <select id="teacherAssignmentFilter">
-            <option value="all">Όλοι</option>
-            <option value="classroom">Δάσκαλοι</option>
-            <option value="specialties">Ειδικότητες</option>
-          </select>
-        </label>
-        <span class="legend">Κόκκινο = σύγκρουση εκπαιδευτικού ή student set.</span>
-      </div>
-    </div>
-    <div id="gridWrap"></div>
-  </div>
+    <input id="search" type="search" placeholder="Αναζήτηση…" aria-label="Αναζήτηση" autocomplete="off">
+    <div id="entityList" class="ft-entity-list subapp-sidebar-list" role="tabpanel"></div>
+  </aside>
+  <section id="workspace" class="ft-workspace subapp-workspace">
+    <p class="subapp-connection">Άνοιξε τον FET Timetable Editor από το Κεντρικό Μενού, αφού ανοίξεις το αρχείο πληροφοριών του σχολείου. Απαιτείται η τελευταία έκδοση του index.html.</p>
+  </section>
 </main>
-</div>
-</div>
-
-
-<dialog id="printClassesDialog">
-  <div class="dlg-h" id="printClassesDialogTitle">Εκτύπωση τμημάτων</div>
-  <div class="dlg-b">
-    <div class="small">Επίλεξε τα τμήματα και τις ώρες που θέλεις να συμπεριληφθούν.</div>
-
-    <div class="print-effective-row">
-      <label for="printClassesEffectiveDate">Ισχύει από:</label>
-      <input type="date" id="printClassesEffectiveDate">
-    </div>
-
-    <div class="print-select-columns">
-      <section class="print-select-column">
-        <h3>Τμήματα</h3>
-        <div class="print-select-actions">
-          <button type="button" id="printClassesAll">Όλα</button>
-          <button type="button" id="printClassesNone">Κανένα</button>
-        </div>
-        <div id="printClassesList" class="print-select-list"></div>
-      </section>
-
-      <section class="print-select-column">
-        <h3>Ώρες</h3>
-        <div class="print-select-actions">
-          <button type="button" id="printHoursAll">Όλες</button>
-          <button type="button" id="printHoursNone">Καμία</button>
-          <button type="button" id="printHoursMorning">Πρωϊνό</button>
-          <button type="button" id="printHoursExtended">Ολοήμερο</button>
-        </div>
-        <div id="printHoursList" class="print-select-list"></div>
-      </section>
-    </div>
-  </div>
-  <div class="dlg-f">
-    <button id="cancelPrintClasses">Άκυρο</button>
-    <button id="confirmPrintClasses" class="primary">Εκτύπωση</button>
-  </div>
-</dialog>
-
-
-<dialog id="printTeachersDialog">
-  <div class="dlg-h" id="printTeachersDialogTitle">Εκτύπωση προσωπικού</div>
-  <div class="dlg-b">
-    <div class="small">Επίλεξε τους εκπαιδευτικούς και τις ώρες που θέλεις να συμπεριληφθούν.</div>
-
-    <div class="print-effective-row">
-      <label for="printTeachersEffectiveDate">Ισχύει από:</label>
-      <input type="date" id="printTeachersEffectiveDate">
-    </div>
-
-    <div class="print-select-columns">
-      <section class="print-select-column">
-        <h3>Εκπαιδευτικοί</h3>
-        <div class="print-select-actions">
-          <button type="button" id="printTeachersAll">Όλοι</button>
-          <button type="button" id="printTeachersNone">Κανένας</button>
-          <button type="button" id="printTeachersClassroom">Δάσκαλοι</button>
-          <button type="button" id="printTeachersSpecialties">Ειδικότητες</button>
-        </div>
-        <div id="printTeachersList" class="print-select-list"></div>
-      </section>
-
-      <section class="print-select-column">
-        <h3>Ώρες</h3>
-        <div class="print-select-actions">
-          <button type="button" id="printTeacherHoursAll">Όλες</button>
-          <button type="button" id="printTeacherHoursNone">Καμία</button>
-          <button type="button" id="printTeacherHoursMorning">Πρωϊνό</button>
-          <button type="button" id="printTeacherHoursExtended">Ολοήμερο</button>
-        </div>
-        <div id="printTeacherHoursList" class="print-select-list"></div>
-      </section>
-    </div>
-  </div>
-  <div class="dlg-f">
-    <button id="cancelPrintTeachers">Άκυρο</button>
-    <button id="confirmPrintTeachers" class="primary">Εκτύπωση</button>
-  </div>
-</dialog>
-
-<dialog id="printAvailableDialog">
-  <div class="dlg-h">Εκτύπωση διαθέσιμων εκπαιδευτικών</div>
-  <div class="dlg-b">
-    <div class="small">
-      Ο πίνακας εμφανίζει τους διαθέσιμους εκπαιδευτικούς ανά ημέρα και ώρα,
-      με βάση το ωρολόγιο πρόγραμμα και τους περιορισμούς μη διαθεσιμότητας του FET.
-    </div>
-
-    <div class="print-effective-row">
-      <label for="printAvailableEffectiveDate">Ισχύει από:</label>
-      <input type="date" id="printAvailableEffectiveDate">
-    </div>
-  </div>
-  <div class="dlg-f">
-    <button id="cancelPrintAvailable">Άκυρο</button>
-    <button id="confirmPrintAvailable" class="primary">Εκτύπωση</button>
-  </div>
-</dialog>
-
-<dialog id="updateOloimeroDialog">
-  <div class="dlg-h">Ενημέρωση Ολοημέρου</div>
-  <div class="dlg-b">
-    <div class="olo-update-info">
-      Το CSV του <b>Ολοήμερου Designer</b> χρησιμοποιείται μόνο για να ενημερώσει
-      τα πεδία <b>Μάθημα</b>, <b>Τμήματα / Students Sets</b> και
-      <b>Εκπαιδευτικοί / Teachers</b> των activities που θα ορίσετε.<br><br>
-      <b>Δεν αλλάζονται</b> οι ημέρες, οι ώρες, τα Activity Tags,
-      οι αίθουσες ή άλλα στοιχεία του φορτωμένου timetable CSV.<br><br>
-      Οι γραμμές του Designer αντιστοιχίζονται με τη σειρά στα Activity IDs του
-      επιλεγμένου εύρους. Αν οι αριθμοί δεν ταιριάζουν, η ενημέρωση δεν εκτελείται.
-      Οι αλλαγές γίνονται μόνο στο φορτωμένο πρόγραμμα· για να τις κρατήσετε σε αρχείο,
-      χρησιμοποιήστε το κουμπί <b>«Αποθήκευση...»</b>.
-    </div>
-
-    <input id="oloimeroDesignerInput" type="file" accept=".csv,text/csv" hidden>
-
-    <div class="olo-form-row">
-      <b>CSV Ολοήμερου</b>
-      <div class="olo-file-line">
-        <button type="button" id="chooseOloimeroDesigner">Επιλογή CSV...</button>
-        <span id="oloimeroDesignerName">Δεν έχει επιλεγεί αρχείο.</span>
-      </div>
-    </div>
-
-    <div class="olo-form-row">
-      <b>Εύρος Activity IDs</b>
-      <input id="oloimeroActivityRange" type="text" inputmode="numeric"
-             placeholder="π.χ. 1-76" autocomplete="off">
-    </div>
-
-    <div id="oloimeroUpdateStatus"></div>
-  </div>
-
-  <div class="dlg-f">
-    <button type="button" id="cancelUpdateOloimero">Άκυρο</button>
-    <button type="button" id="applyUpdateOloimero" class="primary">Ενημέρωση</button>
-  </div>
-</dialog>
-
-<dialog id="orderDialog">
-  <div class="dlg-h">Σειρά ημερών / ωρών</div>
-  <div class="dlg-b">
-    <div class="source-note" id="orderSource"></div>
-    <p class="small">Η σειρά από το .fet θεωρείται η κανονική. Μπορείς παρ’ όλα αυτά να την αλλάξεις προσωρινά εδώ για την προβολή.</p>
-    <div class="order-cols">
-      <section><b>Ημέρες</b><ul class="order-list" id="daysOrder"></ul></section>
-      <section><b>Ώρες</b><ul class="order-list" id="hoursOrder"></ul></section>
-    </div>
-  </div>
-  <div class="dlg-f">
-    <button id="cancelOrder">Άκυρο</button>
-    <button id="restoreFetOrder">Επαναφορά από .fet</button>
-    <button id="saveOrder" class="primary">Εφαρμογή</button>
-  </div>
-</dialog>
-
+<script src="_ui.js"></script>
+<script src="_data.js"></script>
 <script>
 (() => {
-'use strict';
-const $=s=>document.querySelector(s);
-const SEP='\u0000';
-const state={
-  fetName:'',csvName:'',
-  headers:[],rows:[],
-  days:[],hours:[],
-  fetDays:[],fetHours:[],
-  fetDayItems:[],fetHourItems:[],
-  breakSlots:new Set(),
-  teacherLongNames:{},
-  teacherTargetHours:{},
-  teacherUnavailableRaw:[],
-  teacherUnavailableSlots:{},
-  studentChildren:{},studentParents:{},studentLeaves:[],studentGroups:[],studentNodes:[],
-  entityType:'students',selected:'',
-  undo:[],redo:[],
-  initialSnap:'',
-  oloimeroDesignerName:'',
-  oloimeroDesignerRows:[],
-  printEffectiveDate:'',
-  draggedId:null
-};
-const REQUIRED=["Activity Id","Day","Hour","Students Sets","Subject","Teachers","Activity Tags","Room","Comments"];
+  'use strict';
+  // The timetable of a period comes from the shared file (school-timetables:*), through schoolHost (_ui.js).
+  // Hours, classes, homeroom teachers, conflicts, availability and the Εισαγωγή Ολοημέρου: SchoolTimetable (_data.js).
+  // Every change happens in the page; «Αποθήκευση» writes the program of the period (put), all or nothing.
+  const T = SchoolTimetable, D = SchoolDate, esc = schoolEscape, $ = id => document.getElementById(id);
+  const post = schoolHost.post;
+  const quoted = value => '«' + value + '»';
+  const clone = value => structuredClone(value);
+  const unique = list => [...new Set(list)];
+  const byText = (a, b) => String(a).localeCompare(String(b), 'el', {numeric: true, sensitivity: 'base'});
+  const DAYS = [1, 2, 3, 4, 5];
+  const dayLabel = day => T.dayLabels[day - 1];
+  const upper = value => SchoolText.withoutTones(value).toLocaleUpperCase('el-GR');
+  const el = (tag, className, textValue) => {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (textValue != null) node.textContent = textValue;
+    return node;
+  };
+  const localDay = value => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+  };
 
-function setNotice(type,msg){
-  const n=$('#notice');
-  if(!msg){n.innerHTML='';return;}
-  n.innerHTML=`<div class="notice ${type}">${escapeHtml(msg).replaceAll('\n','<br>')}</div>`;
-}
-function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-function uniq(a){return [...new Set(a)]}
-function splitNames(s){return String(s||'').split('+').map(x=>x.trim()).filter(Boolean)}
-function slotKey(d,h){return d+SEP+h}
-function colorFor(text){
-  let h=0;for(const ch of String(text))h=(h*31+ch.charCodeAt(0))%360;
-  return `hsl(${h} 58% 48%)`;
-}
+  // ---- State ----
+  let context = null;          // the last context of the host
+  let periodId = null;         // the period shown
+  let saved = null, savedJson = 'null';   // the program of the period as stored in the file (or null)
+  let program = null;          // the program as shown in the page (or null)
+  let undoStack = [], redoStack = [];     // JSON snapshots of {program, assign}, for «Αναίρεση» / «Επανάληψη»
+  // A draft of the Ολοήμερο Designer to assign to this period with the next «Αποθήκευση» (after an Εισαγωγή
+  // Ολοημέρου from it): {draftId, keep, copyId, replace: null | {id, mode:'draft', name} | {id, mode:'delete'}}, or null.
+  // keep: a copy of the draft (copyId, same name and content) stays among the drafts.
+  let assign = null;
+  let busy = false, dirty = false;
+  let hours = [], hoursError = '';
+  let view = 'classes';
+  const selected = {classes: '', teachers: ''};
+  let draggedId = null;
+  let cache = null;            // indexes of the current program, rebuilt after every change
+  const printDates = new Map();            // «Ισχύει από» chosen per period in this session
+  let staffById = new Map(), staffRanks = new Map();
 
-function detectDelimiter(text){
-  const first=text.replace(/^\uFEFF/,'').split(/\r?\n/).find(x=>x.trim())||'';
-  let best=',',score=-1;
-  for(const d of [',',';','|']){
-    let q=false,c=0;
-    for(let i=0;i<first.length;i++){
-      const x=first[i];
-      if(x==='"'){
-        if(q&&first[i+1]==='"'){i++;continue}
-        q=!q;
-      }else if(!q&&x===d)c++;
+  // ---- Small helpers ----
+  const periodOf = id => context?.periods?.find(period => period.id === id) || null;
+  const schoolProgramOf = id => (context?.programs || []).find(item => item.kind === 'school' && item.periodId === id) || null;
+  // Designs of the Ολοήμερο Designer in the file: the design of every period and the drafts.
+  const oloimeroDesigns = () => (context?.programs || []).filter(item => item.kind === 'oloimero');
+  const oloimeroOf = id => oloimeroDesigns().find(item => item.id === id) || null;
+  const oloimeroName = design => design.periodId != null ? 'Ολοήμερο ' + (periodOf(design.periodId)?.name || '') : design.name || 'Προσχέδιο';
+  const periodText = period => period.name + ' (' + D.format(period.from) + ' – ' + (period.to ? D.format(period.to) : '…') + ')';
+  const notice = (textValue, error = false) => { const node = $('notice'); if (!node) return; node.textContent = textValue; node.classList.toggle('error', error); };
+  const message = (textValue, title) => schoolMessage(textValue, title ? {title} : {});
+  const modeSafe = () => $('mode')?.value !== 'free';
+
+  // Teachers: 'id:<staff id>' for people of Προσωπικό, 'name:<name>' for names without a match.
+  const keyOfId = id => 'id:' + id, keyOfName = name => 'name:' + name;
+  const teacherKeys = activity => [...(activity.staff || []).map(keyOfId), ...(activity.unmatched || []).map(keyOfName)];
+  const personOf = key => key.startsWith('id:') ? staffById.get(key.slice(3)) || null : null;
+  const shortOf = key => { const person = personOf(key); return person ? person.shortName || person.name || person.code || '?' : key.startsWith('name:') ? key.slice(5) : '?'; };
+  const fullOf = key => personOf(key)?.name || '';
+  const isUnmatched = key => key.startsWith('name:');
+  const isSpecialty = key => personOf(key)?.serviceType === 'specialty';
+  const isClassroom = key => T.isGeneralTeacher(personOf(key));   // «Δάσκαλοι»: branch ΠΕ70
+  // Order of the «Σύντομο Όνομα» list of Προσωπικό (T.sortStaff); names without a match follow, alphabetically.
+  const staffRank = key => { const person = personOf(key); return person ? staffRanks.get(person.id) ?? Infinity : Infinity; };
+  const sortTeachers = keys => [...keys].sort((a, b) => (isUnmatched(a) - isUnmatched(b)) || (staffRank(a) - staffRank(b) || 0) || byText(shortOf(a), shortOf(b)));
+
+  // ---- Hours (from Ώρες Διδασκαλίας) ----
+  function loadHours() {
+    try { hours = T.timedHours(context.teachingHours).map((hour, index) => ({...hour, index})); hoursError = ''; }
+    catch (error) { hours = []; hoursError = error.message; }
+  }
+  const isBreak = hour => hour.category === 'break';
+  const isMorning = hour => hour.category === 'morning';
+  const isAfternoon = hour => ['meal', 'afternoon', 'extended'].includes(hour.category);
+  const hourGroup = hour => hour.category === 'early' ? 0 : isMorning(hour) ? 1 : isAfternoon(hour) ? 2 : 3;
+  const teachingHours = () => hours.filter(hour => !isBreak(hour));
+  function hourIndexOf(time) {
+    let index = hours.findIndex(hour => hour.start === time.start && hour.end === time.end);
+    if (index < 0) index = hours.findIndex(hour => hour.start === time.start);
+    return index;
+  }
+  // A thicker line where the group of hours changes: Πρωινή Ζώνη → πρωινό → απόγευμα.
+  const boundaryBefore = (hour, list) => { const index = list.indexOf(hour); return index > 0 && hourGroup(list[index - 1]) !== hourGroup(hour); };
+
+  // ---- Indexes of the program ----
+  function index() {
+    if (cache) return cache;
+    const list = (program?.activities || []).map(activity => {
+      const entries = (activity.times || []).map(time => ({day: time.day, h: hourIndexOf(time)}))
+        .filter(entry => entry.h >= 0 && entry.day >= 1 && entry.day <= 5).sort((a, b) => a.day - b.day || a.h - b.h);
+      return {id: activity.id, activity, entries, keys: teacherKeys(activity), outside: entries.length < (activity.times || []).length};
+    });
+    const conflictIds = new Set();
+    if (program) for (const item of T.conflicts(program)) { conflictIds.add(item.a.id); conflictIds.add(item.b.id); }
+    const homeroom = new Map();
+    cache = {list, byId: new Map(list.map(item => [item.id, item])), conflictIds, homeroom};
+    return cache;
+  }
+  const invalidate = () => { cache = null; };
+  function homeroomKey(className) {
+    const ix = index();
+    if (!ix.homeroom.has(className)) {
+      const found = program ? T.homeroomTeacher(program, className, context.staff) : null;
+      ix.homeroom.set(className, found?.id ? keyOfId(found.id) : found?.name ? keyOfName(found.name) : '');
     }
-    if(c>score){score=c;best=d}
+    return ix.homeroom.get(className);
   }
-  return best;
-}
-function parseCSV(text,d){
-  text=text.replace(/^\uFEFF/,'');
-  const out=[];let row=[],field='',q=false;
-  for(let i=0;i<text.length;i++){
-    const c=text[i];
-    if(q){
-      if(c==='"'&&text[i+1]==='"'){field+='"';i++}
-      else if(c==='"')q=false;
-      else field+=c;
-    }else{
-      if(c==='"')q=true;
-      else if(c===d){row.push(field);field=''}
-      else if(c==='\n'){row.push(field);out.push(row);row=[];field=''}
-      else if(c!=='\r')field+=c;
+  const classesList = () => T.homeroomClasses(context?.staff).sort(byText);
+  const teachersList = () => sortTeachers(unique(index().list.flatMap(item => item.keys)));
+  // The students of an activity: the original spelling of FET where it exists; otherwise (e.g. activities of an
+  // Εισαγωγή Ολοημέρου) the shared text of SchoolTimetable.
+  const studentsLabel = activity => program?.source?.activities?.[activity.id]?.students || T.studentsText(activity, {staff: context?.staff});
+
+  // Programs of the period that count in the hours: this timetable and the other kinds of the period.
+  const countedPrograms = () => [program, ...(context?.programs || []).filter(item => item.periodId === periodId && item.kind !== 'school' && T.countsInHours(item.kind))].filter(Boolean);
+  function hoursOf(key) {
+    if (key.startsWith('id:')) return T.staffHours(countedPrograms()).get(key.slice(3)) || 0;
+    const name = key.slice(5);
+    return (program?.activities || []).filter(activity => (activity.unmatched || []).includes(name)).reduce((sum, activity) => sum + (activity.times || []).length, 0);
+  }
+  const targetOf = key => { const value = personOf(key)?.schoolHours; return value === '' || value == null ? '—' : String(value); };
+
+  // Not-available times of the FET file, for a teacher key.
+  function unavailableOf(key) {
+    const source = program?.source;
+    if (source?.type !== 'fet') return [];
+    const names = key.startsWith('id:') ? (source.teachers || []).filter(teacher => teacher.staffId === key.slice(3)).map(teacher => teacher.name) : [key.slice(5)];
+    return (source.unavailable || []).filter(item => names.includes(item.teacher));
+  }
+
+  // ---- Teacher filter of the class view ----
+  function shownTeachers(keys, className, hour) {
+    const filter = $('teacherFilter')?.value || 'all', morning = hour && isMorning(hour), home = homeroomKey(className);
+    // «Δάσκαλοι»: in the morning only the homeroom teacher of the class. «Ειδικότητες»: in the morning also
+    // a classroom teacher who is not the homeroom teacher of the class.
+    if (filter === 'classroom') return keys.filter(key => isClassroom(key) && (!morning || key === home));
+    if (filter === 'specialties') return keys.filter(key => isSpecialty(key) || (morning && isClassroom(key) && key !== home));
+    return keys;
+  }
+  const passesFilter = (keys, className, hour) => ($('teacherFilter')?.value || 'all') === 'all' || shownTeachers(keys, className, hour).length > 0;
+  function relevant() {
+    const current = selected[view];
+    if (!current) return [];
+    return index().list.filter(item => view === 'classes'
+      ? (item.activity.classes || []).includes(current) && item.entries.some(entry => passesFilter(item.keys, current, hours[entry.h]))
+      : item.keys.includes(current));
+  }
+
+  // ---- Moving and swapping ----
+  // The destination of an activity that starts at hour index startH of day: its hours stay consecutive.
+  function destination(id, day, startH, ignore = []) {
+    const ix = index(), item = ix.byId.get(id);
+    if (!item) return {ok: false, reason: 'Η δραστηριότητα δεν βρέθηκε.'};
+    const length = item.entries.length;
+    if (!length) return {ok: false, reason: 'Η δραστηριότητα δεν έχει ώρες που υπάρχουν στις Ώρες Διδασκαλίας.'};
+    if (startH < 0 || startH + length > hours.length) return {ok: false, reason: 'Η δραστηριότητα δεν χωράει μέχρι το τέλος της ημέρας.'};
+    const target = hours.slice(startH, startH + length);
+    const pause = target.find(isBreak);
+    if (pause) return {ok: false, reason: 'Η δραστηριότητα δεν χωράει: το ' + quoted(pause.name) + ' είναι διάλειμμα.'};
+    const probe = target.map(hour => ({day, start: hour.start, end: hour.end, name: hour.name}));
+    const ignored = new Set([id, ...ignore]), conflicts = [];
+    for (const other of ix.list) {
+      if (ignored.has(other.id)) continue;
+      if (!(other.activity.times || []).some(time => probe.some(slot => slot.day === time.day && slot.start < time.end && time.start < slot.end))) continue;
+      const teachers = item.keys.filter(key => other.keys.includes(key));
+      const classes = T.studentsClash(item.activity, other.activity);
+      if (teachers.length || classes.length) conflicts.push({teachers, classes});
     }
-  }
-  if(field.length||row.length){row.push(field);out.push(row)}
-  return out.filter(r=>r.some(v=>String(v).trim()!==''));
-}
-function csvEscape(v,d=','){
-  v=String(v??'');
-  return '"'+v.replaceAll('"','""')+'"';
-}
-
-function parseFet(text){
-  const doc=new DOMParser().parseFromString(text,'application/xml');
-  const pe=doc.getElementsByTagName('parsererror');
-  if(pe.length)throw new Error('Το .fet δεν είναι έγκυρο XML.');
-
-  function itemList(listTag,itemTag){
-    const list=doc.getElementsByTagName(listTag)[0];
-    if(!list)return [];
-    return [...list.getElementsByTagName(itemTag)].map(el=>{
-      const name=(el.getElementsByTagName('Name')[0]?.textContent||'').trim();
-      const long=(el.getElementsByTagName('Long_Name')[0]?.textContent||'').trim();
-      return {name,long};
-    }).filter(x=>x.name||x.long);
-  }
-
-  const dayItems=itemList('Days_List','Day');
-  const hourItems=itemList('Hours_List','Hour');
-  if(!dayItems.length||!hourItems.length)throw new Error('Δεν βρήκα Days_List / Hours_List μέσα στο .fet.');
-
-  const rawBreaks=[];
-  for(const con of [...doc.getElementsByTagName('ConstraintBreakTimes')]){
-    for(const bt of [...con.getElementsByTagName('Break_Time')]){
-      const d=(bt.getElementsByTagName('Day')[0]?.textContent||'').trim();
-      const h=(bt.getElementsByTagName('Hour')[0]?.textContent||'').trim();
-      if(d&&h)rawBreaks.push({day:d,hour:h});
+    const unavailable = [];
+    for (const key of item.keys) for (const slot of probe) {
+      if (unavailableOf(key).some(time => time.day === slot.day && slot.start < time.end && time.start < slot.end)) unavailable.push({key, day: slot.day, hour: slot.name});
     }
+    return {ok: true, item, probe, conflicts, unavailable};
   }
-
-  // Teacher not-available constraints from the FET file.
-  // We keep the native FET day/hour names here and map them to the CSV aliases later.
-  const rawTeacherUnavailable=[];
-  for(const con of [...doc.getElementsByTagName('ConstraintTeacherNotAvailableTimes')]){
-    const active=(con.getElementsByTagName('Active')[0]?.textContent||'true').trim().toLowerCase();
-    if(active==='false')continue;
-
-    const weightRaw=(con.getElementsByTagName('Weight_Percentage')[0]?.textContent||'100').trim();
-    const weight=Number(weightRaw);
-    if(Number.isFinite(weight) && weight<=0)continue;
-
-    const teacher=(con.getElementsByTagName('Teacher')[0]?.textContent||'').trim();
-    if(!teacher)continue;
-
-    for(const nt of [...con.getElementsByTagName('Not_Available_Time')]){
-      const day=(nt.getElementsByTagName('Day')[0]?.textContent||'').trim();
-      const hour=(nt.getElementsByTagName('Hour')[0]?.textContent||'').trim();
-      if(day&&hour){
-        rawTeacherUnavailable.push({teacher,day,hour,weight:Number.isFinite(weight)?weight:100});
+  // Move, or swap with the activities of the current view that the destination covers.
+  function plan(id, day, startH) {
+    const ix = index(), dragged = ix.byId.get(id);
+    if (!dragged || !dragged.entries.length) return {ok: false, reason: 'Η δραστηριότητα δεν έχει ώρες που υπάρχουν στις Ώρες Διδασκαλίας.'};
+    const length = dragged.entries.length;
+    if (startH < 0 || startH + length > hours.length) return {ok: false, reason: 'Η δραστηριότητα δεν χωράει μέχρι το τέλος της ημέρας.'};
+    const targetHs = Array.from({length}, (_, i) => startH + i);
+    const pause = targetHs.map(h => hours[h]).find(isBreak);
+    if (pause) return {ok: false, reason: 'Η δραστηριότητα δεν χωράει: το ' + quoted(pause.name) + ' είναι διάλειμμα.'};
+    // Only the activities shown in the current view take part in a swap.
+    const targets = relevant().filter(item => item.id !== id && item.entries.some(entry =>
+      entry.day === day && targetHs.includes(entry.h) && (view !== 'classes' || passesFilter(item.keys, selected.classes, hours[entry.h]))));
+    if (!targets.length) {
+      const result = destination(id, day, startH);
+      return result.ok ? {ok: true, type: 'move', results: [result]} : result;
+    }
+    for (const target of targets) {
+      if (!target.entries.every(entry => entry.day === day && targetHs.includes(entry.h))) return {ok: false, reason: 'Η ανταλλαγή δεν γίνεται: μια δραστηριότητα του προορισμού συνεχίζει έξω από τις ώρες που καλύπτει η δραστηριότητα που μετακινείται.'};
+    }
+    for (const h of targetHs) {
+      if (targets.filter(target => target.entries.some(entry => entry.h === h)).length > 1) return {ok: false, reason: 'Η ανταλλαγή δεν γίνεται: στο ίδιο κελί υπάρχουν περισσότερες από μία δραστηριότητες.'};
+    }
+    const ignored = [id, ...targets.map(target => target.id)];
+    const first = dragged.entries[0];
+    const results = [destination(id, day, startH, ignored)];
+    for (const target of targets) results.push(destination(target.id, first.day, first.h + (target.entries[0].h - startH), ignored));
+    const failed = results.find(result => !result.ok);
+    return failed || {ok: true, type: 'swap', results};
+  }
+  function eligibility(id, day, startH) {
+    const result = plan(id, day, startH);
+    if (!result.ok) return {allowed: false};
+    if (modeSafe() && result.results.some(item => item.conflicts.length)) return {allowed: false};
+    return {allowed: true, warning: modeSafe() && result.results.some(item => item.unavailable.length)};
+  }
+  const conflictText = conflict => [
+    conflict.teachers.length ? 'εκπαιδευτικός: ' + conflict.teachers.map(shortOf).join(', ') : '',
+    conflict.classes.length ? 'τμήμα: ' + conflict.classes.join(', ') : ''
+  ].filter(Boolean).join(' · ');
+  // What the user sees of an activity at some times: subject, teachers, students, room, day and hours.
+  const seen = (activity, times) => JSON.stringify([
+    activity.subject || '', [...(activity.staff || [])].sort(), [...(activity.unmatched || [])].sort(),
+    [...(activity.classes || [])].sort(), [...(activity.subsets || [])].sort(), activity.room || '',
+    times.map(({day, start, end}) => day + ' ' + start + '-' + end).sort()
+  ]);
+  const sameAsSeen = results => {
+    const before = results.map(item => seen(item.item.activity, item.item.activity.times || [])).sort();
+    const after = results.map(item => seen(item.item.activity, item.probe)).sort();
+    return JSON.stringify(before) === JSON.stringify(after);
+  };
+  async function moveOrSwap(id, day, startH) {
+    const result = plan(id, day, startH);
+    const label = result.type === 'swap' ? 'Η ανταλλαγή' : 'Η μετακίνηση';
+    if (!result.ok) { await message(result.reason, 'Μετακίνηση'); return; }
+    // Nothing changes as the user sees it (dropped where it was, or swapped with an activity of the same
+    // subject, teachers, students, room and hours): the timetable stays as it is.
+    if (sameAsSeen(result.results)) return;
+    if (modeSafe()) {
+      const conflict = result.results.flatMap(item => item.conflicts)[0];
+      if (conflict) { await message(label + ' δεν έγινε λόγω σύγκρουσης (' + conflictText(conflict) + '). Στην «Ελεύθερη» λειτουργία επιτρέπεται.', 'Μετακίνηση'); return; }
+      const unavailable = result.results.flatMap(item => item.unavailable);
+      if (unavailable.length) {
+        const lines = unique(unavailable.map(item => '• ' + shortOf(item.key) + (fullOf(item.key) ? ' (' + fullOf(item.key) + ')' : '') + ': ' + dayLabel(item.day) + ', ' + item.hour));
+        const textValue = label + ' βάζει εκπαιδευτικό σε ώρα που έχει δηλωθεί μη διαθέσιμη στο FET:\n\n' + lines.slice(0, 8).join('\n') + (lines.length > 8 ? '\n• και ' + (lines.length - 8) + ' ακόμη' : '') + '\n\nΝα συνεχίσω;';
+        if (!await schoolConfirm(textValue, {title: 'Μη διαθεσιμότητα', accept: 'Συνέχεια', queue: true})) return;
       }
     }
+    change(() => {
+      for (const item of result.results) item.item.activity.times = item.probe.map(({day, start, end}) => ({day, start, end}));
+      touch();
+    });
   }
 
-  // Student-set hierarchy: Year -> Group -> Subgroup (or any nested combination).
-  // We keep only direct structural children so parent activities can be inherited by leaf sections.
-  const studentChildren={};
-  const studentParents={};
-  const studentNodes=[];
-  const studentsList=doc.getElementsByTagName('Students_List')[0];
-  const structuralTags=new Set(['Year','Group','Subgroup']);
-  function directName(el){
-    for(const ch of el.children||[]){
-      if(ch.tagName==='Name')return (ch.textContent||'').trim();
+  // ---- Changes, undo, dirty state ----
+  // Every action keeps a snapshot for «Αναίρεση». An activity moved after the import marks the FET program
+  // «τροποποιήθηκε μετά την εισαγωγή» (the FET file no longer agrees with it).
+  const snapshot = () => JSON.stringify({program, assign});
+  function change(apply) {
+    undoStack.push(snapshot());
+    if (undoStack.length > 100) undoStack.shift();
+    redoStack = [];
+    apply();
+    invalidate(); refresh();
+  }
+  function touch() {
+    const now = new Date().toISOString();
+    program.updatedAt = now;
+    if (program.source?.type === 'fet') {
+      const note = program.source.modifiedAfterImport || {replacements: []};
+      note.at = now; note.moved = true;
+      program.source.modifiedAfterImport = note;
     }
+  }
+  function restore(value) { const state = JSON.parse(value); program = state.program; assign = state.assign || null; invalidate(); refresh(); }
+  function undo() { if (busy || !undoStack.length) return; redoStack.push(snapshot()); restore(undoStack.pop()); }
+  function redo() { if (busy || !redoStack.length) return; undoStack.push(snapshot()); restore(redoStack.pop()); }
+  async function undoAll() {
+    if (busy || !dirty) return;
+    if (!await schoolConfirm('Να αναιρεθούν όλες οι αλλαγές του ωρολογίου από την τελευταία αποθήκευση;', {title: 'Αναίρεση όλων', accept: 'Αναίρεση όλων'})) return;
+    change(() => { program = clone(saved); assign = null; });
+    notice('Αναιρέθηκαν όλες οι αλλαγές από την τελευταία αποθήκευση.');
+  }
+  function updateDirty() {
+    const value = JSON.stringify(program) !== savedJson || !!assign;
+    if (value !== dirty) { dirty = value; post({type: 'school-fet:dirty', dirty}); }
+  }
+  function buttons() {
+    const ready = !!context && !hoursError;
+    $('save').classList.toggle('dirty', dirty);
+    $('save').setAttribute('aria-label', dirty ? 'Αποθήκευση — υπάρχουν μη αποθηκευμένες αλλαγές' : 'Αποθήκευση');
+    $('save').disabled = $('undoAll').disabled = busy || !dirty;
+    $('undo').disabled = busy || !undoStack.length;
+    $('redo').disabled = busy || !redoStack.length;
+    $('period').disabled = busy || !context?.periods?.length || !!hoursError;
+    $('print').disabled = $('printMode').disabled = busy || !ready || !program;
+    $('oloimero').disabled = busy || !ready || !program;
+    $('root').classList.toggle('busy', busy);
+  }
+  function refresh() { updateDirty(); render(); }
+  function setBusy(value) { busy = value; buttons(); $('workspace').toggleAttribute('aria-busy', value); }
+
+  // ---- Context from the host ----
+  function applyContext(value) {
+    context = value;
+    staffById = new Map((context.staff || []).map(person => [person.id, person]));
+    staffRanks = new Map(T.sortStaff(context.staff).map((person, index) => [person.id, index]));
+    $('schoolYearValue').textContent = context.year || '';
+    $('schoolYear').hidden = !context.year;
+  }
+  function receive(value) {
+    applyContext(value);
+    loadHours();
+    const periods = context.periods || [];
+    if (!periodOf(periodId)) {
+      const current = T.periodAt(periods, D.today());
+      periodId = (current && schoolProgramOf(current.id) ? current : periods.find(period => schoolProgramOf(period.id)) || current || periods[0])?.id || null;
+    }
+    loadPeriod(periodId);
+  }
+  function loadPeriod(id) {
+    periodId = id;
+    saved = id ? clone(schoolProgramOf(id)) : null;
+    savedJson = JSON.stringify(saved);
+    program = clone(saved);
+    assign = null;
+    undoStack = []; redoStack = [];
+    invalidate();
+    refresh();
+  }
+  schoolHost.on('school-timetables:context', event => { if (!dirty && !busy) receive(event.context); });
+
+  // ---- Rendering ----
+  function renderPeriods() {
+    const select = $('period'), periods = context?.periods || [];
+    select.replaceChildren(...periods.map(period => {
+      const option = el('option', '', period.name + (schoolProgramOf(period.id) ? '' : ' (χωρίς ωρολόγιο)'));
+      option.value = period.id; option.title = periodText(period); return option;
+    }));
+    if (!periods.length) select.append(el('option', '', 'Δεν υπάρχουν περίοδοι'));
+    select.value = periodId || '';
+    select.title = periodOf(periodId) ? periodText(periodOf(periodId)) : '';
+    select.hidden = false;
+  }
+  function render() {
+    if (!context) return;
+    renderPeriods();
+    const work = $('workspace'), side = $('side'), root = $('root');
+    const showSide = !!program && !hoursError;
+    side.hidden = !showSide; root.classList.toggle('ft-single', !showSide);
+    if (hoursError) { work.innerHTML = `<div class="subapp-empty subapp-empty-stack ft-empty"><p>${esc(hoursError)}</p></div>`; buttons(); return; }
+    if (!context.periods?.length) {
+      work.innerHTML = '<div class="subapp-empty subapp-empty-stack ft-empty"><p>Δεν υπάρχουν περίοδοι για το σχολικό έτος.<br>Δημιούργησέ τες στα «Σχολικά Προγράμματα» και κάνε εκεί την εισαγωγή από FET.</p></div>';
+      buttons(); return;
+    }
+    if (!program) { renderEmptyPeriod(work); buttons(); return; }
+    renderSide();
+    renderWorkspace(work);
+    buttons();
+  }
+  function renderEmptyPeriod(work) {
+    const period = periodOf(periodId), others = (context.periods || []).filter(item => item.id !== periodId && schoolProgramOf(item.id));
+    work.innerHTML = `<p id="notice" class="subapp-notice" role="status"></p><div class="subapp-empty subapp-empty-stack ft-empty">
+      <p>Η περίοδος ${esc(quoted(period?.name || ''))} δεν έχει ωρολόγιο.</p>
+      <button id="copyPeriod" type="button" class="primary"${others.length ? '' : ' disabled'}>Αντιγραφή από άλλη περίοδο…</button>
+      <p class="ui-helper">${others.length ? '' : 'Καμία άλλη περίοδος δεν έχει ωρολόγιο. '}Η εισαγωγή από FET γίνεται στα «Σχολικά Προγράμματα».</p></div>`;
+    $('copyPeriod').onclick = copyFromPeriod;
+  }
+  function renderSide() {
+    $('tabClasses').setAttribute('aria-selected', String(view === 'classes'));
+    $('tabTeachers').setAttribute('aria-selected', String(view === 'teachers'));
+    const all = view === 'classes' ? classesList() : teachersList();
+    if (!all.includes(selected[view])) selected[view] = all[0] || '';
+    const query = SchoolText.withoutTones($('search').value.trim()).toLocaleLowerCase('el');
+    const matches = textValue => !query || SchoolText.withoutTones(textValue).toLocaleLowerCase('el').includes(query);
+    const list = $('entityList'), items = [];
+    for (const name of all) {
+      let main, side = '', meta = '';
+      if (view === 'classes') {
+        const home = homeroomKey(name);
+        main = name; meta = home ? fullOf(home) || shortOf(home) : '';
+        if (!matches(main) && !matches(meta)) continue;
+      } else {
+        main = shortOf(name); meta = isUnmatched(name) ? 'χωρίς αντιστοίχιση' : fullOf(name);
+        side = hoursOf(name) + '/' + targetOf(name);
+        if (!matches(main) && !matches(fullOf(name))) continue;
+      }
+      // «Τμήματα»: the homeroom teacher goes next to the class (ft-class-item), not under it.
+      const button = el('button', 'subapp-sidebar-item' + (view === 'classes' ? ' ft-class-item' : '') + (name === selected[view] ? ' selected' : ''));
+      button.type = 'button'; button.dataset.key = name;
+      button.setAttribute('aria-pressed', String(name === selected[view]));
+      button.append(el('span', 'subapp-sidebar-item-name' + (view === 'teachers' && isUnmatched(name) ? ' ft-unmatched' : ''), main));
+      if (side) { const s = el('span', 'subapp-sidebar-item-side', side); s.title = 'Ώρες στο πρόγραμμα / ωράριο στο σχολείο'; button.append(s); }
+      if (meta) button.append(el('span', 'subapp-sidebar-item-meta', meta));
+      button.onclick = () => { selected[view] = name; render(); };
+      items.push(button);
+    }
+    list.replaceChildren(...(items.length ? items : [el('p', 'ft-entity-empty', all.length ? 'Δεν βρέθηκε κάτι με αυτή την αναζήτηση.' : view === 'classes' ? 'Δεν υπάρχουν τμήματα με υπεύθυνο στο Προσωπικό.' : 'Το ωρολόγιο δεν έχει εκπαιδευτικούς.')]));
+  }
+  // Controls of the workspace keep their values between renders.
+  const controlState = {mode: 'safe', subject: true, teachers: true, hourFilter: 'all', teacherFilter: 'all'};
+  function readControls() {
+    if (!$('mode')) return;
+    controlState.mode = $('mode').value; controlState.subject = $('showSubject').checked; controlState.teachers = $('showTeachers').checked;
+    controlState.hourFilter = $('hourFilter').value; controlState.teacherFilter = $('teacherFilter').value;
+  }
+  function renderWorkspace(work) {
+    const keepNotice = $('notice') ? [$('notice').textContent, $('notice').classList.contains('error')] : ['', false];
+    const scroll = [work.scrollLeft, work.scrollTop];
+    readControls();
+    const current = selected[view];
+    const title = view === 'classes'
+      ? 'Τμήμα: ' + (current || '—') + (homeroomKey(current) ? ' — ' + (fullOf(homeroomKey(current)) || shortOf(homeroomKey(current))) : '')
+      : 'Εκπαιδευτικός: ' + (current ? shortOf(current) + (fullOf(current) ? ' — ' + fullOf(current) : '') : '—');
+    work.innerHTML = `<div class="ft-toolbar">
+        <h2 class="ft-title">${esc(title)}</h2>
+        <div id="sourceInfo" class="ft-source-info"></div>
+        <div class="ft-controls">
+          <label>Λειτουργία: <select id="mode"><option value="safe">Ασφαλής</option><option value="free">Ελεύθερη</option></select></label>
+          <label><input type="checkbox" id="showSubject"> Μάθημα</label>
+          <label${view === 'classes' ? '' : ' hidden'}><input type="checkbox" id="showTeachers"> Εκπαιδευτικοί</label>
+          <label>Ώρες: <select id="hourFilter"><option value="all">Όλες</option><option value="morning">Πρωινό</option><option value="afternoon">Ολοήμερο</option></select></label>
+          <label${view === 'classes' ? '' : ' hidden'}>Εκπαιδευτικοί: <select id="teacherFilter"><option value="all">Όλοι</option><option value="classroom">Δάσκαλοι</option><option value="specialties">Ειδικότητες</option></select></label>
+        </div>
+        <div id="warnings" class="ft-warnings"></div>
+        <p id="notice" class="subapp-notice" role="status"></p>
+      </div>
+      <div id="gridWrap" class="ft-grid-wrap"></div>`;
+    $('mode').value = controlState.mode; $('showSubject').checked = controlState.subject; $('showTeachers').checked = controlState.teachers;
+    $('hourFilter').value = controlState.hourFilter; $('teacherFilter').value = controlState.teacherFilter;
+    for (const id of ['mode', 'showSubject', 'showTeachers', 'hourFilter', 'teacherFilter']) $(id).onchange = () => { readControls(); renderSide(); renderWorkspace(work); };
+    notice(...keepNotice);
+    renderSource(); renderWarnings(); renderGrid();
+    [work.scrollLeft, work.scrollTop] = scroll;
+  }
+  function renderSource() {
+    const box = $('sourceInfo'), source = program.source || {}, parts = [], period = periodOf(periodId);
+    if (period) parts.push(['Περίοδος', D.format(period.from) + ' – ' + (period.to ? D.format(period.to) : '…')]);
+    if (source.type === 'fet') {
+      const files = [source.csvName, source.fetName].filter(Boolean).join(' · ');
+      if (files) parts.push(['Αρχεία', files]);
+      if (source.importedAt) parts.push(['Εισαγωγή', D.format(localDay(source.importedAt))]);
+    }
+    if (source.oloimero?.at) parts.push(['Εισαγωγή Ολοημέρου', (source.oloimero.name ? quoted(source.oloimero.name) + ', ' : '') + D.format(localDay(source.oloimero.at))]);
+    parts.push(['Δραστηριότητες', String(program.activities.length)]);
+    const line = el('div', 'ft-source');
+    for (const [label, value] of parts) { const span = el('span'); span.append(el('b', '', label + ': '), value); line.append(span); }
+    box.replaceChildren(line);
+    const designNote = oloimeroChangeNote();
+    if (designNote) box.append(el('p', 'ui-validation-warning', designNote));
+    if (assign) {
+      const draft = oloimeroOf(assign.draftId);
+      box.append(el('p', 'ft-note', 'Με την «Αποθήκευση» το προσχέδιο ' + quoted(draft?.name || '') + ' του Ολοημέρου ανατίθεται στην περίοδο' +
+        (assign.keep ? '· το προσχέδιο διατηρείται' : '· το προσχέδιο αφαιρείται από τα προσχέδια') +
+        (assign.replace ? (assign.replace.mode === 'draft' ? '· το σημερινό σχέδιο της περιόδου κρατιέται ως προσχέδιο ' + quoted(assign.replace.name) : '· το σημερινό σχέδιο της περιόδου διαγράφεται') : '') + '.'));
+    }
+    const note = source.modifiedAfterImport, changes = [];
+    if (note?.replacements?.length) changes.push('αντικαταστάσεις ' + note.replacements.map(item => (item.fromName || '?') + ' → ' + (item.toName || '?')).join(', '));
+    if (note?.oloimero) changes.push('Εισαγωγή Ολοημέρου' + (note.oloimero.name ? ' από ' + quoted(note.oloimero.name) : ''));
+    if (note?.moved) changes.push('μετακινήσεις στον FET Timetable Editor');
+    if (changes.length) box.append(el('p', 'ft-note', 'Τροποποιήθηκε μετά την εισαγωγή: ' + changes.join('· ') + '.'));
+  }
+  function renderWarnings() {
+    const limits = {programs: 200, activities: 2000, warnRatio: 0.9, ...(context.limits || {})}, list = [];
+    const near = (count, limit) => count >= Math.ceil(limit * limits.warnRatio);
+    const programs = (Number(context.programCount) || 0) + (program && !saved ? 1 : 0);
+    if (programs > limits.programs) list.push(['error', 'Το σχολικό έτος θα είχε ' + programs + ' προγράμματα (μαζί με τα προσχέδια), πάνω από το όριο των ' + limits.programs + '. Η αποθήκευση δεν θα γίνει· διάγραψε προσχέδια που δεν χρειάζονται.']);
+    else if (near(programs, limits.programs)) list.push(['warning', 'Το σχολικό έτος έχει ' + programs + ' από τα ' + limits.programs + ' προγράμματα που επιτρέπονται, μαζί με τα προσχέδια. Καλό είναι να διαγραφούν προσχέδια που δεν χρειάζονται.']);
+    const activities = program.activities.length;
+    if (activities > limits.activities) list.push(['error', 'Το ωρολόγιο έχει ' + activities + ' δραστηριότητες, πάνω από το όριο των ' + limits.activities + '. Η αποθήκευση δεν θα γίνει.']);
+    else if (near(activities, limits.activities)) list.push(['warning', 'Το ωρολόγιο έχει ' + activities + ' από τις ' + limits.activities + ' δραστηριότητες που επιτρέπονται σε ένα πρόγραμμα.']);
+    const outside = index().list.filter(item => item.outside).length;
+    if (outside) list.push(['warning', outside + (outside === 1 ? ' δραστηριότητα έχει' : ' δραστηριότητες έχουν') + ' ώρες που δεν υπάρχουν στις Ώρες Διδασκαλίας ή σε ημέρα εκτός Δευτέρας–Παρασκευής· δεν εμφανίζονται στον πίνακα.']);
+    $('warnings').replaceChildren(...list.map(([type, textValue]) => el('p', 'ui-validation-' + type, textValue)));
+  }
+  function colorFor(textValue) {
+    let hue = 0;
+    for (const ch of String(textValue)) hue = (hue * 31 + ch.charCodeAt(0)) % 360;
+    return `hsl(${hue} 58% 48%)`;
+  }
+  function cardFor(item, entryIndex, hour) {
+    const activity = item.activity, card = el('div', 'ft-card');
+    const current = selected[view];
+    if (view === 'classes') {
+      const anySpecialty = item.keys.some(isSpecialty);
+      if (($('teacherFilter').value === 'all') && anySpecialty) card.classList.add('specialty');
+      else if (isMorning(hour) && !anySpecialty && item.keys.some(key => isClassroom(key) && key !== homeroomKey(current))) card.classList.add('non-homeroom');
+    }
+    if (index().conflictIds.has(item.id)) card.classList.add('conflict');
+    card.style.setProperty('--card', colorFor(activity.subject));
+    card.draggable = true;
+    card.title = [activity.subject, item.keys.map(shortOf).join(', '), studentsLabel(activity)].filter(Boolean).join(' — ') + '\nΣύρε για μετακίνηση.';
+    card.addEventListener('dragstart', event => {
+      draggedId = item.id;
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', item.id);
+      requestAnimationFrame(() => highlight(item.id));
+    });
+    card.addEventListener('dragend', () => { draggedId = null; clearHighlight(); });
+    if ($('showSubject').checked) card.append(el('div', 'ft-subject', (entryIndex === 0 ? '' : '↳ ') + (activity.subject || '—')));
+    if (view === 'classes') {
+      if ($('showTeachers').checked) {
+        const keys = shownTeachers(item.keys, current, hour);
+        const meta = el('div', 'ft-meta', keys.map(shortOf).join(', ') || '—');
+        card.append(meta);
+      }
+    } else {
+      card.append(el('div', $('showSubject').checked ? 'ft-meta' : 'ft-subject', studentsLabel(activity) || '—'));
+    }
+    if (entryIndex === 0 && item.entries.length > 1) card.append(el('span', 'ft-badge', item.entries.length + ' ώρες'));
+    return card;
+  }
+  function renderGrid() {
+    const wrap = $('gridWrap'), list = teachingHours().filter(hour => {
+      const filter = $('hourFilter').value;
+      return filter === 'all' || (filter === 'morning' && isMorning(hour)) || (filter === 'afternoon' && isAfternoon(hour));
+    });
+    const bySlot = new Map(), current = selected[view];
+    for (const item of relevant()) item.entries.forEach((entry, entryIndex) => {
+      if (view === 'classes' && !passesFilter(item.keys, current, hours[entry.h])) return;
+      const key = entry.day + ':' + entry.h;
+      if (!bySlot.has(key)) bySlot.set(key, []);
+      bySlot.get(key).push([item, entryIndex]);
+    });
+    const table = el('table', 'ft-grid'), head = el('thead'), headRow = el('tr');
+    headRow.append(el('th', 'ft-hour', 'Ώρα'), ...DAYS.map(day => el('th', '', dayLabel(day))));
+    head.append(headRow);
+    const body = el('tbody');
+    for (const hour of list) {
+      const row = el('tr');
+      if (boundaryBefore(hour, list)) row.className = 'ft-boundary';
+      row.append(el('th', 'ft-hour', hour.name));
+      for (const day of DAYS) {
+        const td = el('td', 'ft-slot');
+        td.dataset.day = day; td.dataset.h = hour.index;
+        for (const [item, entryIndex] of bySlot.get(day + ':' + hour.index) || []) td.append(cardFor(item, entryIndex, hour));
+        td.addEventListener('dragover', event => {
+          if (!draggedId) return;
+          if (view === 'classes' && !td.classList.contains('drag-allowed') && !td.classList.contains('drag-unavailable')) return;
+          event.preventDefault(); td.classList.add('dragover'); event.dataTransfer.dropEffect = 'move';
+        });
+        td.addEventListener('dragleave', () => td.classList.remove('dragover'));
+        td.addEventListener('drop', event => {
+          const id = draggedId || event.dataTransfer.getData('text/plain');
+          if (!id) return;
+          if (view === 'classes' && !td.classList.contains('drag-allowed') && !td.classList.contains('drag-unavailable')) return;
+          event.preventDefault(); clearHighlight();
+          void moveOrSwap(id, day, hour.index);
+        });
+        row.append(td);
+      }
+      body.append(row);
+    }
+    table.append(head, body);
+    wrap.replaceChildren(table);
+    if (!current) wrap.append(el('p', 'ft-entity-empty', view === 'classes' ? 'Επίλεξε τμήμα.' : 'Επίλεξε εκπαιδευτικό.'));
+  }
+  // While a card is dragged in the class view, the cells where it can go are coloured.
+  function clearHighlight() {
+    document.querySelectorAll('.ft-grid td.ft-slot').forEach(td => {
+      td.classList.remove('drag-allowed', 'drag-unavailable', 'dragover');
+      if (td.dataset.warning) { td.removeAttribute('title'); delete td.dataset.warning; }
+    });
+  }
+  function highlight(id) {
+    clearHighlight();
+    if (view !== 'classes') return;
+    document.querySelectorAll('.ft-grid td.ft-slot').forEach(td => {
+      const result = eligibility(id, Number(td.dataset.day), Number(td.dataset.h));
+      if (!result.allowed) return;
+      if (result.warning) { td.classList.add('drag-unavailable'); td.title = 'Κάποιος εκπαιδευτικός είναι μη διαθέσιμος στο FET σε ώρα αυτής της μετακίνησης.'; td.dataset.warning = '1'; }
+      else td.classList.add('drag-allowed');
+    });
+  }
+
+  // ---- Period ----
+  $('period').addEventListener('change', async () => {
+    const next = $('period').value;
+    if (next === periodId) return;
+    if (dirty && !await schoolConfirm('Το ωρολόγιο της περιόδου ' + quoted(periodOf(periodId)?.name || '') + ' έχει μη αποθηκευμένες αλλαγές. Να απορριφθούν;', {title: 'Μη αποθηκευμένες αλλαγές', accept: 'Απόρριψη αλλαγών'})) {
+      $('period').value = periodId; return;
+    }
+    loadPeriod(next);
+  });
+  async function copyFromPeriod() {
+    if (busy || program) return;
+    const sources = (context.periods || []).filter(period => period.id !== periodId && schoolProgramOf(period.id));
+    if (!sources.length) return;
+    const field = el('label', 'school-choice-field', 'Περίοδος-πηγή'), select = el('select');
+    select.append(...sources.map(period => { const option = el('option', '', periodText(period)); option.value = period.id; return option; }));
+    field.append(select);
+    const chosen = await schoolChoiceDialog({
+      title: 'Αντιγραφή ωρολογίου',
+      content: ['Το ωρολόγιο της περιόδου που θα επιλέξεις αντιγράφεται στην περίοδο ' + quoted(periodOf(periodId)?.name || '') + '. Αποθηκεύεται με την «Αποθήκευση». Αντικαταστάσεις εκπαιδευτικών γίνονται με την αντιγραφή περιόδου στα «Σχολικά Προγράμματα».', field],
+      actions: [{label: 'Ακύρωση'}, {label: 'Αντιγραφή', accept: true, run: () => select.value}]
+    });
+    const source = chosen && schoolProgramOf(chosen);
+    if (!source || program) return;
+    const now = new Date().toISOString();
+    change(() => { program = Object.assign(clone(source), {id: crypto.randomUUID(), periodId, name: '', createdAt: now, updatedAt: now}); });
+    notice('Αντιγράφηκε το ωρολόγιο της περιόδου ' + quoted(periodOf(chosen)?.name || '') + '. Πάτησε «Αποθήκευση».');
+  }
+
+  // ---- Save ----
+  // The assignment of a draft of the Ολοήμερο Designer, as operations of the same save (all or nothing): the
+  // draft moves to the period unchanged (with keep, an exact copy stays among the drafts); the design already
+  // there becomes a draft or is deleted.
+  function assignOps() {
+    if (!assign) return [];
+    const draft = oloimeroOf(assign.draftId);
+    if (!draft || draft.periodId != null) throw Error('Το προσχέδιο του Ολοημέρου που θα ανατεθεί δεν υπάρχει πια στο αρχείο. Πάτησε «Αναίρεση» για να αφαιρεθεί η ανάθεση.');
+    const ops = [{op: 'put', program: {...clone(draft), periodId}}];
+    if (assign.keep) ops.push({op: 'put', program: {...clone(draft), id: assign.copyId, periodId: null}});
+    const old = assign.replace ? oloimeroOf(assign.replace.id) : oloimeroDesigns().find(item => item.periodId === periodId);
+    if (old && old.id !== draft.id) {
+      if (assign.replace?.mode === 'draft') ops.push({op: 'put', program: {...clone(old), periodId: null, name: assign.replace.name, updatedAt: new Date().toISOString()}});
+      else if (assign.replace?.mode === 'delete') ops.push({op: 'delete', id: old.id});
+      else throw Error('Η περίοδος απέκτησε σχέδιο Ολοημέρου μετά την ανάθεση. Πάτησε «Αναίρεση» και κάνε ξανά την Εισαγωγή Ολοημέρου.');
+    }
+    return ops;
+  }
+  async function save() {
+    if (busy || !dirty || !program) return;
+    const put = clone(program);
+    let ops;
+    try { ops = [...(JSON.stringify(program) !== savedJson ? [{op: 'put', program: put}] : []), ...assignOps()]; }
+    catch (error) { notice(error.message, true); return; }
+    const assigned = assign?.draftId || null, keptCopy = assign?.keep ? assign.copyId : null;
+    setBusy(true);
+    let result = null;
+    try {
+      result = await schoolHost.request('school-timetables:save', {revision: context.revision, year: context.year, ops});
+      applyContext(result);
+      const stored = (result.programs || []).find(item => item.id === put.id);
+      if (!stored || JSON.stringify(stored) !== JSON.stringify(put)) throw Error('Η αποθήκευση ολοκληρώθηκε, αλλά το ωρολόγιο του αρχείου δεν είναι ίδιο με αυτό της σελίδας. Βεβαιώσου ότι το index.html είναι η τελευταία έκδοση.');
+      if (assigned && oloimeroOf(assigned)?.periodId !== periodId) throw Error('Η αποθήκευση ολοκληρώθηκε, αλλά το προσχέδιο του Ολοημέρου δεν ανατέθηκε στην περίοδο. Βεβαιώσου ότι το index.html είναι η τελευταία έκδοση.');
+      if (keptCopy && oloimeroOf(keptCopy)?.periodId != null) throw Error('Η αποθήκευση ολοκληρώθηκε, αλλά το αντίγραφο του προσχεδίου του Ολοημέρου δεν κρατήθηκε. Βεβαιώσου ότι το index.html και το _host_timetables.js είναι η τελευταία έκδοση.');
+      assign = null;
+      // «Αναίρεση» / «Επανάληψη» work only within the changes since the last save.
+      undoStack = []; redoStack = [];
+      saved = clone(stored); savedJson = JSON.stringify(saved);
+      refresh();
+      notice('Το ωρολόγιο αποθηκεύτηκε στο κοινό αρχείο .data.');
+    } catch (error) {
+      if (result) refresh();
+      notice(error.message, true);
+    } finally { setBusy(false); }
+  }
+
+  // ---- Εισαγωγή Ολοημέρου ----
+  // The activities of a design of the Ολοήμερο Designer from the file (a period's design or a draft) are compared
+  // one by one with the activities of the timetable that are wholly in hours of Ολοήμερο (Πρωινή Ζώνη, Γεύμα,
+  // Ολοήμερο, Διευρυμένο): the same ones stay as they are, the others are removed, and those of the design that
+  // are missing come in, with the subject, students, teachers, days and hours of the design. The analysis and
+  // the checks are the shared ones of SchoolTimetable (analyzeOloimeroReplace / applyOloimeroReplace).
+  // The design of the last import changed (or was deleted) after it: a note for the timetable.
+  function oloimeroChangeNote() {
+    const last = program?.source?.oloimero;
+    if (!last?.design) return '';
+    const design = oloimeroOf(last.design);
+    if (!design) return 'Το σχέδιο Ολοημέρου ' + (last.name ? quoted(last.name) + ' ' : '') + 'της τελευταίας Εισαγωγής Ολοημέρου δεν υπάρχει πια στο αρχείο.';
+    if (design.updatedAt && last.at && design.updatedAt > last.at) return 'Το σχέδιο ' + quoted(oloimeroName(design)) + ' άλλαξε στον Ολοήμερο Designer μετά την τελευταία Εισαγωγή Ολοημέρου (' + D.format(localDay(last.at)) + ').';
     return '';
   }
-  function walkStudent(el,parentName=''){
-    if(!structuralTags.has(el.tagName))return;
-    const name=directName(el);
-    if(!name)return;
-    if(!studentChildren[name])studentChildren[name]=[];
-    if(!studentParents[name])studentParents[name]=[];
-    studentNodes.push({name,type:el.tagName});
-    if(parentName){
-      if(!studentChildren[parentName])studentChildren[parentName]=[];
-      if(!studentChildren[parentName].includes(name))studentChildren[parentName].push(name);
-      if(!studentParents[name].includes(parentName))studentParents[name].push(parentName);
-    }
-    for(const ch of el.children||[]){
-      if(structuralTags.has(ch.tagName))walkStudent(ch,name);
-    }
-  }
-  if(studentsList){
-    for(const ch of studentsList.children||[]){
-      if(structuralTags.has(ch.tagName))walkStudent(ch,'');
-    }
-  }
-  const studentLeaves=studentNodes.map(x=>x.name).filter((n,i,a)=>a.indexOf(n)===i).filter(n=>(studentChildren[n]||[]).length===0);
-  // In FET, the actual school sections/classes we want to browse are Groups.
-  // Subgroups (e.g. E1-German / E1-French) remain in the hierarchy for inheritance/conflicts,
-  // but are intentionally not shown as separate timetable choices.
-  const studentGroups=uniq(studentNodes.filter(x=>x.type==='Group').map(x=>x.name));
-
-  // Teacher short name -> full/long name and target hours from the FET file.
-  const teacherLongNames={};
-  const teacherTargetHours={};
-  const teachersList=doc.getElementsByTagName('Teachers_List')[0];
-  if(teachersList){
-    for(const teacher of teachersList.children||[]){
-      if(teacher.tagName!=='Teacher')continue;
-
-      let name='';
-      let longName='';
-      let targetHours='';
-
-      for(const ch of teacher.children||[]){
-        if(ch.tagName==='Name'){
-          name=(ch.textContent||'').trim();
-        }else if(ch.tagName==='Long_Name'){
-          longName=(ch.textContent||'').trim();
-        }else if(ch.tagName==='Target_Number_of_Hours'){
-          targetHours=(ch.textContent||'').trim();
+  // What the import causes in the timetable, compared with it now: new conflicts, new times where a teacher is
+  // not available in FET, and teachers whose hours go above «Ωράριο στο σχολείο». What existed before is left out.
+  // The activities of the import get new ids, so a conflict is compared by who, when and the two subjects.
+  function updateEffects(before, after) {
+    const conflictKey = item => [item.type, item.who, item.day, item.start, ...[item.a.subject || '', item.b.subject || ''].sort()].join('|');
+    const had = new Set(T.conflicts(before).map(conflictKey));
+    const whoText = item => item.type === 'class' ? 'τμήμα ' + item.who : (item.type === 'staff' ? shortOf(keyOfId(item.who)) : item.who);
+    const conflicts = unique(T.conflicts(after).filter(item => !had.has(conflictKey(item)))
+      .map(item => whoText(item) + ': ' + dayLabel(item.day) + ' ' + item.start + ' — ' + (item.a.subject || '—') + ' / ' + (item.b.subject || '—')));
+    const offTimes = prog => {
+      const result = new Set(), source = prog.source || {};
+      const namesOf = key => key.startsWith('id:') ? (source.teachers || []).filter(teacher => teacher.staffId === key.slice(3)).map(teacher => teacher.name) : [key.slice(5)];
+      for (const activity of prog.activities || []) for (const key of teacherKeys(activity)) {
+        const names = namesOf(key);
+        for (const time of activity.times || []) for (const off of source.unavailable || []) {
+          if (names.includes(off.teacher) && off.day === time.day && time.start < off.end && off.start < time.end) result.add(shortOf(key) + ': ' + dayLabel(time.day) + ' ' + time.start + ' (' + (activity.subject || '—') + ')');
         }
       }
-
-      if(name){
-        teacherLongNames[name]=longName;
-        teacherTargetHours[name]=targetHours;
+      return result;
+    };
+    const offBefore = offTimes(before), unavailable = [...offTimes(after)].filter(item => !offBefore.has(item));
+    const others = countedPrograms().filter(item => item !== program);
+    const hoursBefore = T.staffHours([before, ...others]), hoursAfter = T.staffHours([after, ...others]);
+    const overHours = [];
+    for (const [id, value] of hoursAfter) {
+      const target = Number(staffById.get(id)?.schoolHours);
+      if (!Number.isFinite(target) || staffById.get(id)?.schoolHours === '' || value <= target || value <= (hoursBefore.get(id) || 0)) continue;
+      overHours.push(shortOf(keyOfId(id)) + ': ' + value + ' ώρες στο πρόγραμμα, ωράριο στο σχολείο ' + target);
+    }
+    return {conflicts, unavailable, overHours};
+  }
+  const listSection = (title, items) => {
+    const box = el('div', 'ft-check'), list = el('ul');
+    box.append(el('h3', '', title + ' (' + items.length + ')'));
+    list.append(...items.slice(0, 30).map(item => el('li', '', item)));
+    if (items.length > 30) list.append(el('li', '', 'και ' + (items.length - 30) + ' ακόμη'));
+    box.append(list); return box;
+  };
+  // «Να ανατεθεί το προσχέδιο στην περίοδο;» → the assignment ({draftId, keep, copyId, replace}), or null.
+  // keep: the draft goes to the period and a copy of it (same name and content) stays among the drafts.
+  async function askAssign(design, title) {
+    const period = periodOf(periodId);
+    const mode = await schoolChoiceDialog({
+      title,
+      content: 'Το ' + quoted(design.name) + ' είναι προσχέδιο του Ολοήμερου Designer. Να ανατεθεί στην περίοδο ' + quoted(period?.name || '') + ', ώστε να είναι το σχέδιο Ολοημέρου της; Αν το προσχέδιο διατηρηθεί, μένει και στα προσχέδια, με το ίδιο όνομα. Η ανάθεση γίνεται με την «Αποθήκευση».',
+      actions: [
+        {label: 'Όχι'},
+        {label: 'Ανάθεση σε περίοδο (το προσχέδιο αφαιρείται)', value: 'move'},
+        {label: 'Ανάθεση σε περίοδο (το προσχέδιο διατηρείται)', accept: true, value: 'keep'}
+      ]
+    });
+    if (mode !== 'move' && mode !== 'keep') return null;
+    const base = {draftId: design.id, keep: mode === 'keep', copyId: mode === 'keep' ? crypto.randomUUID() : null};
+    const old = oloimeroDesigns().find(item => item.periodId === periodId && item.id !== design.id);
+    if (!old) return {...base, replace: null};
+    const choice = await schoolReplaceProgram({
+      title,
+      message: 'Η περίοδος ' + quoted(period?.name || '') + ' έχει ήδη σχέδιο Ολοημέρου. Τι να γίνει με αυτό; Με «Πλήρης αντικατάσταση» διαγράφεται κατά την «Αποθήκευση».',
+      suggestedName: 'Ολοήμερο ' + (period?.name || '') + ' – αντικαταστάθηκε ' + D.format(D.today())
+    });
+    if (!choice) return null;
+    return {...base, replace: choice.mode === 'draft' ? {id: old.id, mode: 'draft', name: choice.name} : {id: old.id, mode: 'delete'}};
+  }
+  async function importOloimero() {
+    if (busy || !program) return;
+    const title = 'Εισαγωγή Ολοημέρου';
+    const designs = oloimeroDesigns();
+    if (!designs.length) { await message('Δεν υπάρχουν σχέδια Ολοημέρου στο αρχείο. Φτιάξε ή εισήγαγε ένα σχέδιο στον Ολοήμερο Designer.', title); return; }
+    // The designs: first those of the periods (in the order of the periods), then the drafts by name.
+    const periodDesigns = (context.periods || []).map(period => designs.find(item => item.periodId === period.id)).filter(Boolean);
+    const drafts = designs.filter(item => item.periodId == null).sort((a, b) => byText(a.name, b.name));
+    const field = el('label', 'school-choice-field', 'Σχέδιο'), select = el('select');
+    const group = (label, items) => {
+      if (!items.length) return;
+      const node = el('optgroup'); node.label = label;
+      for (const item of items) {
+        const option = el('option', '', item.periodId != null ? periodOf(item.periodId)?.name || '' : item.name + (item.updatedAt ? ' (' + D.format(localDay(item.updatedAt)) + ')' : ''));
+        option.value = item.id; node.append(option);
       }
-    }
-  }
-
-  return {
-    dayItems,hourItems,rawBreaks,
-    teacherLongNames,teacherTargetHours,rawTeacherUnavailable,
-    studentChildren,studentParents,studentLeaves,studentGroups,studentNodes
-  };
-}
-
-function chooseAliases(items,values){
-  const vals=new Set(values);
-  return items.map(x=>{
-    if(x.name&&vals.has(x.name))return x.name;
-    if(x.long&&vals.has(x.long))return x.long;
-    return x.name||x.long;
-  }).filter(Boolean);
-}
-function aliasMap(items,values){
-  const vals=new Set(values), map=new Map();
-  for(const x of items){
-    const chosen=(x.name&&vals.has(x.name))?x.name:(x.long&&vals.has(x.long))?x.long:(x.name||x.long);
-    if(x.name)map.set(x.name,chosen);
-    if(x.long)map.set(x.long,chosen);
-  }
-  return map;
-}
-function rebuildTeacherUnavailableSlots(dayMap=null,hourMap=null){
-  const out={};
-
-  for(const item of state.teacherUnavailableRaw||[]){
-    const day=dayMap?.get(item.day)||item.day;
-    const hour=hourMap?.get(item.hour)||item.hour;
-
-    if(!out[item.teacher])out[item.teacher]=new Set();
-    out[item.teacher].add(slotKey(day,hour));
-  }
-
-  state.teacherUnavailableSlots=out;
-}
-
-function chronologicalHours(values){
-  const parse=s=>{
-    const m=String(s).match(/(?:^|\D)([01]?\d|2[0-3]):([0-5]\d)/);
-    return m?Number(m[1])*60+Number(m[2]):null;
-  };
-  const arr=uniq(values);
-  if(arr.every(x=>parse(x)!==null))return arr.sort((a,b)=>parse(a)-parse(b));
-  return arr;
-}
-function fallbackDays(values){
-  const arr=uniq(values);
-  const order=['Δευτέρα','Τρίτη','Τετάρτη','Πέμπτη','Παρασκευή','Σάββατο','Κυριακή',
-               'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
-  if(arr.every(x=>order.includes(x)))return arr.sort((a,b)=>order.indexOf(a)-order.indexOf(b));
-  return arr;
-}
-
-function applyFetOrder(){
-  if(!state.fetDayItems.length||!state.fetHourItems.length)return;
-  const csvDays=uniq(state.rows.map(r=>r.Day).filter(Boolean));
-  const csvHours=uniq(state.rows.map(r=>r.Hour).filter(Boolean));
-  state.fetDays=chooseAliases(state.fetDayItems,csvDays);
-  state.fetHours=chooseAliases(state.fetHourItems,csvHours);
-  state.days=[...state.fetDays];
-  state.hours=[...state.fetHours];
-
-  const dm=aliasMap(state.fetDayItems,csvDays);
-  const hm=aliasMap(state.fetHourItems,csvHours);
-
-  // Rebuild break slots with the aliases that the CSV/view actually uses.
-  const old=[...state.breakSlotsRaw||[]];
-  state.breakSlots=new Set(old.map(b=>slotKey(dm.get(b.day)||b.day,hm.get(b.hour)||b.hour)));
-
-  // Rebuild teacher not-available slots using the same aliases as the timetable CSV.
-  rebuildTeacherUnavailableSlots(dm,hm);
-
-  // Warn about CSV values that cannot be found in the FET order.
-  const missingDays=csvDays.filter(x=>!state.days.includes(x));
-  const missingHours=csvHours.filter(x=>!state.hours.includes(x));
-  if(missingDays.length)state.days.push(...missingDays);
-  if(missingHours.length)state.hours.push(...missingHours);
-
-  if(missingDays.length||missingHours.length){
-    setNotice('warn',
-      'Το .fet φορτώθηκε και χρησιμοποιείται για τη σειρά, αλλά ορισμένες τιμές του CSV δεν ταίριαξαν ακριβώς.\n'+
-      (missingDays.length?'Ημέρες: '+missingDays.join(', ')+'\n':'')+
-      (missingHours.length?'Ώρες: '+missingHours.join(', '):'')
-    );
-  }else{
-    setNotice('info','Η σειρά ημερών και ωρών προέρχεται από το .fet — όχι από τη σειρά των activities στο CSV.');
-  }
-}
-
-function applyFallbackOrder(){
-  const csvDays=state.rows.map(r=>r.Day).filter(Boolean);
-  const csvHours=state.rows.map(r=>r.Hour).filter(Boolean);
-  state.days=fallbackDays(csvDays);
-  state.hours=chronologicalHours(csvHours);
-  setNotice('warn','Έχει φορτωθεί μόνο το CSV. Οι ώρες ταξινομήθηκαν από την ώρα έναρξης και οι γνωστές ημέρες εβδομάδας ημερολογιακά. Για απόλυτα πιστή σειρά φόρτωσε και το αρχικό .fet.');
-}
-
-function resetFET(){
-  state.fetName='';
-  state.fetDays=[];
-  state.fetHours=[];
-  state.fetDayItems=[];
-  state.fetHourItems=[];
-  state.breakSlotsRaw=[];
-  state.breakSlots=new Set();
-  state.teacherLongNames={};
-  state.teacherTargetHours={};
-  state.teacherUnavailableRaw=[];
-  state.teacherUnavailableSlots={};
-  state.studentChildren={};
-  state.studentParents={};
-  state.studentLeaves=[];
-  state.studentGroups=[];
-  state.studentNodes=[];
-
-  $('#fetState .file-state-name').textContent='όχι';
-  $('#fetState').className='file-state warn';
-  $('#fetState').title='Κλικ για φόρτωση νέου αρχείου FET';
-}
-
-function loadCSV(text,name){
-  const d=detectDelimiter(text),p=parseCSV(text,d);
-  if(p.length<2)throw new Error('Το CSV δεν περιέχει δεδομένα.');
-  const headers=p[0].map(x=>x.trim());
-  const missing=REQUIRED.filter(h=>!headers.includes(h));
-  if(missing.length)throw new Error('Δεν αναγνωρίστηκε ως FET TimeTable.csv. Λείπουν: '+missing.join(', '));
-
-  // Νέο CSV => το προηγούμενο FET αποσυνδέεται.
-  // Αν CSV + FET πέσουν μαζί, το loadFiles() φορτώνει πρώτα το CSV
-  // και αμέσως μετά το νέο FET.
-  resetFET();
-
-  state.headers=headers;
-  state.rows=p.slice(1).map(vals=>{
-    const o={};headers.forEach((h,i)=>o[h]=vals[i]??'');return o;
-  });
-  state.csvName=name;
-  state.undo=[];state.redo=[];
-  $('#csvState .file-state-name').textContent=name;$('#csvState').className='file-state ok';$('#csvState').title='CSV: '+name+'\nΚλικ για φόρτωση νέου αρχείου CSV';
-  $('#exportBtn').disabled=false;
-  $('#orderBtn').disabled=false;
-  $('#updateOloimeroBtn').disabled=false;
-  $('#printBtn').disabled=false;
-  $('#printMode').disabled=false;
-  $('#search').disabled=false;
-  if(state.fetDayItems.length)applyFetOrder();else applyFallbackOrder();
-  captureInitialState();
-  rebuildEntities();updateUndoRedo();render();
-}
-function loadFET(text,name){
-  const f=parseFet(text);
-  state.fetName=name;
-  state.fetDayItems=f.dayItems;state.fetHourItems=f.hourItems;
-  state.breakSlotsRaw=f.rawBreaks;
-  state.teacherLongNames=f.teacherLongNames||{};
-  state.teacherTargetHours=f.teacherTargetHours||{};
-  state.teacherUnavailableRaw=f.rawTeacherUnavailable||[];
-  state.studentChildren=f.studentChildren||{};
-  state.studentParents=f.studentParents||{};
-  state.studentLeaves=f.studentLeaves||[];
-  state.studentGroups=f.studentGroups||[];
-  state.studentNodes=f.studentNodes||[];
-  $('#fetState .file-state-name').textContent=name;$('#fetState').className='file-state ok';$('#fetState').title='FET: '+name+'\nΚλικ για φόρτωση νέου αρχείου FET';
-  $('#orderBtn').disabled=false;
-  if(state.rows.length){
-    applyFetOrder();
-    updateInitialOrderFromCurrent();
-  }
-  else{
-    // No CSV yet: show the native Names from FET so manual order dialog is still meaningful.
-    state.fetDays=f.dayItems.map(x=>x.name||x.long);
-    state.fetHours=f.hourItems.map(x=>x.name||x.long);
-    state.days=[...state.fetDays];state.hours=[...state.fetHours];
-    state.breakSlots=new Set(f.rawBreaks.map(b=>slotKey(b.day,b.hour)));
-    rebuildTeacherUnavailableSlots();
-    setNotice('info','Το .fet φορτώθηκε. Τώρα φόρτωσε και το TimeTable.csv για να εμφανιστούν οι τοποθετήσεις.');
-  }
-  updateUI();
-}
-async function loadFiles(files){
-  setNotice('','');
-
-  const accepted=[...files].filter(f=>/\.(fet|csv)$/i.test(f.name));
-  const ordered=[
-    ...accepted.filter(f=>/\.csv$/i.test(f.name)),
-    ...accepted.filter(f=>/\.fet$/i.test(f.name))
-  ];
-
-  for(const f of ordered){
-    const text=await f.text();
-    try{
-      if(/\.csv$/i.test(f.name))loadCSV(text,f.name);
-      else if(/\.fet$/i.test(f.name))loadFET(text,f.name);
-    }catch(err){
-      setNotice('error',`${f.name}: ${err.message||err}`);
-    }
-  }
-
-  updateUI();
-}
-function updateUI(){
-  const hasCSV=state.rows.length>0;
-  $('#welcome').hidden=hasCSV;
-  $('#editor').hidden=!hasCSV;
-  document.querySelector('.workspace').classList.toggle('welcome-mode',!hasCSV);
-  if(hasCSV){rebuildEntities();render()}
-}
-
-function setOloimeroStatus(type,msg){
-  const el=$('#oloimeroUpdateStatus');
-  el.className=type||'';
-  el.textContent=msg||'';
-}
-
-function parseOloimeroDesignerCSV(text){
-  const cleanLines=String(text)
-    .replace(/^\uFEFF/,'')
-    .split(/\r?\n/)
-    .filter(line=>{
-      const t=line.trim();
-      return t!=='' && !t.startsWith('#');
+      select.append(node);
+    };
+    group('Περίοδοι', periodDesigns); group('Προσχέδια', drafts);
+    const preferred = designs.find(item => item.id === program.source?.oloimero?.design) || designs.find(item => item.periodId === periodId);
+    if (preferred) select.value = preferred.id;
+    field.append(select);
+    const content = ['Οι δραστηριότητες του ωρολογίου που είναι σε ώρες Ολοημέρου (Πρωινή Ζώνη, Γεύμα, Ολοήμερο, Διευρυμένο) συγκρίνονται μία προς μία με τις δραστηριότητες του σχεδίου του Ολοήμερου Designer. Όσες είναι ίδιες (μάθημα, τμήματα, εκπαιδευτικοί, ημέρα και ώρα) μένουν όπως είναι· οι υπόλοιπες αντικαθίστανται από του σχεδίου. Οι δραστηριότητες του ωρολογίου εκτός Ολοημέρου δεν αλλάζουν.', field];
+    if (program.source?.oloimero?.at) content.push(el('p', 'ft-dialog-info', 'Τελευταία εισαγωγή: ' + (program.source.oloimero.name ? quoted(program.source.oloimero.name) + ', ' : '') + D.format(localDay(program.source.oloimero.at)) + '.'));
+    const note = oloimeroChangeNote();
+    if (note) content.push(el('p', 'ft-dialog-warning', note));
+    const chosen = await schoolChoiceDialog({
+      title, content,
+      actions: [{label: 'Ακύρωση'}, {label: 'Συνέχεια', accept: true, run: () => {
+        const design = oloimeroOf(select.value);
+        if (!design) throw Error('Επίλεξε σχέδιο.');
+        const analysis = T.analyzeOloimeroReplace(program, design, {staff: context.staff, teachingHours: context.teachingHours, designName: oloimeroName(design)});
+        if (!analysis.ok) throw Error(analysis.errors[0]);
+        return {design, analysis};
+      }}]
     });
-
-  if(!cleanLines.length){
-    throw new Error('Το CSV του Ολοήμερου Designer είναι κενό.');
-  }
-
-  const cleanText=cleanLines.join('\n');
-  const delimiter=detectDelimiter(cleanText);
-  const parsed=parseCSV(cleanText,delimiter);
-
-  if(parsed.length<2){
-    throw new Error('Το CSV του Ολοήμερου Designer δεν περιέχει δραστηριότητες.');
-  }
-
-  const headers=parsed[0].map(x=>x.trim());
-  const required=['Students Sets','Subject','Teachers','Activity Tags','Total Duration'];
-  const missing=required.filter(h=>!headers.includes(h));
-
-  if(missing.length){
-    throw new Error(
-      'Το αρχείο δεν αναγνωρίστηκε ως CSV του Ολοήμερου Designer. Λείπουν: '+
-      missing.join(', ')
-    );
-  }
-
-  return parsed.slice(1).map(vals=>{
-    const row={};
-    headers.forEach((h,i)=>row[h]=vals[i]??'');
-    return row;
-  });
-}
-
-function parseActivityRange(value){
-  const s=String(value||'').trim();
-
-  let m=s.match(/^(\d+)\s*-\s*(\d+)$/);
-  if(m){
-    const from=Number(m[1]),to=Number(m[2]);
-    if(from>to)throw new Error('Το πρώτο Activity ID πρέπει να είναι μικρότερο ή ίσο από το δεύτερο.');
-    return {from,to};
-  }
-
-  m=s.match(/^(\d+)$/);
-  if(m){
-    const n=Number(m[1]);
-    return {from:n,to:n};
-  }
-
-  throw new Error('Δώστε το εύρος σε μορφή π.χ. 1-76.');
-}
-
-function timetableActivityIdsInRange(from,to){
-  const ids=new Set();
-
-  state.rows.forEach(row=>{
-    const n=Number(String(row['Activity Id']||'').trim());
-    if(Number.isInteger(n) && n>=from && n<=to){
-      ids.add(n);
-    }
-  });
-
-  return [...ids].sort((a,b)=>a-b);
-}
-
-async function loadOloimeroDesignerFile(file){
-  if(!file)return;
-
-  try{
-    const rows=parseOloimeroDesignerCSV(await file.text());
-
-    state.oloimeroDesignerName=file.name;
-    state.oloimeroDesignerRows=rows;
-
-    $('#oloimeroDesignerName').textContent=
-      `${file.name} — ${rows.length} activities`;
-
-    if(!$('#oloimeroActivityRange').value.trim()){
-      $('#oloimeroActivityRange').value=`1-${rows.length}`;
-    }
-
-    setOloimeroStatus('ok',`Το αρχείο αναγνωρίστηκε: ${rows.length} activities.`);
-  }catch(err){
-    state.oloimeroDesignerName='';
-    state.oloimeroDesignerRows=[];
-    $('#oloimeroDesignerName').textContent='Δεν έχει επιλεγεί έγκυρο αρχείο.';
-    setOloimeroStatus('error',err.message||String(err));
-  }
-}
-
-function openUpdateOloimeroDialog(){
-  if(!state.rows.length)return;
-
-  setOloimeroStatus('','');
-
-  if(state.oloimeroDesignerName){
-    $('#oloimeroDesignerName').textContent=
-      `${state.oloimeroDesignerName} — ${state.oloimeroDesignerRows.length} activities`;
-  }else{
-    $('#oloimeroDesignerName').textContent='Δεν έχει επιλεγεί αρχείο.';
-  }
-
-  $('#updateOloimeroDialog').showModal();
-}
-
-function applyOloimeroUpdate(){
-  try{
-    if(!state.rows.length){
-      throw new Error('Δεν έχει φορτωθεί timetable CSV.');
-    }
-
-    const designerRows=state.oloimeroDesignerRows;
-    if(!designerRows.length){
-      throw new Error('Επιλέξτε πρώτα CSV του Ολοήμερου Designer.');
-    }
-
-    const {from,to}=parseActivityRange($('#oloimeroActivityRange').value);
-    const ids=timetableActivityIdsInRange(from,to);
-
-    if(!ids.length){
-      throw new Error(`Δεν βρέθηκαν Activity IDs στο εύρος ${from}-${to}.`);
-    }
-
-    if(ids.length!==designerRows.length){
-      throw new Error(
-        `Το CSV του Designer έχει ${designerRows.length} activities, ενώ στο εύρος `+
-        `${from}-${to} βρέθηκαν ${ids.length} διαφορετικά Activity IDs. `+
-        `Η ενημέρωση ακυρώθηκε για να μη γίνει λάθος αντιστοίχιση.`
-      );
-    }
-
-    const sourceById=new Map();
-    ids.forEach((id,index)=>sourceById.set(id,designerRows[index]));
-
-    let changedActivities=0;
-    let changedRows=0;
-
-    ids.forEach(id=>{
-      const src=sourceById.get(id);
-      const rows=state.rows.filter(r=>Number(r['Activity Id'])===id);
-
-      let activityChanged=false;
-
-      rows.forEach(row=>{
-        const newStudents=src['Students Sets']??'';
-        const newSubject=src['Subject']??'';
-        const newTeachers=src['Teachers']??'';
-
-        if(
-          row['Students Sets']!==newStudents ||
-          row['Subject']!==newSubject ||
-          row['Teachers']!==newTeachers
-        ){
-          activityChanged=true;
-          changedRows++;
-        }
-      });
-
-      if(activityChanged)changedActivities++;
-    });
-
-    if(changedActivities===0){
-      setOloimeroStatus('ok','Δεν βρέθηκαν αλλαγές σε Μάθημα, Τμήματα ή Εκπαιδευτικούς.');
+    if (!chosen) return;
+    const {design, analysis} = chosen, isDraft = design.periodId == null;
+    const activities = count => count === 1 ? '1 δραστηριότητα' : count + ' δραστηριότητες';
+    const {kept, removed, added} = analysis.counts;
+    if (analysis.unchanged) {
+      await message('Το σχέδιο ' + quoted(analysis.designName) + ' είναι ήδη στο ωρολόγιο: ' + (kept === 1 ? 'η δραστηριότητα Ολοημέρου του ωρολογίου είναι ίδια' : 'οι ' + kept + ' δραστηριότητες Ολοημέρου του ωρολογίου είναι ίδιες') + ' με του σχεδίου.', title);
+      if (isDraft && assign?.draftId !== design.id) {
+        const next = await askAssign(design, title);
+        if (next) { change(() => { assign = next; }); notice('Το προσχέδιο ' + quoted(design.name) + ' θα ανατεθεί στην περίοδο με την «Αποθήκευση».'); }
+      }
       return;
     }
-
-    snapshot();
-
-    ids.forEach(id=>{
-      const src=sourceById.get(id);
-
-      state.rows.forEach(row=>{
-        if(Number(row['Activity Id'])!==id)return;
-
-        row['Students Sets']=src['Students Sets']??'';
-        row['Subject']=src['Subject']??'';
-        row['Teachers']=src['Teachers']??'';
-      });
+    const updated = T.applyOloimeroReplace(program, analysis, {designId: design.id});
+    const effects = updateEffects(program, updated);
+    const problems = effects.conflicts.length + effects.unavailable.length + effects.overHours.length;
+    const confirmContent = [el('p', '', 'Σύγκριση με το σχέδιο ' + quoted(analysis.designName) + ': ' + (kept === 1 ? '1 δραστηριότητα Ολοημέρου του ωρολογίου μένει ίδια' : kept + ' δραστηριότητες Ολοημέρου του ωρολογίου μένουν ίδιες') + '· ' +
+      (removed === 1 ? 'αφαιρείται' : 'αφαιρούνται') + ' ' + activities(removed) + ' και ' + (added === 1 ? 'μπαίνει' : 'μπαίνουν') + ' ' + activities(added) + ' του σχεδίου. Οι αλλαγές αποθηκεύονται με την «Αποθήκευση».')];
+    for (const warning of analysis.warnings) confirmContent.push(el('p', 'ft-dialog-warning', warning));
+    for (const info of analysis.info) confirmContent.push(el('p', 'ft-check-note', info));
+    if (!problems) confirmContent.push(el('p', 'ft-check-ok', 'Έλεγχος: η εισαγωγή δεν προκαλεί συγκρούσεις, μη διαθεσιμότητες του FET ή υπέρβαση ωραρίου.'));
+    else {
+      confirmContent.push(el('p', 'ft-dialog-warning', 'Έλεγχος: η εισαγωγή προκαλεί προβλήματα στο ωρολόγιο, που δεν υπάρχουν σήμερα.'));
+      if (effects.conflicts.length) confirmContent.push(listSection('Νέες συγκρούσεις', effects.conflicts));
+      if (effects.unavailable.length) confirmContent.push(listSection('Ώρες μη διαθεσιμότητας στο FET', effects.unavailable));
+      if (effects.overHours.length) confirmContent.push(listSection('Υπέρβαση ωραρίου', effects.overHours));
+      confirmContent.push(el('p', 'ft-check-note', 'Αν συνεχίσεις, οι δραστηριότητες περνούν στο ωρολόγιο όπως είναι, σε οποιαδήποτε λειτουργία, και οι συγκρούσεις φαίνονται με κόκκινο. Για ωρολόγιο χωρίς συγκρούσεις, εξήγαγε το σχέδιο για το FET από τον Ολοήμερο Designer και δημιούργησε ξανά το ωρολόγιο στο FET.'));
+    }
+    const ok = await schoolChoiceDialog({
+      title, content: confirmContent, className: 'ft-print-dialog',
+      actions: [{label: 'Ακύρωση'}, {label: (problems ? 'Συνέχεια στην εισαγωγή' : 'Εισαγωγή') + (analysis.unmatchedTeachers.length ? ' χωρίς αντιστοίχιση' : ''), accept: true, value: true}]
     });
-
-    rebuildEntities();
-    render();
-    updateUndoRedo();
-
-    $('#updateOloimeroDialog').close();
-
-    setNotice(
-      'info',
-      `Η ενημέρωση Ολοημέρου ολοκληρώθηκε. `+
-      `Ενημερώθηκαν ${changedActivities} activities στο εύρος ${from}-${to}. `+
-      `Ημέρες και ώρες παρέμειναν αμετάβλητες. `+
-      `Για αποθήκευση των αλλαγών χρησιμοποιήστε «Αποθήκευση...».`
-    );
-  }catch(err){
-    setOloimeroStatus('error',err.message||String(err));
-  }
-}
-
-function currentSnap(){
-  return JSON.stringify({
-    rows:state.rows,
-    days:state.days,
-    hours:state.hours,
-    breakSlots:[...state.breakSlots]
-  });
-}
-
-function captureInitialState(){
-  state.initialSnap=currentSnap();
-  updateUndoRedo();
-}
-
-function updateInitialOrderFromCurrent(){
-  if(!state.rows.length)return;
-
-  if(!state.initialSnap){
-    captureInitialState();
-    return;
+    if (!ok) return;
+    const next = isDraft && assign?.draftId !== design.id ? await askAssign(design, title) : null;
+    change(() => { program = updated; if (next) assign = next; });
+    notice('Εισαγωγή Ολοημέρου από το ' + quoted(analysis.designName) + ': ' + kept + ' ίδιες, ' + (removed === 1 ? 'αφαιρέθηκε' : 'αφαιρέθηκαν') + ' ' + activities(removed) + ' του ωρολογίου και ' + (added === 1 ? 'μπήκε' : 'μπήκαν') + ' ' + activities(added) + ' του σχεδίου' + (next ? '· το προσχέδιο θα ανατεθεί στην περίοδο' : '') + '. Πάτησε «Αποθήκευση».' + (problems ? ' Το ωρολόγιο έχει πλέον συγκρούσεις ή προειδοποιήσεις από την εισαγωγή.' : ''), !!problems);
   }
 
-  const original=JSON.parse(state.initialSnap);
-  original.days=[...state.days];
-  original.hours=[...state.hours];
-  original.breakSlots=[...state.breakSlots];
-  state.initialSnap=JSON.stringify(original);
-  updateUndoRedo();
-}
-
-function snapshot(){
-  state.undo.push(currentSnap());
-  if(state.undo.length>80)state.undo.shift();
-  state.redo=[];updateUndoRedo();
-}
-function restoreSnap(raw){
-  const x=JSON.parse(raw);
-  state.rows=x.rows;state.days=x.days;state.hours=x.hours;state.breakSlots=new Set(x.breakSlots||[]);
-  rebuildEntities();render();
-}
-function restoreInitial(){
-  if(!state.initialSnap)return;
-  if(currentSnap()===state.initialSnap)return;
-
-  // Κρατάμε την τρέχουσα κατάσταση ως ένα Undo, ώστε η επαναφορά
-  // στο αρχικό να μπορεί να αναιρεθεί με μία κίνηση αν χρειαστεί.
-  snapshot();
-  restoreSnap(state.initialSnap);
-  updateUndoRedo();
-}
-function updateUndoRedo(){
-  $('#undoBtn').disabled=!state.undo.length;
-  $('#redoBtn').disabled=!state.redo.length;
-  $('#initialBtn').disabled=!state.initialSnap;
-}
-
-function buildActivities(){
-  const map=new Map();
-  state.rows.forEach((row,idx)=>{
-    const id=row["Activity Id"];
-    if(!map.has(id))map.set(id,{id,entries:[]});
-    map.get(id).entries.push({row,idx});
-  });
-  for(const a of map.values()){
-    a.entries.sort((A,B)=>{
-      const dd=state.days.indexOf(A.row.Day)-state.days.indexOf(B.row.Day);
-      if(dd)return dd;
-      return state.hours.indexOf(A.row.Hour)-state.hours.indexOf(B.row.Hour);
+  // ---- Printing ----
+  function dateField() {
+    const field = el('label', 'school-choice-field ft-date-field', 'Ισχύει από'), input = el('input');
+    input.type = 'text'; input.inputMode = 'numeric'; input.maxLength = 10; input.placeholder = 'ηη/μμ/εεεε';
+    input.value = D.format(printDates.get(periodId) || periodOf(periodId)?.from || D.today());
+    field.append(input);
+    return {field, value() {
+      const iso = D.parse(input.value);
+      if (!iso) { input.focus(); throw Error('Γράψε την ημερομηνία «Ισχύει από» ως ηη/μμ/εεεε.'); }
+      printDates.set(periodId, iso);
+      return D.format(iso);
+    }};
+  }
+  // A column of check boxes with preset buttons: items [{value, label, checked}], presets [{label, test(value)}].
+  function checkColumn(title, items, presets) {
+    const box = el('section', 'ft-print-column'), actions = el('div', 'ft-print-presets'), list = el('div', 'subapp-check-list');
+    box.append(el('h3', '', title), actions, list);
+    const inputs = items.map(item => {
+      const label = el('label'), input = el('input');
+      input.type = 'checkbox'; input.value = item.value; input.checked = !!item.checked;
+      label.append(input, ' ' + item.label); list.append(label);
+      return input;
     });
-  }
-  return map;
-}
-function info(a){
-  const r=a.entries[0].row;
-  return {
-    id:a.id,subject:r.Subject||'',teachers:splitNames(r.Teachers),
-    students:splitNames(r["Students Sets"]),tags:r["Activity Tags"]||'',
-    room:r.Room||'',comments:r.Comments||'',duration:a.entries.length
-  };
-}
-function descendantLeaves(name){
-  if(!name)return [];
-  const children=state.studentChildren[name]||[];
-  if(!children.length)return [name];
-  const out=[];
-  const seen=new Set();
-  function walk(n){
-    if(seen.has(n))return; seen.add(n);
-    const ch=state.studentChildren[n]||[];
-    if(!ch.length){out.push(n);return;}
-    ch.forEach(walk);
-  }
-  walk(name);
-  return uniq(out);
-}
-function expandedStudents(names){
-  return uniq(names.flatMap(n=>descendantLeaves(n)));
-}
-function studentSetsOverlap(namesA,namesB){
-  const A=new Set(expandedStudents(namesA));
-  return expandedStudents(namesB).some(x=>A.has(x));
-}
-function activityAppliesToSection(studentNames,section){
-  // A visible section is a Group, not necessarily a leaf.
-  // An activity applies if its student set intersects any descendant subgroup of that Group,
-  // or if it is assigned to a parent (e.g. the whole year) that contains that Group.
-  return studentSetsOverlap(studentNames,[section]);
-}
-function overlaps(a,b){
-  const A=info(a),B=info(b);
-  return A.teachers.some(x=>B.teachers.includes(x))||studentSetsOverlap(A.students,B.students);
-}
-function conflictsFor(id){
-  const acts=buildActivities(),a=acts.get(id);if(!a)return false;
-  for(const b of acts.values()){
-    if(b.id===id||!overlaps(a,b))continue;
-    for(const e of a.entries){
-      if(b.entries.some(x=>x.row.Day===e.row.Day&&x.row.Hour===e.row.Hour))return true;
+    for (const preset of presets) {
+      const button = el('button', '', preset.label); button.type = 'button';
+      button.onclick = () => inputs.forEach(input => { input.checked = preset.test(input.value); });
+      actions.append(button);
     }
+    return {box, values: () => inputs.filter(input => input.checked).map(input => input.value)};
   }
-  return false;
-}
-function availabilityMorningHours(){
-  const exact=printableProgramHours().filter(h=>{
-    const start=hourStartMinutes(h);
-    const end=hourEndMinutes(h);
-    return (
-      start!==null &&
-      end!==null &&
-      start>=8*60+15 &&
-      end<=13*60+15
-    );
-  });
-
-  if(exact.length)return exact;
-
-  // Fallback για FET με ονομαστικές ώρες χωρίς πραγματικά clock ranges:
-  // χρησιμοποιούμε τις πρώτες 6 διδακτικές ώρες μετά την Πρωινή Ζώνη.
-  return printableProgramHours()
-    .filter(h=>{
-      const start=hourStartMinutes(h);
-      return start===null || start>=8*60;
-    })
-    .slice(0,6);
-}
-
-function availabilityWeekdays(){
-  const wantedGreek=['Δευτέρα','Τρίτη','Τετάρτη','Πέμπτη','Παρασκευή'];
-  const wantedEnglish=['Monday','Tuesday','Wednesday','Thursday','Friday'];
-  const all=[...state.days];
-
-  const greek=wantedGreek.map(name=>all.find(d=>d===name)).filter(Boolean);
-  if(greek.length===5)return greek;
-
-  const english=wantedEnglish.map(name=>all.find(d=>d===name)).filter(Boolean);
-  if(english.length===5)return english;
-
-  return all.slice(0,5);
-}
-
-function isDirectorTeacher(name){
-  const short=String(name||'');
-  const full=String(teacherFullName(name)||'');
-
-  const normalize=s=>s
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g,'')
-    .toLocaleLowerCase('el-GR');
-
-  const shortNorm=normalize(short);
-  const fullNorm=normalize(full);
-
-  return (
-    /^\s*\[ΔΘ\]/iu.test(short) ||
-    shortNorm.includes('διευθυντ') ||
-    fullNorm.includes('διευθυντ')
-  );
-}
-
-function allKnownTeachers(){
-  const fromFet=Object.keys(state.teacherLongNames||{});
-  const fromCsv=state.rows.flatMap(r=>splitNames(r.Teachers));
-
-  return uniq([...fromFet,...fromCsv])
-    .filter(Boolean)
-    .filter(teacher=>!isDirectorTeacher(teacher));
-}
-
-function teacherRowsForDay(teacher,day){
-  return state.rows.filter(r=>
-    r.Day===day && splitNames(r.Teachers).includes(teacher)
-  );
-}
-
-function teacherHasMorningZoneOnDay(teacher,day){
-  return teacherRowsForDay(teacher,day).some(r=>{
-    const start=hourStartMinutes(r.Hour);
-    const end=hourEndMinutes(r.Hour);
-    return (
-      start!==null &&
-      end!==null &&
-      start<8*60 &&
-      end<=8*60
-    );
-  });
-}
-
-function teacherLastExtendedEndMinutes(teacher,day){
-  let maxEnd=null;
-
-  for(const row of teacherRowsForDay(teacher,day)){
-    const end=hourEndMinutes(row.Hour);
-    if(end===null || end<=13*60+15)continue;
-    if(maxEnd===null || end>maxEnd)maxEnd=end;
-  }
-
-  return maxEnd;
-}
-
-function teacherAvailabilityStartMinutes(teacher,day){
-  // Πρωινή Ζώνη: το εξαώρο ξεκινά νωρίς, άρα ο εκπαιδευτικός
-  // δεν θεωρείται διαθέσιμος στην 6η ώρα.
-  if(teacherHasMorningZoneOnDay(teacher,day)){
-    return 8*60;
-  }
-
-  const lastEnd=teacherLastExtendedEndMinutes(teacher,day);
-
-  // Χωρίς Ολοήμερο: ελέγχουμε όλο το πρωινό 08:00-13:15.
-  if(lastEnd===null){
-    return 8*60;
-  }
-
-  // Με Ολοήμερο: κρατάμε παράθυρο εξαώρου που τελειώνει
-  // στην τελευταία υποχρέωση της ημέρας, σύμφωνα με τους κανόνες:
-  // 14:00 -> 08:00
-  // 14:55 -> 09:00
-  // 15:50 -> 10:00
-  // 16:40 -> 10:45
-  // 17:30 -> 11:30
-  if(lastEnd<=14*60)return 8*60;
-  if(lastEnd<=14*60+55)return 9*60;
-  if(lastEnd<=15*60+50)return 10*60;
-  if(lastEnd<=16*60+40)return 10*60+45;
-  return 11*60+30;
-}
-
-function teacherMorningAvailabilityEndStartMinutes(teacher,day){
-  // Για Πρωινή Ζώνη η 6η ώρα (12:35-13:15) εξαιρείται.
-  return teacherHasMorningZoneOnDay(teacher,day)
-    ? 12*60+35
-    : 13*60+15;
-}
-
-function teacherOccupiedAt(teacher,day,hour){
-  return state.rows.some(r=>
-    r.Day===day &&
-    r.Hour===hour &&
-    splitNames(r.Teachers).includes(teacher)
-  );
-}
-
-function teacherAvailableForPrintedMorningSlot(teacher,day,hour){
-  const start=hourStartMinutes(hour);
-
-  if(start!==null){
-    const windowStart=teacherAvailabilityStartMinutes(teacher,day);
-    const windowEndStart=teacherMorningAvailabilityEndStartMinutes(teacher,day);
-
-    if(start<windowStart || start>=windowEndStart){
-      return false;
-    }
-  }
-
-  if(teacherOccupiedAt(teacher,day,hour)){
-    return false;
-  }
-
-  if(teacherUnavailableAt(teacher,day,hour)){
-    return false;
-  }
-
-  return true;
-}
-
-function availableTeachersForSlot(day,hour){
-  return allKnownTeachers()
-    .filter(teacher=>teacherAvailableForPrintedMorningSlot(teacher,day,hour))
-    .sort((a,b)=>{
-      const aa=teacherFullName(a)||a;
-      const bb=teacherFullName(b)||b;
-      return aa.localeCompare(bb,'el',{numeric:true,sensitivity:'base'});
-    });
-}
-
-function teacherUnavailableAt(teacher,day,hour){
-  return !!state.teacherUnavailableSlots?.[teacher]?.has(slotKey(day,hour));
-}
-
-function teacherUnavailableViolationsForProbe(probe){
-  const out=[];
-  const seen=new Set();
-
-  for(const row of probe||[]){
-    for(const teacher of splitNames(row.Teachers)){
-      if(!teacherUnavailableAt(teacher,row.Day,row.Hour))continue;
-
-      const key=teacher+SEP+row.Day+SEP+row.Hour;
-      if(seen.has(key))continue;
-      seen.add(key);
-
-      out.push({
-        teacher,
-        fullName:teacherFullName(teacher),
-        day:row.Day,
-        hour:row.Hour
-      });
-    }
-  }
-
-  return out;
-}
-
-function teacherUnavailableWarningText(violations,actionLabel){
-  const rows=(violations||[]).slice(0,8).map(v=>{
-    const who=v.fullName ? `${v.teacher} (${v.fullName})` : v.teacher;
-    return `• ${who}: ${v.day}, ${v.hour}`;
-  });
-
-  const more=(violations||[]).length>8
-    ? `\n• και ${(violations||[]).length-8} ακόμη περίπτωση/περιπτώσεις`
-    : '';
-
-  return (
-    `${actionLabel} τοποθετεί εκπαιδευτικό σε ώρα που έχει δηλωθεί ως μη διαθέσιμη στο FET:\n\n`+
-    rows.join('\n')+more+
-    `\n\nΘέλεις να συνεχίσεις;`
-  );
-}
-
-function confirmTeacherUnavailable(violations,actionLabel){
-  if($('#mode').value!=='safe' || !(violations||[]).length)return true;
-  return confirm(teacherUnavailableWarningText(violations,actionLabel));
-}
-
-function destinationFor(id,day,startHour,ignoreActivityIds=[]){
-  const acts=buildActivities(),a=acts.get(id);
-  if(!a)return {ok:false,reason:'Η δραστηριότητα δεν βρέθηκε.'};
-
-  const dur=a.entries.length,start=state.hours.indexOf(startHour);
-  if(start<0||start+dur>state.hours.length){
-    return {ok:false,reason:'Η δραστηριότητα δεν χωράει μέχρι το τέλος της ημέρας.'};
-  }
-
-  const hs=state.hours.slice(start,start+dur);
-  for(const h of hs){
-    if(state.breakSlots.has(slotKey(day,h))){
-      return {ok:false,reason:`Το «${h}» είναι Break στο .fet.`};
-    }
-  }
-
-  const ignoredIds=new Set([String(id),...ignoreActivityIds.map(String)]);
-  const movingIdx=new Set(a.entries.map(e=>e.idx));
-  const probe=a.entries.map((e,i)=>({...e.row,Day:day,Hour:hs[i]}));
-  const conflicts=[];
-
-  state.rows.forEach((r,idx)=>{
-    if(movingIdx.has(idx))return;
-    if(ignoredIds.has(String(r["Activity Id"])))return;
-
-    for(const p of probe){
-      if(r.Day!==p.Day||r.Hour!==p.Hour)continue;
-
-      const t1=splitNames(r.Teachers),t2=splitNames(p.Teachers);
-      const s1=splitNames(r["Students Sets"]),s2=splitNames(p["Students Sets"]);
-      const teacher=t1.filter(x=>t2.includes(x));
-      const leaves1=expandedStudents(s1),leaves2=expandedStudents(s2);
-      const set2=new Set(leaves2);
-      const students=leaves1.filter(x=>set2.has(x));
-
-      if(teacher.length||students.length){
-        conflicts.push({teacher,students});
-      }
-    }
-  });
-
-  const unavailable=teacherUnavailableViolationsForProbe(probe);
-  return {ok:true,a,probe,conflicts,unavailable};
-}
-
-function safeModeAllows(result,actionLabel='Η μετακίνηση'){
-  if(!result.ok){
-    alert(result.reason);
-    return false;
-  }
-
-  if(result.conflicts.length&&$('#mode').value==='safe'){
-    const c=result.conflicts[0];
-    const why=[
-      c.teacher.length?'εκπαιδευτικός: '+c.teacher.join(', '):'',
-      c.students.length?'τμήμα/student set: '+c.students.join(', '):''
-    ].filter(Boolean).join(' · ');
-
-    alert(actionLabel+' μπλοκαρίστηκε λόγω σύγκρουσης ('+why+').');
-    return false;
-  }
-
-  if(!confirmTeacherUnavailable(result.unavailable,actionLabel)){
-    return false;
-  }
-
-  return true;
-}
-
-function applyActivityDestination(result,day){
-  result.a.entries.forEach((e,i)=>{
-    state.rows[e.idx].Day=day;
-    state.rows[e.idx].Hour=result.probe[i].Hour;
-  });
-}
-
-function moveActivity(id,day,hour){
-  const t=destinationFor(id,day,hour);
-  if(!safeModeAllows(t,'Η μετακίνηση'))return;
-
-  snapshot();
-  applyActivityDestination(t,day);
-  render();
-}
-
-function activityStartEntry(a){
-  return a.entries[0];
-}
-
-function activitySlots(a){
-  return a.entries.map(e=>({
-    day:e.row.Day,
-    hour:e.row.Hour,
-    idx:e.idx
-  }));
-}
-
-function footprintTargetActivities(draggedId,day,startHour){
-  const acts=buildActivities();
-  const dragged=acts.get(String(draggedId))||acts.get(draggedId);
-  if(!dragged)return {ok:false,reason:'Η δραστηριότητα δεν βρέθηκε.'};
-
-  const start=state.hours.indexOf(startHour);
-  const dur=dragged.entries.length;
-  if(start<0||start+dur>state.hours.length){
-    return {ok:false,reason:'Η δραστηριότητα δεν χωράει μέχρι το τέλος της ημέρας.'};
-  }
-
-  const targetHours=state.hours.slice(start,start+dur);
-  for(const h of targetHours){
-    if(state.breakSlots.has(slotKey(day,h))){
-      return {ok:false,reason:`Το «${h}» είναι Break στο .fet.`};
-    }
-  }
-
-  const targetIds=new Set();
-
-  // Το swap αφορά μόνο τις δραστηριότητες που είναι ορατές στην
-  // τρέχουσα προβολή (τρέχον τμήμα ή τρέχων εκπαιδευτικός).
-  // Έτσι δεν επηρεάζονται άσχετες δραστηριότητες άλλων τμημάτων
-  // που τυχαίνει να βρίσκονται στις ίδιες ώρες.
-  for(const a of relevantActivities()){
-    if(String(a.id)===String(dragged.id))continue;
-
-    const i=info(a);
-    const touches=a.entries.some(e=>
-      e.row.Day===day &&
-      targetHours.includes(e.row.Hour) &&
-      (
-        state.entityType!=='students' ||
-        activityMatchesTeacherAssignmentFilter(
-          i.teachers,
-          state.selected,
-          e.row.Hour
-        )
-      )
-    );
-
-    if(touches)targetIds.add(String(a.id));
-  }
-
-  return {
-    ok:true,
-    dragged,
-    targetHours,
-    targetIds:[...targetIds],
-    acts
-  };
-}
-
-function buildFootprintSwapPlan(draggedId,day,startHour){
-  const scan=footprintTargetActivities(draggedId,day,startHour);
-  if(!scan.ok)return scan;
-
-  const {dragged,targetHours,targetIds,acts}=scan;
-
-  if(!targetIds.length){
-    return {ok:true,type:'move',dragged,day,startHour};
-  }
-
-  const draggedStart=activityStartEntry(dragged).row;
-  const originalStartIndex=state.hours.indexOf(draggedStart.Hour);
-  const targetStartIndex=state.hours.indexOf(startHour);
-
-  if(originalStartIndex<0||targetStartIndex<0){
-    return {ok:false,reason:'Δεν βρέθηκαν οι ώρες του swap.'};
-  }
-
-  const footprintSet=new Set(targetHours.map(h=>slotKey(day,h)));
-  const targets=targetIds.map(id=>acts.get(id)).filter(Boolean);
-
-  // Κάθε δραστηριότητα που ακουμπά το αποτύπωμα προορισμού
-  // πρέπει να βρίσκεται ολόκληρη μέσα σε αυτό. Έτσι δεν "κόβουμε"
-  // κατά λάθος μια άλλη δίωρη/πολύωρη δραστηριότητα.
-  for(const a of targets){
-    const whollyInside=a.entries.every(e=>
-      footprintSet.has(slotKey(e.row.Day,e.row.Hour))
-    );
-    if(!whollyInside){
-      return {
-        ok:false,
-        reason:'Το swap δεν μπορεί να γίνει γιατί μία δραστηριότητα του προορισμού εκτείνεται έξω από τις ώρες που καλύπτει η μετακινούμενη δραστηριότητα.'
-      };
-    }
-  }
-
-  // Δεν επιτρέπουμε πάνω από μία διαφορετική δραστηριότητα στο ίδιο
-  // destination slot, γιατί τότε δεν υπάρχει μονοσήμαντη αντιστοίχιση.
-  for(const h of targetHours){
-    const ids=new Set();
-    for(const a of targets){
-      if(a.entries.some(e=>e.row.Day===day&&e.row.Hour===h)){
-        ids.add(String(a.id));
-      }
-    }
-    if(ids.size>1){
-      return {
-        ok:false,
-        reason:'Στο ίδιο κελί υπάρχουν περισσότερες από μία δραστηριότητες και δεν είναι σαφές πώς πρέπει να γίνει το swap.'
-      };
-    }
-  }
-
-  const ignored=[String(dragged.id),...targetIds];
-
-  // Έλεγχος της δίωρης/πολύωρης δραστηριότητας στη νέα θέση.
-  const draggedDest=destinationFor(
-    dragged.id,
-    day,
-    startHour,
-    ignored
-  );
-  if(!draggedDest.ok)return draggedDest;
-
-  // Κάθε target activity μεταφέρεται στην αντίστοιχη σχετική θέση
-  // του αρχικού αποτυπώματος της dragged activity.
-  const targetMoves=[];
-  for(const a of targets){
-    const first=activityStartEntry(a).row;
-    const firstTargetIndex=state.hours.indexOf(first.Hour);
-    const offset=firstTargetIndex-targetStartIndex;
-    const newStartIndex=originalStartIndex+offset;
-
-    if(newStartIndex<0||newStartIndex>=state.hours.length){
-      return {ok:false,reason:'Μία από τις δραστηριότητες του swap δεν χωράει στην αρχική θέση.'};
-    }
-
-    const newHour=state.hours[newStartIndex];
-    const dest=destinationFor(
-      a.id,
-      draggedStart.Day,
-      newHour,
-      ignored
-    );
-
-    if(!dest.ok)return dest;
-    targetMoves.push({
-      result:dest,
-      day:draggedStart.Day,
-      sourceOffset:offset
-    });
-  }
-
-  return {
-    ok:true,
-    type:'swap',
-    draggedDest,
-    draggedDay:day,
-    targetMoves
-  };
-}
-
-function safeModeAllowsSwapPlan(plan){
-  if(!plan.ok){
-    alert(plan.reason);
-    return false;
-  }
-
-  if($('#mode').value!=='safe')return true;
-
-  const results=[];
-  if(plan.type==='swap'){
-    results.push(plan.draggedDest,...plan.targetMoves.map(x=>x.result));
-  }
-
-  for(const result of results){
-    if(result.conflicts.length){
-      const c=result.conflicts[0];
-      const why=[
-        c.teacher.length?'εκπαιδευτικός: '+c.teacher.join(', '):'',
-        c.students.length?'τμήμα/student set: '+c.students.join(', '):''
-      ].filter(Boolean).join(' · ');
-
-      alert('Το swap μπλοκαρίστηκε λόγω σύγκρουσης ('+why+').');
-      return false;
-    }
-  }
-
-  const unavailable=results.flatMap(result=>result.unavailable||[]);
-  if(!confirmTeacherUnavailable(unavailable,'Το swap')){
-    return false;
-  }
-
-  return true;
-}
-
-function moveOrSwapEligibility(id,day,hour){
-  const plan=buildFootprintSwapPlan(id,day,hour);
-  if(!plan.ok)return {allowed:false,warning:false};
-
-  if(plan.type==='move'){
-    const result=destinationFor(id,day,hour);
-    if(!result.ok)return {allowed:false,warning:false};
-
-    if($('#mode').value==='safe' && result.conflicts.length){
-      return {allowed:false,warning:false};
-    }
-
-    return {
-      allowed:true,
-      warning:$('#mode').value==='safe' && (result.unavailable||[]).length>0
-    };
-  }
-
-  const results=[
-    plan.draggedDest,
-    ...plan.targetMoves.map(x=>x.result)
+  const hourPresets = () => [
+    {label: 'Όλες', test: () => true}, {label: 'Καμία', test: () => false},
+    {label: 'Πρωινό', test: value => isMorning(hours[value])}, {label: 'Ολοήμερο', test: value => isAfternoon(hours[value])}
   ];
-
-  if($('#mode').value==='safe' && results.some(result=>result.conflicts.length)){
-    return {allowed:false,warning:false};
+  function openPrintWindow(html) {
+    const win = window.open('', '_blank');
+    if (!win) throw Error('Ο browser μπλόκαρε το παράθυρο της εκτύπωσης. Επίτρεψε τα αναδυόμενα παράθυρα για αυτή τη σελίδα και ξαναδοκίμασε.');
+    win.document.open(); win.document.write(html); win.document.close();
+    const go = () => { win.focus(); win.print(); };
+    if (win.document.readyState === 'complete') setTimeout(go, 200); else win.onload = () => setTimeout(go, 150);
+    return true;
   }
-
-  return {
-    allowed:true,
-    warning:$('#mode').value==='safe' &&
-      results.some(result=>(result.unavailable||[]).length>0)
-  };
-}
-
-function moveOrSwapAllowedSilently(id,day,hour){
-  return moveOrSwapEligibility(id,day,hour).allowed;
-}
-
-function clearDragAllowedCells(){
-  document.querySelectorAll(
-    '.grid td.slot.drag-allowed,.grid td.slot.drag-unavailable,.grid td.slot.dragover'
-  ).forEach(td=>{
-    td.classList.remove('drag-allowed','drag-unavailable','dragover');
-    if(td.dataset.dragWarningTitle){
-      td.removeAttribute('title');
-      delete td.dataset.dragWarningTitle;
-    }
-  });
-}
-
-function highlightAllowedDropCells(activityId){
-  clearDragAllowedCells();
-
-  // Η πράσινη προεπισκόπηση ζητήθηκε μόνο στην προβολή Τμήματος.
-  if(state.entityType!=='students')return;
-
-  document.querySelectorAll('.grid td.slot[data-day][data-hour]').forEach(td=>{
-    const day=td.dataset.day;
-    const hour=td.dataset.hour;
-
-    const eligibility=moveOrSwapEligibility(activityId,day,hour);
-    if(!eligibility.allowed)return;
-
-    if(eligibility.warning){
-      td.classList.add('drag-unavailable');
-      td.title='Προειδοποίηση FET: κάποιος εκπαιδευτικός είναι μη διαθέσιμος σε ώρα που θα προκύψει από αυτή τη μετακίνηση/swap.';
-      td.dataset.dragWarningTitle='1';
-    }else{
-      td.classList.add('drag-allowed');
-    }
-  });
-}
-
-function moveOrSwapActivity(id,day,hour){
-  const plan=buildFootprintSwapPlan(id,day,hour);
-
-  if(!plan.ok){
-    alert(plan.reason);
-    return;
+  const PRINT_BASE = `*{box-sizing:border-box}
+    body{font-family:Arial,Helvetica,sans-serif;margin:0;color:#000;background:#fff}
+    .page{page-break-after:always;break-after:page}
+    .page:last-child{page-break-after:auto;break-after:auto}
+    .page.two-up{display:flex;flex-direction:column;justify-content:space-between;gap:4mm;height:272mm}
+    .block{min-height:0;break-inside:avoid;page-break-inside:avoid}
+    .head{display:grid;grid-template-columns:1fr auto 1fr;align-items:end;margin:0 0 3mm}
+    .title{text-align:center;min-width:0}
+    h1{text-align:center;line-height:1;margin:0;font-weight:700}
+    .subtitle{margin-top:4px;line-height:1.05;font-weight:400;text-align:center}
+    .date{justify-self:end;text-align:right;line-height:1;white-space:nowrap}
+    table{width:100%;border-collapse:collapse;table-layout:fixed;border:1.4pt solid #000}
+    th,td{border:1.4pt solid #000;text-align:center;vertical-align:middle;font-weight:400}
+    thead th{font-weight:700}
+    .hour{white-space:nowrap;font-weight:700}
+    .activity{margin:0 0 2px}.activity:last-child{margin-bottom:0}
+    .subject{font-weight:700}
+    tr.boundary>th,tr.boundary>td{border-top:2.8pt solid #000!important}
+    @page{size:A4 portrait;margin:10mm 8mm}`;
+  function printTable(displayHours, cellHtml) {
+    const head = '<tr><th class="hour">' + esc(upper('Ώρα')) + '</th>' + DAYS.map(day => '<th>' + esc(upper(dayLabel(day))) + '</th>').join('') + '</tr>';
+    const rows = displayHours.map(hour => '<tr class="' + (boundaryBefore(hour, displayHours) ? 'boundary' : '') + '"><th class="hour">' + esc(hour.name) + '</th>' +
+      DAYS.map(day => '<td>' + cellHtml(day, hour) + '</td>').join('') + '</tr>').join('');
+    return '<table><thead>' + head + '</thead><tbody>' + rows + '</tbody></table>';
   }
-
-  if(plan.type==='move'){
-    moveActivity(id,day,hour);
-    return;
+  const activitiesAt = (filter, day, hour) => index().list.filter(item => filter(item) && item.entries.some(entry => entry.day === day && entry.h === hour.index));
+  function printDocument(title, css, pages) {
+    return '<!doctype html><html lang="el"><head><meta charset="utf-8"><title>' + esc(title) + '</title><style>' + PRINT_BASE + css + '</style></head><body>' + pages + '</body></html>';
   }
-
-  if(!safeModeAllowsSwapPlan(plan))return;
-
-  snapshot();
-
-  applyActivityDestination(plan.draggedDest,plan.draggedDay);
-  plan.targetMoves.forEach(x=>
-    applyActivityDestination(x.result,x.day)
-  );
-
-  render();
-}
-
-function sortTeachersClassroomFirst(names){
-  return [...names].sort((a,b)=>{
-    const aSpecialty=isSpecialtyTeacher(a);
-    const bSpecialty=isSpecialtyTeacher(b);
-
-    if(aSpecialty!==bSpecialty){
-      return aSpecialty ? 1 : -1;
-    }
-
-    return a.localeCompare(b,'el',{numeric:true,sensitivity:'base'});
-  });
-}
-
-function entities(){
-  if(state.entityType==='students'){
-    // With a .fet loaded, show only FET Groups (actual sections such as Α1, Ε1, Στ2).
-    // Years/classes and Subgroups (e.g. Ε1-Γερμ, Ε1-Γαλλ) stay hidden from the sidebar.
-    const base=state.studentGroups.length
-      ? state.studentGroups
-      : uniq(state.rows.flatMap(r=>splitNames(r["Students Sets"])));
-    return uniq(base).sort((a,b)=>a.localeCompare(b,'el',{numeric:true,sensitivity:'base'}));
+  function pagesOf(blocks, pair) {
+    let pages = '';
+    if (pair) for (let i = 0; i < blocks.length; i += 2) pages += '<section class="page two-up">' + blocks[i] + (blocks[i + 1] || '') + '</section>';
+    else for (const block of blocks) pages += '<section class="page">' + block + '</section>';
+    return pages;
   }
-
-  return sortTeachersClassroomFirst(
-    uniq(state.rows.flatMap(r=>splitNames(r.Teachers)))
-  );
-}
-function rebuildEntities(){
-  const all=entities();
-  if(!all.includes(state.selected))state.selected=all[0]||'';
-  renderEntityList();
-}
-function teacherAssignedHours(teacherName){
-  let total=0;
-  state.rows.forEach(row=>{
-    if(splitNames(row.Teachers).includes(teacherName)){
-      total++;
-    }
-  });
-  return total;
-}
-
-function teacherTargetHours(teacherName){
-  const raw=String(state.teacherTargetHours?.[teacherName]??'').trim();
-  if(raw==='')return '—';
-
-  const n=Number(raw);
-  if(Number.isFinite(n)){
-    return Number.isInteger(n) ? String(n) : String(n);
+  function blockHead(title, subtitle, date) {
+    return '<div class="head"><div></div><div class="title"><h1>' + esc(title) + '</h1>' + (subtitle ? '<div class="subtitle">' + esc(subtitle) + '</div>' : '') + '</div><div class="date">Ισχύει από: ' + esc(date) + '</div></div>';
   }
-
-  return raw;
-}
-
-function renderEntityList(){
-  const q=$('#search').value.trim().toLocaleLowerCase('el');
-  const list=$('#entityList');list.innerHTML='';
-
-  entities().filter(name=>{
-    if(state.entityType==='teachers'){
-      const full=teacherFullName(name);
-      return (
-        name.toLocaleLowerCase('el').includes(q) ||
-        full.toLocaleLowerCase('el').includes(q)
-      );
-    }
-
-    const homeroomShort=homeroomTeacherForSection(name);
-    const homeroomFull=teacherFullName(homeroomShort);
-    return (
-      name.toLocaleLowerCase('el').includes(q) ||
-      homeroomFull.toLocaleLowerCase('el').includes(q)
-    );
-  }).forEach(name=>{
-    const b=document.createElement('button');
-    b.className='entity'+(name===state.selected?' active':'');
-
-    if(state.entityType==='teachers'){
-      const main=document.createElement('div');
-      main.className='entity-teacher-main';
-
-      const shortName=document.createElement('span');
-      shortName.className='entity-teacher-short';
-      shortName.textContent=name;
-
-      const hours=document.createElement('span');
-      hours.className='entity-teacher-hours';
-      hours.textContent=`${teacherAssignedHours(name)}/${teacherTargetHours(name)}`;
-
-      main.append(shortName,hours);
-      b.appendChild(main);
-
-      const full=teacherFullName(name);
-      if(full){
-        const fullName=document.createElement('div');
-        fullName.className='entity-teacher-full';
-        fullName.textContent=full;
-        b.appendChild(fullName);
-      }
-    }else{
-      const main=document.createElement('div');
-      main.className='entity-class-main';
-
-      const className=document.createElement('span');
-      className.className='entity-class-name';
-      className.textContent=name;
-      main.appendChild(className);
-
-      const homeroomShort=homeroomTeacherForSection(name);
-      const homeroomFull=teacherFullName(homeroomShort);
-
-      if(homeroomFull){
-        const teacher=document.createElement('span');
-        teacher.className='entity-class-teacher';
-        teacher.textContent=homeroomFull;
-        teacher.title=homeroomFull;
-        main.appendChild(teacher);
-      }
-
-      b.appendChild(main);
-    }
-
-    b.onclick=()=>{state.selected=name;renderEntityList();render()};
-    list.appendChild(b);
-  });
-}
-function teacherFullName(shortName){
-  const longName=String(state.teacherLongNames?.[shortName]||'').trim();
-  if(!longName || longName===String(shortName).trim())return '';
-  return longName;
-}
-
-function homeroomTeacherForSection(sectionName){
-  const teacherNames=uniq(state.rows.flatMap(r=>splitNames(r.Teachers)));
-  return teacherNames.find(name=>isHomeroomTeacherForSection(name,sectionName))||'';
-}
-
-function isHomeroomTeacherForSection(name,sectionName){
-  if(!sectionName)return false;
-  return String(name).trimStart().startsWith(`[${sectionName}]`);
-}
-
-function teachersForAssignmentFilter(teachers,sectionName=state.selected,hour=''){
-  const filter=$('#teacherAssignmentFilter').value;
-
-  if(filter==='classroom'){
-    // Δάσκαλοι = [ΠΕ70] και κάθε άλλος εκπαιδευτικός που δεν είναι ειδικότητα.
-    // Εξαίρεση στο κανονικό πρωινό 08:15-13:15:
-    // εμφανίζεται μόνο ο υπεύθυνος δάσκαλος του συγκεκριμένου τμήματος.
-    return teachers.filter(name=>
-      !isSpecialtyTeacher(name) &&
-      (
-        !isRegularMorningProgramHour(hour) ||
-        isHomeroomTeacherForSection(name,sectionName)
-      )
-    );
-  }
-
-  if(filter==='specialties'){
-    // Οι πραγματικές ειδικότητες εμφανίζονται πάντα.
-    // Εξαίρεση: στο κανονικό πρωινό 08:15-13:15 εμφανίζονται επίσης
-    // δάσκαλοι που διδάσκουν στο τμήμα αλλά δεν είναι ο υπεύθυνός του.
-    return teachers.filter(name=>
-      isSpecialtyTeacher(name) ||
-      (
-        isRegularMorningProgramHour(hour) &&
-        !isSpecialtyTeacher(name) &&
-        !isHomeroomTeacherForSection(name,sectionName)
-      )
-    );
-  }
-
-  return [...teachers];
-}
-
-function activityMatchesTeacherAssignmentFilter(teachers,sectionName=state.selected,hour=''){
-  const filter=$('#teacherAssignmentFilter').value;
-  if(filter==='all') return true;
-  return teachersForAssignmentFilter(teachers,sectionName,hour).length>0;
-}
-
-function relevantActivities(){
-  const out=[];
-  for(const a of buildActivities().values()){
-    const i=info(a);
-
-    const ok=state.entityType==='students'
-      ? (
-          activityAppliesToSection(i.students,state.selected) &&
-          a.entries.some(e=>
-            activityMatchesTeacherAssignmentFilter(
-              i.teachers,
-              state.selected,
-              e.row.Hour
-            )
-          )
-        )
-      : i.teachers.includes(state.selected);
-
-    if(ok)out.push(a);
-  }
-  return out;
-}
-function isRegularMorningProgramHour(hour){
-  const start=hourStartMinutes(hour);
-  const end=hourEndMinutes(hour);
-
-  return (
-    start!==null &&
-    end!==null &&
-    start>=(8*60+15) &&
-    end<=(13*60+15)
-  );
-}
-
-function cardFor(a,entryIndex){
-  const i=info(a),div=document.createElement('div');
-  const entryHour=a.entries?.[entryIndex]?.row?.Hour||'';
-
-  const showSpecialtyBlue=
-    state.entityType==='students' &&
-    $('#teacherAssignmentFilter').value==='all' &&
-    i.teachers.some(name=>isSpecialtyTeacher(name));
-
-  const showNonHomeroomClassroomYellow=
-    state.entityType==='students' &&
-    isRegularMorningProgramHour(entryHour) &&
-    !i.teachers.some(name=>isSpecialtyTeacher(name)) &&
-    i.teachers.some(name=>
-      !isSpecialtyTeacher(name) &&
-      !isHomeroomTeacherForSection(name,state.selected)
-    );
-
-  div.className=
-    'card'+
-    (showSpecialtyBlue?' specialty-teacher':'')+
-    (showNonHomeroomClassroomYellow?' non-homeroom-classroom':'')+
-    (conflictsFor(a.id)?' conflict':'');
-  div.style.setProperty('--card',colorFor(i.subject));
-  div.draggable=true;div.dataset.id=a.id;
-  div.title=$('#showActivityId').checked ? ('Activity ID '+a.id+' — σύρε για μετακίνηση') : 'Σύρε για μετακίνηση';
-  div.addEventListener('dragstart',e=>{
-    state.draggedId=a.id;
-    e.dataTransfer.effectAllowed='move';
-    e.dataTransfer.setData('text/plain',a.id);
-
-    // Περιμένουμε να ολοκληρωθεί το native dragstart πριν χρωματίσουμε
-    // τα επιτρεπτά destination cells.
-    requestAnimationFrame(()=>highlightAllowedDropCells(a.id));
-  });
-  div.addEventListener('dragend',()=>{
-    state.draggedId=null;
-    clearDragAllowedCells();
-  });
-  if($('#showSubject').checked){
-    const s=document.createElement('div');
-    s.className='subject';
-    s.textContent=entryIndex===0?i.subject:'↳ '+i.subject;
-    div.appendChild(s);
-  }
-  if(state.entityType==='students'){
-    if($('#showTeachers').checked){
-      const m=document.createElement('div');
-      m.className='meta teacher-name';
-      const visibleTeachers=teachersForAssignmentFilter(
-        i.teachers,
-        state.selected,
-        entryHour
-      );
-      m.textContent=visibleTeachers.join(', ')||'—';
-      div.appendChild(m);
-    }
-  }else{
-    const m=document.createElement('div');
-    m.className=$('#showSubject').checked ? 'meta' : 'subject';
-    m.textContent=i.students.join(', ')||'—';
-    div.appendChild(m);
-  }
-  if($('#showRooms').checked&&i.room){const x=document.createElement('div');x.className='meta';x.textContent='Αίθουσα: '+i.room;div.appendChild(x)}
-  if($('#showTags').checked&&i.tags){const x=document.createElement('div');x.className='meta';x.textContent='Tags: '+i.tags;div.appendChild(x)}
-  if(entryIndex===0){
-    const showId=$('#showActivityId').checked;
-    if(i.duration>1 || showId){
-      const b=document.createElement('span');
-      b.className='badge';
-      if(i.duration>1 && showId) b.textContent=i.duration+' ώρες · Activity '+i.id;
-      else if(i.duration>1) b.textContent=i.duration+' ώρες';
-      else b.textContent='Activity '+i.id;
-      div.appendChild(b);
-    }
-  }
-  return div;
-}
-function rowIsGlobalBreak(hour){
-  return state.days.length>0&&state.days.every(d=>state.breakSlots.has(slotKey(d,hour)));
-}
-function render(){
-  if(!state.rows.length)return;
-
-  $('#teacherAssignmentFilterWrap').hidden=state.entityType!=='students';
-  $('#viewTitle').textContent=(state.entityType==='students'?'Τμήμα: ':'Εκπαιδευτικός: ')+(state.selected||'—');
-  const wrap=$('#gridWrap');wrap.innerHTML='';
-  const table=document.createElement('table');table.className='grid';
-  const thead=document.createElement('thead'),tr=document.createElement('tr');
-  const c=document.createElement('th');c.className='hour';c.textContent='Ώρα';tr.appendChild(c);
-  state.days.forEach(d=>{const th=document.createElement('th');th.textContent=d;tr.appendChild(th)});
-  thead.appendChild(tr);table.appendChild(thead);
-
-  const bySlot=new Map();
-  for(const a of relevantActivities()){
-    const i=info(a);
-
-    a.entries.forEach((e,idx)=>{
-      if(
-        state.entityType==='students' &&
-        !activityMatchesTeacherAssignmentFilter(
-          i.teachers,
-          state.selected,
-          e.row.Hour
-        )
-      ){
-        return;
-      }
-
-      const k=slotKey(e.row.Day,e.row.Hour);
-      if(!bySlot.has(k))bySlot.set(k,[]);
-      bySlot.get(k).push({a,idx});
-    });
-  }
-
-  const tbody=document.createElement('tbody');
-  const displayHours=state.hours.filter(h=>
-    hourVisibleByFilter(h) &&
-    ($('#showBreaks').checked || !rowIsGlobalBreak(h))
-  );
-  displayHours.forEach(h=>{
-    const row=document.createElement('tr');
-    const boundaryClass=printBoundaryClass(h,displayHours).trim();
-    if(boundaryClass)row.classList.add(boundaryClass);
-    const th=document.createElement('th');th.className='hour';th.textContent=h;row.appendChild(th);
-    state.days.forEach(d=>{
-      const td=document.createElement('td');
-      const isBreak=state.breakSlots.has(slotKey(d,h));
-      if(isBreak){
-        td.className='slot break-slot';td.textContent='ΔΙΑΛΕΙΜΜΑ';
-      }else{
-        td.className='slot';td.dataset.day=d;td.dataset.hour=h;
-        td.addEventListener('dragover',e=>{
-          if(!state.draggedId)return;
-
-          // Στην προβολή Τμήματος επιτρέπουμε drop μόνο στα κελιά
-          // που έχουν ήδη περάσει τον έλεγχο move/swap.
-          if(
-            state.entityType==='students' &&
-            !td.classList.contains('drag-allowed') &&
-            !td.classList.contains('drag-unavailable')
-          ){
-            return;
-          }
-
-          e.preventDefault();
-          td.classList.add('dragover');
-          e.dataTransfer.dropEffect='move';
+  function printClasses() {
+    const date = dateField();
+    const classes = checkColumn('Τμήματα', classesList().map(name => ({value: name, label: name, checked: true})), [{label: 'Όλα', test: () => true}, {label: 'Κανένα', test: () => false}]);
+    const hourColumn = checkColumn('Ώρες', teachingHours().map(hour => ({value: String(hour.index), label: hour.name, checked: isMorning(hour)})), hourPresets());
+    const columns = el('div', 'ft-print-columns'); columns.append(classes.box, hourColumn.box);
+    void schoolChoiceDialog({
+      title: 'Εκτύπωση τμημάτων', className: 'ft-print-dialog',
+      content: ['Επίλεξε τα τμήματα και τις ώρες. Δεν εκτυπώνονται οι ώρες του υπεύθυνου δασκάλου του τμήματος.', date.field, columns],
+      actions: [{label: 'Ακύρωση'}, {label: 'Εκτύπωση', accept: true, run: () => {
+        const effective = date.value(), names = classes.values(), selectedHours = hourColumn.values().map(Number).map(i => hours[i]);
+        if (!names.length) throw Error('Επίλεξε τουλάχιστον ένα τμήμα.');
+        if (!selectedHours.length) throw Error('Επίλεξε τουλάχιστον μία ώρα.');
+        const blocks = names.map(name => {
+          const home = homeroomKey(name);
+          const table = printTable(selectedHours, (day, hour) => activitiesAt(item => (item.activity.classes || []).includes(name), day, hour)
+            .filter(item => !home || !item.keys.includes(home))
+            .map(item => '<div class="activity">' + (item.activity.subject ? '<div class="subject">' + esc(item.activity.subject) + '</div>' : '') + '<div>' + esc(item.keys.map(shortOf).join(', ')) + '</div></div>').join(''));
+          return '<section class="block">' + blockHead(name, home ? fullOf(home) || shortOf(home) : '', effective) + table + '</section>';
         });
-        td.addEventListener('dragleave',()=>td.classList.remove('dragover'));
-        const arr=bySlot.get(slotKey(d,h))||[];
-        td.addEventListener('drop',e=>{
-          const id=e.dataTransfer.getData('text/plain')||state.draggedId;
-          if(!id)return;
-
-          if(
-            state.entityType==='students' &&
-            !td.classList.contains('drag-allowed') &&
-            !td.classList.contains('drag-unavailable')
-          ){
-            return;
-          }
-
-          e.preventDefault();
-          clearDragAllowedCells();
-          moveOrSwapActivity(id,d,h);
+        const css = `h1{font-size:18pt}.subtitle,.date{font-size:9.5pt}th,td{padding:4px;font-size:9.5pt;line-height:1.15}thead th{font-size:12pt}.hour{width:24mm;font-size:10.5pt}tbody th,tbody td{height:10mm}.subject{font-size:11pt}`;
+        return openPrintWindow(printDocument('Εκτύπωση τμημάτων', css, pagesOf(blocks, selectedHours.length <= 10)));
+      }}]
+    });
+  }
+  function printTeachers(preset) {
+    const titles = {staff: 'Εκτύπωση προσωπικού', classroom: 'Εκτύπωση δασκάλων', specialties: 'Εκτύπωση ειδικοτήτων'};
+    const date = dateField();
+    const keys = teachersList();
+    const checked = key => preset === 'classroom' ? isClassroom(key) : preset === 'specialties' ? isSpecialty(key) : true;
+    const people = checkColumn('Εκπαιδευτικοί', keys.map(key => ({value: key, label: shortOf(key) + (isUnmatched(key) ? ' (χωρίς αντιστοίχιση)' : ''), checked: checked(key)})), [
+      {label: 'Όλοι', test: () => true}, {label: 'Κανένας', test: () => false}, {label: 'Δάσκαλοι', test: isClassroom}, {label: 'Ειδικότητες', test: isSpecialty}
+    ]);
+    const hourColumn = checkColumn('Ώρες', teachingHours().map(hour => ({value: String(hour.index), label: hour.name, checked: hour.category !== 'extended'})), hourPresets());
+    const columns = el('div', 'ft-print-columns'); columns.append(people.box, hourColumn.box);
+    void schoolChoiceDialog({
+      title: titles[preset] || titles.staff, className: 'ft-print-dialog',
+      content: ['Επίλεξε τους εκπαιδευτικούς και τις ώρες. Το ωράριο στο κάτω μέρος μετρά όλες τις ώρες του προγράμματος.', date.field, columns],
+      actions: [{label: 'Ακύρωση'}, {label: 'Εκτύπωση', accept: true, run: () => {
+        const effective = date.value(), chosen = people.values(), selectedHours = hourColumn.values().map(Number).map(i => hours[i]);
+        if (!chosen.length) throw Error('Επίλεξε τουλάχιστον έναν εκπαιδευτικό.');
+        if (!selectedHours.length) throw Error('Επίλεξε τουλάχιστον μία ώρα.');
+        const blocks = chosen.map(key => {
+          const specialty = isSpecialty(key);
+          const table = printTable(selectedHours, (day, hour) => activitiesAt(item => item.keys.includes(key), day, hour)
+            .map(item => '<div class="activity">' + (!specialty && item.activity.subject ? '<div class="subject">' + esc(item.activity.subject) + '</div>' : '') +
+              '<div' + (specialty ? ' class="subject"' : '') + '>' + esc(studentsLabel(item.activity)) + '</div></div>').join(''));
+          return '<section class="block">' + blockHead(shortOf(key), fullOf(key), effective) + table + '<div class="load">Διδακτικό ωράριο: ' + esc(hoursOf(key) + '/' + targetOf(key)) + '</div></section>';
         });
-        arr.forEach(x=>td.appendChild(cardFor(x.a,x.idx)));
-      }
-      row.appendChild(td);
-    });
-    tbody.appendChild(row);
-  });
-  table.appendChild(tbody);wrap.appendChild(table);
-}
-
-function makeOrderLi(name,index,total){
-  const li=document.createElement('li');li.dataset.name=name;
-  const nm=document.createElement('span');nm.className='name';nm.textContent=name;li.appendChild(nm);
-  const up=document.createElement('button');up.textContent='↑';up.disabled=index===0;
-  const dn=document.createElement('button');dn.textContent='↓';dn.disabled=index===total-1;
-  up.onclick=()=>{const p=li.previousElementSibling;if(p){li.parentNode.insertBefore(li,p);refreshOrderButtons(li.parentNode)}};
-  dn.onclick=()=>{const n=li.nextElementSibling;if(n){li.parentNode.insertBefore(n,li);refreshOrderButtons(li.parentNode)}};
-  li.append(up,dn);return li;
-}
-function refreshOrderButtons(ul){
-  [...ul.children].forEach((li,i)=>{
-    const b=li.querySelectorAll('button');b[0].disabled=i===0;b[1].disabled=i===ul.children.length-1;
-  });
-}
-function openOrder(){
-  $('#daysOrder').innerHTML='';$('#hoursOrder').innerHTML='';
-  state.days.forEach((x,i)=>$('#daysOrder').appendChild(makeOrderLi(x,i,state.days.length)));
-  state.hours.forEach((x,i)=>$('#hoursOrder').appendChild(makeOrderLi(x,i,state.hours.length)));
-  $('#orderSource').textContent=state.fetName?'Πηγή κανονικής σειράς: '+state.fetName:'Δεν έχει φορτωθεί .fet — χρησιμοποιείται fallback σειρά.';
-  $('#restoreFetOrder').disabled=!state.fetDays.length;
-  $('#orderDialog').showModal();
-}
-function saveOrder(){
-  snapshot();
-  state.days=[...$('#daysOrder').children].map(x=>x.dataset.name);
-  state.hours=[...$('#hoursOrder').children].map(x=>x.dataset.name);
-  $('#orderDialog').close();render();
-}
-function restoreFetOrder(){
-  if(!state.fetDays.length)return;
-  $('#daysOrder').innerHTML='';$('#hoursOrder').innerHTML='';
-  state.fetDays.forEach((x,i)=>$('#daysOrder').appendChild(makeOrderLi(x,i,state.fetDays.length)));
-  state.fetHours.forEach((x,i)=>$('#hoursOrder').appendChild(makeOrderLi(x,i,state.fetHours.length)));
-}
-
-
-function getRealClassNames(){
-  const base=state.studentGroups.length
-    ? state.studentGroups
-    : uniq(state.rows.flatMap(r=>splitNames(r["Students Sets"])));
-  return uniq(base).sort((a,b)=>a.localeCompare(b,'el',{numeric:true,sensitivity:'base'}));
-}
-
-function hourStartMinutes(label){
-  const m=String(label).match(/(?:^|\D)([01]?\d|2[0-3]):([0-5]\d)/);
-  return m ? Number(m[1])*60+Number(m[2]) : null;
-}
-
-function hourEndMinutes(label){
-  const matches=[...String(label).matchAll(/([01]?\d|2[0-3]):([0-5]\d)/g)];
-  if(matches.length<2) return null;
-  const m=matches[1];
-  return Number(m[1])*60+Number(m[2]);
-}
-
-function hourVisibleByFilter(hour){
-  const filter=$('#hourFilter').value;
-  if(filter==='all') return true;
-
-  const start=hourStartMinutes(hour);
-  const end=hourEndMinutes(hour);
-
-  if(filter==='morning'){
-    // Χρησιμοποιούμε τα όρια της πραγματικής 1ης και 6ης ώρας μέσα
-    // στη σειρά του FET. Έτσι φαίνονται τα ενδιάμεσα διαλείμματα,
-    // αλλά όχι όσα βρίσκονται πριν από 08:15 ή μετά από 13:15.
-    const firstIndex=state.hours.findIndex(h=>hourStartMinutes(h)===8*60+15);
-    let lastIndex=-1;
-    state.hours.forEach((h,i)=>{
-      if(hourEndMinutes(h)===13*60+15) lastIndex=i;
-    });
-    const currentIndex=state.hours.indexOf(hour);
-
-    if(firstIndex>=0 && lastIndex>=firstIndex && currentIndex>=0){
-      return currentIndex>=firstIndex && currentIndex<=lastIndex;
-    }
-
-    // Fallback αν δεν βρεθούν τα ακριβή όρια.
-    if(start===null || end===null) return false;
-    return start>=8*60+15 && end<=13*60+15;
-  }
-
-  if(filter==='extended'){
-    // Όπως και στο Πρωινό, χρησιμοποιούμε τα πραγματικά όρια
-    // των ωρών του FET ώστε να φαίνονται μόνο τα ενδιάμεσα
-    // διαλείμματα του ολοήμερου, όχι όσα είναι πριν από 13:20.
-    const firstIndex=state.hours.findIndex(h=>hourStartMinutes(h)===13*60+20);
-    let lastIndex=-1;
-    state.hours.forEach((h,i)=>{
-      if(hourEndMinutes(h)===17*60+30) lastIndex=i;
-    });
-    const currentIndex=state.hours.indexOf(hour);
-
-    if(firstIndex>=0 && lastIndex>=firstIndex && currentIndex>=0){
-      return currentIndex>=firstIndex && currentIndex<=lastIndex;
-    }
-
-    // Fallback αν δεν βρεθούν τα ακριβή όρια.
-    if(start===null || end===null) return false;
-    return start>=13*60+20 && end<=17*60+30;
-  }
-
-  return true;
-}
-
-
-function isExtendedProgramHour(hour){
-  const start=hourStartMinutes(hour);
-  const end=hourEndMinutes(hour);
-
-  return (
-    start!==null &&
-    end!==null &&
-    start>=(13*60+20) &&
-    end<=(17*60+30)
-  );
-}
-
-function printableProgramHours(){
-  return state.hours.filter(h=>!rowIsGlobalBreak(h));
-}
-
-function setPrintHourPreset(selector,preset){
-  document.querySelectorAll(selector).forEach(cb=>{
-    if(preset==='all'){
-      cb.checked=true;
-    }else if(preset==='none'){
-      cb.checked=false;
-    }else if(preset==='morning'){
-      cb.checked=isRegularMorningProgramHour(cb.value);
-    }else if(preset==='extended'){
-      cb.checked=isExtendedProgramHour(cb.value);
-    }
-  });
-}
-
-function defaultPrintHours(){
-  // First try the standard Greek Primary School 2nd–6th teaching periods.
-  const wantedStarts=new Set([8*60+15,9*60,10*60,10*60+45,11*60+45,12*60+35]);
-  const exact=state.hours.filter(h=>wantedStarts.has(hourStartMinutes(h)));
-  if(exact.length) return new Set(exact);
-
-  // Also support hour labels such as "2η", "3η", ... "6η".
-  const ordinal=state.hours.filter(h=>/^\s*[1-6](?:η|η\s|η\.|η$)/i.test(String(h)));
-  if(ordinal.length) return new Set(ordinal);
-
-  // Generic fallback: choose the 2nd through 6th non-break hour.
-  const teaching=state.hours.filter(h=>!rowIsGlobalBreak(h));
-  return new Set(teaching.slice(0,6));
-}
-
-function makePrintCheck(list,name,cssClass,checked=false){
-  const lab=document.createElement('label');
-  lab.className='print-select-item';
-
-  const cb=document.createElement('input');
-  cb.type='checkbox';
-  cb.value=name;
-  cb.className=cssClass;
-  cb.checked=checked;
-
-  const span=document.createElement('span');
-  span.textContent=name;
-
-  lab.append(cb,span);
-  list.appendChild(lab);
-}
-
-function defaultClassPrintHourSelected(hour,defaults=defaultPrintHours()){
-  if(defaults.has(hour)) return true;
-
-  if($('#showBreaks').checked && rowIsGlobalBreak(hour)){
-    const start=hourStartMinutes(hour);
-    const end=hourEndMinutes(hour);
-
-    // Στην προεπιλογή «Πρωϊνό» της εκτύπωσης τμημάτων
-    // κρατάμε μόνο τα διαλείμματα από 08:15 έως και 13:20.
-    if(start===null || end===null) return false;
-    return start>=8*60+15 && end<=13*60+20;
-  }
-
-  return false;
-}
-
-function openPrintClassesDialog(){
-  const classList=$('#printClassesList');
-  const hourList=$('#printHoursList');
-  classList.innerHTML='';
-  hourList.innerHTML='';
-  $('#printClassesDialogTitle').textContent='Εκτύπωση τμημάτων';
-  $('#printClassesEffectiveDate').value=rememberedPrintEffectiveDate();
-
-  getRealClassNames().forEach(name=>{
-    makePrintCheck(classList,name,'print-class-check',true);
-  });
-
-  printableProgramHours().forEach(hour=>{
-    makePrintCheck(
-      hourList,
-      hour,
-      'print-hour-check',
-      isRegularMorningProgramHour(hour)
-    );
-  });
-
-  $('#printClassesDialog').showModal();
-}
-
-function selectedPrintClasses(){
-  return [...document.querySelectorAll('.print-class-check:checked')].map(x=>x.value);
-}
-
-function selectedPrintHours(){
-  const selected=new Set(
-    [...document.querySelectorAll('.print-hour-check:checked')].map(x=>x.value)
-  );
-  return printableProgramHours().filter(h=>selected.has(h));
-}
-
-function printActivityHtml(a,className,hour=''){
-  const i=info(a);
-
-  // Αν η δραστηριότητα έχει ανατεθεί στον υπεύθυνο δάσκαλο
-  // του τμήματος, δεν εκτυπώνεται καθόλου: το κελί μένει κενό.
-  if(i.teachers.some(name=>isHomeroomTeacherForSection(name,className))){
-    return '';
-  }
-
-  const parts=[];
-
-  if(i.subject){
-    parts.push(`<div class="print-subject">${escapeHtml(i.subject)}</div>`);
-  }
-
-  if(i.teachers.length){
-    parts.push(`<div class="print-detail">${escapeHtml(i.teachers.join(', '))}</div>`);
-  }
-
-  // Στην τελική εκτύπωση τμήματος εμφανίζονται μόνο αναθέσεις
-  // εκπαιδευτικών που δεν είναι ο υπεύθυνος του τμήματος.
-  return parts.join('');
-}
-
-function activityRelevantToClass(a,className){
-  const i=info(a);
-  return activityAppliesToSection(i.students,className);
-}
-
-function printHeaderLabel(value){
-  return String(value)
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g,'')
-    .toLocaleUpperCase('el-GR');
-}
-
-function rememberedPrintEffectiveDate(){
-  if(!state.printEffectiveDate){
-    state.printEffectiveDate=todayInputDate();
-  }
-  return state.printEffectiveDate;
-}
-
-function setRememberedPrintEffectiveDate(value){
-  const v=String(value||'').trim();
-  if(!v)return;
-  state.printEffectiveDate=v;
-}
-
-function todayInputDate(){
-  const d=new Date();
-  const day=String(d.getDate()).padStart(2,'0');
-  const month=String(d.getMonth()+1).padStart(2,'0');
-  const year=d.getFullYear();
-  return `${year}-${month}-${day}`;
-}
-
-function formatPrintDate(value){
-  const m=String(value||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if(m)return `${m[3]}/${m[2]}/${m[1]}`;
-
-  const d=new Date();
-  const day=String(d.getDate()).padStart(2,'0');
-  const month=String(d.getMonth()+1).padStart(2,'0');
-  const year=d.getFullYear();
-  return `${day}/${month}/${year}`;
-}
-
-function hourMatchesRange(hour,startMinutes,endMinutes){
-  return hourStartMinutes(hour)===startMinutes &&
-         hourEndMinutes(hour)===endMinutes;
-}
-
-function printBoundaryClass(hour,displayHours){
-  const hasMorningZone=displayHours.some(h=>
-    hourMatchesRange(h,7*60+15,8*60)
-  );
-  const hasFirstRegular=displayHours.some(h=>
-    hourMatchesRange(h,8*60+15,9*60)
-  );
-
-  if(
-    hasMorningZone &&
-    hasFirstRegular &&
-    hourMatchesRange(hour,8*60+15,9*60)
-  ){
-    return ' print-section-boundary';
-  }
-
-  const hasLastRegular=displayHours.some(h=>
-    hourMatchesRange(h,12*60+35,13*60+15)
-  );
-  const hasFirstExtended=displayHours.some(h=>
-    hourMatchesRange(h,13*60+20,14*60)
-  );
-
-  if(
-    hasLastRegular &&
-    hasFirstExtended &&
-    hourMatchesRange(hour,13*60+20,14*60)
-  ){
-    return ' print-section-boundary';
-  }
-
-  return '';
-}
-
-function buildClassPrintBlock(className,displayHours,effectiveDate){
-  const acts=[...buildActivities().values()].filter(a=>
-    activityRelevantToClass(a,className)
-  );
-  const bySlot=new Map();
-
-  for(const a of acts){
-    a.entries.forEach(e=>{
-      const k=slotKey(e.row.Day,e.row.Hour);
-      if(!bySlot.has(k))bySlot.set(k,[]);
-      bySlot.get(k).push(a);
+        const css = `h1{font-size:15pt}.subtitle{font-size:8pt}.date,.load{font-size:7.5pt}.load{margin-top:2mm;text-align:right}th,td{padding:2px 3px;font-size:8pt;line-height:1.02}thead th{font-size:10pt}.hour{width:23mm;font-size:9pt}tbody th,tbody td{height:8mm}.subject{font-size:9.5pt}`;
+        return openPrintWindow(printDocument('Εκτύπωση προγραμμάτων εκπαιδευτικών', css, pagesOf(blocks, selectedHours.length <= 12)));
+      }}]
     });
   }
-
-  let rows='';
-  for(const h of displayHours){
-    let cells=`<th class="print-hour">${escapeHtml(h)}</th>`;
-
-    for(const d of state.days){
-      const isBreak=state.breakSlots.has(slotKey(d,h));
-
-      if(isBreak){
-        cells += `<td></td>`;
-        continue;
-      }
-
-      const slotActs=bySlot.get(slotKey(d,h)) || [];
-      const uniqueActs=[];
-      const seen=new Set();
-
-      for(const a of slotActs){
-        if(!seen.has(a.id)){
-          seen.add(a.id);
-          uniqueActs.push(a);
+  function printAvailable() {
+    const date = dateField();
+    void schoolChoiceDialog({
+      title: 'Εκτύπωση διαθέσιμων εκπαιδευτικών', className: 'ft-print-dialog',
+      content: ['Ο πίνακας δείχνει, για κάθε ώρα του πρωινού, ποιοι εκπαιδευτικοί είναι στο σχολείο χωρίς δραστηριότητα: 6 ώρες παραμονής από την άφιξη (15 λεπτά πριν από την πρώτη ζώνη τους), με τα προγράμματα της περιόδου που μετρούν και τις μη διαθεσιμότητες του FET. Η διευθύντρια ή ο διευθυντής δεν περιλαμβάνεται.', date.field],
+      actions: [{label: 'Ακύρωση'}, {label: 'Εκτύπωση', accept: true, run: () => {
+        const effective = date.value(), programs = countedPrograms();
+        const ids = unique(programs.flatMap(item => (item.activities || []).flatMap(activity => activity.staff || [])));
+        const people = ids.map(id => staffById.get(id)).filter(Boolean).sort((a, b) => byText(a.name || a.shortName, b.name || b.shortName));
+        const morning = hours.filter(isMorning), free = new Map(), notes = new Map();
+        for (const person of people) for (const day of DAYS) {
+          const result = T.availability({programs, person, day, teachingHours: context.teachingHours});
+          if (!result) continue;
+          if (result.earlyAndAfternoon) notes.set(person.id, [...(notes.get(person.id) || []), dayLabel(day)]);
+          for (const slot of result.hours) if (slot.status === 'free') {
+            const key = day + ':' + slot.start;
+            if (!free.has(key)) free.set(key, []);
+            free.get(key).push(person.name || person.shortName);
+          }
         }
-      }
-
-      const chunks=uniqueActs
-        .map(a=>printActivityHtml(a,className,h))
-        .filter(Boolean)
-        .map(html=>`<div class="print-activity">${html}</div>`);
-
-      cells += `<td>${chunks.join('')}</td>`;
-    }
-
-    rows += `<tr class="${printBoundaryClass(h,displayHours).trim()}">${cells}</tr>`;
-  }
-
-  const daysHead=state.days.map(d=>`<th>${escapeHtml(printHeaderLabel(d))}</th>`).join('');
-
-  const homeroomShort=homeroomTeacherForSection(className);
-  const homeroomFull=teacherFullName(homeroomShort) || homeroomShort;
-  const homeroomSubtitle=homeroomFull
-    ? `<div class="print-subtitle">${escapeHtml(homeroomFull)}</div>`
-    : '';
-
-  return `
-    <section class="class-block">
-      <div class="class-print-header">
-        <div class="class-print-spacer"></div>
-        <div class="print-title-group">
-          <h1>${escapeHtml(className)}</h1>
-          ${homeroomSubtitle}
-        </div>
-        <div class="print-date">Ισχύει από: ${escapeHtml(effectiveDate)}</div>
-      </div>
-      <table>
-        <thead>
-          <tr><th class="print-hour-head">${escapeHtml(printHeaderLabel("Ώρα"))}</th>${daysHead}</tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </section>
-  `;
-}
-
-function canPairClassesOnPage(displayHours){
-  // Με την κανονική, μεγαλύτερη γραμματοσειρά των τμημάτων,
-  // μέχρι 10 επιλεγμένες ώρες χωρούν με ασφάλεια δύο πίνακες.
-  // Πάνω από αυτό χρησιμοποιούμε ένα τμήμα ανά A4 ώστε να μην
-  // πλησιάζουν/επικαλύπτονται οι τίτλοι και οι πίνακες.
-  return displayHours.length<=10;
-}
-
-function printHtmlForClasses(classNames,displayHours,effectiveDate){
-  let pages='';
-  const pair=canPairClassesOnPage(displayHours);
-
-  if(pair){
-    for(let i=0;i<classNames.length;i+=2){
-      const first=classNames[i];
-      const second=classNames[i+1];
-
-      pages += `
-        <section class="print-page two-up">
-          ${buildClassPrintBlock(first,displayHours,effectiveDate)}
-          ${second ? buildClassPrintBlock(second,displayHours,effectiveDate) : ''}
-        </section>
-      `;
-    }
-  }else{
-    for(const className of classNames){
-      pages += `
-        <section class="print-page single">
-          ${buildClassPrintBlock(className,displayHours,effectiveDate)}
-        </section>
-      `;
-    }
-  }
-
-  return `<!doctype html>
-<html lang="el">
-<head>
-<meta charset="utf-8">
-<title>Εκτύπωση προγράμματος</title>
-<style>
-  *{box-sizing:border-box}
-
-  body{
-    font-family:Arial,Helvetica,sans-serif;
-    margin:0;
-    color:#000;
-    background:#fff;
-  }
-
-  .print-page{
-    page-break-after:always;
-    break-after:page;
-  }
-
-  .print-page.two-up{
-    display:flex;
-    flex-direction:column;
-    justify-content:space-between;
-    gap:5mm;
-    height:272mm;
-  }
-
-  .print-page.single{
-    display:block;
-  }
-
-  .print-page:last-child{
-    page-break-after:auto;
-    break-after:auto;
-  }
-
-  .class-block{
-    min-height:0;
-    break-inside:avoid;
-    page-break-inside:avoid;
-  }
-
-  .class-print-header{
-    display:grid;
-    grid-template-columns:1fr auto 1fr;
-    align-items:end;
-    margin:0 0 3mm;
-  }
-
-  .class-print-spacer{
-    min-width:0;
-  }
-
-  .print-title-group{
-    text-align:center;
-    min-width:0;
-  }
-
-  .print-subtitle{
-    margin-top:4px;
-    font-size:9.5pt;
-    line-height:1.05;
-    font-weight:400;
-    text-align:center;
-  }
-
-  h1{
-    text-align:center;
-    font-size:18pt;
-    line-height:1;
-    margin:0;
-    font-weight:700;
-  }
-
-  .print-date{
-    justify-self:end;
-    text-align:right;
-    font-size:9.5pt;
-    line-height:1;
-    font-weight:400;
-    white-space:nowrap;
-  }
-
-  table{
-    width:100%;
-    border-collapse:collapse;
-    table-layout:fixed;
-    border:1.4pt solid #000;
-  }
-
-  th,td{
-    border:1.4pt solid #000;
-    padding:4px 4px;
-    text-align:center;
-    vertical-align:middle;
-    font-size:9.5pt;
-    font-weight:400;
-    line-height:1.15;
-  }
-
-  thead th{
-    font-size:12pt;
-    font-weight:700;
-    padding-top:5px;
-    padding-bottom:5px;
-  }
-
-  .print-hour-head,
-  .print-hour{
-    width:24mm;
-    min-width:24mm;
-    max-width:24mm;
-    padding-left:3px;
-    padding-right:3px;
-    white-space:nowrap;
-    font-size:10.5pt;
-    font-weight:700;
-  }
-
-  tbody tr{
-    height:10mm;
-  }
-
-  tbody th,
-  tbody td{
-    height:10mm;
-  }
-
-  .print-activity{
-    margin:0 0 3px;
-  }
-
-  .print-activity:last-child{
-    margin-bottom:0;
-  }
-
-  .print-subject{
-    font-size:11pt;
-    font-weight:700;
-    line-height:1.1;
-  }
-
-  .print-detail{
-    font-size:9.5pt;
-    font-weight:400;
-    line-height:1.1;
-    margin-top:1px;
-  }
-
-  .print-break{
-    font-size:8.5pt;
-    font-weight:700;
-  }
-
-  tr.print-section-boundary > th,
-  tr.print-section-boundary > td{
-    border-top:2.8pt solid #000 !important;
-  }
-
-  @page{
-    size:A4 portrait;
-    margin:10mm 8mm;
-  }
-</style>
-</head>
-<body>${pages}</body>
-</html>`;
-}
-
-function printSelectedClasses(){
-  const selectedClasses=selectedPrintClasses();
-  const selectedHours=selectedPrintHours();
-  setRememberedPrintEffectiveDate($('#printClassesEffectiveDate').value);
-  const effectiveDate=formatPrintDate(state.printEffectiveDate);
-
-  if(!selectedClasses.length){
-    alert('Επίλεξε τουλάχιστον ένα τμήμα.');
-    return;
-  }
-
-  if(!selectedHours.length){
-    alert('Επίλεξε τουλάχιστον μία ώρα.');
-    return;
-  }
-
-  const w=window.open('','_blank');
-  if(!w){
-    alert('Ο browser μπλόκαρε το παράθυρο εκτύπωσης.');
-    return;
-  }
-
-  w.document.open();
-  w.document.write(printHtmlForClasses(selectedClasses,selectedHours,effectiveDate));
-  w.document.close();
-
-  $('#printClassesDialog').close();
-
-  w.onload=()=>{
-    setTimeout(()=>{
-      w.focus();
-      w.print();
-    },150);
-  };
-}
-
-
-function getTeacherNames(){
-  return sortTeachersClassroomFirst(
-    uniq(state.rows.flatMap(r=>splitNames(r.Teachers)))
-  );
-}
-
-function isSpecialtyTeacher(name){
-  // Ειδικότητα = κωδικός που ξεκινά με [ΠΕ...], εκτός από το ακριβές [ΠΕ70].
-  // Ο [ΠΕ70] θεωρείται δάσκαλος, όπως και κάθε εκπαιδευτικός χωρίς άλλο [ΠΕ*] prefix.
-  const m=String(name).match(/^\s*\[([^\]]+)\]/u);
-  if(!m)return false;
-
-  const code=m[1].trim();
-  return code.startsWith('ΠΕ') && code!=='ΠΕ70';
-}
-
-function teacherPrintHours(){
-  return printableProgramHours();
-}
-
-function defaultTeacherHourSelected(hour){
-  const start=hourStartMinutes(hour);
-  // Οι δύο τελευταίες απογευματινές ζώνες (περίπου 16:00–17:30)
-  // ξεκινούν μη επιλεγμένες. Όλες οι προηγούμενες ώρες επιλέγονται.
-  return start===null || start < (15*60+55);
-}
-
-function openPrintTeachersDialog(mode='staff'){
-  const teacherList=$('#printTeachersList');
-  const hourList=$('#printTeacherHoursList');
-  teacherList.innerHTML='';
-  hourList.innerHTML='';
-  $('#printTeachersEffectiveDate').value=rememberedPrintEffectiveDate();
-
-  const titles={
-    staff:'Εκτύπωση προσωπικού',
-    classroom:'Εκτύπωση δασκάλων',
-    specialties:'Εκτύπωση ειδικοτήτων'
-  };
-  $('#printTeachersDialogTitle').textContent=titles[mode]||titles.staff;
-
-  getTeacherNames().forEach(name=>{
-    let checked=true;
-    if(mode==='classroom')checked=!isSpecialtyTeacher(name);
-    if(mode==='specialties')checked=isSpecialtyTeacher(name);
-
-    makePrintCheck(
-      teacherList,
-      name,
-      'print-teacher-check',
-      checked
-    );
-  });
-
-  // Και στα τρία presets εμφανίζονται όλες οι διαθέσιμες ώρες
-  // και είναι όλες προεπιλεγμένες.
-  teacherPrintHours().forEach(hour=>{
-    makePrintCheck(
-      hourList,
-      hour,
-      'print-teacher-hour-check',
-      true
-    );
-  });
-
-  $('#printTeachersDialog').showModal();
-}
-
-function selectedPrintTeachers(){
-  return [...document.querySelectorAll('.print-teacher-check:checked')].map(x=>x.value);
-}
-
-function selectedTeacherPrintHours(){
-  const selected=new Set(
-    [...document.querySelectorAll('.print-teacher-hour-check:checked')].map(x=>x.value)
-  );
-  return teacherPrintHours().filter(h=>selected.has(h));
-}
-
-function activityRelevantToTeacher(a,teacherName){
-  return info(a).teachers.includes(teacherName);
-}
-
-function printTeacherActivityHtml(a,teacherName){
-  const i=info(a);
-  const parts=[];
-  const specialty=isSpecialtyTeacher(teacherName);
-
-  // Για δασκάλους: μάθημα + τμήμα.
-  // Για ειδικότητες: μόνο τμήμα, χωρίς το όνομα του μαθήματος.
-  if(!specialty && i.subject){
-    parts.push(`<div class="print-subject">${escapeHtml(i.subject)}</div>`);
-  }
-
-  if(i.students.length){
-    const cls=specialty ? 'print-subject' : 'print-detail';
-    parts.push(`<div class="${cls}">${escapeHtml(i.students.join(', '))}</div>`);
-  }
-
-  return parts.join('');
-}
-
-function buildTeacherPrintBlock(teacherName,displayHours,effectiveDate){
-  const acts=[...buildActivities().values()].filter(a=>activityRelevantToTeacher(a,teacherName));
-  const bySlot=new Map();
-
-  for(const a of acts){
-    a.entries.forEach(e=>{
-      const k=slotKey(e.row.Day,e.row.Hour);
-      if(!bySlot.has(k))bySlot.set(k,[]);
-      bySlot.get(k).push(a);
+        const head = '<tr><th class="hour">Ώρα</th>' + DAYS.map(day => '<th>' + esc(upper(dayLabel(day))) + '</th>').join('') + '</tr>';
+        const rows = morning.map(hour => '<tr><th class="hour">' + esc(hour.name) + '</th>' + DAYS.map(day => {
+          const names = free.get(day + ':' + hour.start) || [];
+          return '<td class="cell"><div class="count">[' + names.length + ']</div>' + names.map(name => '<div class="name">' + esc(name) + '</div>').join('') + '</td>';
+        }).join('') + '</tr>').join('');
+        const footnote = notes.size ? '<p class="note">Πρωινή Ζώνη και απογευματινή ώρα την ίδια ημέρα: ' + esc([...notes].map(([id, days]) => (staffById.get(id)?.name || '') + ' (' + days.join(', ') + ')').join('· ')) + '.</p>' : '';
+        const css = `@page{size:A4 landscape;margin:9mm}h1{font-size:17pt}.date{font-size:9pt}th,td{padding:4px 5px;font-size:8.5pt;line-height:1.08;vertical-align:top}thead th{font-size:10pt;vertical-align:middle}.hour{width:29mm;font-size:9pt;vertical-align:middle}.count{font-size:8pt;font-weight:700;margin-bottom:4px}.name{margin:0 0 3px}.note{margin:3mm 0 0;font-size:8.5pt}`;
+        return openPrintWindow(printDocument('Διαθέσιμοι Εκπαιδευτικοί', css, '<div class="head"><div></div><div class="title"><h1>Διαθέσιμοι Εκπαιδευτικοί</h1></div><div class="date">Ισχύει από: ' + esc(effective) + '</div></div><table><thead>' + head + '</thead><tbody>' + rows + '</tbody></table>' + footnote));
+      }}]
     });
   }
-
-  let rows='';
-  for(const h of displayHours){
-    let cells=`<th class="print-hour">${escapeHtml(h)}</th>`;
-
-    for(const d of state.days){
-      const isBreak=state.breakSlots.has(slotKey(d,h));
-
-      if(isBreak){
-        cells += `<td></td>`;
-        continue;
-      }
-
-      const slotActs=bySlot.get(slotKey(d,h)) || [];
-      const uniqueActs=[];
-      const seen=new Set();
-
-      for(const a of slotActs){
-        if(!seen.has(a.id)){
-          seen.add(a.id);
-          uniqueActs.push(a);
-        }
-      }
-
-      const chunks=uniqueActs
-        .map(a=>printTeacherActivityHtml(a,teacherName))
-        .filter(Boolean)
-        .map(html=>`<div class="print-activity">${html}</div>`);
-
-      cells += `<td>${chunks.join('')}</td>`;
-    }
-
-    rows += `<tr class="${printBoundaryClass(h,displayHours).trim()}">${cells}</tr>`;
+  function print() {
+    if (busy || !program) return;
+    const mode = $('printMode').value;
+    if (mode === 'classes') printClasses();
+    else if (mode === 'available') printAvailable();
+    else printTeachers(mode);
   }
 
-  const daysHead=state.days.map(d=>`<th>${escapeHtml(printHeaderLabel(d))}</th>`).join('');
-
-  const fullName=teacherFullName(teacherName);
-  const fullNameSubtitle=fullName
-    ? `<div class="print-subtitle">${escapeHtml(fullName)}</div>`
-    : '';
-
-  // Πάντα το συνολικό ωράριο από ΟΛΟ το φορτωμένο timetable,
-  // ανεξάρτητα από τις ώρες που επιλέχθηκαν για εκτύπωση.
-  const assignedHours=teacherAssignedHours(teacherName);
-  const targetHours=teacherTargetHours(teacherName);
-  const teachingLoad=`${assignedHours}/${targetHours}`;
-
-  return `
-    <section class="teacher-block">
-      <div class="class-print-header">
-        <div class="class-print-spacer"></div>
-        <div class="print-title-group">
-          <h1>${escapeHtml(teacherName)}</h1>
-          ${fullNameSubtitle}
-        </div>
-        <div class="print-date">Ισχύει από: ${escapeHtml(effectiveDate)}</div>
-      </div>
-
-      <table>
-        <thead>
-          <tr><th class="print-hour-head">${escapeHtml(printHeaderLabel("Ώρα"))}</th>${daysHead}</tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-
-      <div class="print-teaching-load">Διδακτικό ωράριο: ${escapeHtml(teachingLoad)}</div>
-    </section>
-  `;
-}
-
-function canPairTeachersOnPage(displayHours){
-  // Με έως 10 επιλεγμένες γραμμές τα δύο προγράμματα χωρούν άνετα
-  // σε A4 portrait στο 100%. Για μεγαλύτερους πίνακες χρησιμοποιούμε
-  // έναν εκπαιδευτικό ανά σελίδα ώστε να μη γίνεται επικάλυψη.
-  return displayHours.length<=12;
-}
-
-function printHtmlForTeachers(teacherNames,displayHours,effectiveDate){
-  let pages='';
-  const pair=canPairTeachersOnPage(displayHours);
-
-  if(pair){
-    for(let i=0;i<teacherNames.length;i+=2){
-      const first=teacherNames[i];
-      const second=teacherNames[i+1];
-
-      pages += `
-        <section class="teacher-print-page two-up">
-          ${buildTeacherPrintBlock(first,displayHours,effectiveDate)}
-          ${second ? buildTeacherPrintBlock(second,displayHours,effectiveDate) : ''}
-        </section>
-      `;
-    }
-  }else{
-    for(const teacherName of teacherNames){
-      pages += `
-        <section class="teacher-print-page single">
-          ${buildTeacherPrintBlock(teacherName,displayHours,effectiveDate)}
-        </section>
-      `;
-    }
-  }
-
-  return `<!doctype html>
-<html lang="el">
-<head>
-<meta charset="utf-8">
-<title>Εκτύπωση προγραμμάτων εκπαιδευτικών</title>
-<style>
-  *{box-sizing:border-box}
-
-  body{
-    font-family:Arial,Helvetica,sans-serif;
-    margin:0;
-    color:#000;
-    background:#fff;
-  }
-
-  .teacher-print-page{
-    page-break-after:always;
-    break-after:page;
-  }
-
-  .teacher-print-page.two-up{
-    display:flex;
-    flex-direction:column;
-    justify-content:space-between;
-    gap:3mm;
-    height:272mm;
-  }
-
-  .teacher-print-page.single{
-    display:block;
-  }
-
-  .teacher-print-page:last-child{
-    page-break-after:auto;
-    break-after:auto;
-  }
-
-  .teacher-block{
-    min-height:0;
-    break-inside:avoid;
-    page-break-inside:avoid;
-  }
-
-  .class-print-header{
-    display:grid;
-    grid-template-columns:1fr auto 1fr;
-    align-items:end;
-    margin:0 0 3mm;
-  }
-
-  .class-print-spacer{min-width:0}
-
-  .print-title-group{
-    text-align:center;
-    min-width:0;
-  }
-
-  .print-subtitle{
-    margin-top:3px;
-    font-size:8pt;
-    line-height:1.02;
-    font-weight:400;
-    text-align:center;
-  }
-
-  h1{
-    text-align:center;
-    font-size:15pt;
-    line-height:1;
-    margin:0;
-    font-weight:700;
-  }
-
-  .print-date{
-    justify-self:end;
-    text-align:right;
-    white-space:nowrap;
-    font-size:7.5pt;
-    line-height:1;
-    font-weight:400;
-  }
-
-  .print-teaching-load{
-    margin-top:2mm;
-    text-align:right;
-    white-space:nowrap;
-    font-size:7.5pt;
-    line-height:1;
-    font-weight:400;
-  }
-
-  table{
-    width:100%;
-    border-collapse:collapse;
-    table-layout:fixed;
-    border:1.4pt solid #000;
-  }
-
-  th,td{
-    border:1.4pt solid #000;
-    padding:2px 3px;
-    text-align:center;
-    vertical-align:middle;
-    font-size:8pt;
-    line-height:1.02;
-  }
-
-  thead th{
-    font-size:10pt;
-    font-weight:700;
-    padding-top:3px;
-    padding-bottom:3px;
-  }
-
-  .print-hour-head,
-  .print-hour{
-    width:23mm;
-    min-width:23mm;
-    max-width:23mm;
-    padding-left:2px;
-    padding-right:2px;
-    white-space:nowrap;
-    font-size:9pt;
-    font-weight:700;
-  }
-
-  tbody tr,
-  tbody th,
-  tbody td{
-    height:8mm;
-  }
-
-  .print-activity{
-    margin:0 0 1px;
-  }
-
-  .print-activity:last-child{
-    margin-bottom:0;
-  }
-
-  .print-subject{
-    font-size:9.5pt;
-    font-weight:700;
-    line-height:1.02;
-  }
-
-  .print-detail{
-    font-size:8pt;
-    font-weight:400;
-    line-height:1.02;
-    margin-top:0;
-  }
-
-  .print-break{
-    font-size:7pt;
-    font-weight:700;
-  }
-
-  tr.print-section-boundary > th,
-  tr.print-section-boundary > td{
-    border-top:2.8pt solid #000 !important;
-  }
-
-  @page{
-    size:A4 portrait;
-    margin:10mm 8mm;
-  }
-</style>
-</head>
-<body>${pages}</body>
-</html>`;
-}
-
-function openPrintAvailableDialog(){
-  if(!state.fetName){
-    alert('Για την εκτύπωση «Διαθέσιμοι Εκπαιδευτικοί» πρέπει να έχει φορτωθεί και το αρχείο FET.');
-    return;
-  }
-
-  $('#printAvailableEffectiveDate').value=rememberedPrintEffectiveDate();
-  $('#printAvailableDialog').showModal();
-}
-
-function printHtmlForAvailableTeachers(effectiveDate){
-  const days=availabilityWeekdays();
-  const hours=availabilityMorningHours();
-
-  const daysHead=days
-    .map(day=>`<th>${escapeHtml(printHeaderLabel(day))}</th>`)
-    .join('');
-
-  let rows='';
-
-  for(const hour of hours){
-    let cells=`<th class="hour">${escapeHtml(hour)}</th>`;
-
-    for(const day of days){
-      const teachers=availableTeachersForSlot(day,hour);
-
-      const html=teachers.map(teacher=>{
-        const full=teacherFullName(teacher)||teacher;
-        return `<div class="available-teacher">${escapeHtml(full)}</div>`;
-      }).join('');
-
-      cells+=`
-        <td class="available-cell">
-          <div class="available-count">[${teachers.length}]</div>
-          <div class="available-list">${html}</div>
-        </td>
-      `;
-    }
-
-    rows+=`<tr>${cells}</tr>`;
-  }
-
-  return `<!doctype html>
-<html lang="el">
-<head>
-<meta charset="utf-8">
-<title>Διαθέσιμοι Εκπαιδευτικοί</title>
-<style>
-  *{box-sizing:border-box}
-
-  body{
-    font-family:Arial,Helvetica,sans-serif;
-    margin:0;
-    color:#000;
-    background:#fff;
-  }
-
-  .print-header{
-    display:grid;
-    grid-template-columns:1fr auto 1fr;
-    align-items:end;
-    margin:0 0 4mm;
-  }
-
-  .spacer{min-width:0}
-
-  h1{
-    margin:0;
-    text-align:center;
-    font-size:17pt;
-    line-height:1;
-    font-weight:700;
-  }
-
-  .effective-date{
-    justify-self:end;
-    text-align:right;
-    white-space:nowrap;
-    font-size:9pt;
-    line-height:1;
-    font-weight:400;
-  }
-
-  table{
-    width:100%;
-    border-collapse:collapse;
-    table-layout:fixed;
-    border:1.4pt solid #000;
-  }
-
-  th,td{
-    border:1.2pt solid #000;
-    padding:4px 5px;
-    text-align:center;
-    vertical-align:top;
-    font-size:8.5pt;
-    line-height:1.08;
-  }
-
-  thead th{
-    font-size:10pt;
-    font-weight:700;
-    vertical-align:middle;
-  }
-
-  .hour{
-    width:29mm;
-    white-space:nowrap;
-    font-size:9pt;
-    font-weight:700;
-    vertical-align:middle;
-  }
-
-  tbody tr{
-    min-height:26mm;
-  }
-
-  .available-cell{
-    vertical-align:top;
-  }
-
-  .available-count{
-    text-align:center;
-    font-size:8pt;
-    line-height:1;
-    font-weight:700;
-    margin-bottom:4px;
-  }
-
-  .available-list{
-    min-height:0;
-  }
-
-  .available-teacher{
-    margin:0 0 3px;
-    break-inside:avoid;
-  }
-
-  .available-teacher:last-child{
-    margin-bottom:0;
-  }
-
-  @page{
-    size:A4 landscape;
-    margin:9mm;
-  }
-</style>
-</head>
-<body>
-  <div class="print-header">
-    <div class="spacer"></div>
-    <h1>Διαθέσιμοι Εκπαιδευτικοί</h1>
-    <div class="effective-date">Ισχύει από: ${escapeHtml(effectiveDate)}</div>
-  </div>
-
-  <table>
-    <thead>
-      <tr>
-        <th class="hour">Ώρα</th>
-        ${daysHead}
-      </tr>
-    </thead>
-    <tbody>
-      ${rows}
-    </tbody>
-  </table>
-</body>
-</html>`;
-}
-
-function printAvailableTeachers(){
-  setRememberedPrintEffectiveDate($('#printAvailableEffectiveDate').value);
-  const effectiveDate=formatPrintDate(state.printEffectiveDate);
-
-  const w=window.open('','_blank');
-  if(!w){
-    alert('Ο browser μπλόκαρε το παράθυρο εκτύπωσης.');
-    return;
-  }
-
-  w.document.open();
-  w.document.write(printHtmlForAvailableTeachers(effectiveDate));
-  w.document.close();
-
-  $('#printAvailableDialog').close();
-
-  w.onload=()=>{
-    setTimeout(()=>{
-      w.focus();
-      w.print();
-    },150);
-  };
-}
-
-function printSelectedTeachers(){
-  const selectedTeachers=selectedPrintTeachers();
-  const selectedHours=selectedTeacherPrintHours();
-  setRememberedPrintEffectiveDate($('#printTeachersEffectiveDate').value);
-  const effectiveDate=formatPrintDate(state.printEffectiveDate);
-
-  if(!selectedTeachers.length){
-    alert('Επίλεξε τουλάχιστον έναν εκπαιδευτικό.');
-    return;
-  }
-
-  if(!selectedHours.length){
-    alert('Επίλεξε τουλάχιστον μία ώρα.');
-    return;
-  }
-
-  const w=window.open('','_blank');
-  if(!w){
-    alert('Ο browser μπλόκαρε το παράθυρο εκτύπωσης.');
-    return;
-  }
-
-  w.document.open();
-  w.document.write(printHtmlForTeachers(selectedTeachers,selectedHours,effectiveDate));
-  w.document.close();
-
-  $('#printTeachersDialog').close();
-
-  w.onload=()=>{
-    setTimeout(()=>{
-      w.focus();
-      w.print();
-    },150);
-  };
-}
-
-function exportCSV(){
-  const lines=[state.headers.map(h=>csvEscape(h)).join(',')];
-  state.rows.forEach(r=>lines.push(state.headers.map(h=>csvEscape(r[h]??'')).join(',')));
-  const blob=new Blob(['\uFEFF'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
-  a.download=(state.csvName||'TimeTable.csv').replace(/\.csv$/i,'')+'_edited.csv';
-  a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-}
-
-$('#openBtn').onclick=()=>$('#csvInput').click();
-$('#csvState').onclick=()=>$('#csvInput').click();
-$('#fetState').onclick=()=>$('#fetInput').click();
-
-$('#csvInput').onchange=async e=>{
-  await loadFiles([...e.target.files]);
-  e.target.value='';
-};
-
-$('#fetInput').onchange=async e=>{
-  await loadFiles([...e.target.files]);
-  e.target.value='';
-};
-$('#updateOloimeroBtn').onclick=openUpdateOloimeroDialog;
-$('#cancelUpdateOloimero').onclick=()=>$('#updateOloimeroDialog').close();
-$('#chooseOloimeroDesigner').onclick=()=>$('#oloimeroDesignerInput').click();
-$('#oloimeroDesignerInput').onchange=async e=>{
-  await loadOloimeroDesignerFile(e.target.files?.[0]);
-  e.target.value='';
-};
-$('#applyUpdateOloimero').onclick=applyOloimeroUpdate;
-
-$('#studentsTab').onclick=()=>{state.entityType='students';$('#studentsTab').classList.add('active');$('#teachersTab').classList.remove('active');rebuildEntities();render()};
-$('#teachersTab').onclick=()=>{state.entityType='teachers';$('#teachersTab').classList.add('active');$('#studentsTab').classList.remove('active');rebuildEntities();render()};
-$('#search').oninput=renderEntityList;
-$('#showSubject').onchange=render;$('#showTags').onchange=render;$('#showActivityId').onchange=render;$('#showTeachers').onchange=render;$('#showRooms').onchange=render;$('#showBreaks').onchange=render;$('#hourFilter').onchange=render;$('#teacherAssignmentFilter').onchange=render;$('#mode').onchange=render;
-$('#printBtn').onclick=()=>{
-  const mode=$('#printMode').value;
-
-  if(mode==='classes'){
-    openPrintClassesDialog();
-    return;
-  }
-
-  if(mode==='available'){
-    openPrintAvailableDialog();
-    return;
-  }
-
-  openPrintTeachersDialog(mode);
-};
-$('#printAvailableEffectiveDate').onchange=e=>{
-  setRememberedPrintEffectiveDate(e.target.value);
-};
-$('#cancelPrintAvailable').onclick=()=>$('#printAvailableDialog').close();
-$('#confirmPrintAvailable').onclick=printAvailableTeachers;
-
-$('#printClassesEffectiveDate').onchange=e=>{
-  setRememberedPrintEffectiveDate(e.target.value);
-};
-$('#printTeachersEffectiveDate').onchange=e=>{
-  setRememberedPrintEffectiveDate(e.target.value);
-};
-
-$('#cancelPrintClasses').onclick=()=>$('#printClassesDialog').close();
-$('#confirmPrintClasses').onclick=printSelectedClasses;
-
-$('#printClassesAll').onclick=()=>{
-  document.querySelectorAll('.print-class-check').forEach(cb=>cb.checked=true);
-};
-$('#printClassesNone').onclick=()=>{
-  document.querySelectorAll('.print-class-check').forEach(cb=>cb.checked=false);
-};
-$('#printHoursAll').onclick=()=>
-  setPrintHourPreset('.print-hour-check','all');
-$('#printHoursNone').onclick=()=>
-  setPrintHourPreset('.print-hour-check','none');
-$('#printHoursMorning').onclick=()=>
-  setPrintHourPreset('.print-hour-check','morning');
-$('#printHoursExtended').onclick=()=>
-  setPrintHourPreset('.print-hour-check','extended');
-
-$('#cancelPrintTeachers').onclick=()=>$('#printTeachersDialog').close();
-$('#confirmPrintTeachers').onclick=printSelectedTeachers;
-
-$('#printTeachersAll').onclick=()=>{
-  document.querySelectorAll('.print-teacher-check').forEach(cb=>cb.checked=true);
-};
-
-$('#printTeachersNone').onclick=()=>{
-  document.querySelectorAll('.print-teacher-check').forEach(cb=>cb.checked=false);
-};
-
-$('#printTeachersClassroom').onclick=()=>{
-  document.querySelectorAll('.print-teacher-check').forEach(cb=>{
-    cb.checked=!isSpecialtyTeacher(cb.value);
+  // ---- Events ----
+  $('save').onclick = save;
+  $('undo').onclick = undo;
+  $('redo').onclick = redo;
+  $('undoAll').onclick = undoAll;
+  $('print').onclick = print;
+  $('oloimero').onclick = importOloimero;
+  $('tabClasses').onclick = () => { view = 'classes'; render(); };
+  $('tabTeachers').onclick = () => { view = 'teachers'; render(); };
+  $('search').addEventListener('input', renderSide);
+  document.addEventListener('keydown', event => {
+    if (!(event.ctrlKey || event.metaKey) || event.altKey || event.target.closest?.('input,select,textarea,dialog')) return;
+    const keyName = String(event.key).toLowerCase();
+    if (keyName === 'z' || keyName === 'ζ') { event.preventDefault(); event.shiftKey ? redo() : undo(); }
+    else if (keyName === 'y' || keyName === 'υ') { event.preventDefault(); redo(); }
   });
-};
-
-$('#printTeachersSpecialties').onclick=()=>{
-  document.querySelectorAll('.print-teacher-check').forEach(cb=>{
-    cb.checked=isSpecialtyTeacher(cb.value);
-  });
-};
-
-$('#printTeacherHoursAll').onclick=()=>
-  setPrintHourPreset('.print-teacher-hour-check','all');
-$('#printTeacherHoursNone').onclick=()=>
-  setPrintHourPreset('.print-teacher-hour-check','none');
-$('#printTeacherHoursMorning').onclick=()=>
-  setPrintHourPreset('.print-teacher-hour-check','morning');
-$('#printTeacherHoursExtended').onclick=()=>
-  setPrintHourPreset('.print-teacher-hour-check','extended');
-
-$('#exportBtn').onclick=exportCSV;
-$('#orderBtn').onclick=openOrder;$('#cancelOrder').onclick=()=>$('#orderDialog').close();$('#saveOrder').onclick=saveOrder;$('#restoreFetOrder').onclick=restoreFetOrder;
-$('#undoBtn').onclick=()=>{if(!state.undo.length)return;state.redo.push(currentSnap());restoreSnap(state.undo.pop());updateUndoRedo()};
-$('#redoBtn').onclick=()=>{if(!state.redo.length)return;state.undo.push(currentSnap());restoreSnap(state.redo.pop());updateUndoRedo()};
-$('#initialBtn').onclick=restoreInitial;
-
-
-// Drop .fet and/or .csv anywhere when not dragging an activity card.
-document.addEventListener('dragover',e=>{if(!state.draggedId&&e.dataTransfer?.types?.includes('Files'))e.preventDefault()});
-document.addEventListener('drop',async e=>{
-  if(state.draggedId)return;
-  const fs=[...(e.dataTransfer?.files||[])].filter(f=>/\.(fet|csv)$/i.test(f.name));
-  if(fs.length){e.preventDefault();await loadFiles(fs)}
-});
+  window.addEventListener('beforeunload', event => { if (dirty) { event.preventDefault(); event.returnValue = ''; } });
+  post({type: 'school-timetables:ready'});
 })();
 </script>
 </body>

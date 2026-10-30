@@ -1,74 +1,1485 @@
 <!doctype html>
 <html lang="el">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light">
-  <title>Εφαρμογές σχολείου</title>
-  <style>
-    :root {
-      color-scheme: light;
-      font-family: Arial, "Noto Sans", sans-serif;
-      color: #263238;
-      background: #f4f6f8;
-      font-synthesis: none;
-      text-rendering: optimizeLegibility;
-    }
-    * { box-sizing: border-box; }
-    body {
-      min-width: 320px;
-      min-height: 100vh;
-      margin: 0;
-      display: grid;
-      place-items: center;
-      padding: 24px;
-      background: radial-gradient(ellipse at top, #fff 0%, #f4f6f8 70%);
-    }
-    main { width: min(100%, 520px); text-align: center; }
-    h1 { margin: 0 0 10px; font-size: clamp(25px, 5vw, 34px); letter-spacing: -.4px; }
-    .intro { margin: 0 0 28px; color: #687680; font-size: 15px; }
-    .apps { display: grid; gap: 12px; }
-    .app-link {
-      display: flex;
-      min-height: 62px;
-      align-items: center;
-      justify-content: center;
-      padding: 14px 20px;
-      border: 1px solid #cbd3d9;
-      border-radius: 11px;
-      background: #fff;
-      box-shadow: 0 2px 6px #17212b0a;
-      color: #263238;
-      font-size: 17px;
-      font-weight: 700;
-      text-decoration: none;
-      transition: background .15s, border-color .15s, box-shadow .15s, transform .15s;
-    }
-    .app-link:hover {
-      transform: translateY(-1px);
-      border-color: #8ca9c3;
-      background: #fafdff;
-      box-shadow: 0 5px 13px #17212b12;
-    }
-    .app-link:focus-visible { outline: 3px solid #78a9dc; outline-offset: 3px; }
-    footer { margin-top: 26px; color: #89939b; font-size: 12px; }
-    @media (max-width: 420px) {
-      body { padding: 18px; }
-      .app-link { min-height: 58px; font-size: 16px; }
-    }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Εφαρμογές σχολείου</title>
+<link rel="stylesheet" href="_ui.css">
+<style>
+:root {
+  color-scheme: light;
+  font-family: Inter, "Noto Sans", "Segoe UI", Arial, sans-serif;
+  color: #172635;
+  background: #f4f7fb;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  --navy: #122b43;
+  --navy-light: #1b3a56;
+  --muted: #758596;
+  --accent: #3f80a5;
+  --sidebar-width: 286px;
+}
+html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+#app-shell { position: relative; width: 100%; height: 100%; min-height: 100dvh; overflow: hidden; background: #f4f7fb; }
+#workspace, #home { position: absolute; inset: 0; }
+#home {
+  overflow: auto;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  background:
+    radial-gradient(ellipse at 78% 12%, rgba(183, 214, 228, .35), transparent 36%),
+    linear-gradient(145deg, #f8fafc, #edf3f7);
+}
+.home-content { width: min(820px, 100%); }
+.eyebrow { margin: 0 0 12px; color: #54819a; font-size: 12px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+h1 { margin: 0; color: #18344d; font-size: clamp(32px, 5vw, 48px); letter-spacing: -.045em; line-height: 1.08; }
+.lead { max-width: 580px; margin: 16px 0 30px; color: #687b8c; font-size: 16px; line-height: 1.65; }
+.nav-app:focus-visible { outline: 3px solid #80b6d0; outline-offset: 3px; }
+/* Icon colours and letter placement: .app-mark in _ui.css; each icon sets --app-mark-bg to its --school-app-* variable. */
+.app-mark { width: 48px; height: 48px; flex: 0 0 48px; border-radius: 14px; font-size: 15px; }
+.home-note { margin: 25px 0 0; color: #94a1ab; font-size: 12px; }
+
+#app-frame {
+  position: absolute; inset: 0; display: none; width: 100%; height: 100%; border: 0;
+  background: #fff;
+}
+#app-shell.has-app #app-frame { display: block; }
+/* Drop target laid over the Designer while a file is dragged: the drop must land in the Index,
+   which keeps the file handles (a handle cannot be passed from a file:// iframe). */
+#app-drop-overlay {
+  position: absolute; inset: 0; z-index: 5; display: grid; place-items: center;
+  background: rgba(39, 104, 223, .08); outline: 3px dashed #2768df; outline-offset: -10px;
+}
+#app-drop-overlay span {
+  padding: 12px 20px; border-radius: 12px; background: #fff; color: #1455c0;
+  font-size: 17px; font-weight: 750; box-shadow: 0 8px 24px #25364a2e; pointer-events: none;
+}
+#app-shell.has-app #home { display: none; }
+#app-shell:not(.has-app) #workspace { left: var(--sidebar-width); }
+#sidebar {
+  position: absolute; z-index: 10; inset: 0 auto 0 0; width: var(--sidebar-width);
+  display: flex; flex-direction: column; padding: 22px 16px 16px;
+  color: #e9f1f6; background: linear-gradient(180deg, #142f49 0%, #10283f 100%);
+  box-shadow: 12px 0 40px rgba(11, 28, 45, .18);
+  transform: translateX(0); transition: transform .22s ease;
+}
+#app-shell.sidebar-hidden #sidebar { transform: translateX(calc(-1 * var(--sidebar-width) - 12px)); }
+.brand { display: flex; flex: 1; min-width: 0; align-items: center; gap: 8px; min-height: 20px; line-height: 20px; padding: 0 0 0 8px; }
+.brand-name { font-size: 14px; font-weight: 750; letter-spacing: .01em; }
+.sidebar-school { display: flex; align-items: baseline; gap: 12px; margin: 0; padding-left: 8px; color: #a9becd; font-size: 12px; line-height: 1.5; }
+.sidebar-school-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.sidebar-school-year { flex: 0 0 auto; margin-left: auto; white-space: nowrap; }
+.sidebar-school sup { font-size: .72em; }
+.sidebar-head { display: flex; align-items: center; justify-content: space-between; }
+.sidebar-toggle {
+  position: absolute; z-index: 11; top: 19px; left: calc(var(--sidebar-width) - 16px); display: none;
+  place-items: center; width: 32px; height: 44px; padding: 0;
+  border: 0; border-radius: 0 11px 11px 0; color: #dcebf4;
+  background: linear-gradient(to right, transparent 50%, #142f49 50%); cursor: pointer; transition: left .22s ease, color .15s, background .15s;
+}
+/* #id keeps this above the general button:hover of _ui.css, whose light fill would cover the sidebar's text. */
+#sidebar-toggle:hover:not(:disabled) { color: #fff; background: linear-gradient(to right, transparent 50%, #193953 50%); }
+.sidebar-toggle svg { width: 20px; height: 20px; transform: translateX(6px); }
+.sidebar-toggle:focus-visible { outline: 2px solid #80b6d0; outline-offset: 2px; }
+.nav-label { margin: 34px 10px 11px; color: #92a9ba; font-size: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+.nav-list { display: grid; gap: 5px; }
+.nav-app {
+  display: flex; width: 100%; min-height: 48px; gap: 12px; align-items: baseline; padding: 8px 10px;
+  border: 1px solid transparent; border-radius: 11px; color: #d8e3ec; background: transparent;
+  text-align: left; cursor: pointer; transition: background .15s, border-color .15s, color .15s;
+}
+/* Icon letters share the baseline of the name; the house has no letters, so it is centred. */
+#home-nav { align-items: center; }
+#home-nav .app-mark svg { display: block; }
+.nav-app:not(:disabled):hover { background: rgba(255,255,255,.07); }
+.nav-app:disabled { opacity: .4; cursor: not-allowed; }
+.nav-app.active { color: #fff; border-color: rgba(144,196,217,.18); background: rgba(104,158,184,.19); }
+.nav-app .app-mark { width: 30px; height: 30px; flex-basis: 30px; border-radius: 9px; font-size: 12px; }
+.nav-name { font-size: 13px; font-weight: 650; }
+.sidebar-bottom { margin-top: auto; padding: 14px 10px 3px; border-top: 1px solid rgba(220,235,245,.12); color: #93aabb; font-size: 11px; line-height: 1.5; }
+.sidebar-bottom strong { display: block; margin-bottom: 3px; color: #dbe6ee; font-size: 12px; }
+.sidebar-version { margin-left: auto; flex-shrink: 0; color: #6f8ba0; font-size: 10px; letter-spacing: .03em; }
+#desktop-rail {
+  position: absolute; z-index: 9; inset: 0 auto 0 0; display: none; width: 18px; padding: 0;
+  border: 0; background: transparent; cursor: pointer;
+}
+#desktop-rail::before {
+  position: absolute; inset: 0 auto 0 0; width: 4px; content: "";
+  background: #087fc1; transition: background .15s, width .15s;
+}
+#desktop-rail:hover::before, #desktop-rail:focus-visible::before { background: #0069ad; }
+#desktop-rail:focus-visible { outline: 0; }
+#app-shell.has-app.sidebar-hidden #desktop-rail { display: block; }
+#scrim { position: absolute; z-index: 8; inset: 0; display: none; background: rgba(11,27,42,.25); }
+#app-shell.has-app.sidebar-open #scrim { display: block; }
+/* The sidebar itself takes the focus when an application opens it (so Esc closes it); it shows no outline for that. */
+#sidebar:focus, #sidebar:focus-visible { outline: none; }
+
+@media (max-width: 1024px) {
+  #app-shell.has-app .sidebar-toggle { display: grid; }
+  #app-shell.sidebar-hidden .sidebar-toggle { left: 0; width: 18px; border-radius: 0 7px 7px 0; background: #142f49; }
+  #app-shell.sidebar-hidden #sidebar-toggle:hover:not(:disabled) { background: #193953; }
+  #app-shell.sidebar-hidden .sidebar-toggle svg { width: 16px; transform: rotate(180deg); }
+  /* An application with its own menu button («☰», school-app:menu-button) opens the sidebar from its header;
+     the tab is then shown only while the sidebar is open, at its edge, to close it. */
+  #app-shell.has-app.app-menu-button.sidebar-hidden .sidebar-toggle { display: none; }
+  #desktop-rail { display: none !important; }
+}
+
+@media (max-width: 620px) {
+  :root { --sidebar-width: min(86vw, 310px); }
+  #sidebar { padding-top: 16px; }
+  #home { place-items: start center; padding: 78px 20px 28px; }
+  .lead { margin-bottom: 23px; font-size: 15px; }
+  #app-shell:not(.has-app) { display: flex; flex-direction: column; overflow-y: auto; }
+  #app-shell:not(.has-app) #sidebar { position: relative; inset: auto; order: -1; width: 100%; flex: 0 0 auto; padding-bottom: 18px; box-shadow: none; }
+  #app-shell:not(.has-app) #workspace { position: relative; inset: auto; flex: 1 0 auto; min-height: 260px; }
+  #app-shell:not(.has-app) #home { position: relative; inset: auto; min-height: 260px; padding: 48px 24px 28px; }
+  #app-shell:not(.has-app) .sidebar-bottom { margin-top: 22px; }
+  #app-shell:not(.has-app) .nav-label { margin-top: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+}
+
+#home { place-items: start center; }
+.home-content { padding-block: 16px; }
+.data-panel { margin-top: 24px; padding: 24px; background: #fff; border: 1px solid #dce5eb; border-radius: 18px; box-shadow: 0 8px 30px #19314508; }
+.data-panel-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.data-panel-heading h2 { margin: 0; }
+.data-footer { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 22px; }
+.data-footer .data-action { min-width: 0; }
+#edit-data-cancel { margin-left: auto; }
+.data-panel h2 { margin: 0 0 10px; color: #24445b; font-size: 20px; }
+.data-panel p { color: #687b8c; font-size: 14px; line-height: 1.6; }
+.data-form { display: grid; gap: 15px; margin-top: 20px; }
+.data-field { display: grid; gap: 7px; font-size: 13px; font-weight: 650; color: #365469; }
+.data-field input, .data-field select, .data-field textarea { width: 100%; min-width: 0; padding: var(--school-ui-control-padding-y) 12px; border: 1px solid #cddbe5; border-radius: 9px; color: #243e52; background: #fff; }
+.data-field textarea { padding: 11px 12px; font: inherit; }
+.data-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+/* Height and text size of the buttons come from _ui.css (--school-ui-control-*). */
+.data-action { width: fit-content; padding: var(--school-ui-control-padding-y) 14px; }
+.data-field input:focus-visible, .data-field select:focus-visible { outline: 3px solid #80b6d0; outline-offset: 2px; }
+.data-help { margin: 0; font-size: 12px !important; color: #758596; }
+.data-error { color: #a73333 !important; min-height: 1.4em; margin: 8px 0 0; font-size: 13px; }
+.details-group { display: contents; }
+.data-details { display: grid; grid-template-columns: 120px minmax(0, 1fr); align-items:center; gap: 12px 20px; margin: 22px 0; font-size: 14px; }
+.data-details dt { color: #758596; }.data-details dd { margin: 0; overflow-wrap: anywhere; }
+.school-preview { margin: 0; padding: 10px 12px; border-radius: 9px; background: #f3f7fa; color: #365469; font-size: 14px; overflow-wrap: anywhere; }
+.password-check { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #365469; }
+.data-form textarea { resize: vertical; }
+@media(max-width: 780px) { .data-fields { grid-template-columns: 1fr; } .data-panel { padding: 18px; } .data-details { grid-template-columns: 1fr; gap: 6px; } .data-details dd { margin-bottom: 10px; } }
+
+.nav-label { position:relative; display:grid; grid-template-columns:1fr auto; align-items:center; min-height:28px; margin-right:0; }
+#lock-now { display:grid; place-items:center; justify-self:end; margin-right:-5px; width:28px; height:28px; padding:4px; border:0; border-radius:6px; color:#ffd59a; background:transparent; cursor:pointer; }
+#lock-now:hover { background:rgba(255,213,154,.12); }
+#lock-now:focus-visible { outline:2px solid currentColor; outline-offset:2px; }
+#lock-now svg { width:18px; height:18px; }
+#idle-countdown { position:absolute; left:calc(50% - 5px); top:-17px; transform:translate(-50%, -50%); text-transform:none; white-space:nowrap; }
+#idle-countdown { color:#ffd59a; font-variant-numeric:tabular-nums; letter-spacing:0; font-size:12px; }
+body.session-locked #app-shell { visibility:hidden; pointer-events:none; }
+#session-lock { position:fixed; inset:0; z-index:1000; display:grid; place-items:center; background:linear-gradient(180deg, #142f49 0%, #10283f 100%); padding:24px; }
+.lock-card { width:min(560px,100%); padding:24px 28px; border-radius:18px; background:white; border:1px solid #dce6ed; box-shadow:0 0 42px rgba(0,0,0,.32), 0 22px 70px rgba(0,0,0,.38); }
+.lock-heading { display:flex; align-items:center; gap:16px; margin-bottom:18px; }
+.lock-emblem { display:grid; place-items:center; flex:0 0 48px; height:48px; color:#18344d; background:transparent; }
+.lock-emblem svg { width:46px; height:46px; }
+.lock-card h2 { margin:0; color:#18344d; font-size:23px; line-height:1.3; }
+.lock-caption { margin:1px 0 0; color:#758596; font-size:13px; }
+.lock-description { margin:0; color:#526b7e; font-size:14px; line-height:1.7; }
+.lock-security { margin:18px 0 0; padding:13px 15px; border:1px solid #dde7ee; border-radius:11px; background:#f4f7fa; color:#405c70; font-size:13px; line-height:1.7; }
+.lock-security.no-password { border-color:#eed9b5; background:#fff8ec; color:#78582c; }
+@media(max-width:480px) { .lock-card { padding:22px 20px; } .lock-heading { gap:12px; } .lock-card h2 { font-size:20px; } }
+#session-unlock-form > button[type="submit"] { justify-self:end; }
+
+.password-input { position:relative; display:block; min-width:0; }
+.password-input input { padding-right:40px; }
+.password-toggle { position:absolute; right:3px; top:50%; transform:translateY(-50%); width:30px; height:30px; display:grid; place-items:center; padding:5px; border:0; border-radius:7px; color:#527086; background:transparent; cursor:pointer; }
+.password-toggle:hover:not(:disabled) { background:#edf3f7; }
+.password-toggle:focus-visible { outline:3px solid #80b6d0; outline-offset:0; }
+.password-toggle:disabled { opacity:.4; cursor:default; }
+.password-toggle svg { width:20px; height:20px; }
+.password-toggle .eye-slash { display:block; }
+.password-toggle[aria-pressed="true"] .eye-slash { display:none; }
+
+.protection-row { display:flex; align-items:center; justify-content:space-between; gap:14px; }
+#change-password { margin-left:auto; flex-shrink:0; text-align:center; }
+.protection-row #loaded-encryption { min-width:0; }
+.password-fields-row .data-fields { align-items:end; }
+.password-fields-row { grid-column:1 / -1; margin:0; padding:14px 0 4px; }
+.password-fields-row .data-fields { margin-top:12px; }
+
+.school-edit-table { border:1px solid #d8dee8; border-radius:10px; overflow:hidden; }
+.school-edit-row { display:grid; grid-template-columns:160px minmax(0,1fr); border-bottom:1px solid #e3e8ef; }
+.school-edit-row:last-child { border-bottom:0; }
+.school-edit-row > label,.school-edit-row > .school-edit-label { display:flex; align-items:flex-start; padding:14px 16px; background:#f0f3f7; color:#405367; font-size:14px; font-weight:650; }
+.school-edit-value { display:grid; gap:10px; padding:14px 16px; min-width:0; }
+.school-edit-value > input,.school-edit-value > select { width:100%; min-width:0; padding:var(--school-ui-control-padding-y) 12px; border:1px solid #cddbe5; border-radius:9px; color:#243e52; background:#fff; }
+.school-edit-value > input:focus-visible,.school-edit-value > select:focus-visible { outline:3px solid #80b6d0; outline-offset:2px; }
+@media(min-width:781px) {
+ #edit-password-fields .data-fields { grid-template-columns:1fr; }
+ #edit-password-fields .data-field { grid-template-columns:160px minmax(0,1fr); align-items:center; gap:16px; }
+}
+@media(max-width:780px) {
+ .school-edit-row { grid-template-columns:1fr; }
+ .school-edit-row > label,.school-edit-row > .school-edit-label { padding:12px 14px 0; background:#fff; }
+ .school-edit-value { padding:10px 14px 14px; }
+}
+
+.school-info-table { margin-top:22px; }
+.school-info-table .school-edit-row { border-bottom:1px solid #e3e8ef; }
+.school-info-table .school-edit-value { overflow-wrap:anywhere; }
+.school-info-table .password-fields-row { padding:14px 16px; border-bottom:1px solid #e3e8ef; }
+#edit-password-fields .data-field { align-items:start; }
+@media(min-width:781px) { #edit-password-fields .data-field { padding-top:4px; } }
+
+/* Keep rich inline school names together; grid would split text around <sup>. */
+.school-info-table .school-display-value { display:block; line-height:1.6; }
+.data-panel-heading h2 { margin:0; }
+.school-info-table { display:grid; gap:1px; background:#e3e8ef; }
+#school-summary,#school-edit-fields { display:contents; }
+.school-info-table .school-edit-row { border:0; background:#fff; }
+.school-info-table .school-edit-value { line-height:1.6; }
+.school-info-table .protection-row { align-items:flex-start; }
+.school-info-table #loaded-encryption { line-height:1.6; }
+.school-info-table .password-fields-row { border:0; background:#fff; }
+#edit-error:empty,#edit-status:empty { display:none; }
+
+@media(min-width:781px) {
+ .school-info-table .school-edit-row { --first-line-height:25.6px; }
+ .school-info-table .school-edit-value { font-size:16px; line-height:25.6px; }
+ .school-info-table #loaded-encryption { line-height:25.6px; }
+ .school-info-table .school-edit-row:has(.school-edit-value > input),
+ .school-info-table .school-edit-row:has(.school-edit-value > select) { --first-line-height:var(--school-ui-control-height); }
+ .school-info-table .school-edit-value > input,
+ .school-info-table .school-edit-value > select { font-size:var(--school-ui-control-font-size); height:var(--school-ui-control-height); }
+ .school-info-table .school-edit-row > label,
+ .school-info-table .school-edit-row > .school-edit-label {
+   display:block; line-height:22.4px;
+   padding-top:calc(14px + (var(--first-line-height) - 22.4px) / 2);
+ }
+ #edit-password-fields .data-field { align-items:center; }
+}
+
+.school-info-table.is-editing #school-protection-row > .school-edit-label { display:flex; align-items:center; padding-top:14px; padding-bottom:14px; }
+.school-info-table.is-editing #school-protection-row .protection-row { align-items:center; }
+@media(max-width:780px) {
+ .school-info-table.is-editing #school-protection-row > .school-edit-label { padding-bottom:0; }
+}
+
+</style>
 </head>
 <body>
-  <main>
-    <h1>Εφαρμογές σχολείου</h1>
-    <p class="intro">Επίλεξε την εφαρμογή που θέλεις να ανοίξεις.</p>
-    <nav class="apps" aria-label="Εφαρμογές">
-      <a class="app-link" href="documents_templater.html">Documents Templater</a>
-      <a class="app-link" href="fet_timetable_editor.html">Fet Timetable Editor</a>
-      <a class="app-link" href="oloimero_designer.html">Ολοήμερο Designer</a>
-      <a class="app-link" href="school_calendar.html">Σχολικό Ημερολόγιο</a>
-    </nav>
-    <footer>Οι εφαρμογές ανοίγουν από το ίδιο αποθετήριο.</footer>
+<div id="app-shell" class="sidebar-open">
+  <main id="workspace" aria-label="Χώρος εφαρμογής">
+    <section id="home" aria-labelledby="home-title">
+      <div class="home-content">
+        <p class="eyebrow">Ψηφιακό περιβάλλον σχολείου</p>
+        <h1 id="home-title">Κεντρικό Μενού</h1>
+        <p class="lead">Δημιούργησε ή άνοιξε το αρχείο πληροφοριών του σχολείου.</p>
+<section id="unlock-panel" class="data-panel" aria-labelledby="unlock-title" hidden>
+  <h2 id="unlock-title">Άνοιγμα κοινού αρχείου</h2>
+  <p>Πληκτρολόγησε τον κωδικό για να ανοίξεις το αρχείο πληροφοριών.</p>
+  <p id="unlock-filename" style="overflow-wrap:anywhere;font-weight:650"></p>
+  <form id="unlock-form" class="data-form">
+    <label class="data-field" for="unlock-password">Κωδικός<span class="password-input"><input id="unlock-password" type="password" autocomplete="current-password" required><button class="password-toggle" type="button" aria-label="Εμφάνιση κωδικού" aria-pressed="false" title="Εμφάνιση κωδικού" aria-controls="unlock-password"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/><path class="eye-slash" d="m3 3 18 18"/></svg></button></span></label>
+    <p id="unlock-error" class="data-error" role="alert"></p>
+    <div class="dialog-actions"><button id="unlock-cancel" class="data-action" type="button">Ακύρωση</button><button id="unlock-submit" class="data-action primary" type="submit">Άνοιγμα</button></div>
+  </form>
+</section>
+        <div id="data-start">
+          <section class="data-panel" aria-labelledby="load-title">
+            <h2 id="load-title">Άνοιγμα υπάρχοντος αρχείου</h2>
+            <p>Επίλεξε ένα αρχείο .data από τον υπολογιστή σου. Αν είναι κρυπτογραφημένο, θα ζητηθεί ο κωδικός του.</p>
+            <button id="open-data" class="data-action" type="button">Επιλογή αρχείου .data</button>
+            <button id="restore-access" class="data-action" type="button" hidden>Νέα άδεια για το προηγούμενο αρχείο</button>
+            <p id="remember-note" class="data-help">Στο Chrome το επιλεγμένο αρχείο μπορεί να ανοίγει ξανά μετά από ανανέωση. Ο κωδικός δεν αποθηκεύεται.</p>
+            <input id="data-file" type="file" accept=".data,application/json" hidden>
+            <p id="load-error" class="data-error" role="alert"></p>
+          </section>
+          <section class="data-panel" aria-labelledby="create-title">
+            <h2 id="create-title">Δημιουργία νέου κοινού αρχείου</h2>
+            <form id="create-data" class="data-form">
+              <label class="data-field" for="school-name">Όνομα σχολείου<input id="school-name" name="school-name" type="text" required></label>
+              <div id="school-name-preview" class="school-preview" aria-label="Προεπισκόπηση ονομασίας">Προεπισκόπηση ονομασίας</div>
+              <label class="data-field" for="school-year">Σχολικό έτος<select id="school-year" name="school-year" required></select></label>
+              <div class="data-fields">
+                <label class="data-field" for="data-password">Κωδικός (προαιρετικός)<span class="password-input"><input id="data-password" type="password" autocomplete="new-password"><button class="password-toggle" type="button" aria-label="Εμφάνιση κωδικού" aria-pressed="false" title="Εμφάνιση κωδικού" aria-controls="data-password"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/><path class="eye-slash" d="m3 3 18 18"/></svg></button></span></label>
+                <label class="data-field" for="data-password-confirm">Επιβεβαίωση κωδικού<span class="password-input"><input id="data-password-confirm" type="password" autocomplete="new-password"><button class="password-toggle" type="button" aria-label="Εμφάνιση κωδικού" aria-pressed="false" title="Εμφάνιση κωδικού" aria-controls="data-password-confirm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/><path class="eye-slash" d="m3 3 18 18"/></svg></button></span></label>
+              </div>
+              <p id="encryption-note" class="data-help">Με κενό κωδικό το αρχείο θα αποθηκευτεί χωρίς κρυπτογράφηση και τα δεδομένα του θα είναι αναγνώσιμα.</p>
+              <button id="create-data-button" class="data-action primary" type="submit">Δημιουργία και αποθήκευση .data</button>
+              <p id="create-error" class="data-error" role="alert"></p>
+            </form>
+          </section>
+        </div>
+        <section id="data-loaded" class="data-panel" aria-labelledby="loaded-title" hidden>
+          <div class="data-panel-heading"><h2 id="loaded-title">Πληροφορίες σχολείου</h2><button id="edit-data-open" class="data-action" type="button">Επεξεργασία</button></div>
+          <div class="school-edit-table school-info-table">
+            <div class="school-edit-row"><span class="school-edit-label">Αρχείο</span><div id="loaded-filename" class="school-edit-value school-display-value"></div></div>
+            <div id="school-protection-row" class="school-edit-row"><span class="school-edit-label">Προστασία</span><div class="school-edit-value"><div class="protection-row"><span id="loaded-encryption"></span><button id="change-password" class="data-action ui-toggle" type="button" hidden aria-pressed="false" aria-expanded="false" aria-controls="edit-password-fields">Αλλαγή κωδικού</button></div></div></div>
+            <div id="edit-password-fields" class="password-fields-row" hidden>
+              <p id="keep-password-note" class="data-help">Ο υπάρχων κωδικός διατηρείται αν δεν επιλέξεις αλλαγή.</p>
+              <div class="data-fields">
+                <label class="data-field" for="edit-password">Νέος κωδικός (προαιρετικός)<span class="password-input"><input id="edit-password" form="edit-data" type="password" autocomplete="new-password" disabled><button class="password-toggle" type="button" aria-label="Εμφάνιση κωδικού" aria-pressed="false" title="Εμφάνιση κωδικού" aria-controls="edit-password"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/><path class="eye-slash" d="m3 3 18 18"/></svg></button></span></label>
+                <label class="data-field" for="edit-password-confirm">Επιβεβαίωση νέου κωδικού<span class="password-input"><input id="edit-password-confirm" form="edit-data" type="password" autocomplete="new-password" disabled><button class="password-toggle" type="button" aria-label="Εμφάνιση κωδικού" aria-pressed="false" title="Εμφάνιση κωδικού" aria-controls="edit-password-confirm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/><path class="eye-slash" d="m3 3 18 18"/></svg></button></span></label>
+              </div>
+              <p id="edit-encryption-note" class="data-help">Με κενό νέο κωδικό το αρχείο θα αποθηκευτεί χωρίς κρυπτογράφηση.</p>
+            </div>
+            <div id="school-summary">
+              <div class="school-edit-row"><span class="school-edit-label">Σχολείο</span><div id="loaded-school" class="school-edit-value school-display-value"></div></div>
+              <div class="school-edit-row"><span class="school-edit-label">Σχολικό έτος</span><div id="loaded-year" class="school-edit-value school-display-value"></div></div>
+            </div>
+            <div id="school-edit-fields" hidden>
+              <div class="school-edit-row">
+                <label for="edit-school-name">Όνομα σχολείου</label>
+                <div class="school-edit-value">
+                  <input id="edit-school-name" form="edit-data" type="text" required>
+                  <div id="edit-school-preview" class="school-preview" aria-label="Προεπισκόπηση ονομασίας"></div>
+                </div>
+              </div>
+              <div class="school-edit-row">
+                <label for="edit-school-year">Σχολικό έτος</label>
+                <div class="school-edit-value"><select id="edit-school-year" form="edit-data" required></select></div>
+              </div>
+
+            </div>
+          </div>
+          <form id="edit-data" class="data-form" hidden>
+            <p class="data-help">Οι αλλαγές αποθηκεύονται στο ανοιχτό αρχείο .data. Αν χρειάζεται άδεια εγγραφής, θα ζητηθεί από το Chrome.</p>
+          </form>
+          <p id="edit-error" class="data-error" role="alert"></p>
+          <p id="edit-status" class="data-help" role="status"></p>
+          <div class="data-footer"><button id="close-data" class="data-action" type="button">Κλείσιμο αρχείου πληροφοριών</button><button id="edit-data-cancel" class="data-action" type="button" hidden>Ακύρωση</button><button id="save-data-button" class="data-action primary" type="submit" form="edit-data" hidden>Αποθήκευση αλλαγών</button></div>
+        </section>
+        <p class="home-note">Το Κεντρικό Μενού και το Documents Templater λειτουργούν και χωρίς κοινό αρχείο.</p>
+      </div>
+    </section>
+    <iframe id="app-frame" title="Ενεργή εφαρμογή" allow="clipboard-read; clipboard-write; fullscreen"></iframe>
+    <div id="app-drop-overlay" hidden><span>Αφήστε το CSV του Ολοημέρου για εισαγωγή</span></div>
   </main>
+
+  <button id="desktop-rail" type="button" aria-label="Άνοιγμα μενού εφαρμογών" title="Εφαρμογές"></button>
+  <div id="scrim" aria-hidden="true"></div>
+
+  <aside id="sidebar" tabindex="-1" aria-label="Πλοήγηση εφαρμογών">
+    <div class="sidebar-head">
+      <div class="brand">
+        <span class="brand-name">Εφαρμογές σχολείου</span>
+        <span class="sidebar-version" aria-label="Έκδοση 0.88">v0.88</span>
+      </div>
+    </div>
+    <div id="sidebar-school" class="sidebar-school" hidden><span id="nav-school-name" class="sidebar-school-name"></span><span id="nav-school-year" class="sidebar-school-year"></span></div>
+    <div class="nav-label"><span>Εφαρμογές</span><button id="lock-now" type="button" hidden title="Άμεσο κλείδωμα" aria-label="Άμεσο κλείδωμα"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 10V7a5 5 0 0 1 10 0v3h1a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h1Zm2 0h6V7a3 3 0 0 0-6 0v3Z"/></svg></button><span id="idle-countdown" hidden title="Χρόνος μέχρι το αυτόματο κλείδωμα"></span></div>
+    <nav class="nav-list" aria-label="Επιλογή εφαρμογής">
+      <button id="home-nav" class="nav-app active" type="button" aria-current="page"><span class="app-mark" style="--app-mark-bg:var(--school-app-home)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7"/><path d="M5 9v12h14V9M9 21v-8h6v8"/></svg></span><span class="nav-name">Κεντρικό Μενού</span></button>
+      <button id="staff-nav" class="nav-app" type="button" disabled aria-disabled="true" data-app="school_staff.html" data-title="Προσωπικό"><span class="app-mark" style="--app-mark-bg:var(--school-app-staff)"><span>ΠΡ</span></span><span class="nav-name">Προσωπικό</span></button>
+      <button id="hours-nav" class="nav-app" type="button" disabled aria-disabled="true" data-app="teaching_hours.html" data-title="Ώρες Διδασκαλίας"><span class="app-mark" style="--app-mark-bg:var(--school-app-hours)"><span>ΩΔ</span></span><span class="nav-name">Ώρες Διδασκαλίας</span></button>
+      <button id="programs-nav" class="nav-app" type="button" disabled aria-disabled="true" data-app="timetables.html" data-title="Σχολικά Προγράμματα"><span class="app-mark" style="--app-mark-bg:var(--school-app-timetables)"><span>ΣΠ</span></span><span class="nav-name">Σχολικά Προγράμματα</span></button>
+      <button id="docs-nav" class="nav-app" type="button" data-app="documents_templater.html" data-title="Documents Templater"><span class="app-mark" style="--app-mark-bg:var(--school-app-docs)"><span>DT</span></span><span class="nav-name">Documents Templater</span></button>
+      <button id="fet-nav" class="nav-app" type="button" disabled aria-disabled="true" data-app="fet_timetable_editor.html" data-title="FET Timetable Editor"><span class="app-mark" style="--app-mark-bg:var(--school-app-fet)"><span>FT</span></span><span class="nav-name">FET Timetable Editor</span></button>
+      <button id="oloimero-nav" class="nav-app" type="button" disabled aria-disabled="true" data-app="oloimero_designer.html" data-title="Ολοήμερο Designer"><span class="app-mark" style="--app-mark-bg:var(--school-app-oloimero)"><span>ΟΛ</span></span><span class="nav-name">Ολοήμερο Designer</span></button>
+      <button class="nav-app" type="button" disabled aria-disabled="true" data-app="school_calendar.html" data-title="Σχολικό Ημερολόγιο"><span class="app-mark" style="--app-mark-bg:var(--school-app-calendar)"><span>ΗΜ</span></span><span class="nav-name">Σχολικό Ημερολόγιο</span></button>
+    </nav>
+    <div class="sidebar-bottom"><strong id="active-app-label">Κεντρικό Μενού</strong><span id="common-file-status">Δεν έχει ανοιχτεί κοινό αρχείο.</span></div>
+  </aside>
+  <button id="sidebar-toggle" class="sidebar-toggle" type="button" aria-controls="sidebar" aria-expanded="false" aria-label="Άνοιγμα μενού εφαρμογών" title="Άνοιγμα μενού">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14.5 5-7 7 7 7"/></svg>
+  </button>
+</div>
+<dialog id="file-access-dialog" aria-labelledby="file-access-title">
+  <h2 id="file-access-title">Πρόσβαση στο κοινό αρχείο</h2>
+  <p>Για να διαβαστεί ξανά το παρακάτω αρχείο, χρειάζεται άδεια πρόσβασης στο Chrome.</p>
+  <p id="file-access-name" style="overflow-wrap:anywhere;font-weight:650"></p>
+  <p class="data-help">Πάτησε «Να επιτραπεί η πρόσβαση» και επιβεβαίωσε στο παράθυρο του Chrome. Ο κωδικός του αρχείου θα ζητηθεί χωριστά, αν χρειάζεται.</p>
+  <p id="file-access-error" class="data-error" role="alert"></p>
+  <div class="dialog-actions"><button id="file-access-cancel" class="data-action" type="button">Ακύρωση</button><button id="file-access-allow" class="data-action confirm-accept" type="button">Να επιτραπεί η πρόσβαση</button></div>
+</dialog>
+
+<section id="session-lock" hidden aria-labelledby="session-lock-title">
+  <div class="lock-card">
+  <div class="lock-heading"><span class="lock-emblem" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 10V7a5 5 0 0 1 10 0v3h1a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h1Zm2 0h6V7a3 3 0 0 0-6 0v3Z"/></svg></span><div><h2 id="session-lock-title">Το περιβάλλον κλειδώθηκε</h2><p class="lock-caption">Εφαρμογές σχολείου</p></div></div>
+  <p class="lock-description">Οι εφαρμογές παραμένουν ανοιχτές και οι αλλαγές σου διατηρούνται. Ξεκλείδωσε το περιβάλλον για να συνεχίσεις από εκεί που σταμάτησες.</p>
+  <p id="session-lock-security" class="lock-security"></p>
+  <form id="session-unlock-form" class="data-form">
+    <label id="session-password-label" class="data-field">Κωδικός αρχείου<span class="password-input"><input id="session-password" type="password" autocomplete="current-password"><button class="password-toggle" type="button" aria-label="Εμφάνιση κωδικού" aria-pressed="false" title="Εμφάνιση κωδικού" aria-controls="session-password"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/><path class="eye-slash" d="m3 3 18 18"/></svg></button></span></label>
+    <p id="session-lock-error" class="data-error" role="alert"></p>
+    <button class="data-action primary" type="submit">Ξεκλείδωμα</button>
+  </form></div>
+</section>
+<script src="_ui.js"></script>
+<script src="_data.js"></script>
+<script src="_host_timetables.js"></script>
+<script id="shared-data-codec">
+globalThis.SchoolDataCodec = (() => {
+  const iterations = 310000, encoder = new TextEncoder(), decoder = new TextDecoder();
+  const b64 = bytes => { let text = ''; for (const b of new Uint8Array(bytes)) text += String.fromCharCode(b); return btoa(text); };
+  const unb64 = text => Uint8Array.from(atob(text), c => c.charCodeAt(0));
+  function validate(data) {
+    if (!data || data.format !== 'school-shared-data' || data.formatVersion !== 1 ||
+      !data.school || typeof data.school.name !== 'string' || !data.school.name.trim() ||
+      typeof data.school.year !== 'string' || !/^\d{4}-\d{4}$/.test(data.school.year)) throw Error('Τα κοινά δεδομένα του αρχείου δεν είναι έγκυρα.');
+    return data;
+  }
+  function inspect(box) {
+    if (!box || box.app !== 'SchoolSharedData' || box.formatVersion !== 1) throw Error('Το αρχείο δεν είναι αναγνωρισμένο κοινό αρχείο .data.');
+    if (box.encryption === 'none') { validate(box.payload); return false; }
+    if (box.encryption !== 'AES-256-GCM' || box.kdf !== 'PBKDF2-SHA-256' ||
+      !Number.isInteger(box.iterations) || box.iterations < 100000 || box.iterations > 2000000 ||
+      typeof box.ciphertext !== 'string' || unb64(box.salt).length !== 16 || unb64(box.iv).length !== 12)
+      throw Error('Η μορφή κρυπτογράφησης του αρχείου δεν υποστηρίζεται.');
+    return true;
+  }
+  async function derive(password, salt, rounds) {
+    if (!globalThis.crypto?.subtle) throw Error('Η κρυπτογράφηση χρειάζεται ασφαλές περιβάλλον browser (HTTPS ή τοπικό αρχείο).');
+    const material = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey({name:'PBKDF2', salt, iterations:rounds, hash:'SHA-256'}, material, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']);
+  }
+  async function encode(data, password) {
+    validate(data);
+    if (password === '') return {app:'SchoolSharedData', formatVersion:1, encryption:'none', payload:data};
+    const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+    const key = await derive(password, salt, iterations);
+    const ciphertext = await crypto.subtle.encrypt({name:'AES-GCM', iv}, key, encoder.encode(JSON.stringify(data)));
+    return {app:'SchoolSharedData', formatVersion:1, encryption:'AES-256-GCM', kdf:'PBKDF2-SHA-256', iterations, salt:b64(salt), iv:b64(iv), ciphertext:b64(ciphertext)};
+  }
+  async function decode(box, password) {
+    if (!inspect(box)) return validate(box.payload);
+    const key = await derive(password, unb64(box.salt), box.iterations);
+    let raw;
+    try { raw = await crypto.subtle.decrypt({name:'AES-GCM', iv:unb64(box.iv)}, key, unb64(box.ciphertext)); }
+    catch { throw Error('Ο κωδικός δεν είναι σωστός ή το αρχείο έχει αλλοιωθεί.'); }
+    return validate(JSON.parse(decoder.decode(raw)));
+  }
+  return Object.freeze({encode, decode, inspect, validate});
+})();
+</script>
+<script>
+(() => {
+  const shell = document.getElementById('app-shell');
+  const sidebar = document.getElementById('sidebar');
+  const sidebarToggle = document.getElementById('sidebar-toggle');
+  const frame = document.getElementById('app-frame');
+  const label = document.getElementById('active-app-label');
+  const buttons = [...document.querySelectorAll('[data-app]')];
+  let sidebarHideTimer = 0;
+  let sidebarMouseTracking = false;
+  let sidebarOpenedForIdleWarning = false;
+  let currentAppFile = '';
+  let staffDirty = false;
+  let staffSaving = false;
+  let schoolRevision = 0;
+  let sharedData = null;
+  let sessionPassword = '';
+  let sharedFilename = '';
+  let editingData = false;
+  let rememberedHandle = null;
+  let fileLoadGeneration = 0;
+  // The last selection of the program applications (lastViewByYear in .data) is not a change of data: it is
+  // kept in sharedData and written with the next save, or when the application is left (writeViews).
+  let viewsChanged = 0, viewsWritten = 0, viewWrite = Promise.resolve(), dataWrites = 0;
+  // Programs (timetablesByYear): validation and the school-timetables:* protocol live in _host_timetables.js.
+  const Timetables = window.SchoolHostTimetables || null;
+  const missingTimetables = 'Λείπει το αρχείο _data.js ή _host_timetables.js από τον φάκελο των εφαρμογών. Βεβαιώσου ότι το index.html και τα κοινά αρχεία είναι η τελευταία έκδοση.';
+
+  const $ = id => document.getElementById(id);
+  const passwordToggles = [...document.querySelectorAll('.password-toggle')];
+  function setPasswordVisible(button, visible) {
+    const input = $(button.getAttribute('aria-controls'));
+    input.type = visible ? 'text' : 'password';
+    button.setAttribute('aria-pressed', String(visible));
+    button.title = visible ? 'Απόκρυψη κωδικού' : 'Εμφάνιση κωδικού';
+    button.setAttribute('aria-label', button.title);
+  }
+  function hidePasswords() { passwordToggles.forEach(button => setPasswordVisible(button, false)); }
+  passwordToggles.forEach(button => {
+    const input = $(button.getAttribute('aria-controls'));
+    button.disabled = input.disabled;
+    new MutationObserver(() => { button.disabled = input.disabled; if (input.disabled) setPasswordVisible(button, false); })
+      .observe(input, {attributes:true, attributeFilter:['disabled']});
+    button.addEventListener('click', event => {
+      event.preventDefault();
+      if (!input.disabled) setPasswordVisible(button, input.type === 'password');
+    });
+  });
+  const idleLimit = 4 * 60 * 1000;
+  let lastActivity = Date.now(), sessionLocked = false, idleWarningShown = false;
+  const activityEvents = ['pointermove', 'pointerdown', 'keydown', 'input', 'wheel', 'touchstart'];
+  function tickIdle() {
+    $('lock-now').hidden = !sharedData || sessionLocked;
+    if (!sharedData || sessionLocked) { $('idle-countdown').hidden = true; idleWarningShown = false; sidebarOpenedForIdleWarning = false; return; }
+    const remaining = idleLimit - (Date.now() - lastActivity);
+    if (remaining <= 0) { lockSession(); return; }
+    const seconds = Math.ceil(remaining / 1000);
+    const warning = remaining <= 180000;
+    if (warning && !idleWarningShown) {
+      const wasHidden = shell.classList.contains('sidebar-hidden');
+      clearSidebarHideTimer();
+      setSidebar(true);
+      sidebarOpenedForIdleWarning = wasHidden;
+    }
+    if (!warning && idleWarningShown && sidebarOpenedForIdleWarning) {
+      sidebarOpenedForIdleWarning = false;
+      if (!sidebar.matches(':hover') && !sidebarToggle.matches(':hover')) {
+        clearSidebarHideTimer();
+        setSidebar(false);
+      }
+    }
+    idleWarningShown = warning;
+    $('idle-countdown').hidden = !warning;
+    $('idle-countdown').textContent = `Κλείδωμα σε ${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+  }
+  function recordActivity(event) {
+    if (event && !event.isTrusted) return;
+    if (!sharedData || sessionLocked) return;
+    // Check the deadline before accepting activity after a suspended tab resumes.
+    if (Date.now() - lastActivity >= idleLimit) { lockSession(); return; }
+    lastActivity = Date.now(); tickIdle();
+  }
+  function lockSession() {
+    if (sessionLocked || !sharedData) return;
+    sessionLocked = true; hidePasswords();
+    void writeViews();
+    for (const dialog of document.querySelectorAll('dialog[open]')) dialog.close();
+    document.body.classList.add('session-locked');
+    shell.inert = true;
+    $('idle-countdown').hidden = true;
+    $('session-password').value = '';
+    $('session-lock-error').textContent = '';
+    $('session-lock-security').textContent = sessionPassword
+      ? 'Το κοινό αρχείο προστατεύεται με κωδικό και τα δεδομένα του αποθηκεύονται κρυπτογραφημένα. Για ξεκλείδωμα, πληκτρολόγησε τον κωδικό του αρχείου.'
+      : 'Δεν έχει οριστεί κωδικός για το κοινό αρχείο. Τα δεδομένα του αποθηκεύονται χωρίς κρυπτογράφηση και οποιοσδήποτε μπορεί να ξεκλειδώσει το περιβάλλον. Μπορείς να ορίσεις κωδικό από την «Επεξεργασία πληροφοριών» στο Κεντρικό Μενού.';
+    $('session-lock-security').classList.toggle('no-password', sessionPassword === '');
+    $('session-password-label').hidden = sessionPassword === '';
+    $('session-password').required = sessionPassword !== '';
+    $('session-lock').hidden = false;
+    (sessionPassword ? $('session-password') : $('session-unlock-form').querySelector('button')).focus();
+  }
+  $('lock-now').addEventListener('click', lockSession);
+  $('session-unlock-form').addEventListener('submit', event => {
+    event.preventDefault();
+    if (!sessionLocked) return;
+    if ($('session-password').value !== sessionPassword) {
+      $('session-lock-error').textContent = 'Ο κωδικός δεν είναι σωστός.';
+      $('session-password').value = ''; $('session-password').focus(); return;
+    }
+    $('session-password').value = '';
+    sessionLocked = false; lastActivity = Date.now();
+    $('session-lock').hidden = true; shell.inert = false;
+    document.body.classList.remove('session-locked'); tickIdle();
+  });
+  activityEvents.forEach(type => document.addEventListener(type, recordActivity, {capture:true, passive:true}));
+  window.addEventListener('focus', tickIdle);
+  document.addEventListener('visibilitychange', tickIdle);
+  window.setInterval(tickIdle, 250);
+  frame.addEventListener('load', () => {
+    try {
+      const doc = frame.contentDocument;
+      activityEvents.forEach(type => doc.addEventListener(type, recordActivity, {capture:true, passive:true}));
+    } catch { /* Local opaque iframes report activity through postMessage. */ }
+  });
+  window.addEventListener('message', event => {
+    if (event.source !== frame.contentWindow || (!staffLocalFile && event.origin !== location.origin)) return;
+    if (event.data?.type === 'school-app:activity') recordActivity();
+    // The active application has its own menu button («☰»): the tab is shown only while the sidebar is open.
+    if (event.data?.type === 'school-app:menu-button' && currentAppFile) shell.classList.add('app-menu-button');
+  });
+  function fileReferenceStore(operation, value) {
+    return new Promise((resolve, reject) => {
+      if (!globalThis.indexedDB) { reject(Error('Η απομνημόνευση αρχείου δεν είναι διαθέσιμη.')); return; }
+      const request = indexedDB.open('school-apps-local-files', 1);
+      request.onupgradeneeded = () => { if (!request.result.objectStoreNames.contains('references')) request.result.createObjectStore('references'); };
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const db = request.result;
+        const tx = db.transaction('references', operation === 'get' ? 'readonly' : 'readwrite');
+        const store = tx.objectStore('references');
+        let item;
+        try { item = operation === 'get' ? store.get('shared-data') : operation === 'put' ? store.put(value, 'shared-data') : store.delete('shared-data'); }
+        catch (error) { db.close(); reject(error); return; }
+        tx.oncomplete = () => { const result = item.result; db.close(); resolve(result); };
+        tx.onabort = tx.onerror = () => { db.close(); reject(tx.error || Error('Δεν αποθηκεύτηκε η αναφορά αρχείου.')); };
+      };
+    });
+  }
+  async function rememberFile(handle) {
+    rememberedHandle = handle; $('restore-access').hidden = true;
+    if (!handle) { try { await fileReferenceStore('delete'); } catch {} return; }
+    try {
+      await fileReferenceStore('put', handle);
+      $('remember-note').textContent = 'Το Chrome θυμάται το αρχείο «' + handle.name + '» για την επόμενη ανανέωση. Ο κωδικός δεν αποθηκεύεται.';
+    } catch {
+      $('remember-note').textContent = 'Το αρχείο άνοιξε, αλλά ο browser δεν μπόρεσε να το απομνημονεύσει για την επόμενη ανανέωση.';
+    }
+  }
+  async function restoreRememberedFile() {
+    if (typeof window.showOpenFilePicker !== 'function') {
+      $('remember-note').textContent = 'Σε αυτόν τον browser επιλέγεις ξανά το αρχείο μετά από ανανέωση.';
+      return;
+    }
+    const generation = fileLoadGeneration;
+    try {
+      const handle = await fileReferenceStore('get');
+      if (!handle || generation !== fileLoadGeneration) return;
+      rememberedHandle = handle;
+      const permission = await handle.queryPermission({mode:'read'});
+      if (generation !== fileLoadGeneration) return;
+      if (permission === 'granted') {
+        const file = await handle.getFile();
+        if (generation === fileLoadGeneration) await loadDataFile(file, handle);
+      }
+      else {
+        $('remember-note').textContent = 'Βρέθηκε το προηγούμενο αρχείο «' + handle.name + '». Χρειάζεται άδεια για να ανοιχτεί ξανά.';
+        $('restore-access').hidden = false;
+        showAccessDialog(handle);
+      }
+    } catch {
+      $('load-error').textContent = 'Το προηγούμενο αρχείο δεν μπόρεσε να ανοιχτεί. Επίλεξέ το ξανά, αν μετακινήθηκε ή άλλαξε όνομα.';
+    }
+  }
+  function showAccessDialog(handle) {
+    if (!handle) return;
+    $('file-access-name').textContent = handle.name;
+    $('file-access-error').textContent = '';
+    if (!$('file-access-dialog').open) $('file-access-dialog').showModal();
+    $('file-access-allow').focus();
+  }
+  $('restore-access').addEventListener('click', () => showAccessDialog(rememberedHandle));
+  $('file-access-cancel').addEventListener('click', () => $('file-access-dialog').close());
+  $('file-access-allow').addEventListener('click', async () => {
+    const handle = rememberedHandle; if (!handle) { $('file-access-dialog').close(); return; }
+    const generation = fileLoadGeneration;
+    $('file-access-error').textContent = ''; $('file-access-allow').disabled = true;
+    try {
+      const permission = await handle.requestPermission({mode:'read'});
+      if (generation !== fileLoadGeneration || rememberedHandle !== handle || !$('file-access-dialog').open) return;
+      if (permission !== 'granted') { $('file-access-error').textContent = 'Δεν δόθηκε άδεια. Μπορείς να προσπαθήσεις ξανά ή να επιλέξεις το αρχείο εκ νέου.'; return; }
+      const file = await handle.getFile();
+      if (generation !== fileLoadGeneration || rememberedHandle !== handle || !$('file-access-dialog').open) return;
+      $('file-access-dialog').close();
+      await loadDataFile(file, handle);
+    } catch { $('file-access-error').textContent = 'Το αρχείο δεν είναι διαθέσιμο. Επίλεξέ το ξανά από τον υπολογιστή σου.'; }
+    finally { $('file-access-allow').disabled = false; }
+  });
+  const yearNow = new Date().getFullYear();
+  for (const id of ['school-year', 'edit-school-year']) {
+    for (let year = 2020; year <= Math.max(2100, yearNow + 10); year++) {
+      const option = document.createElement('option');
+      option.value = option.textContent = `${year}-${year + 1}`;
+      option.selected = year === yearNow;
+      $(id).append(option);
+    }
+  }
+  function schoolNameMarkup(value) {
+    let depth = 0, output = '';
+    for (const part of String(value).split(/(<\/?sup\s*>)/gi)) {
+      if (/^<sup\s*>$/i.test(part)) { output += '<sup>'; depth++; }
+      else if (/^<\/sup\s*>$/i.test(part)) { if (depth) { output += '</sup>'; depth--; } }
+      else output += part.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+    return output + '</sup>'.repeat(depth);
+  }
+  function validSchoolName(value) { return String(value).replace(/<\/?sup\s*>/gi, '').trim() !== ''; }
+  function previewSchoolName(input, preview) {
+    $(preview).innerHTML = schoolNameMarkup($(input).value || 'Προεπισκόπηση ονομασίας');
+  }
+  $('school-name').addEventListener('input', () => previewSchoolName('school-name', 'school-name-preview'));
+  $('edit-school-name').addEventListener('input', () => previewSchoolName('edit-school-name', 'edit-school-preview'));
+  function resetPasswordEdit() {
+    hidePasswords();
+    $('change-password').setAttribute('aria-expanded', 'false');
+    $('change-password').setAttribute('aria-pressed', 'false');
+    $('edit-password-fields').hidden = true;
+    $('edit-encryption-note').textContent = 'Με κενό νέο κωδικό το αρχείο θα αποθηκευτεί χωρίς κρυπτογράφηση.';
+    for (const id of ['edit-password','edit-password-confirm']) { $(id).value = ''; $(id).disabled = true; }
+  }
+  function setYearValue(id, value) {
+    if (Number(value.slice(0, 4)) < 2020) { $(id).value = ''; return; }
+    if (![...$(id).options].some(option => option.value === value)) {
+      const option = document.createElement('option'); option.value = option.textContent = value; $(id).append(option);
+    }
+    $(id).value = value;
+  }
+  function setEditingData(editing) {
+    editingData = editing;
+    document.querySelector('.school-info-table').classList.toggle('is-editing', editing);
+    $('change-password').hidden = !editing;
+    if (!editing) resetPasswordEdit();
+    $('close-data').hidden = editing;
+    $('edit-data').hidden = !editing;
+    $('school-edit-fields').hidden = !editing;
+    $('save-data-button').hidden = !editing;
+    $('school-summary').hidden = editing;
+    $('edit-data-open').hidden = editing;
+    $('edit-data-cancel').hidden = !editing;
+  }
+  $('edit-data-open').addEventListener('click', () => {
+    if (!sharedData) return;
+    $('edit-error').textContent = ''; $('edit-status').textContent = '';
+    setEditingData(true); $('edit-school-name').focus();
+  });
+  $('edit-data-cancel').addEventListener('click', () => {
+    if (!sharedData) return;
+    $('edit-school-name').value = sharedData.school.name;
+    setYearValue('edit-school-year', sharedData.school.year);
+    previewSchoolName('edit-school-name', 'edit-school-preview');
+    resetPasswordEdit(); setEditingData(false);
+    $('edit-error').textContent = ''; $('edit-status').textContent = '';
+  });
+  function showSharedData(data, name, encrypted, password = '') {
+    if (!validSchoolName(data.school.name)) throw Error('Συμπλήρωσε το όνομα του σχολείου.');
+    schoolRevision++;
+    sharedData = data; sessionPassword = password; sharedFilename = name;
+    if (!sessionLocked) lastActivity = Date.now();
+    tickIdle();
+    $('common-file-status').textContent = name;
+    $('data-start').hidden = true; $('data-loaded').hidden = false;
+    $('loaded-school').innerHTML = schoolNameMarkup(data.school.name);
+    $('loaded-year').textContent = data.school.year;
+    setEditingData(false);
+    $('edit-school-name').value = data.school.name;
+    setYearValue('edit-school-year', data.school.year);
+    previewSchoolName('edit-school-name', 'edit-school-preview');
+    $('loaded-filename').textContent = name;
+    $('loaded-encryption').textContent = encrypted ? 'Κρυπτογραφημένο με κωδικό' : 'Χωρίς κωδικό — χωρίς κρυπτογράφηση';
+    $('keep-password-note').textContent = encrypted ? 'Ο υπάρχων κωδικός διατηρείται αν δεν επιλέξεις αλλαγή.' : 'Το αρχείο είναι χωρίς κωδικό. Επίλεξε «Αλλαγή κωδικού» για να προσθέσεις έναν.';
+    $('sidebar-school').hidden = false;
+    $('nav-school-name').innerHTML = schoolNameMarkup(data.school.name);
+    $('nav-school-year').textContent = data.school.year;
+    resetPasswordEdit(); $('edit-error').textContent = ''; $('edit-status').textContent = '';
+    for (const button of buttons) { button.disabled = false; button.removeAttribute('aria-disabled'); }
+  }
+  async function closeSharedDataAfterViews() {
+    $('close-data').disabled = true;
+    try { await writeViews(); } finally { $('close-data').disabled = false; }
+    closeSharedData();
+  }
+  function closeSharedData() {
+    viewsChanged = viewsWritten = 0;
+    schoolRevision++;
+    fileLoadGeneration++;
+    void rememberFile(null);
+    $('remember-note').textContent = 'Το προηγούμενο αρχείο ξεχάστηκε. Μπορείς να επιλέξεις ή να δημιουργήσεις άλλο.';
+    sharedData = null; sessionPassword = ''; sharedFilename = ''; tickIdle();
+    setEditingData(false);
+    $('loaded-school').textContent = ''; $('loaded-year').textContent = '';
+    resetPasswordEdit();
+    $('edit-school-name').value = ''; $('edit-error').textContent = ''; $('edit-status').textContent = '';
+    $('edit-school-preview').textContent = '';
+    $('sidebar-school').hidden = true; $('nav-school-name').textContent = ''; $('nav-school-year').textContent = '';
+    $('common-file-status').textContent = 'Δεν έχει ανοιχτεί κοινό αρχείο.';
+    $('data-file').value = '';
+    $('data-start').hidden = false; $('data-loaded').hidden = true;
+    for (const id of ['loaded-filename','loaded-encryption']) $(id).textContent = '';
+    for (const button of buttons) {
+      button.disabled = button.dataset.app !== 'documents_templater.html';
+      button.setAttribute('aria-disabled', String(button.disabled));
+    }
+  }
+  // The Ολοήμερο Designer once linked its CSV file in .data (linkedFilesByYear[year].oloimeroDesigner). Its designs
+  // are now programs of timetablesByYear, so the old links are left out of every save.
+  function withoutRetiredLinks(data) {
+    const byYear = data?.linkedFilesByYear;
+    if (!byYear || typeof byYear !== 'object' || Array.isArray(byYear)) return data;
+    const kept = {};
+    for (const [year, links] of Object.entries(byYear)) {
+      if (!links || typeof links !== 'object' || Array.isArray(links)) { kept[year] = links; continue; }
+      const {oloimeroDesigner, ...rest} = links;
+      if (Object.keys(rest).length) kept[year] = rest;
+    }
+    const {linkedFilesByYear, ...clean} = data;
+    return Object.keys(kept).length ? {...clean, linkedFilesByYear: kept} : clean;
+  }
+  // Size of the .data file above which saving asks the user first (it is never refused).
+  const FILE_WARNING_BYTES = 50 * 1024 * 1024;
+  async function saveNewData(data, password, filename = '', existingHandle = null) {
+    dataWrites++;
+    try {
+      await viewWrite;
+      const views = viewsChanged;
+      const name = await writeData(data, password, filename, existingHandle);
+      // The written file has the selections of sharedData when it was saved from it.
+      if (sharedData && JSON.stringify(data.lastViewByYear || null) === JSON.stringify(sharedData.lastViewByYear || null)) viewsWritten = views;
+      return name;
+    } finally { dataWrites--; }
+  }
+  // The last selections, written alone to the open file: only when they changed, only with permission already
+  // given (no question to the user) and never at the same time as another save. A failure is ignored: the
+  // selections stay in sharedData and go with the next save.
+  function writeViews() {
+    if (!sharedData || viewsChanged === viewsWritten || !rememberedHandle || dataWrites || staffSaving) return viewWrite;
+    const data = sharedData, views = viewsChanged, handle = rememberedHandle, password = sessionPassword;
+    viewWrite = (async () => {
+      try {
+        if (typeof handle.queryPermission === 'function' && await handle.queryPermission({mode:'readwrite'}) !== 'granted') return;
+        const text = JSON.stringify(await SchoolDataCodec.encode(withoutRetiredLinks(data), password), null, 2);
+        if (new TextEncoder().encode(text).byteLength > FILE_WARNING_BYTES) return;
+        const writer = await handle.createWritable();
+        try { await writer.write(text); await writer.close(); }
+        catch (error) { try { await writer.abort(); } catch {} throw error; }
+        if (sharedData === data) viewsWritten = views;
+      } catch { /* kept for the next save */ }
+    })();
+    return viewWrite;
+  }
+  function rememberView(year, key, view) {
+    if (!sharedData || !Timetables || sharedData.school.year !== year) return;
+    sharedData = Timetables.withView(sharedData, year, key, view);
+    viewsChanged++;
+  }
+  async function writeData(data, password, filename = '', existingHandle = null) {
+    const suggestedName = filename || `school_${data.school.year}.data`;
+    let handle = existingHandle;
+    if (handle) {
+      const options = {mode:'readwrite'};
+      let permission = await handle.queryPermission(options);
+      if (permission !== 'granted') permission = await handle.requestPermission(options);
+      if (permission !== 'granted') throw Error('Δεν δόθηκε άδεια εγγραφής στο ανοιχτό αρχείο. Οι αλλαγές παραμένουν στη φόρμα.');
+      try { await handle.getFile(); }
+      catch (error) { if (error.name === 'NotFoundError') throw Error('Το αρχικό αρχείο δεν βρέθηκε. Άνοιξέ το ξανά από τη νέα του θέση.'); throw error; }
+    } else if (typeof window.showSaveFilePicker === 'function') {
+      handle = await window.showSaveFilePicker({suggestedName, types:[{description:'Κοινά δεδομένα σχολείου', accept:{'application/json':['.data']}}]});
+    }
+    const box = await SchoolDataCodec.encode(withoutRetiredLinks(data), password);
+    const text = JSON.stringify(box, null, 2);
+    // A large file is never refused: the user decides whether to save it. Every valid .data file opens.
+    const bytes = new TextEncoder().encode(text).byteLength;
+    if (bytes > FILE_WARNING_BYTES && !(await schoolConfirm('Το αρχείο θα γίνει ' + Math.ceil(bytes / 1048576) + ' MB, πάνω από το προτεινόμενο όριο των ' + Math.round(FILE_WARNING_BYTES / 1048576) + ' MB. Μεγάλο αρχείο ανοίγει και αποθηκεύεται πιο αργά.\n\nΓια να το μικρύνεις, μπορείς να διαγράψεις προσχέδια που δεν χρειάζονται ή να κρατήσεις αντίγραφο του αρχείου και να αφαιρέσεις από αυτό τα παλαιότερα σχολικά έτη.\n\nΝα αποθηκευτεί;', {title:'Μεγάλο αρχείο', accept:'Αποθήκευση', queue:true}))) {
+      throw new DOMException('Η αποθήκευση ακυρώθηκε.', 'AbortError');
+    }
+    if (handle) {
+      const writer = await handle.createWritable();
+      try { await writer.write(text); await writer.close(); }
+      catch (error) { try { await writer.abort(); } catch {} throw error; }
+    } else {
+      const url = URL.createObjectURL(new Blob([text], {type:'application/json'}));
+      const link = document.createElement('a'); link.href = url; link.download = suggestedName;
+      document.body.append(link); link.click(); link.remove(); window.setTimeout(() => URL.revokeObjectURL(url), 30000);
+    }
+    await rememberFile(handle);
+    return handle ? handle.name : suggestedName;
+  }
+  $('data-password').addEventListener('input', () => {
+    $('encryption-note').textContent = $('data-password').value === ''
+      ? 'Με κενό κωδικό το αρχείο θα αποθηκευτεί χωρίς κρυπτογράφηση και τα δεδομένα του θα είναι αναγνώσιμα.'
+      : 'Το αρχείο θα αποθηκευτεί κρυπτογραφημένο. Ο κωδικός δεν αποθηκεύεται μέσα στο αρχείο.';
+  });
+  $('create-data').addEventListener('submit', async event => {
+    event.preventDefault(); $('create-error').textContent = '';
+    if (!$('create-data').reportValidity()) return;
+    fileLoadGeneration++;
+    const password = $('data-password').value;
+    if (password !== $('data-password-confirm').value) { $('create-error').textContent = 'Οι κωδικοί δεν είναι ίδιοι.'; return; }
+    const data = {format:'school-shared-data', formatVersion:1, school:{name:$('school-name').value.trim(), year:$('school-year').value}};
+    if (!validSchoolName(data.school.name)) { $('create-error').textContent = 'Συμπλήρωσε το όνομα του σχολείου.'; return; }
+    $('create-data-button').disabled = true;
+    try {
+      const name = await saveNewData(data, password);
+      showSharedData(data, name, password !== '', password);
+      $('data-password').value = ''; $('data-password-confirm').value = '';
+      $('data-password').dispatchEvent(new Event('input'));
+    } catch (error) { if (error.name !== 'AbortError') $('create-error').textContent = 'Δεν έγινε αποθήκευση: ' + error.message; }
+    finally { $('create-data-button').disabled = false; }
+  });
+  let pendingFile = null;
+  async function loadDataFile(file, handle = null) {
+    const generation = ++fileLoadGeneration;
+    $('load-error').textContent = '';
+    try {
+      if (!/\.data$/i.test(file.name)) throw Error('Επίλεξε ένα αρχείο με κατάληξη .data.');
+      let box; try { box = JSON.parse(await file.text()); } catch { throw Error('Το αρχείο δεν έχει έγκυρη μορφή δεδομένων.'); }
+      if (generation !== fileLoadGeneration) return;
+      if (!SchoolDataCodec.inspect(box)) {
+        const data = await SchoolDataCodec.decode(box, '');
+        if (generation !== fileLoadGeneration) return;
+        showSharedData(data, file.name, false);
+        await rememberFile(handle); return;
+      }
+      pendingFile = {box, name:file.name, handle, generation};
+      $('unlock-password').value = ''; $('unlock-error').textContent = '';
+      $('unlock-filename').textContent = file.name;
+      setUnlockPanel(true);
+      $('unlock-password').focus();
+    } catch (error) { if (generation === fileLoadGeneration) $('load-error').textContent = error.message; }
+  }
+  $('open-data').addEventListener('click', async () => {
+    fileLoadGeneration++;
+    $('load-error').textContent = '';
+    if (typeof window.showOpenFilePicker !== 'function') { $('data-file').value = ''; $('data-file').click(); return; }
+    try {
+      const [handle] = await window.showOpenFilePicker({id:'school-shared-data-open', multiple:false, types:[{description:'Κοινά δεδομένα σχολείου', accept:{'application/json':['.data']}}]});
+      try{
+        let permission=await handle.queryPermission({mode:'readwrite'});
+        if(permission!=='granted')await handle.requestPermission({mode:'readwrite'});
+      }catch{}
+      await loadDataFile(await handle.getFile(), handle);
+    } catch (error) { if (error.name !== 'AbortError') $('load-error').textContent = 'Δεν άνοιξε το αρχείο: ' + error.message; }
+  });
+  $('data-file').addEventListener('change', async () => {
+    const file = $('data-file').files[0]; if (file) await loadDataFile(file);
+  });
+  function setUnlockPanel(visible) {
+    $('unlock-panel').hidden = !visible;
+    $('data-start').hidden = visible || !!sharedData;
+    document.querySelector('.lead').hidden = visible;
+    document.querySelector('.home-note').hidden = visible;
+    if (!visible) {
+      hidePasswords(); pendingFile = null;
+      $('unlock-password').value = ''; $('unlock-filename').textContent = '';
+      $('unlock-error').textContent = '';
+    }
+  }
+  $('unlock-cancel').addEventListener('click', () => {
+    fileLoadGeneration++;
+    setUnlockPanel(false);
+    $('open-data').focus();
+  });
+  $('unlock-form').addEventListener('submit', async event => {
+    event.preventDefault(); if (!pendingFile) return;
+    const pending = pendingFile; $('unlock-submit').disabled = true; $('unlock-error').textContent = '';
+    try {
+      const data = await SchoolDataCodec.decode(pending.box, $('unlock-password').value);
+      if (pendingFile !== pending || pending.generation !== fileLoadGeneration || $('unlock-panel').hidden) return;
+      showSharedData(data, pending.name, true, $('unlock-password').value); setUnlockPanel(false);
+      await rememberFile(pending.handle);
+    } catch (error) { if (pendingFile === pending) { $('unlock-error').textContent = error.message; $('unlock-password').value = ''; $('unlock-password').focus(); } }
+    finally { $('unlock-submit').disabled = false; }
+  });
+  $('change-password').addEventListener('click', () => {
+    const change = $('change-password').getAttribute('aria-expanded') !== 'true';
+    if (!editingData) return;
+    $('change-password').setAttribute('aria-expanded', String(change));
+    $('change-password').setAttribute('aria-pressed', String(change));
+    $('edit-password-fields').hidden = !change;
+    for (const id of ['edit-password','edit-password-confirm']) { $(id).disabled = !change; if (!change) $(id).value = ''; }
+    if (change) $('edit-password').focus();
+    else hidePasswords();
+  });
+  $('edit-password').addEventListener('input', () => {
+    $('edit-encryption-note').textContent = $('edit-password').value === ''
+      ? 'Με κενό νέο κωδικό το αρχείο θα αποθηκευτεί χωρίς κρυπτογράφηση.'
+      : 'Το ενημερωμένο αρχείο θα κρυπτογραφηθεί με τον νέο κωδικό.';
+  });
+  $('edit-data').addEventListener('submit', async event => {
+    event.preventDefault(); if (!sharedData || !editingData || !$('edit-data').reportValidity()) return;
+    $('edit-error').textContent = ''; $('edit-status').textContent = '';
+    const name = $('edit-school-name').value.trim();
+    if (!validSchoolName(name)) { $('edit-error').textContent = 'Συμπλήρωσε το όνομα του σχολείου.'; return; }
+    const changePassword = $('change-password').getAttribute('aria-expanded') === 'true';
+    const password = changePassword ? $('edit-password').value : sessionPassword;
+    if (changePassword && password !== $('edit-password-confirm').value) { $('edit-error').textContent = 'Οι νέοι κωδικοί δεν είναι ίδιοι.'; return; }
+    const data = {...sharedData, school:{...sharedData.school, name, year:$('edit-school-year').value}};
+    $('save-data-button').disabled = true; $('close-data').disabled = true; $('edit-data-cancel').disabled = true;
+    try {
+      const filename = await saveNewData(data, password, sharedFilename, rememberedHandle);
+      showSharedData(data, filename, password !== '', password);
+      $('edit-status').textContent = 'Οι αλλαγές αποθηκεύτηκαν στο ενημερωμένο αρχείο .data.';
+    } catch (error) { if (error.name !== 'AbortError') $('edit-error').textContent = 'Δεν έγινε αποθήκευση: ' + error.message; }
+    finally { $('save-data-button').disabled = false; $('close-data').disabled = false; $('edit-data-cancel').disabled = false; }
+  });
+  $('close-data').addEventListener('click', () => void closeSharedDataAfterViews());
+
+  function clearSidebarHideTimer() {
+    window.clearTimeout(sidebarHideTimer);
+    sidebarHideTimer = 0;
+  }
+
+  function hideSidebarAfterIntro() {
+    if (!sidebarMouseTracking || !shell.classList.contains('has-app')) return;
+    if (sidebar.matches(':hover') || sidebarToggle.matches(':hover')) return;
+    setSidebar(false);
+  }
+
+  function revealSidebarFromDesktopRequest() {
+    clearSidebarHideTimer();
+    setSidebar(true);
+  }
+
+  // Opened by the application (its «☰» or its name, school-app:open-menu): the focus moves from the iframe
+  // to the sidebar, so the keyboard works there at once (Esc closes it, Tab reaches the applications).
+  // Hovering the left edge on a wide screen does not move the focus, so typing in the application is not interrupted.
+  function revealSidebarFromApp() {
+    revealSidebarFromDesktopRequest();
+    if (!sessionLocked) sidebar.focus({preventScroll:true});
+  }
+
+  // When the sidebar closes and the focus was in it (or nowhere, e.g. after a click on the shaded area),
+  // the focus returns to the application, so the keyboard continues there.
+  function returnFocusToApp() {
+    if (sessionLocked || !shell.classList.contains('has-app')) return;
+    const focused = document.activeElement;
+    if (!focused || focused === document.body || focused === sidebarToggle || sidebar.contains(focused)) frame.focus({preventScroll:true});
+  }
+
+  function setSidebar(open) {
+    if (!shell.classList.contains('has-app')) open = true;
+    const wasOpen = shell.classList.contains('sidebar-open');
+    sidebarMouseTracking = false;
+    sidebarOpenedForIdleWarning = false;
+    shell.classList.toggle('sidebar-hidden', !open);
+    shell.classList.toggle('sidebar-open', open);
+    sidebarToggle.setAttribute('aria-expanded', String(open));
+    sidebarToggle.setAttribute('aria-label', open ? 'Απόκρυψη μενού εφαρμογών' : 'Άνοιγμα μενού εφαρμογών');
+    sidebarToggle.title = open ? 'Κλείσιμο μενού' : 'Άνοιγμα μενού';
+    if (wasOpen && !open) returnFocusToApp();
+  }
+
+  async function openApp(file, title) {
+    if (sessionLocked || staffSaving || currentAppFile === file) return;
+    if (staffDirty && !(await schoolConfirm('Η υποεφαρμογή έχει μη αποθηκευμένες αλλαγές. Να απορριφθούν;', {title:'Μη αποθηκευμένες αλλαγές',accept:'Απόρριψη αλλαγών'}))) return;
+    if(sessionLocked||staffSaving)return;
+    staffDirty = false; currentAppFile = file;
+    void writeViews();
+    clearSidebarHideTimer();
+    hideDropOverlay();
+    // The new application reports its own menu button again (school-app:menu-button) once it loads.
+    shell.classList.remove('app-menu-button');
+    shell.classList.add('has-app');
+    document.getElementById('home-nav').classList.remove('active');
+    document.getElementById('home-nav').removeAttribute('aria-current');
+    frame.title = title;
+    frame.src = file;
+    label.textContent = title;
+    buttons.forEach(button => {
+      const selected = button.dataset.app === file;
+      if (button.classList.contains('nav-app')) {
+        button.classList.toggle('active', selected);
+        if (selected) button.setAttribute('aria-current', 'page');
+        else button.removeAttribute('aria-current');
+      }
+    });
+    if (window.matchMedia('(min-width: 1025px)').matches) {
+      setSidebar(true);
+      sidebarHideTimer = window.setTimeout(hideSidebarAfterIntro, 1000);
+    } else {
+      setSidebar(false);
+    }
+  }
+
+  async function openHome() {
+    if (staffSaving) return;
+    if (staffDirty && !(await schoolConfirm('Η υποεφαρμογή έχει μη αποθηκευμένες αλλαγές. Να απορριφθούν;', {title:'Μη αποθηκευμένες αλλαγές',accept:'Απόρριψη αλλαγών'}))) return;
+    if(sessionLocked||staffSaving)return;
+    staffDirty = false; currentAppFile = '';
+    void writeViews();
+    clearSidebarHideTimer();
+    hideDropOverlay();
+    shell.classList.remove('has-app', 'app-menu-button');
+    frame.removeAttribute('src');
+    label.textContent = 'Κεντρικό Μενού';
+    document.querySelectorAll('.nav-app').forEach(button => {
+      button.classList.remove('active');
+      button.removeAttribute('aria-current');
+    });
+    document.getElementById('home-nav').classList.add('active');
+    document.getElementById('home-nav').setAttribute('aria-current', 'page');
+    setSidebar(false);
+  }
+
+  buttons.forEach(button => button.addEventListener('click', () => {
+    if (!button.disabled) openApp(button.dataset.app, button.dataset.title);
+  }));
+  document.getElementById('home-nav').addEventListener('click', openHome);
+
+  sidebarToggle.addEventListener('click', () => {
+    clearSidebarHideTimer();
+    setSidebar(shell.classList.contains('sidebar-hidden'));
+  });
+  document.getElementById('desktop-rail').addEventListener('click', revealSidebarFromDesktopRequest);
+  document.getElementById('desktop-rail').addEventListener('mouseenter', revealSidebarFromDesktopRequest);
+  function onSidebarMouseLeave(event) {
+    if (sidebar.contains(event.relatedTarget) || sidebarToggle.contains(event.relatedTarget)) return;
+    if (shell.classList.contains('has-app') && window.matchMedia('(min-width: 1025px)').matches) {
+      if (!sidebarMouseTracking) return;
+      clearSidebarHideTimer();
+      setSidebar(false);
+    }
+  }
+  function onSidebarMouseMove() {
+    if (shell.classList.contains('sidebar-open')) sidebarMouseTracking = true;
+  }
+  sidebar.addEventListener('mousemove', onSidebarMouseMove, {passive:true});
+  sidebarToggle.addEventListener('mousemove', onSidebarMouseMove, {passive:true});
+  sidebar.addEventListener('mouseleave', onSidebarMouseLeave);
+  sidebarToggle.addEventListener('mouseleave', onSidebarMouseLeave);
+  document.getElementById('scrim').addEventListener('click', () => setSidebar(false));
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && shell.classList.contains('sidebar-open')) setSidebar(false);
+  });
+
+
+// Count limits of the Index (they catch application errors; the applications warn from 90% of them).
+// Size has no limit: saveNewData warns when the whole file grows past FILE_WARNING_BYTES.
+const HOST_LIMITS = Object.freeze({staff: 100, hours: 50, warnRatio: 0.9});
+
+// The host owns storage and shared identities; field rules belong to school_staff.
+const StaffStorage = (() => {
+ function prepareRows(rows) {
+  if (!Array.isArray(rows)) throw Error('Η λίστα προσωπικού δεν είναι έγκυρη.');
+  if (rows.length > HOST_LIMITS.staff) throw Error('Το Προσωπικό θα είχε ' + rows.length + ' εκπαιδευτικούς, πάνω από το όριο των ' + HOST_LIMITS.staff + ' ανά σχολικό έτος. Η αποθήκευση δεν έγινε.');
+  const ancestors = new WeakSet(); let nodes = 0;
+  function checkJson(value, depth = 0) {
+   if (++nodes > 200000 || depth > 64) throw Error('Τα στοιχεία προσωπικού είναι υπερβολικά σύνθετα.');
+   if (value === null || typeof value === 'string' || typeof value === 'boolean') return;
+   if (typeof value === 'number' && Number.isFinite(value)) return;
+   if (typeof value !== 'object' || ancestors.has(value)) throw Error('Τα στοιχεία προσωπικού πρέπει να είναι έγκυρα δεδομένα JSON.');
+   const proto = Object.getPrototypeOf(value);
+   if (!Array.isArray(value) && proto !== Object.prototype && proto !== null) throw Error('Μη έγκυρη δομή στοιχείων προσωπικού.');
+   ancestors.add(value);
+   if (Array.isArray(value)) { for (const item of value) checkJson(item, depth + 1); }
+   else { for (const item of Object.values(value)) checkJson(item, depth + 1); }
+   ancestors.delete(value);
+  }
+  checkJson(rows);
+  const ids = new Set();
+  for (const person of rows) {
+   if (!person || typeof person !== 'object' || Array.isArray(person) ||
+       typeof person.id !== 'string' || !person.id.trim() || person.id.length > 1000 ||
+       typeof person.code !== 'string' || person.code.length > 1000) throw Error('Μη έγκυρη ταυτότητα ή κωδικός εκπαιδευτικού.');
+   if (ids.has(person.id)) throw Error('Βρέθηκαν διπλές ταυτότητες προσωπικού.');
+   ids.add(person.id);
+  }
+  return structuredClone(rows);
+ }
+ return Object.freeze({prepareRows});
+})();
+
+  function personnelContext() {
+    const year = sharedData.school.year;
+    const byYear = sharedData.staffByYear && typeof sharedData.staffByYear === 'object' ? sharedData.staffByYear : {};
+    // timetableUsage: in which programs each person appears (for the delete dialog of Προσωπικό).
+    return {revision:schoolRevision, school:{...sharedData.school}, staff:Array.isArray(byYear[year]) ? byYear[year] : [], staffByYear:byYear, ssdMeetings:sharedData.ssdMeetings || {}, pedagogicMeetings:sharedData.pedagogicMeetings || {}, timetableUsage:Timetables ? Timetables.staffUsage(sharedData, year) : {}, limits:{staff:HOST_LIMITS.staff, warnRatio:HOST_LIMITS.warnRatio}};
+  }
+  let staffFetHandle=null,staffFetKey='',staffFetRead=null;
+  function staffFetStore(mode,value,key){return new Promise((resolve,reject)=>{
+    if(!globalThis.indexedDB){resolve(null);return}
+    const open=indexedDB.open('school-staff-linked-files',1);open.onupgradeneeded=()=>open.result.createObjectStore('fet');open.onerror=()=>reject(open.error);open.onsuccess=()=>{const db=open.result,tx=db.transaction('fet',mode==='get'?'readonly':'readwrite'),s=tx.objectStore('fet'),r=mode==='get'?s.get(key):mode==='put'?s.put(value,key):s.delete(key);let result;r.onsuccess=()=>result=r.result;tx.oncomplete=()=>{db.close();resolve(result)};tx.onerror=()=>{db.close();reject(tx.error)}};
+  })}
+  async function staffFetAction(message){
+    if(!sharedData)throw Error('Άνοιξε πρώτα το αρχείο πληροφοριών.');
+    const key=JSON.stringify([sharedData.school.name,sharedData.school.year]);
+    if(staffFetKey!==key){staffFetKey=key;staffFetHandle=null;staffFetRead=null}
+    const action=message.action;
+    if(action==='choose'){
+      if(!window.showOpenFilePicker)throw Error('Η επιλογή FET απαιτεί Chrome σε υπολογιστή.');
+      const [handle]=await window.showOpenFilePicker({id:'school-staff-fet',...(staffFetHandle?{startIn:staffFetHandle}:{}),multiple:false,types:[{description:'FET',accept:{'application/xml':['.fet']}}]});
+      const doc=new DOMParser().parseFromString(await (await handle.getFile()).text(),'application/xml');
+      if(doc.querySelector('parsererror')||doc.documentElement?.tagName!=='fet'||!doc.getElementsByTagName('Teachers_List')[0])throw Error('Το αρχείο δεν είναι έγκυρο FET.');
+      staffFetHandle=handle;staffFetRead=null;await staffFetStore('put',handle,key).catch(()=>{});return {name:handle.name};
+    }
+    if(action==='restore'){staffFetHandle=staffFetHandle||await staffFetStore('get',null,key);return staffFetHandle?{name:staffFetHandle.name}:null}
+    if(action==='unlink'){staffFetHandle=null;staffFetRead=null;await staffFetStore('delete',null,key);return null}
+    const handle=staffFetHandle;if(!handle)throw Error('Επίλεξε πρώτα συνεργαζόμενο FET.');
+    if(action==='permission'){let permission=await handle.queryPermission({mode:'readwrite'});if(permission!=='granted')permission=await handle.requestPermission({mode:'readwrite'});return permission}
+    if(action==='read'){const file=await handle.getFile();staffFetRead={lastModified:file.lastModified,size:file.size};return {name:file.name,...staffFetRead,text:await file.text()}}
+    if(action==='write'){
+      if(typeof message.text!=='string'||!staffFetRead)throw Error('Μη έγκυρη ενημέρωση FET.');
+      const file=await handle.getFile();if(file.lastModified!==staffFetRead.lastModified||file.size!==staffFetRead.size)throw Error('Το αρχείο FET άλλαξε. Δοκίμασε ξανά.');
+      const writer=await handle.createWritable();try{await writer.write(message.text);await writer.close()}catch(error){await writer.abort().catch(()=>{});throw error}staffFetRead=null;return null;
+    }
+    throw Error('Άγνωστη ενέργεια FET.');
+  }
+  const staffLocalFile = location.protocol === 'file:' || location.origin === 'null';
+  const staffTargetOrigin = staffLocalFile ? '*' : location.origin;
+  window.addEventListener('message', async event => {
+    if (event.source !== frame.contentWindow || currentAppFile !== 'school_staff.html' ||
+      (!staffLocalFile && event.origin !== location.origin)) return;
+    if (sessionLocked) return;
+    const message = event.data;
+    if (!message || typeof message !== 'object') return;
+    if (message.type === 'school-app:open-menu') {
+      recordActivity();
+      if (!sessionLocked) revealSidebarFromApp();
+      return;
+    }
+    const reply = payload => { if (currentAppFile === 'school_staff.html' && event.source === frame.contentWindow) event.source.postMessage(payload, staffTargetOrigin); };
+    if(message.type==='school-staff:fet'&&typeof message.requestId==='string'){
+      // Acknowledge at once: the sub-application then waits without a time limit while a picker is open.
+      reply({type:'school-staff:fet-ack',requestId:message.requestId});
+      try{const result=await staffFetAction(message);reply({type:'school-staff:fet-result',requestId:message.requestId,ok:true,result})}
+      catch(error){reply({type:'school-staff:fet-result',requestId:message.requestId,ok:false,error:error.name==='AbortError'?'Η επιλογή ακυρώθηκε.':error.message})}return;
+    }
+    if (message.type === 'school-staff:dirty') { staffDirty = !!message.dirty; return; }
+    if (message.type === 'school-staff:ready') { if (sharedData) reply({type:'school-staff:context', context:personnelContext()}); return; }
+    if (message.type !== 'school-staff:save' || typeof message.requestId !== 'string') return;
+    let ownsSave = false;
+    try {
+      if (!sharedData) throw Error('Άνοιξε πρώτα το αρχείο πληροφοριών του σχολείου.');
+      if (staffSaving) throw Error('Μια αποθήκευση βρίσκεται ήδη σε εξέλιξη.');
+      if (message.revision !== schoolRevision || message.year !== sharedData.school.year) throw Error('Το κοινό αρχείο άλλαξε. Ακύρωσε τις αλλαγές και άνοιξε ξανά τη σελίδα προσωπικού.');
+      const staff = StaffStorage.prepareRows(message.staff);
+      const candidate = structuredClone(sharedData);
+      const previous = Array.isArray(candidate.staffByYear?.[message.year]) ? candidate.staffByYear[message.year] : [];
+      if (!candidate.staffByYear || typeof candidate.staffByYear !== 'object' || Array.isArray(candidate.staffByYear)) candidate.staffByYear = {};
+      candidate.staffByYear[message.year] = staff;
+      // Programs that refer to removed staff change in this same save, all or nothing (staffRemovals).
+      if (Timetables) Timetables.applyStaffRemovals(candidate, message.year, previous, staff, message.staffRemovals);
+      else if (candidate.timetablesByYear) throw Error(missingTimetables);
+      const previousCodes = new Set(previous.map(p=>String(p.code||'').trim()).filter(Boolean)), retainedCodes = new Set(staff.map(p=>p.code.trim()).filter(Boolean));
+      const removedCodes = new Set((Array.isArray(message.removedCodes)?message.removedCodes:[]).filter(code => typeof code==='string' && previousCodes.has(code) && !retainedCodes.has(code)));
+      for (const meetings of [candidate.ssdMeetings, candidate.pedagogicMeetings]) {
+        for (const meeting of Object.values(meetings||{})) {
+          if (!meeting || typeof meeting !== 'object') continue;
+          for (const key of ['present','absent','leaveAutoCodes']) if (Array.isArray(meeting[key])) meeting[key] = meeting[key].filter(code=>!removedCodes.has(String(code)));
+          for (const key of ['absenceReasons','scheduleAutoReasons']) if (meeting[key]) for (const code of removedCodes) delete meeting[key][code];
+        }
+      }
+      staffSaving = true; ownsSave = true;
+      const filename = await saveNewData(candidate, sessionPassword, sharedFilename, rememberedHandle);
+      showSharedData(candidate, filename, sessionPassword !== '', sessionPassword);
+      staffDirty = false;
+      reply({type:'school-staff:result', requestId:message.requestId, ok:true, context:personnelContext()});
+    } catch (error) {
+      reply({type:'school-staff:result', requestId:message.requestId, ok:false, error:error.name==='AbortError'?'Η αποθήκευση ακυρώθηκε. Οι αλλαγές παραμένουν στη σελίδα.':error.message});
+    } finally { if (ownsSave) staffSaving = false; }
+  });
+
+  function teachingHoursContext(){
+    const byYear=sharedData.teachingHoursByYear&&typeof sharedData.teachingHoursByYear==='object'&&!Array.isArray(sharedData.teachingHoursByYear)?sharedData.teachingHoursByYear:{};
+    return {revision:schoolRevision,school:{...sharedData.school},teachingHours:byYear[sharedData.school.year]||null,teachingHoursByYear:byYear,limits:{hours:HOST_LIMITS.hours,warnRatio:HOST_LIMITS.warnRatio}};
+  }
+  function prepareTeachingHours(data){
+    const keys=['early','morning','meal','afternoon','extended','break'];
+    if(!data||typeof data!=='object'||!Array.isArray(data.hours)||!data.tags||typeof data.tags!=='object')throw Error('Μη έγκυρα στοιχεία ωρών.');
+    if(data.hours.length>HOST_LIMITS.hours)throw Error('Οι Ώρες Διδασκαλίας θα είχαν '+data.hours.length+' ώρες, πάνω από το όριο των '+HOST_LIMITS.hours+' ανά σχολικό έτος. Η αποθήκευση δεν έγινε.');
+    const ids=new Set(),names=new Set(),tags=new Set();
+    for(const h of data.hours){
+      if(!h||typeof h.id!=='string'||!h.id||h.id.length>200||ids.has(h.id)||typeof h.name!=='string'||!h.name.trim()||h.name.length>1000||names.has(h.name.trim())||!keys.includes(h.category))throw Error('Κάθε ώρα χρειάζεται μοναδικό όνομα και έγκυρο χαρακτηρισμό.');
+      ids.add(h.id);names.add(h.name.trim());
+    }
+    for(const key of keys){const value=data.tags[key];if(typeof value!=='string'||!value.trim()||value.length>1000||tags.has(value.trim()))throw Error('Οι ετικέτες κατηγοριών πρέπει να είναι μη κενές και μοναδικές.');tags.add(value.trim());}
+    return structuredClone(data);
+  }
+  let hoursFetHandle=null,hoursFetKey='',hoursFetRead=null;
+  function hoursFetStore(mode,value,key){return new Promise((resolve,reject)=>{
+    if(!globalThis.indexedDB){resolve(null);return}
+    const open=indexedDB.open('school-hours-linked-files',1);
+    open.onupgradeneeded=()=>open.result.createObjectStore('fet');open.onerror=()=>reject(open.error);
+    open.onsuccess=()=>{const db=open.result;try{
+      const tx=db.transaction('fet',mode==='get'?'readonly':'readwrite'),store=tx.objectStore('fet');
+      tx.oncomplete=()=>{db.close();resolve(result)};tx.onerror=tx.onabort=()=>{db.close();reject(tx.error||Error('Δεν αποθηκεύτηκε η σύνδεση FET.'))};
+      let result;const r=mode==='get'?store.get(key):mode==='put'?store.put(value,key):store.delete(key);r.onsuccess=()=>result=r.result;
+    }catch(error){db.close();reject(error)}};
+  })}
+  async function hoursFetAction(message){
+    if(!sharedData)throw Error('Άνοιξε πρώτα το αρχείο πληροφοριών.');
+    const key=JSON.stringify([sharedData.school.name,sharedData.school.year]);
+    if(hoursFetKey!==key){hoursFetKey=key;hoursFetHandle=null;hoursFetRead=null}
+    const action=message.action, revision=schoolRevision;
+    const assertCurrent=()=>{if(sessionLocked||revision!==schoolRevision||currentAppFile!=='teaching_hours.html')throw Error('Το σχολικό έτος ή η ενεργή εφαρμογή άλλαξε. Δοκίμασε ξανά.');};
+    if(action==='choose'){
+      if(!window.showOpenFilePicker)throw Error('Η επιλογή FET απαιτεί Chrome σε υπολογιστή.');
+      const [handle]=await window.showOpenFilePicker({id:'school-hours-fet',...(hoursFetHandle?{startIn:hoursFetHandle}:{}),multiple:false,types:[{description:'FET',accept:{'application/xml':['.fet']}}]});
+      const doc=new DOMParser().parseFromString(await (await handle.getFile()).text(),'application/xml');
+      if(doc.querySelector('parsererror')||doc.documentElement?.tagName!=='fet'||!doc.getElementsByTagName('Hours_List')[0])throw Error('Το αρχείο δεν είναι έγκυρο FET.');
+      assertCurrent();hoursFetHandle=handle;hoursFetRead=null;await hoursFetStore('put',handle,key).catch(()=>{});return {name:handle.name};
+    }
+    if(action==='restore'){hoursFetHandle=hoursFetHandle||await hoursFetStore('get',null,key);return hoursFetHandle?{name:hoursFetHandle.name}:null}
+    if(action==='unlink'){hoursFetHandle=null;hoursFetRead=null;await hoursFetStore('delete',null,key);return null}
+    const handle=hoursFetHandle;if(!handle)throw Error('Επίλεξε πρώτα συνεργαζόμενο FET.');
+    if(action==='permission'){const mode=message.mode==='read'?'read':'readwrite';let permission=await handle.queryPermission({mode});if(permission!=='granted')permission=await handle.requestPermission({mode});return permission}
+    if(action==='read'){const file=await handle.getFile();hoursFetRead={lastModified:file.lastModified,size:file.size,revision:schoolRevision};return {name:file.name,...hoursFetRead,text:await file.text()}}
+    if(action==='write'){
+      if(typeof message.text!=='string'||!hoursFetRead||hoursFetRead.revision!==schoolRevision)throw Error('Μη έγκυρη ενημέρωση FET.');
+      const file=await handle.getFile();if(file.lastModified!==hoursFetRead.lastModified||file.size!==hoursFetRead.size)throw Error('Το αρχείο FET άλλαξε. Δοκίμασε ξανά.');
+      assertCurrent();const writer=await handle.createWritable();try{await writer.write(message.text);await writer.close()}catch(error){await writer.abort().catch(()=>{});throw error}hoursFetRead=null;return null;
+    }
+    throw Error('Άγνωστη ενέργεια FET.');
+  }
+
+  window.addEventListener('message',async event=>{
+    if(event.source!==frame.contentWindow||currentAppFile!=='teaching_hours.html'||(!staffLocalFile&&event.origin!==location.origin)||sessionLocked)return;
+    const message=event.data;if(!message||typeof message!=='object')return;
+    const reply=payload=>{if(currentAppFile==='teaching_hours.html'&&event.source===frame.contentWindow)event.source.postMessage(payload,staffTargetOrigin)};
+    if(message.type==='school-app:open-menu'){recordActivity();revealSidebarFromApp();return}
+    if(message.type==='school-hours:dirty'){staffDirty=!!message.dirty;return}
+    if(message.type==='school-hours:ready'){if(sharedData)reply({type:'school-hours:context',context:teachingHoursContext()});return}
+    if(message.type==='school-hours:fet'&&typeof message.requestId==='string'){
+      // Acknowledge at once: the sub-application then waits without a time limit while a picker is open.
+      reply({type:'school-hours:fet-ack',requestId:message.requestId});
+      if(staffSaving){reply({type:'school-hours:fet-result',requestId:message.requestId,ok:false,error:'Περίμενε να ολοκληρωθεί η αποθήκευση.'});return}
+      const mutation=message.action==='write';if(mutation)staffSaving=true;
+      try{const result=await hoursFetAction(message);reply({type:'school-hours:fet-result',requestId:message.requestId,ok:true,result})}
+      catch(error){reply({type:'school-hours:fet-result',requestId:message.requestId,ok:false,error:error.name==='AbortError'?'Η επιλογή ακυρώθηκε.':error.message})}
+      finally{if(mutation)staffSaving=false}return;
+    }
+    if(message.type!=='school-hours:save'||typeof message.requestId!=='string')return;
+    let ownsSave=false;
+    try{
+      if(!sharedData)throw Error('Άνοιξε πρώτα το κοινό αρχείο πληροφοριών.');
+      if(staffSaving)throw Error('Μια αποθήκευση βρίσκεται ήδη σε εξέλιξη.');
+      if(message.revision!==schoolRevision||message.year!==sharedData.school.year)throw Error('Το κοινό αρχείο άλλαξε. Πάτησε «Αναίρεση Όλων» για να φορτωθούν τα τρέχοντα στοιχεία.');
+      const hours=prepareTeachingHours(message.teachingHours),candidate=structuredClone(sharedData);
+      if(!candidate.teachingHoursByYear||typeof candidate.teachingHoursByYear!=='object'||Array.isArray(candidate.teachingHoursByYear))candidate.teachingHoursByYear={};
+      candidate.teachingHoursByYear[message.year]=hours;
+      staffSaving=true;ownsSave=true;
+      const filename=await saveNewData(candidate,sessionPassword,sharedFilename,rememberedHandle);
+      showSharedData(candidate,filename,sessionPassword!=='',sessionPassword);staffDirty=false;
+      reply({type:'school-hours:result',requestId:message.requestId,ok:true,context:teachingHoursContext()});
+    }catch(error){reply({type:'school-hours:result',requestId:message.requestId,ok:false,error:error.name==='AbortError'?'Η αποθήκευση ακυρώθηκε. Οι αλλαγές παραμένουν στη σελίδα.':error.message})}
+    finally{if(ownsSave)staffSaving=false}
+  });
+
+  // Drag and drop of a CSV onto the Ολοήμερο Designer: an import of the CSV that the Designer exports for FET.
+  // The Designer reports drag-start; the Index then lays an overlay over the iframe so that the drop happens here
+  // (a file handle cannot be passed from a file:// iframe). The file becomes the last file of the importer, and the
+  // Designer receives {name, text} with school-oloimero:dropped-file.
+  const dropOverlay=$('app-drop-overlay');
+  let dropBusy=false;
+  function hideDropOverlay(){dropOverlay.hidden=true}
+  function showDropOverlay(){if(sessionLocked||currentAppFile!=='oloimero_designer.html')return;dropOverlay.hidden=false}
+  const isFileDrag=event=>[...(event.dataTransfer?.types||[])].includes('Files');
+  dropOverlay.addEventListener('dragenter',event=>{if(isFileDrag(event))event.preventDefault()});
+  dropOverlay.addEventListener('dragover',event=>{if(!isFileDrag(event))return;event.preventDefault();event.dataTransfer.dropEffect='copy'});
+  // Chrome often gives dragleave no relatedTarget, so the pointer position decides whether the drag left the overlay.
+  dropOverlay.addEventListener('dragleave',event=>{
+    const r=dropOverlay.getBoundingClientRect();
+    if(event.clientX<=r.left||event.clientX>=r.right||event.clientY<=r.top||event.clientY>=r.bottom)hideDropOverlay();
+  });
+  // A drag cancelled with Esc may end without dragleave; the first ordinary pointer move removes the overlay.
+  document.addEventListener('pointermove',()=>{if(!dropOverlay.hidden)hideDropOverlay()},{capture:true,passive:true});
+  dropOverlay.addEventListener('drop',async event=>{
+    event.preventDefault();hideDropOverlay();
+    const items=[...(event.dataTransfer?.items||[])].filter(item=>item.kind==='file');
+    // getAsFileSystemHandle must be called while the drop event is being dispatched.
+    const pending=items.map(item=>typeof item.getAsFileSystemHandle==='function'?item.getAsFileSystemHandle():Promise.resolve(null));
+    const send=payload=>{if(currentAppFile==='oloimero_designer.html')frame.contentWindow?.postMessage(payload,staffTargetOrigin)};
+    if(dropBusy){send({type:'school-oloimero:dropped-file-error',error:'Μια ενέργεια αρχείου βρίσκεται ήδη σε εξέλιξη.'});return}
+    dropBusy=true;recordActivity();
+    try{
+      if(!sharedData||sessionLocked)throw Error('Άνοιξε πρώτα το κοινό αρχείο πληροφοριών.');
+      if(!Timetables)throw Error(missingTimetables);
+      const handles=(await Promise.all(pending)).filter(handle=>handle?.kind==='file');
+      if(!handles.length&&items.length)throw Error('Το άνοιγμα αρχείου με μεταφορά και απόθεση χρειάζεται Google Chrome.');
+      const handle=handles.find(item=>/\.csv$/i.test(item.name));
+      if(!handle)throw Error('Μπορείς να αφήσεις στην επιφάνεια του πίνακα ένα αρχείο CSV του Ολοημέρου.');
+      const result=await Timetables.droppedImportFile(sharedData.school.year,'oloimero','csv','csv',handle);
+      send({type:'school-oloimero:dropped-file',result});
+    }catch(error){send({type:'school-oloimero:dropped-file-error',error:error.message||String(error)})}
+    finally{dropBusy=false}
+  });
+  window.addEventListener('message',event=>{
+    if(event.source!==frame.contentWindow||currentAppFile!=='oloimero_designer.html'||(!staffLocalFile&&event.origin!==location.origin)||sessionLocked)return;
+    if(event.data?.type==='school-oloimero:drag-start')showDropOverlay();
+  });
+
+
+  // Documents Templater works without the shared file; its context carries only the school, when one is open.
+  function documentsContext() {
+    return {revision:schoolRevision, school:sharedData ? {...sharedData.school} : null};
+  }
+  // Documents Templater file picker. The last chosen file is kept in IndexedDB and passed as startIn,
+  // so the picker reopens in its folder even from file:// (the picker ID, max 32 characters, is a fallback).
+  let documentsPickerBusy = false;
+  function documentsLastFile(operation, value) {
+    return new Promise((resolve, reject) => {
+      if (!globalThis.indexedDB) { resolve(null); return; }
+      const request = indexedDB.open('school-apps-local-files', 1);
+      request.onupgradeneeded = () => { if (!request.result.objectStoreNames.contains('references')) request.result.createObjectStore('references'); };
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const db = request.result, tx = db.transaction('references', operation === 'get' ? 'readonly' : 'readwrite');
+        const store = tx.objectStore('references');
+        let item;
+        try { item = operation === 'get' ? store.get('documents-last-template') : store.put(value, 'documents-last-template'); }
+        catch (error) { db.close(); reject(error); return; }
+        tx.oncomplete = () => { const result = item.result; db.close(); resolve(result); };
+        tx.onabort = tx.onerror = () => { db.close(); reject(tx.error || Error('Δεν αποθηκεύτηκε ο τελευταίος φάκελος προτύπων.')); };
+      };
+    });
+  }
+  window.addEventListener('message', async event => {
+    if (event.source !== frame.contentWindow || currentAppFile !== 'documents_templater.html' ||
+      (!staffLocalFile && event.origin !== location.origin) || sessionLocked) return;
+    const message = event.data;
+    if (!message || typeof message !== 'object') return;
+    const reply = (payload, transfer = []) => {
+      if (currentAppFile === 'documents_templater.html' && event.source === frame.contentWindow)
+        event.source.postMessage(payload, staffTargetOrigin, transfer);
+    };
+    if (message.type === 'school-app:open-menu') { recordActivity(); if (!sessionLocked) revealSidebarFromApp(); return; }
+    if (message.type === 'school-documents:dirty') { staffDirty = !!message.dirty; return; }
+    if (message.type === 'school-documents:ready') { reply({type:'school-documents:context', context:documentsContext()}); return; }
+    if (message.type !== 'school-documents:file' || typeof message.requestId !== 'string') return;
+    // Acknowledge at once: the Templater then waits without a time limit while the picker is open.
+    reply({type:'school-documents:file-ack',requestId:message.requestId});
+    if (documentsPickerBusy) { reply({type:'school-documents:file-result',requestId:message.requestId,ok:false,error:'Μια επιλογή αρχείων βρίσκεται ήδη σε εξέλιξη.'}); return; }
+    documentsPickerBusy = true;
+    recordActivity();
+    try {
+      if (message.action !== 'openTemplates') throw Error('Άγνωστη ενέργεια επιλογής αρχείων.');
+      if (typeof window.showOpenFilePicker !== 'function') throw Error('Η επιλογή αρχείων χρειάζεται Chrome ή άλλο Chromium browser.');
+      const lastFile = await documentsLastFile('get').catch(() => null);
+      const pickerOptions = {
+        id:'school-docs-templates',
+        ...(lastFile && typeof lastFile.getFile === 'function' ? {startIn:lastFile} : {}),
+        multiple:true,
+        types:[{description:'Πρότυπα Word, Excel και CSV',accept:{
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document':['.docx'],
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx'],
+          'text/csv':['.csv']
+        }}]
+      };
+      let handles;
+      try { handles = await window.showOpenFilePicker(pickerOptions); }
+      catch (error) {
+        // A remembered file that was moved or deleted makes startIn fail; open the picker without it.
+        if (error.name === 'AbortError' || !pickerOptions.startIn) throw error;
+        delete pickerOptions.startIn;
+        handles = await window.showOpenFilePicker(pickerOptions);
+      }
+      if (handles[0]) await documentsLastFile('put', handles[0]).catch(() => {});
+      const files = [];
+      for (const handle of handles) {
+        const file = await handle.getFile();
+        files.push({name:file.name,type:file.type,lastModified:file.lastModified,size:file.size,buffer:await file.arrayBuffer()});
+      }
+      reply({type:'school-documents:file-result',requestId:message.requestId,ok:true,result:{files}},files.map(file=>file.buffer));
+    } catch (error) {
+      reply({type:'school-documents:file-result',requestId:message.requestId,ok:false,
+        error:error.name==='AbortError'?'Η επιλογή αρχείων ακυρώθηκε.':(error.message||'Δεν ήταν δυνατή η επιλογή αρχείων.')});
+    } finally { documentsPickerBusy = false; }
+  });
+
+  // Applications whose data are programs (school-timetables:*): menu and unsaved changes, with the :dirty of
+  // their own prefix. Their data (school-timetables:*) and their files (school-programs:file, school-fet:file,
+  // school-oloimero:file) are handled by _host_timetables.js below.
+  const PROGRAM_APPS = {'timetables.html': 'school-programs:dirty', 'fet_timetable_editor.html': 'school-fet:dirty', 'oloimero_designer.html': 'school-oloimero:dirty'};
+  window.addEventListener('message', event => {
+    if (event.source !== frame.contentWindow || !Object.prototype.hasOwnProperty.call(PROGRAM_APPS, currentAppFile) ||
+      (!staffLocalFile && event.origin !== location.origin) || sessionLocked) return;
+    const message = event.data;
+    if (!message || typeof message !== 'object') return;
+    if (message.type === 'school-app:open-menu') { recordActivity(); revealSidebarFromApp(); return; }
+    if (message.type === PROGRAM_APPS[currentAppFile]) staffDirty = !!message.dirty;
+  });
+
+  // Programs (timetablesByYear): the shared school-timetables:* protocol of every application that reads or
+  // writes programs. Permissions, validation and replies are in _host_timetables.js; the Index only stores.
+  if (Timetables) Timetables.install({
+    frame,
+    acceptOrigin: event => staffLocalFile || event.origin === location.origin,
+    targetOrigin: staffTargetOrigin,
+    state: () => ({data:sharedData, revision:schoolRevision, app:currentAppFile, locked:sessionLocked, busy:staffSaving}),
+    save: async candidate => {
+      staffSaving = true;
+      try {
+        const filename = await saveNewData(candidate, sessionPassword, sharedFilename, rememberedHandle);
+        showSharedData(candidate, filename, sessionPassword !== '', sessionPassword);
+        staffDirty = false;
+      } finally { staffSaving = false; }
+    },
+    activity: recordActivity,
+    view: rememberView
+  });
+
+  window.addEventListener('beforeunload', event => { if (staffDirty || staffSaving || dropBusy) { event.preventDefault(); event.returnValue = ''; } });
+
+  openHome();
+  if (!Timetables) $('load-error').textContent = missingTimetables;
+  void restoreRememberedFile();
+})();
+</script>
 </body>
 </html>

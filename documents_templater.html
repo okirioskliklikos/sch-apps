@@ -1,65 +1,484 @@
-<!doctype html>
-<html lang="el">
-<head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Documents Templater v0.7</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<!doctype html><html lang="el" class="subapp-page"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Documents Templater v0.26</title><link rel="stylesheet" href="_ui.css">
+<link rel="stylesheet" href="_subapp.css">
+<script src="_lib_jszip.min.js"></script>
 <style>
-:root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#202a38;background:#f2f5f9;font-synthesis:none}*{box-sizing:border-box}body{margin:0;min-height:100vh}header{height:76px;background:#fff;border-bottom:1px solid #dce3ec;display:flex;align-items:center;gap:14px;padding:0 26px;box-shadow:0 2px 10px #1a2b4408}.logo{width:42px;height:42px;border-radius:12px;background:#315cdb;color:white;display:grid;place-items:center;font-size:22px;font-weight:700}.brand{font-size:20px;font-weight:750;letter-spacing:.1px}.version{font-size:12px;background:#edf1ff;color:#315cdb;border-radius:20px;padding:5px 9px}header .tagline{margin-left:auto;color:#718096;font-size:13px}.layout{display:grid;grid-template-columns:minmax(250px,315px) 1fr;gap:22px;width:100%;max-width:none;margin:24px 0;padding:0 18px 100px}.panel{background:#fff;border:1px solid #e0e6ef;border-radius:16px;box-shadow:0 4px 20px #182b4708}.files{padding:20px;height:max-content;min-height:420px;position:sticky;top:20px}.section-title{font-size:15px;font-weight:700;margin:0 0 4px}.muted{color:#738197;font-size:13px;line-height:1.45}.drop{margin:18px 0 14px;min-height:150px;border:1.5px dashed #9eb1cb;border-radius:13px;background:#f8faff;display:flex;align-items:center;justify-content:center;text-align:center;padding:18px;cursor:pointer;transition:.15s}.drop:hover,.drop.over{background:#edf3ff;border-color:#315cdb}.drop strong{display:block;color:#315cdb;margin-bottom:7px}.filelist{display:flex;flex-direction:column;gap:8px}.file{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid #e6ebf1;border-radius:10px;font-size:12px}.fileicon{font-size:19px}.filename{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}.remove{border:0;background:transparent;color:#8995a5;font-size:19px;cursor:pointer}.filehint{padding:15px 6px;color:#8a96a7;text-align:center;font-size:13px}.main{min-width:0}.hero{padding:25px 28px;margin-bottom:20px}.hero h1{font-size:23px;margin:0 0 7px}.hero p{margin:0;color:#6c7a8e;line-height:1.5}.find-row{display:flex;justify-content:center;padding:4px 0 20px}.primary,.secondary,.produce{border:0;border-radius:10px;padding:12px 19px;font:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:.15s}.primary{background:#315cdb;color:#fff;box-shadow:0 4px 10px #315cdb30}.primary:hover{background:#244cc0;transform:translateY(-1px)}.primary:disabled{opacity:.45;cursor:not-allowed;transform:none}.secondary{background:#eef2f7;color:#41516a}.fields{padding:23px 26px;min-height:190px}.fields-head{display:flex;align-items:flex-start;justify-content:space-between;gap:15px}.fields h2{font-size:18px;margin:0 0 5px}.count{background:#f0f3f8;color:#61708a;border-radius:20px;padding:5px 10px;font-size:12px;white-space:nowrap}.empty{padding:34px 8px;text-align:center;color:#8a96a7;font-size:14px}.fieldgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:22px}.field label{display:flex;gap:8px;align-items:center;font-size:13px;font-weight:650;margin-bottom:7px}.prefill{font-size:10px;color:#14764e;background:#e7f5ed;border-radius:5px;padding:3px 6px}.type{font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:#71819a;background:#f0f3f8;border-radius:5px;padding:3px 6px}.field input,.field textarea{width:100%;border:1px solid #d5deea;border-radius:8px;background:#fff;padding:10px 11px;font:inherit;font-size:14px;outline:none}.field input:focus,.field textarea:focus{border-color:#5276e7;box-shadow:0 0 0 3px #315cdb16}.field input.invalid{border-color:#d84c56}.field small{display:block;color:#8b96a6;margin-top:5px;font-size:11px}.bottomnote{margin-top:15px;border-radius:9px;background:#f6f8fb;padding:11px 13px;color:#748197;font-size:12px;line-height:1.5}.footer{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #e0e6ef;padding:13px 18px 13px 24px;display:flex;align-items:center;justify-content:flex-end;gap:14px;z-index:2}.status{margin-right:auto;font-size:13px;color:#738197}.produce{background:#15956e;color:#fff;padding:13px 21px;box-shadow:0 4px 12px #15956e25}.produce:hover{background:#0f7e5e;transform:translateY(-1px)}.produce:disabled{opacity:.45;cursor:not-allowed;transform:none}.privacy{font-size:11px;color:#8591a1}.alert{color:#bb3542}.toast{position:fixed;top:88px;right:25px;max-width:420px;padding:13px 16px;background:#223149;color:white;border-radius:10px;box-shadow:0 8px 25px #13223b30;z-index:5;font-size:13px;line-height:1.45;display:none}.toast.show{display:block}.toast.error{background:#a62f3a}@media(max-width:850px){.layout{grid-template-columns:1fr}.files{position:static;min-height:0}.drop{min-height:110px}.fieldgrid{grid-template-columns:1fr}.footer{padding:11px 16px}.privacy{display:none}header .tagline{display:none}}
-</style>
-</head>
-<body>
-<header><div class="logo">D</div><div class="brand">Documents Templater</div><span class="version">v0.7</span><div class="tagline">Πρότυπα εγγράφων → συμπληρωμένα αρχεία</div></header>
-<div class="layout">
-<aside class="panel files">
-  <h2 class="section-title">Αρχεία προτύπων</h2><div class="muted">Πρόσθεσε πρότυπα Word/Excel και προαιρετικά ένα CSV τιμών.</div>
-  <div class="drop" id="drop"><div><strong>Σύρε εδώ τα αρχεία σου</strong><span class="muted">ή πάτησε για επιλογή<br>.docx · .xlsx · .csv</span></div></div>
-  <input id="picker" type="file" accept=".docx,.xlsx,.csv" multiple hidden>
-  <div class="filelist" id="filelist"><div class="filehint">Δεν έχουν προστεθεί αρχεία</div></div>
+/* DT-specific geometry. Shared appearance: _ui.css / _subapp.css. */
+:root{--app-mark-bg:var(--school-app-docs)}
+/* Sidebar: the shared main + aside of _subapp.css, in its wide width (main.subapp-wide-aside).
+   Inside it the file list fills the height between the heading and the buttons. */
+#filesPane{display:flex;flex-direction:column;gap:0;min-height:0}
+#filesPane h2{margin:0 0 4px}
+#filesPane .hint{margin:0 0 10px}
+.files-list{flex:1;min-height:160px;overflow:auto;overscroll-behavior:contain;display:flex;flex-direction:column}
+.files-list.drag-over{border-color:var(--school-ui-primary-border);background:var(--school-ui-primary-bg)}
+/* Empty list: a compact drop box in the middle of the list (margin:auto centres it both ways).
+   While files are dragged over, the whole list lights up (.drag-over), so the drop target stays large. */
+.files-list .subapp-file-drop{flex:none;width:min(280px,calc(100% - 24px));min-height:0;margin:auto;padding:18px 16px;gap:8px;border-radius:14px}
+.files-list .subapp-file-drop-icon{font-size:26px}
+.files-list .subapp-file-drop-title{font-size:16px}
+.files-list .subapp-file-drop-text{font-size:13px}
+.file-item{flex:none;padding-top:4px;padding-bottom:4px;font-size:13px}
+.file-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.file-kind{flex:none;font-size:11px;color:var(--school-ui-muted)}
+.file-item.selected .file-kind{color:var(--school-ui-primary-text)}
+.fields-pane{display:flex;flex-direction:column;min-width:0;min-height:0;flex:1}
+/* The heading (shared .subapp-pane-heading) stays put while the fields scroll under it; the bottom rule separates the two. */
+.pane-heading{align-items:flex-start;padding-bottom:10px;margin-bottom:0;border-bottom:1px solid var(--school-ui-border)}
+/* Production is the app's main action: shared green .success button, at the far right of the header.
+   Both header buttons show the shared change dot (.subapp-change-dot) for the next step.
+   The header wraps on narrow screens by the shared rule of _subapp.css. */
+#findFields,#produce{flex:none}
+.fields-count{flex:none;padding:4px 10px;border-radius:999px;background:var(--school-ui-label-bg);color:var(--school-ui-label-text);font-size:12px;white-space:nowrap}
+/* Room for the 2px focus outline (offset 2px) inside the scrolling area, and a gap under the heading rule. */
+.fields-content{flex:1;min-height:0;overflow:auto;padding:10px 8px 6px 6px;margin:0 -8px 0 -6px}
+.field-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px}
+.field-grid .ui-field{margin:8px 0;align-content:start}
+.field-label{display:flex;align-items:center;gap:6px}
+.field-name{flex:1;min-width:0;overflow-wrap:anywhere}
+.field-tags{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:5px;margin-left:auto;flex:none;max-width:60%}
+.field-badge{font-size:11px;font-weight:600;padding:2px 7px;white-space:nowrap;border-radius:5px;background:var(--school-ui-label-bg);color:var(--school-ui-label-text)}
+.field-badge.conflict{background:transparent;color:var(--school-ui-error);padding:0}
+.field-badge.warning{background:transparent;color:var(--school-ui-error);padding:0}
+.ui-field textarea{width:100%;min-width:0;min-height:84px;resize:vertical;border:1px solid var(--school-ui-input-border);border-radius:6px;padding:9px;font:inherit;background:var(--school-ui-surface)}
+.ui-fields .ui-field textarea[aria-invalid="true"]{border-color:var(--school-ui-error-border)}
+.syntax-note{margin:14px 0 0;padding:10px 12px;border-radius:8px;background:var(--school-ui-label-bg);line-height:1.6}
+/* Stacked (800px or narrower): the whole area under the header scrolls, not the fields on their own
+   (the shared .page-main keeps overflow:hidden from 651px on). */
+@media(max-width:800px){#root{overflow:visible}.files-list{min-height:240px;max-height:45dvh}.fields-pane .fields-content{overflow:visible}}
+@media(max-width:620px){.field-grid{grid-template-columns:1fr}}
+</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Documents Templater — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>DT</span></span><span class="brand-text"><span>Documents Templater</span><span class="small version">v0.26</span></span></button></h1></div><button id="reset" type="button" disabled>Αναίρεση Όλων</button><div class="header-right"><button id="findFields" class="primary subapp-change-dot" type="button" disabled>Ανεύρεση πεδίων</button><button id="produce" class="success subapp-change-dot" type="button" disabled>Παραγωγή Εγγράφων</button></div></header>
+<main id="layout" class="subapp-wide-aside">
+<aside id="filesPane" aria-labelledby="filesTitle">
+ <h2 id="filesTitle">Αρχεία (0)</h2>
+ <p class="hint">Πρότυπα Word/Excel και προαιρετικά ένα CSV με τιμές πεδίων.</p>
+ <div id="filesList" class="files-list subapp-list" tabindex="0" aria-label="Αρχεία προτύπων"></div>
+ <div class="subapp-list-actions"><button id="addFiles" class="subapp-add-button" type="button">+ Προσθήκη</button><button id="removeFiles" class="subapp-remove-button" type="button" disabled>Αφαίρεση</button></div>
+ <p id="notice" class="subapp-notice" role="status"></p>
 </aside>
-<main class="main">
-  <section class="panel hero"><h1>Συμπλήρωσε πρότυπα αυτόματα</h1><p>Πρόσθεσε τα έγγραφά σου, εντόπισε τα πεδία σε μορφή <code>{{Όνομα}}</code> και συμπλήρωσε τις τιμές μία φορά για όλα τα αρχεία.</p>
-   <div class="find-row"><button id="find" class="primary" disabled>Ανεύρεση πεδίων</button></div>
-  </section>
-  <section class="panel fields"><div class="fields-head"><div><h2>Πεδία προς συμπλήρωση</h2><div id="subtitle" class="muted">Πρόσθεσε αρχεία και πάτησε «Ανεύρεση πεδίων».</div></div><span class="count" id="count">0 πεδία</span></div><div id="content" class="empty">Τα πεδία που θα βρεθούν θα εμφανιστούν εδώ.</div></section>
-</main></div>
-<footer class="footer"><div class="status" id="status">Έτοιμο για προσθήκη προτύπων</div><div class="privacy">Η επεξεργασία γίνεται τοπικά στον browser.</div><button id="produce" class="produce" disabled>Παραγωγή Εγγράφων</button></footer>
-<div class="toast" id="toast"></div>
+<section id="root" class="page-main">
+<div class="fields-pane" aria-labelledby="fieldsTitle">
+ <div class="pane-heading subapp-pane-heading"><div><h3 id="fieldsTitle">Πεδία προς συμπλήρωση</h3><p id="fieldsSubtitle" class="ui-helper">Πρόσθεσε αρχεία και πάτησε «Ανεύρεση πεδίων».</p></div><span id="fieldsCount" class="fields-count">0 πεδία</span></div>
+ <div id="fieldsContent" class="fields-content"></div>
+</div>
+</section></main>
+<script src="_ui.js"></script>
+<script src="_data.js"></script>
 <script>
-(()=>{
-const files=[], fields=new Map(), values=new Map(), matchedCsvFields=new Set();let scanned=false;
-function isCsv(f){return f.name.toLowerCase().endsWith('.csv')}
-function isTemplate(f){return /\.(docx|xlsx)$/i.test(f.name)}
-const el=id=>document.getElementById(id), drop=el('drop'), picker=el('picker');
-function toast(msg,bad=false){const t=el('toast');t.textContent=msg;t.className='toast show'+(bad?' error':'');clearTimeout(toast.timer);toast.timer=setTimeout(()=>t.className='toast',5500)}
-function setStatus(s){el('status').textContent=s}
-function addFiles(list){let added=0;for(const f of list){const ext=f.name.split('.').pop().toLowerCase();if(!['docx','xlsx','csv'].includes(ext)){toast('Το '+f.name+' δεν είναι DOCX, XLSX ή CSV.',true);continue}if(files.some(x=>x.name===f.name&&x.size===f.size))continue;files.push(f);added++}if(added){scanned=false;renderFiles();el('find').disabled=files.filter(isTemplate).length===0;el('produce').disabled=true;el('content').className='empty';el('content').textContent='Πάτησε «Ανεύρεση πεδίων» για να διαβάσω τα placeholders και τις τιμές CSV.';el('count').textContent='—';setStatus(files.filter(isTemplate).length+' πρότυπα και '+files.filter(isCsv).length+' CSV έτοιμα για σάρωση')}}
-function renderFiles(){el('filelist').innerHTML='';if(!files.length){el('filelist').innerHTML='<div class="filehint">Δεν έχουν προστεθεί αρχεία</div>';el('find').disabled=true;return}files.forEach((f,i)=>{const d=document.createElement('div');d.className='file';const ext=f.name.split('.').pop().toLowerCase();const icon=ext==='docx'?'📝':ext==='xlsx'?'📊':'📄';const role=ext==='csv'?' · CSV τιμών':'';d.innerHTML='<span class="fileicon">'+icon+'</span><span class="filename" title="'+esc(f.name)+'">'+esc(f.name)+role+'</span><button class="remove" aria-label="Αφαίρεση" title="Αφαίρεση">×</button>';d.querySelector('button').onclick=()=>{files.splice(i,1);renderFiles();scanned=false;el('produce').disabled=true;el('content').className='empty';el('content').textContent='Πάτησε «Ανεύρεση πεδίων» για να διαβάσω τα placeholders και τις τιμές CSV.';el('count').textContent='—'};el('filelist').appendChild(d)});el('find').disabled=files.filter(isTemplate).length===0}
-function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function parseCsv(text){text=String(text).replace(/^\uFEFF/,'');const rows=[];let row=[],field='',quoted=false;for(let i=0;i<text.length;i++){const c=text[i];if(quoted){if(c==='"'&&text[i+1]==='"'){field+='"';i++}else if(c==='"')quoted=false;else field+=c}else if(c==='"'&&field==='')quoted=true;else if(c===','){row.push(field);field=''}else if(c==='\n'||c==='\r'){if(c==='\r'&&text[i+1]==='\n')i++;row.push(field);field='';if(row.some(v=>v!==''))rows.push(row);row=[]}else field+=c}if(field!==''||row.length){row.push(field);if(row.some(v=>v!==''))rows.push(row)}if(!rows.length)return new Map();const norm=v=>String(v??'').trim().toLocaleLowerCase('el'),head=rows[0].map(norm),fieldHeaders=['πεδίο','field','όνομα πεδίου','name'],valueHeaders=['τιμή','value','τιμές'];let fi=head.findIndex(v=>fieldHeaders.includes(v)),vi=head.findIndex(v=>valueHeaders.includes(v)),start=fi>=0&&vi>=0?1:0;if(start===0){fi=0;vi=1}const out=new Map();for(let i=start;i<rows.length;i++){const name=String(rows[i][fi]??'').trim();if(!name||rows[i][vi]===undefined)continue;out.set(name,String(rows[i][vi]))}return out}
-async function loadCsvValues(csvFiles){const out=new Map();for(const f of csvFiles){const entries=parseCsv(await f.text());for(const [k,v]of entries)out.set(k,v)}return out}
-function csvEscape(value){return '"'+String(value??'').replace(/"/g,'""')+'"'}
-function buildValuesCsv(){const rows=[['Πεδίο','Τιμή'],...Array.from(fields.keys()).map(name=>[name,values.get(name)??''])];return new Blob(['\uFEFF',rows.map(r=>r.map(csvEscape).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'})}
+// Pure template logic: placeholder discovery, CSV values and DOCX/XLSX filling. No DOM of the page.
+window.TemplaterModel=(()=>{
+ const W_NS='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+ const DOCX_PARTS=/^word\/(document|header\d*|footer\d*|footnotes|endnotes)\.xml$/;
+ const SHEET_PARTS=/^xl\/worksheets\/sheet\d+\.xml$/;
+ const TYPES=['Decimal','Integer','Date','Text','Textarea'];
 
-drop.onclick=()=>picker.click();picker.onchange=()=>{addFiles(picker.files);picker.value=''};for(const e of ['dragenter','dragover'])drop.addEventListener(e,x=>{x.preventDefault();drop.classList.add('over')});for(const e of ['dragleave','drop'])drop.addEventListener(e,x=>{x.preventDefault();drop.classList.remove('over')});drop.addEventListener('drop',e=>addFiles(e.dataTransfer.files));
-function parseToken(raw){let [name,...rest]=raw.split(':');name=name.trim();let type=(rest.join(':').trim()||'Text');const known=['Decimal','Integer','Date','Text','Textarea'];if(!known.some(t=>t.toLowerCase()===type.toLowerCase()))return {name,type:'Text',warning:type};return {name,type:known.find(t=>t.toLowerCase()===type.toLowerCase())}}
-function collect(text,src){const re=/\{\{\s*([^{}]+?)\s*\}\}/g;let m;while((m=re.exec(text))){if(m[1].startsWith('#')||m[1].startsWith('/'))continue;const p=parseToken(m[1]);if(!p.name)continue;const prev=fields.get(p.name);if(prev&&prev.type!==p.type&&p.type!=='Text')prev.conflict=true;else if(!prev)fields.set(p.name,{...p,sources:new Set([src])});if(prev)prev.sources.add(src)}}
-async function scanDocx(zip,src){const entries=Object.keys(zip.files).filter(p=>/^word\/(document|header\d*|footer\d*|footnotes|endnotes)\.xml$/.test(p));for(const p of entries){const xml=await zip.file(p).async('string'),doc=new DOMParser().parseFromString(xml,'application/xml'),ns='http://schemas.openxmlformats.org/wordprocessingml/2006/main';for(const para of doc.getElementsByTagNameNS(ns,'p'))collect(Array.from(para.getElementsByTagNameNS(ns,'t')).map(n=>n.textContent).join(''),src)}}
-async function scanXlsx(zip,src){let shared=[];if(zip.file('xl/sharedStrings.xml')){const d=new DOMParser().parseFromString(await zip.file('xl/sharedStrings.xml').async('string'),'application/xml');shared=Array.from(d.getElementsByTagName('si')).map(xmlText)}for(const p of Object.keys(zip.files).filter(p=>/^xl\/worksheets\/sheet\d+\.xml$/.test(p))){const d=new DOMParser().parseFromString(await zip.file(p).async('string'),'application/xml');for(const c of d.getElementsByTagName('c')){const type=c.getAttribute('t');let value='';if(type==='s'){const v=c.getElementsByTagName('v')[0];if(v)value=shared[Number(v.textContent)]||''}else if(type==='inlineStr'){const is=c.getElementsByTagName('is')[0];if(is)value=xmlText(is)}else if(type==='str'){const v=c.getElementsByTagName('v')[0];if(v)value=v.textContent}if(value)collect(value,src)}}}
-el('find').onclick=async()=>{if(!window.JSZip){toast('Δεν φορτώθηκε η βιβλιοθήκη ανάγνωσης αρχείων. Έλεγξε τη σύνδεση και άνοιξε ξανά τη σελίδα.',true);return}const templates=files.filter(isTemplate),csvFiles=files.filter(isCsv);if(!templates.length){toast('Πρόσθεσε τουλάχιστον ένα πρότυπο DOCX ή XLSX.',true);return}fields.clear();matchedCsvFields.clear();el('find').disabled=true;el('produce').disabled=true;setStatus('Σάρωση αρχείων…');try{for(const f of templates){const zip=await JSZip.loadAsync(f);if(f.name.toLowerCase().endsWith('.docx'))await scanDocx(zip,f.name);else await scanXlsx(zip,f.name)}const csvMap=await loadCsvValues(csvFiles);for(const name of fields.keys())if(csvMap.has(name)){values.set(name,csvMap.get(name));matchedCsvFields.add(name)}renderFields();scanned=true;el('produce').disabled=fields.size===0;setStatus(fields.size?fields.size+' πεδίο/α πεδία βρέθηκαν':'Δεν βρέθηκαν πεδία');if(csvFiles.length&&fields.size){const absent=fields.size-matchedCsvFields.size;toast('Το CSV ελέγχθηκε: '+matchedCsvFields.size+' από '+fields.size+' πεδία προσυμπληρώθηκαν'+(absent?'; '+absent+' χωρίς αντιστοιχία':'' )+'.')}else if(!fields.size)toast('Δεν εντοπίστηκαν placeholders. Έλεγξε ότι είναι γραμμένα ως {{Όνομα}}.',true)}catch(e){console.error(e);toast('Δεν μπόρεσα να διαβάσω κάποιο αρχείο. Έλεγξε ότι είναι έγκυρο DOCX, XLSX ή CSV.',true);setStatus('Η σάρωση απέτυχε')}finally{el('find').disabled=templates.length===0}};
-function renderFields(){const out=el('content');out.className='';out.innerHTML='';el('count').textContent=fields.size+' πεδία';el('subtitle').textContent=fields.size?'Συμπλήρωσε ή έλεγξε τις τιμές· οι αντιστοιχίες από CSV σημειώνονται.':'Δεν βρέθηκαν πεδία στα επιλεγμένα αρχεία.';if(!fields.size){out.className='empty';out.textContent='Δεν βρέθηκαν placeholders.';return}const grid=document.createElement('div');grid.className='fieldgrid';for(const [name,f] of fields){const wrap=document.createElement('div');wrap.className='field';const type=f.type,input=document.createElement(type==='Textarea'?'textarea':'input');input.name=name;input.dataset.type=type;if(type==='Date')input.type='date';else if(type==='Decimal')input.type='number',input.step='any',input.inputMode='decimal';else if(type==='Integer')input.type='number',input.step='1',input.inputMode='numeric';else input.type='text';input.value=values.get(name)||'';input.addEventListener('input',()=>{values.set(name,input.value);input.classList.remove('invalid')});const label=document.createElement('label');label.innerHTML=esc(name)+' <span class="type">'+esc(type)+'</span>'+(matchedCsvFields.has(name)?' <span class="prefill">CSV</span>':'')+(f.conflict?' <span class="alert">τύπος με ασυμφωνία</span>':'');wrap.append(label,input);if(f.warning)wrap.insertAdjacentHTML('beforeend','<small>Άγνωστος τύπος «'+esc(f.warning)+'»· θα αντιμετωπιστεί ως κείμενο.</small>');else if(type==='Decimal')wrap.insertAdjacentHTML('beforeend','<small>Δέχεται δεκαδικό αριθμό, με τελεία ή κόμμα.</small>');else if(type==='Integer')wrap.insertAdjacentHTML('beforeend','<small>Δέχεται ακέραιο αριθμό.</small>');grid.appendChild(wrap)}out.appendChild(grid);const note=document.createElement('div');note.className='bottomnote';note.innerHTML='Απλά πεδία: <code>{{Σχολικό Έτος}}</code> · Δεκαδικός: <code>{{Τιμή:Decimal}}</code> · Ακέραιος: <code>{{Μέρες:Integer}}</code>. Στην παραγωγή εξάγεται CSV με τα πεδία και τις τιμές τους.';out.appendChild(note)}
-function validate(){let ok=true;document.querySelectorAll('.field input,.field textarea').forEach(i=>{const t=i.dataset.type,v=i.value.trim();let bad=false;if(t==='Integer'&&v!==''&&!/^[+-]?\d+$/.test(v))bad=true;if(t==='Decimal'&&v!==''&&!/^[+-]?(?:\d+(?:[.,]\d*)?|[.,]\d+)$/.test(v))bad=true;i.classList.toggle('invalid',bad);if(bad)ok=false});return ok}
-function escapeXml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]))}
-function replaceTextRuns(xml,map){const doc=new DOMParser().parseFromString(xml,'application/xml');if(doc.querySelector('parsererror'))return xml;const ns='http://schemas.openxmlformats.org/wordprocessingml/2006/main';for(const para of doc.getElementsByTagNameNS(ns,'p')){const nodes=Array.from(para.getElementsByTagNameNS(ns,'t'));if(!nodes.length)continue;const texts=nodes.map(n=>n.textContent),spans=[];let full='';for(let i=0;i<texts.length;i++){const start=full.length;full+=texts[i];spans.push({start,end:full.length})}const matches=[];const re=/\{\{\s*([^{}]+?)\s*\}\}/g;let m;while((m=re.exec(full))){const p=parseToken(m[1]);if(map.has(p.name))matches.push({start:m.index,end:re.lastIndex,value:map.get(p.name)})}if(!matches.length)continue;const out=nodes.map(()=>''),appendRange=(from,to)=>{for(let i=0;i<spans.length;i++){const a=Math.max(from,spans[i].start),b=Math.min(to,spans[i].end);if(a<b)out[i]+=texts[i].slice(a-spans[i].start,b-spans[i].start)}};let cursor=0;for(const match of matches){appendRange(cursor,match.start);let target=spans.findIndex(x=>match.start>=x.start&&match.start<x.end);if(target<0)target=Math.max(0,spans.length-1);out[target]+=match.value;cursor=match.end}appendRange(cursor,full.length);for(let i=0;i<nodes.length;i++)nodes[i].textContent=out[i]}return new XMLSerializer().serializeToString(doc)}
-function xmlText(elm){return Array.from(elm.getElementsByTagName('t')).map(t=>t.textContent).join('')}
-function columnNumber(col){let n=0;for(const ch of col)n=n*26+ch.charCodeAt(0)-64;return n}
-function refreshSimpleFormulaCaches(doc,shared){const ns=doc.documentElement.namespaceURI,cells=new Map(Array.from(doc.getElementsByTagName('c')).map(c=>[c.getAttribute('r'),c]));const colNum=col=>{let n=0;for(const ch of col)n=n*26+ch.charCodeAt(0)-64;return n},colName=num=>{let s='';for(let n=num;n;n=Math.floor((n-1)/26))s=String.fromCharCode(65+(n-1)%26)+s;return s};const valueOf=c=>{if(!c)return null;const t=c.getAttribute('t'),v=c.getElementsByTagName('v')[0];if(t==='s')return v?(shared[Number(v.textContent)]||''):'';if(t==='inlineStr'){const is=c.getElementsByTagName('is')[0];return is?xmlText(is):''}if(!v)return null;const raw=v.textContent||'';if(t==='str')return raw;if(raw==='')return '';const n=Number(raw);return Number.isFinite(n)?n:raw};const write=(c,val)=>{const t=typeof val==='number'?'n':'str',oldType=c.getAttribute('t'),v0=c.getElementsByTagName('v')[0],oldValue=v0?v0.textContent:'';let v=v0;if(!v){v=doc.createElementNS(ns,'v');const f=c.getElementsByTagName('f')[0];if(f&&f.nextSibling)c.insertBefore(v,f.nextSibling);else c.appendChild(v)}const next=typeof val==='number'?String(val):String(val??'');v.textContent=next;c.setAttribute('t',t);return oldType!==t||oldValue!==next};const formulas=Array.from(cells.values()).filter(c=>c.getElementsByTagName('f').length);for(let pass=0;pass<Math.min(formulas.length+1,30);pass++){let changed=false;for(const c of formulas){const f=c.getElementsByTagName('f')[0],formula=(f.textContent||'').trim();const im=formula.match(/^IF\(\s*(\$?[A-Z]{1,3}\$?\d+)\s*<>\s*""\s*,\s*(\$?[A-Z]{1,3}\$?\d+)\s*,\s*""\s*\)$/i);if(im){const a=valueOf(cells.get(im[1].replace(/\$/g,'')));const val=a!==null&&a!==''?valueOf(cells.get(im[2].replace(/\$/g,''))):'';changed=write(c,val??'')||changed;continue}const sm=formula.match(/^SUM\s*\(([^()]*)\)$/i);if(!sm)continue;let total=0,ok=true;for(const part of sm[1].split(',')){const m=part.trim().match(/^\$?([A-Z]{1,3})\$?(\d+)(?::\$?([A-Z]{1,3})\$?(\d+))?$/i);if(!m){ok=false;break}const c1=colNum(m[1].toUpperCase()),r1=Number(m[2]),c2=m[3]?colNum(m[3].toUpperCase()):c1,r2=m[4]?Number(m[4]):r1;for(let row=Math.min(r1,r2);row<=Math.max(r1,r2);row++)for(let col=Math.min(c1,c2);col<=Math.max(c1,c2);col++){const val=valueOf(cells.get(colName(col)+row));if(typeof val==='number'&&Number.isFinite(val))total+=val}}if(ok)changed=write(c,total)||changed}if(!changed)break}}
-function replaceXlsx(xml,shared,map,types){const doc=new DOMParser().parseFromString(xml,'application/xml');if(doc.querySelector('parsererror'))return xml;const cells=Array.from(doc.getElementsByTagName('c'));for(const c of cells){let text='';const type=c.getAttribute('t');if(type==='s'){const v=c.getElementsByTagName('v')[0];if(!v)continue;text=shared[Number(v.textContent)]||''}else if(type==='inlineStr'){const is=c.getElementsByTagName('is')[0];if(is)text=xmlText(is)}else if(type==='str'){const v=c.getElementsByTagName('v')[0];if(v)text=v.textContent}if(!text)continue;const full=text.match(/^\s*\{\{\s*([^{}]+?)\s*\}\}\s*$/);let changed=false,fieldType='Text',numericWhole=false;const replaced=text.replace(/\{\{\s*([^{}]+?)\s*\}\}/g,(all,raw)=>{const p=parseToken(raw);if(!map.has(p.name))return all;changed=true;fieldType=types.get(p.name)||p.type;numericWhole=!!full&&(fieldType==='Decimal'||fieldType==='Integer');return String(map.get(p.name))});if(!changed)continue;while(c.firstChild)c.removeChild(c.firstChild);if(numericWhole){c.removeAttribute('t');const v=doc.createElementNS(c.namespaceURI,'v');v.textContent=replaced.trim().replace(',','.');c.appendChild(v)}else{c.setAttribute('t','inlineStr');const is=doc.createElementNS(c.namespaceURI,'is'),t=doc.createElementNS(c.namespaceURI,'t');if(/^\s|\s$/.test(replaced))t.setAttributeNS('http://www.w3.org/XML/1998/namespace','xml:space','preserve');t.textContent=replaced;is.appendChild(t);c.appendChild(is)}}refreshSimpleFormulaCaches(doc,shared);return new XMLSerializer().serializeToString(doc)}
-async function requestWorkbookRecalculation(zip){const file=zip.file('xl/workbook.xml');if(!file)return;const xml=await file.async('string'),doc=new DOMParser().parseFromString(xml,'application/xml');if(doc.querySelector('parsererror'))return;const ns=doc.documentElement.namespaceURI;let calc=doc.getElementsByTagNameNS(ns,'calcPr')[0];if(!calc){calc=doc.createElementNS(ns,'calcPr');const ext=doc.getElementsByTagNameNS(ns,'extLst')[0];if(ext)doc.documentElement.insertBefore(calc,ext);else doc.documentElement.appendChild(calc)}calc.setAttribute('calcMode','auto');calc.setAttribute('fullCalcOnLoad','1');calc.setAttribute('forceFullCalc','1');calc.setAttribute('calcId','0');zip.file('xl/workbook.xml',new XMLSerializer().serializeToString(doc))}
-async function generateOne(file,map,typeMap){const zip=await JSZip.loadAsync(file),name=file.name.toLowerCase();if(name.endsWith('.docx')){for(const p of Object.keys(zip.files).filter(p=>/^word\/(document|header\d*|footer\d*|footnotes|endnotes)\.xml$/.test(p))){const xml=await zip.file(p).async('string');zip.file(p,replaceTextRuns(xml,map))}}else{let shared=[];if(zip.file('xl/sharedStrings.xml')){const xml=await zip.file('xl/sharedStrings.xml').async('string'),d=new DOMParser().parseFromString(xml,'application/xml');shared=Array.from(d.getElementsByTagName('si')).map(xmlText)}for(const p of Object.keys(zip.files).filter(p=>/^xl\/worksheets\/sheet\d+\.xml$/.test(p))){const xml=await zip.file(p).async('string');zip.file(p,replaceXlsx(xml,shared,map,typeMap))}await requestWorkbookRecalculation(zip)}return zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}})}
-function outName(n){return n}
-el('produce').onclick=async()=>{if(!scanned||!fields.size)return;if(!validate()){toast('Διόρθωσε πρώτα τις τιμές Decimal και Integer.',true);return}for(const [n,f]of fields)if(f.conflict){toast('Το πεδίο «'+n+'» έχει διαφορετικό τύπο σε διαφορετικά πρότυπα.',true);return}const templateFiles=files.filter(isTemplate),map=new Map(),typeMap=new Map();for(const [name,f]of fields){map.set(name,values.get(name)??'');typeMap.set(name,f.type)}el('produce').disabled=true;setStatus('Δημιουργία αρχείων και CSV…');try{const generated=[];for(const f of templateFiles)generated.push({name:outName(f.name),blob:await generateOne(f,map,typeMap)});const csvBlob=buildValuesCsv(),csvName='Documents_Templater_Τιμές.csv';if(generated.length===1){saveBlob(generated[0].blob,generated[0].name);setTimeout(()=>saveBlob(csvBlob,csvName),350)}else{const z=new JSZip();for(const g of generated)z.file(g.name,g.blob);z.file(csvName,csvBlob);const blob=await z.generateAsync({type:'blob',compression:'DEFLATE'});saveBlob(blob,'Documents_Templater_συμπληρωμένο.zip')}setStatus(generated.length+' έγγραφο/α και CSV δημιουργήθηκαν');toast(generated.length===1?'Κατέβηκαν το έγγραφο και το CSV τιμών.':'Το ZIP περιέχει τα έγγραφα και το CSV τιμών.')}catch(e){console.error(e);toast('Παρουσιάστηκε σφάλμα κατά τη δημιουργία των αρχείων.',true);setStatus('Η δημιουργία απέτυχε')}finally{el('produce').disabled=false}}
-function saveBlob(blob,name){const a=document.createElement('a'),url=URL.createObjectURL(blob);a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000)}
+ // CSV of field values: «Πεδίο,Τιμή» per row, with or without a heading row (tokenizer: SchoolCsv in _data.js).
+ function parseCsv(text){
+  const rows=SchoolCsv.parse(text,{delimiter:','});
+  if(!rows.length)return new Map();
+  const norm=v=>String(v??'').trim().toLocaleLowerCase('el'),head=rows[0].map(norm);
+  const fieldHeaders=['πεδίο','field','όνομα πεδίου','name'],valueHeaders=['τιμή','value','τιμές'];
+  let fi=head.findIndex(v=>fieldHeaders.includes(v)),vi=head.findIndex(v=>valueHeaders.includes(v)),start=fi>=0&&vi>=0?1:0;
+  if(start===0){fi=0;vi=1}
+  const out=new Map();
+  for(let i=start;i<rows.length;i++){const name=String(rows[i][fi]??'').trim();if(!name||rows[i][vi]===undefined)continue;out.set(name,String(rows[i][vi]))}
+  return out;
+ }
+ async function loadCsvValues(csvFiles){const out=new Map();for(const f of csvFiles){for(const [k,v] of parseCsv(await f.text()))out.set(k,v)}return out}
+ function buildValuesCsv(fields,values){
+  const rows=[['Πεδίο','Τιμή'],...Array.from(fields.keys()).map(name=>[name,values.get(name)??''])];
+  return new Blob(['﻿',rows.map(r=>r.map(SchoolCsv.quote).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'});
+ }
+ function parseToken(raw){
+  let [name,...rest]=raw.split(':');name=name.trim();
+  const type=rest.join(':').trim()||'Text';
+  const known=TYPES.find(t=>t.toLowerCase()===type.toLowerCase());
+  return known?{name,type:known}:{name,type:'Text',warning:type};
+ }
+ function collect(text,src,fields){
+  const re=/\{\{\s*([^{}]+?)\s*\}\}/g;let m;
+  while((m=re.exec(text))){
+   if(m[1].startsWith('#')||m[1].startsWith('/'))continue;
+   const p=parseToken(m[1]);if(!p.name)continue;
+   const prev=fields.get(p.name);
+   if(prev&&prev.type!==p.type&&p.type!=='Text')prev.conflict=true;
+   else if(!prev)fields.set(p.name,{...p,sources:new Set([src])});
+   if(prev)prev.sources.add(src);
+  }
+ }
+ function xmlText(elm){return Array.from(elm.getElementsByTagName('t')).map(t=>t.textContent).join('')}
+ async function sharedStrings(zip){
+  if(!zip.file('xl/sharedStrings.xml'))return [];
+  const d=new DOMParser().parseFromString(await zip.file('xl/sharedStrings.xml').async('string'),'application/xml');
+  return Array.from(d.getElementsByTagName('si')).map(xmlText);
+ }
+ async function scanDocx(zip,src,fields){
+  for(const p of Object.keys(zip.files).filter(p=>DOCX_PARTS.test(p))){
+   const doc=new DOMParser().parseFromString(await zip.file(p).async('string'),'application/xml');
+   for(const para of doc.getElementsByTagNameNS(W_NS,'p'))collect(Array.from(para.getElementsByTagNameNS(W_NS,'t')).map(n=>n.textContent).join(''),src,fields);
+  }
+ }
+ function cellText(c,shared){
+  const type=c.getAttribute('t');
+  if(type==='s'){const v=c.getElementsByTagName('v')[0];return v?(shared[Number(v.textContent)]||''):''}
+  if(type==='inlineStr'){const is=c.getElementsByTagName('is')[0];return is?xmlText(is):''}
+  if(type==='str'){const v=c.getElementsByTagName('v')[0];return v?v.textContent:''}
+  return '';
+ }
+ async function scanXlsx(zip,src,fields){
+  const shared=await sharedStrings(zip);
+  for(const p of Object.keys(zip.files).filter(p=>SHEET_PARTS.test(p))){
+   const d=new DOMParser().parseFromString(await zip.file(p).async('string'),'application/xml');
+   for(const c of d.getElementsByTagName('c')){const value=cellText(c,shared);if(value)collect(value,src,fields)}
+  }
+ }
+ async function scanTemplates(templates){
+  const fields=new Map();
+  for(const f of templates){
+   try{const zip=await JSZip.loadAsync(f);if(/\.docx$/i.test(f.name))await scanDocx(zip,f.name,fields);else await scanXlsx(zip,f.name,fields)}
+   catch(error){error.fileName=f.name;throw error}
+  }
+  return fields;
+ }
+ // Placeholders may be split across several runs of one paragraph; the value goes to the run where it starts.
+ function replaceTextRuns(xml,map){
+  const doc=new DOMParser().parseFromString(xml,'application/xml');if(doc.querySelector('parsererror'))return xml;
+  for(const para of doc.getElementsByTagNameNS(W_NS,'p')){
+   const nodes=Array.from(para.getElementsByTagNameNS(W_NS,'t'));if(!nodes.length)continue;
+   const texts=nodes.map(n=>n.textContent),spans=[];let full='';
+   for(let i=0;i<texts.length;i++){const start=full.length;full+=texts[i];spans.push({start,end:full.length})}
+   const matches=[],re=/\{\{\s*([^{}]+?)\s*\}\}/g;let m;
+   while((m=re.exec(full))){const p=parseToken(m[1]);if(map.has(p.name))matches.push({start:m.index,end:re.lastIndex,value:map.get(p.name)})}
+   if(!matches.length)continue;
+   const out=nodes.map(()=>''),appendRange=(from,to)=>{for(let i=0;i<spans.length;i++){const a=Math.max(from,spans[i].start),b=Math.min(to,spans[i].end);if(a<b)out[i]+=texts[i].slice(a-spans[i].start,b-spans[i].start)}};
+   let cursor=0;
+   for(const match of matches){
+    appendRange(cursor,match.start);
+    let target=spans.findIndex(x=>match.start>=x.start&&match.start<x.end);if(target<0)target=Math.max(0,spans.length-1);
+    out[target]+=match.value;cursor=match.end;
+   }
+   appendRange(cursor,full.length);
+   for(let i=0;i<nodes.length;i++)nodes[i].textContent=out[i];
+  }
+  return new XMLSerializer().serializeToString(doc);
+ }
+ // Refreshes cached results of simple SUM(...) and IF(A<>"",B,"") formulas, so previews show values before Excel recalculates.
+ function refreshSimpleFormulaCaches(doc,shared){
+  const ns=doc.documentElement.namespaceURI,cells=new Map(Array.from(doc.getElementsByTagName('c')).map(c=>[c.getAttribute('r'),c]));
+  const colNum=col=>{let n=0;for(const ch of col)n=n*26+ch.charCodeAt(0)-64;return n};
+  const colName=num=>{let s='';for(let n=num;n;n=Math.floor((n-1)/26))s=String.fromCharCode(65+(n-1)%26)+s;return s};
+  const valueOf=c=>{
+   if(!c)return null;
+   const t=c.getAttribute('t'),v=c.getElementsByTagName('v')[0];
+   if(t==='s')return v?(shared[Number(v.textContent)]||''):'';
+   if(t==='inlineStr'){const is=c.getElementsByTagName('is')[0];return is?xmlText(is):''}
+   if(!v)return null;
+   const raw=v.textContent||'';if(t==='str')return raw;if(raw==='')return '';
+   const n=Number(raw);return Number.isFinite(n)?n:raw;
+  };
+  const write=(c,val)=>{
+   const t=typeof val==='number'?'n':'str',oldType=c.getAttribute('t'),v0=c.getElementsByTagName('v')[0],oldValue=v0?v0.textContent:'';
+   let v=v0;
+   if(!v){v=doc.createElementNS(ns,'v');const f=c.getElementsByTagName('f')[0];if(f&&f.nextSibling)c.insertBefore(v,f.nextSibling);else c.appendChild(v)}
+   const next=typeof val==='number'?String(val):String(val??'');
+   v.textContent=next;c.setAttribute('t',t);return oldType!==t||oldValue!==next;
+  };
+  const formulas=Array.from(cells.values()).filter(c=>c.getElementsByTagName('f').length);
+  for(let pass=0;pass<Math.min(formulas.length+1,30);pass++){
+   let changed=false;
+   for(const c of formulas){
+    const f=c.getElementsByTagName('f')[0],formula=(f.textContent||'').trim();
+    const im=formula.match(/^IF\(\s*(\$?[A-Z]{1,3}\$?\d+)\s*<>\s*""\s*,\s*(\$?[A-Z]{1,3}\$?\d+)\s*,\s*""\s*\)$/i);
+    if(im){const a=valueOf(cells.get(im[1].replace(/\$/g,'')));const val=a!==null&&a!==''?valueOf(cells.get(im[2].replace(/\$/g,''))):'';changed=write(c,val??'')||changed;continue}
+    const sm=formula.match(/^SUM\s*\(([^()]*)\)$/i);if(!sm)continue;
+    let total=0,ok=true;
+    for(const part of sm[1].split(',')){
+     const m=part.trim().match(/^\$?([A-Z]{1,3})\$?(\d+)(?::\$?([A-Z]{1,3})\$?(\d+))?$/i);if(!m){ok=false;break}
+     const c1=colNum(m[1].toUpperCase()),r1=Number(m[2]),c2=m[3]?colNum(m[3].toUpperCase()):c1,r2=m[4]?Number(m[4]):r1;
+     for(let row=Math.min(r1,r2);row<=Math.max(r1,r2);row++)for(let col=Math.min(c1,c2);col<=Math.max(c1,c2);col++){const val=valueOf(cells.get(colName(col)+row));if(typeof val==='number'&&Number.isFinite(val))total+=val}
+    }
+    if(ok)changed=write(c,total)||changed;
+   }
+   if(!changed)break;
+  }
+ }
+ function replaceXlsx(xml,shared,map,types){
+  const doc=new DOMParser().parseFromString(xml,'application/xml');if(doc.querySelector('parsererror'))return xml;
+  for(const c of Array.from(doc.getElementsByTagName('c'))){
+   const text=cellText(c,shared);if(!text)continue;
+   const full=text.match(/^\s*\{\{\s*([^{}]+?)\s*\}\}\s*$/);
+   let changed=false,fieldType='Text',numericWhole=false;
+   const replaced=text.replace(/\{\{\s*([^{}]+?)\s*\}\}/g,(all,raw)=>{
+    const p=parseToken(raw);if(!map.has(p.name))return all;
+    changed=true;fieldType=types.get(p.name)||p.type;numericWhole=!!full&&(fieldType==='Decimal'||fieldType==='Integer');
+    return String(map.get(p.name));
+   });
+   if(!changed)continue;
+   while(c.firstChild)c.removeChild(c.firstChild);
+   if(numericWhole){
+    c.removeAttribute('t');const v=doc.createElementNS(c.namespaceURI,'v');v.textContent=replaced.trim().replace(',','.');c.appendChild(v);
+   }else{
+    c.setAttribute('t','inlineStr');
+    const is=doc.createElementNS(c.namespaceURI,'is'),t=doc.createElementNS(c.namespaceURI,'t');
+    if(/^\s|\s$/.test(replaced))t.setAttributeNS('http://www.w3.org/XML/1998/namespace','xml:space','preserve');
+    t.textContent=replaced;is.appendChild(t);c.appendChild(is);
+   }
+  }
+  refreshSimpleFormulaCaches(doc,shared);
+  return new XMLSerializer().serializeToString(doc);
+ }
+ async function requestWorkbookRecalculation(zip){
+  const file=zip.file('xl/workbook.xml');if(!file)return;
+  const doc=new DOMParser().parseFromString(await file.async('string'),'application/xml');if(doc.querySelector('parsererror'))return;
+  const ns=doc.documentElement.namespaceURI;let calc=doc.getElementsByTagNameNS(ns,'calcPr')[0];
+  if(!calc){calc=doc.createElementNS(ns,'calcPr');const ext=doc.getElementsByTagNameNS(ns,'extLst')[0];if(ext)doc.documentElement.insertBefore(calc,ext);else doc.documentElement.appendChild(calc)}
+  calc.setAttribute('calcMode','auto');calc.setAttribute('fullCalcOnLoad','1');calc.setAttribute('forceFullCalc','1');calc.setAttribute('calcId','0');
+  zip.file('xl/workbook.xml',new XMLSerializer().serializeToString(doc));
+ }
+ async function generateOne(file,map,typeMap){
+  const zip=await JSZip.loadAsync(file);
+  if(/\.docx$/i.test(file.name)){
+   for(const p of Object.keys(zip.files).filter(p=>DOCX_PARTS.test(p)))zip.file(p,replaceTextRuns(await zip.file(p).async('string'),map));
+  }else{
+   const shared=await sharedStrings(zip);
+   for(const p of Object.keys(zip.files).filter(p=>SHEET_PARTS.test(p)))zip.file(p,replaceXlsx(await zip.file(p).async('string'),shared,map,typeMap));
+   await requestWorkbookRecalculation(zip);
+  }
+  return zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
+ }
+ function invalidValue(type,value){
+  const v=String(value??'').trim();if(v==='')return false;
+  if(type==='Integer')return !/^[+-]?\d+$/.test(v);
+  if(type==='Decimal')return !/^[+-]?(?:\d+(?:[.,]\d*)?|[.,]\d+)$/.test(v);
+  return false;
+ }
+ return Object.freeze({parseCsv,loadCsvValues,buildValuesCsv,scanTemplates,generateOne,invalidValue});
 })();
-</script>
-</body></html>
+
+(()=>{'use strict';
+ const M=TemplaterModel,$=id=>document.getElementById(id),layout=$('layout');
+ // Messages, requests and their time limits: schoolHost in _ui.js.
+ const hosted=schoolHost.hosted,post=schoolHost.post,Selection=schoolListSelection;
+
+ const TEMPLATE_EXT=['docx','xlsx'],ALL_EXT=[...TEMPLATE_EXT,'csv'];
+ const ext=f=>String(f.name).split('.').pop().toLowerCase();
+ const isCsv=f=>ext(f)==='csv',isTemplate=f=>TEMPLATE_EXT.includes(ext(f));
+ const fieldsLabel=n=>n===1?'1 πεδίο':n+' πεδία';
+ let files=[],selected=new Set(),anchor=null,fields=new Map(),values=new Map(),csvMatched=new Set(),scanned=false,dirty=false,busy=false;
+
+ function notice(text,error=false){$('notice').textContent=text;$('notice').classList.toggle('error',error)}
+ function mark(value=true){dirty=value;post({type:'school-documents:dirty',dirty});updateButtons()}
+ function setBusy(value){busy=value;updateButtons()}
+ function updateButtons(){
+  $('produce').disabled=busy||!scanned||!fields.size;
+  // The change dot shows the next step: «Ανεύρεση πεδίων» until the current files are scanned, then «Παραγωγή Εγγράφων».
+  const needScan=files.some(isTemplate)&&!scanned,pendingProduce=dirty&&scanned&&fields.size>0;
+  $('findFields').classList.toggle('dirty',needScan);
+  $('findFields').setAttribute('aria-label',needScan?'Ανεύρεση πεδίων — τα αρχεία δεν έχουν σαρωθεί ακόμη':'Ανεύρεση πεδίων');
+  $('produce').classList.toggle('dirty',pendingProduce);
+  $('produce').setAttribute('aria-label',pendingProduce?'Παραγωγή Εγγράφων — υπάρχουν αλλαγές που δεν έχουν εξαχθεί':'Παραγωγή Εγγράφων');
+  $('reset').disabled=busy||(!files.length&&!values.size&&!dirty);
+  $('addFiles').disabled=busy||!hosted;
+  $('addFiles').title=hosted?'Επιλογή προτύπων από τον δίσκο':'Η επιλογή από τον δίσκο γίνεται μέσα από το Κεντρικό Μενού';
+  $('removeFiles').disabled=busy||!selected.size;
+  $('removeFiles').textContent=selected.size>1?`Αφαίρεση (${selected.size})`:'Αφαίρεση';
+  $('findFields').disabled=busy||!files.some(isTemplate);
+  // Busy: the sidebar and the fields fade together (shared main.busy of _subapp.css).
+  layout.classList.toggle('busy',busy);layout.setAttribute('aria-busy',String(busy));
+ }
+
+ // ---- Files ----
+ function renderFiles(){
+  const list=$('filesList');list.replaceChildren();
+  $('filesTitle').textContent=`Αρχεία (${files.length})`;
+  if(!files.length){
+   list.removeAttribute('role');list.removeAttribute('aria-multiselectable');
+   const drop=document.createElement('div');drop.id='fileDrop';drop.className='subapp-file-drop visible';
+   const icon=document.createElement('span');icon.className='subapp-file-drop-icon';icon.setAttribute('aria-hidden','true');icon.textContent='⇩';
+   const title=document.createElement('span');title.className='subapp-file-drop-title';title.textContent='Σύρε εδώ τα αρχεία σου';
+   const text=document.createElement('span');text.className='subapp-file-drop-text';text.textContent=hosted?'ή πάτησε «+ Προσθήκη» για επιλογή από τον δίσκο.':'Η σελίδα άνοιξε χωρίς το Κεντρικό Μενού: πρόσθεσε αρχεία με μεταφορά και απόθεση.';
+   const kinds=document.createElement('span');kinds.className='subapp-file-drop-files';kinds.textContent='.docx · .xlsx · .csv';
+   drop.append(icon,title,text,kinds);list.append(drop);updateButtons();return;
+  }
+  list.setAttribute('role','listbox');list.setAttribute('aria-multiselectable','true');
+  files.forEach((file,index)=>{
+   const b=document.createElement('div');b.className='subapp-list-item subapp-list-item-removable file-item'+(selected.has(file)?' selected':'');
+   b.setAttribute('role','option');b.setAttribute('aria-selected',String(selected.has(file)));b.dataset.index=String(index);b.title=file.name;
+   b.tabIndex=file===anchor||(!anchor&&index===0)?0:-1;
+   const name=document.createElement('span');name.className='file-name';// Show the row number unless the file name already starts with the same number (e.g. «2. Πρακτικό» in row 2).
+   const number=index+1;name.textContent=new RegExp('^\\s*0*'+number+'\\s*[.)]').test(file.name)?file.name:`${number}. ${file.name}`;
+   const kind=document.createElement('span');kind.className='file-kind';kind.textContent=ext(file)==='docx'?'Word':ext(file)==='xlsx'?'Excel':'CSV τιμών';
+   const remove=document.createElement('button');remove.type='button';remove.className='subapp-list-item-remove';remove.tabIndex=-1;remove.textContent='×';
+   remove.title='Αφαίρεση από τη λίστα';remove.setAttribute('aria-label','Αφαίρεση του «'+file.name+'» από τη λίστα');
+   remove.onclick=event=>{event.stopPropagation();removeFiles(new Set([file]))};
+   b.append(name,kind,remove);
+   b.onclick=event=>{
+    ({selected,anchor}=Selection.click(files,selected,anchor,file,event));
+    renderFiles();$('filesList').querySelector(`[data-index="${index}"]`)?.focus();
+   };
+   list.append(b);
+  });
+  updateButtons();
+ }
+ function clearScan(message){scanned=false;fields=new Map();csvMatched.clear();renderFieldsPlaceholder(message)}
+ function addFiles(list){
+  let added=0;const rejected=[];
+  for(const f of list){
+   if(!ALL_EXT.includes(ext(f))){rejected.push(f.name);continue}
+   if(files.some(x=>x.name===f.name&&x.size===f.size))continue;
+   files.push(f);added++;
+  }
+  if(added){clearScan('Πάτησε «Ανεύρεση πεδίων» για να διαβαστούν τα πεδία των προτύπων και οι τιμές του CSV.');renderFiles();mark(true)}
+  const t=files.filter(isTemplate).length,c=files.filter(isCsv).length;
+  if(rejected.length)notice('Δεν προστέθηκαν, επειδή δεν είναι DOCX, XLSX ή CSV: '+rejected.join(', ')+'.',true);
+  else if(added)notice(`Έτοιμα για σάρωση: ${t} ${t===1?'πρότυπο':'πρότυπα'} και ${c} CSV. Πάτησε «Ανεύρεση πεδίων».`);
+  else if(list.length)notice('Τα αρχεία υπάρχουν ήδη στη λίστα.');
+ }
+ function removeFiles(removing){
+  if(busy||!removing.size)return;
+  const count=removing.size;
+  files=files.filter(f=>!removing.has(f));
+  for(const f of removing)selected.delete(f);
+  if(anchor&&removing.has(anchor))anchor=null;
+  clearScan(files.some(isTemplate)?'Η λίστα αρχείων άλλαξε. Πάτησε ξανά «Ανεύρεση πεδίων».':'Πρόσθεσε αρχεία και πάτησε «Ανεύρεση πεδίων».');
+  renderFiles();mark(files.length>0||values.size>0);
+  notice(count===1?'Αφαιρέθηκε 1 αρχείο από τη λίστα.':`Αφαιρέθηκαν ${count} αρχεία από τη λίστα.`);
+ }
+ const removeSelected=()=>removeFiles(new Set(selected));
+ $('addFiles').onclick=async()=>{
+  if(busy||!hosted)return;
+  setBusy(true);
+  try{
+   const result=await schoolHost.request('school-documents:file',{action:'openTemplates'});
+   const picked=(Array.isArray(result?.files)?result.files:[]).filter(f=>f&&typeof f.name==='string'&&f.buffer instanceof ArrayBuffer)
+    .map(f=>new File([f.buffer],f.name,{type:String(f.type||''),lastModified:Number(f.lastModified)||Date.now()}));
+   addFiles(picked);
+  }catch(error){notice(error.message,!/ακυρώθηκε/.test(error.message))}
+  finally{setBusy(false)}
+ };
+ $('removeFiles').onclick=removeSelected;
+ $('filesList').addEventListener('keydown',event=>{
+  if(busy||!files.length)return;
+  if(event.key==='Delete'||event.key==='Backspace'){event.preventDefault();removeSelected();return}
+  if(Selection.isSelectAll(event)){
+   event.preventDefault();selected=new Set(files);anchor=anchor||files[0];renderFiles();$('filesList').focus({preventScroll:true});return;
+  }
+  if(event.key!=='ArrowUp'&&event.key!=='ArrowDown')return;
+  event.preventDefault();
+  ({selected,anchor}=Selection.step(files,selected,anchor,event.key==='ArrowDown'?1:-1));
+  renderFiles();$('filesList').querySelector(`[data-index="${files.indexOf(anchor)}"]`)?.focus();
+ });
+ // Drag and drop is not a file picker: dropped files arrive directly from the operating system.
+ const pane=$('filesPane');let dragDepth=0;
+ const hasFiles=event=>[...(event.dataTransfer?.types||[])].includes('Files');
+ const setDrag=on=>{$('filesList').classList.toggle('drag-over',on);$('fileDrop')?.classList.toggle('drag-over',on)};
+ pane.addEventListener('dragenter',event=>{if(!hasFiles(event))return;event.preventDefault();dragDepth++;setDrag(true)});
+ pane.addEventListener('dragover',event=>{if(!hasFiles(event))return;event.preventDefault();event.dataTransfer.dropEffect=busy?'none':'copy'});
+ pane.addEventListener('dragleave',()=>{dragDepth=Math.max(0,dragDepth-1);if(!dragDepth)setDrag(false)});
+ pane.addEventListener('drop',event=>{if(!hasFiles(event))return;event.preventDefault();dragDepth=0;setDrag(false);if(!busy)addFiles([...event.dataTransfer.files])});
+ for(const type of ['dragover','drop'])document.addEventListener(type,event=>{if(hasFiles(event))event.preventDefault()});
+
+ // ---- Fields ----
+ function renderFieldsPlaceholder(message){
+  const out=$('fieldsContent');out.replaceChildren();
+  const empty=document.createElement('div');empty.className='subapp-empty';empty.textContent=message;out.append(empty);
+  $('fieldsCount').textContent='—';
+  $('fieldsSubtitle').textContent='Πρόσθεσε αρχεία και πάτησε «Ανεύρεση πεδίων».';
+  updateButtons();
+ }
+ const TYPE_LABELS={Text:'Κείμενο',Textarea:'Κείμενο πολλών γραμμών',Integer:'Ακέραιος αριθμός',Decimal:'Δεκαδικός αριθμός',Date:'Ημερομηνία'};
+ function badge(text,extra=''){const s=document.createElement('span');s.className='field-badge'+(extra?' '+extra:'');s.textContent=text;return s}
+ function renderFields(){
+  const out=$('fieldsContent');out.replaceChildren();
+  $('fieldsCount').textContent=fieldsLabel(fields.size);
+  if(!fields.size){renderFieldsPlaceholder('Δεν βρέθηκαν πεδία στα επιλεγμένα πρότυπα.');$('fieldsCount').textContent='0 πεδία';return}
+  $('fieldsSubtitle').textContent='Συμπλήρωσε ή έλεγξε τις τιμές.';
+  const set=document.createElement('fieldset');set.className='ui-fields field-grid';set.setAttribute('aria-label','Τιμές πεδίων');
+  let i=0;
+  for(const [name,f] of fields){
+   const id='field-'+(i++),wrap=document.createElement('div');wrap.className='ui-field';
+   const label=document.createElement('label');label.htmlFor=id;label.className='field-label';
+   const text=document.createElement('span');text.className='field-name';text.textContent=name;const tags=document.createElement('span');tags.className='field-tags';label.append(text,tags);
+   if(f.conflict)tags.append(badge('διαφορετικός τύπος σε άλλο πρότυπο','conflict'));
+   const typeBadge=badge(TYPE_LABELS[f.type]||'Κείμενο');if(f.warning){typeBadge.textContent='Κείμενο (άγνωστος τύπος «'+f.warning+'»)';typeBadge.classList.add('warning')}tags.append(typeBadge);
+   const input=document.createElement(f.type==='Textarea'?'textarea':'input');input.id=id;input.dataset.type=f.type;
+   if(f.type==='Date')input.type='date';
+   else if(f.type!=='Textarea'){input.type='text';if(f.type==='Decimal')input.inputMode='decimal';if(f.type==='Integer')input.inputMode='numeric'}
+   input.value=values.get(name)??'';
+   input.oninput=()=>{values.set(name,input.value);input.removeAttribute('aria-invalid');mark(true)};
+   wrap.append(label,input);
+   set.append(wrap);
+  }
+  out.append(set);
+  const note=document.createElement('p');note.className='syntax-note ui-helper';
+  note.innerHTML='Μορφή πεδίων: <code>{{Σχολικό Έτος}}</code> · <code>{{Τιμή:Decimal}}</code> · <code>{{Μέρες:Integer}}</code> · <code>{{Ημερομηνία:Date}}</code> · <code>{{Σημειώσεις:Textarea}}</code>. Μαζί με τα έγγραφα εξάγεται CSV με τα πεδία και τις τιμές τους, που μπορείς να ξαναπροσθέσεις την επόμενη φορά.';
+  out.append(note);
+  updateButtons();
+ }
+ function validate(){
+  let first=null;
+  for(const input of $('fieldsContent').querySelectorAll('[data-type]')){
+   const bad=M.invalidValue(input.dataset.type,input.value);
+   if(bad){input.setAttribute('aria-invalid','true');first=first||input}else input.removeAttribute('aria-invalid');
+  }
+  if(first){first.focus();first.scrollIntoView({block:'nearest'})}
+  return !first;
+ }
+ const libraryMissing=()=>{if(window.JSZip)return false;notice('Δεν φορτώθηκε η βιβλιοθήκη ανάγνωσης αρχείων. Βεβαιώσου ότι το _lib_jszip.min.js βρίσκεται στον ίδιο φάκελο με την εφαρμογή.',true);return true};
+ $('findFields').onclick=async()=>{
+  if(busy||libraryMissing())return;
+  const templates=files.filter(isTemplate),csvFiles=files.filter(isCsv);
+  if(!templates.length){notice('Πρόσθεσε τουλάχιστον ένα πρότυπο DOCX ή XLSX.',true);return}
+  setBusy(true);notice('Σάρωση αρχείων…');
+  try{
+   const found=await M.scanTemplates(templates),csvMap=await M.loadCsvValues(csvFiles);
+   fields=found;csvMatched.clear();let changed=false;
+   for(const name of fields.keys())if(csvMap.has(name)){if(values.get(name)!==csvMap.get(name))changed=true;values.set(name,csvMap.get(name));csvMatched.add(name)}
+   scanned=true;renderFields();if(changed)mark(true);
+   if(!fields.size)notice('Δεν εντοπίστηκαν πεδία. Έλεγξε ότι είναι γραμμένα ως {{Όνομα}}.',true);
+   else{
+    let text=fields.size===1?'Βρέθηκε 1 πεδίο.':`Βρέθηκαν ${fields.size} πεδία.`;
+    if(csvFiles.length){const absent=fields.size-csvMatched.size;text+=` Από το CSV προσυμπληρώθηκαν ${csvMatched.size} από ${fields.size}`+(absent?`· ${absent} χωρίς αντιστοιχία.`:'.')}
+    notice(text);
+   }
+  }catch(error){
+   console.error(error);clearScan('Η σάρωση απέτυχε.');
+   notice((error.fileName?`Δεν μπόρεσα να διαβάσω το «${error.fileName}». `:'Δεν μπόρεσα να διαβάσω κάποιο αρχείο. ')+'Έλεγξε ότι είναι έγκυρο DOCX, XLSX ή CSV.',true);
+  }finally{setBusy(false)}
+ };
+
+ // ---- Production ----
+ function saveBlob(blob,name){const a=document.createElement('a'),url=URL.createObjectURL(blob);a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000)}
+ $('produce').onclick=async()=>{
+  if(busy||!scanned||!fields.size||libraryMissing())return;
+  if(!validate()){notice('Διόρθωσε πρώτα τις τιμές που σημειώνονται (Decimal ή Integer).',true);return}
+  for(const [name,f] of fields)if(f.conflict){notice(`Το πεδίο «${name}» έχει διαφορετικό τύπο σε διαφορετικά πρότυπα. Διόρθωσέ το στα πρότυπα και πάτησε ξανά «Ανεύρεση πεδίων».`,true);return}
+  const templates=files.filter(isTemplate),map=new Map(),typeMap=new Map();
+  for(const [name,f] of fields){map.set(name,values.get(name)??'');typeMap.set(name,f.type)}
+  setBusy(true);notice('Συμπλήρωση των εγγράφων…');
+  try{
+   const generated=[];
+   for(const f of templates)generated.push({name:f.name,blob:await M.generateOne(f,map,typeMap)});
+   const csvBlob=M.buildValuesCsv(fields,values),csvName='Documents_Templater_Τιμές.csv';
+   if(generated.length===1){saveBlob(generated[0].blob,generated[0].name);setTimeout(()=>saveBlob(csvBlob,csvName),350)}
+   else{const zip=new JSZip();for(const g of generated)zip.file(g.name,g.blob);zip.file(csvName,csvBlob);saveBlob(await zip.generateAsync({type:'blob',compression:'DEFLATE'}),'Documents_Templater_συμπληρωμένο.zip')}
+   mark(false);
+   notice(generated.length===1
+    ?`Δημιουργήθηκε το συμπληρωμένο «${generated[0].name}» και το CSV τιμών. Θα τα βρεις στις Λήψεις του browser.`
+    :`Δημιουργήθηκαν ${generated.length} συμπληρωμένα έγγραφα και το CSV τιμών, μαζί σε ένα ZIP. Θα το βρεις στις Λήψεις του browser.`);
+  }catch(error){console.error(error);notice('Παρουσιάστηκε σφάλμα κατά τη δημιουργία των αρχείων.',true)}
+  finally{setBusy(false)}
+ };
+ $('reset').onclick=async()=>{
+  if(busy)return;
+  if(dirty&&!await schoolConfirm('Να αφαιρεθούν όλα τα αρχεία και οι τιμές που συμπλήρωσες και δεν έχουν εξαχθεί;',{title:'Μη αποθηκευμένες αλλαγές',accept:'Απόρριψη αλλαγών'}))return;
+  files=[];selected=new Set();anchor=null;values=new Map();
+  clearScan('Τα πεδία που θα βρεθούν θα εμφανιστούν εδώ.');renderFiles();mark(false);
+  notice('Η λίστα αρχείων και οι τιμές καθάρισαν.');
+ };
+
+ renderFiles();
+ renderFieldsPlaceholder('Τα πεδία που θα βρεθούν θα εμφανιστούν εδώ.');
+ notice('Η επεξεργασία γίνεται τοπικά στον browser. Τα αρχεία δεν αποστέλλονται πουθενά.');
+ post({type:'school-documents:ready'});
+})();
+</script></body></html>

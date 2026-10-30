@@ -1,0 +1,234 @@
+<!doctype html><html lang="el" class="subapp-page"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ώρες Διδασκαλίας v0.36</title><link rel="stylesheet" href="_ui.css">
+<link rel="stylesheet" href="_subapp.css">
+<style>
+/* ΩΔ-specific geometry and break rows. Shared appearance: _ui.css / _subapp.css. */
+/* --th-* : colours whose meaning exists only in this table (row numbers, break rows). */
+:root{--app-mark-bg:var(--school-app-hours);--th-row-number:#6682a2;--th-break-bg:#f0f1f3;--th-break-text:#000}
+.workspace{display:grid;grid-template-columns:minmax(460px,1.35fr) minmax(300px,.8fr);gap:24px;flex:1;min-height:0}
+.hours-pane{display:flex;flex-direction:column;min-height:0;min-width:0}
+.table-scroll{overflow:auto;min-height:0;flex:1;scrollbar-gutter:stable}
+.hours-table{table-layout:fixed;min-width:640px}
+.hours-table th{padding:7px 10px}
+.hours-table td{padding:3px 10px}
+.hours-table td:first-child{width:45px;color:var(--th-row-number)}
+.hours-table th:first-child{width:44px}
+.hours-table th:nth-child(2){width:230px}
+.hours-table th:nth-child(2),.hours-table td:nth-child(2){padding-right:0}
+.hours-table th:nth-child(3){width:170px}
+.hours-table th:nth-child(3),.hours-table td:nth-child(3){padding-left:0}
+.hours-table th:nth-child(4),.hours-table td:nth-child(4){padding-left:8px}
+.hours-table input,.hours-table select{padding:3px 6px;line-height:1.25;min-height:26px}
+.hours-table input[readonly]{pointer-events:none;cursor:default}
+/* Placeholders (hour name, FET tag) only while a field of that row has focus: editing the name, the category or the tag.
+   Not :focus-within, because the row itself (tabindex=-1) takes focus for a moment on mouse press. */
+.hours-table tr:not(:has(input:focus,select:focus)) input::placeholder{color:transparent}
+/* Breaks retain their category colour; selection uses the common selection colour. */
+.hours-table tr.break-row{background:var(--th-break-bg);color:var(--th-break-text)}
+.hours-table tr.break-row.selected{background:var(--school-ui-primary-bg);color:var(--school-ui-text)}
+.hours-table tr.break-row td:first-child{color:var(--th-break-text)}
+.hours-table tr.break-row.selected td:first-child{color:var(--th-row-number)}
+.tags-content>p{line-height:1.55}
+.tags-table th,.tags-table td{padding:5px 10px}
+.tags-table th{width:44%}
+.tags-table input{padding:5px 8px;min-height:30px}
+/* Category tags: 32px from the day tags. */
+.category-tags-heading{margin-top:32px}
+@media(min-width:851px){
+ .workspace{grid-template-rows:auto minmax(0,1fr) auto auto;row-gap:0}
+ .hours-pane,.tags-pane{display:grid;grid-template-rows:subgrid;grid-row:1 / span 4}
+ .hours-pane{grid-column:1}.tags-pane{grid-column:2}
+ .hours-heading,.tags-heading{grid-row:1;align-self:start}
+ .hours-pane>.subapp-list-row{grid-row:2}
+ .tags-content{grid-row:2 / span 3;min-height:0;overflow:auto}
+ .hours-pane>.subapp-list-actions{grid-row:3}.hours-pane>.subapp-notice{grid-row:4}
+}
+@media(max-width:850px){
+ .workspace{grid-template-columns:1fr;overflow:auto;--subapp-stacked:1}
+ .hours-pane{min-height:400px;height:60dvh}
+ .page-main{overflow:auto}
+}
+</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ώρες Διδασκαλίας — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΩΔ</span></span><span class="brand-text"><span>Ώρες Διδασκαλίας</span><span class="small version">v0.36</span></span></button></h1></div><button id="save" class="save-main" disabled>Αποθήκευση</button><button id="undo" disabled>Αναίρεση Όλων</button><button id="exportFet" disabled>Εξαγωγή σε FET...</button><div class="header-right"><span id="hoursSchoolYear" class="school-year-indicator" hidden><span>Σχολικό έτος:</span> <span id="hoursSchoolYearValue"></span></span></div></header><main id="root" class="page-main"><p class="subapp-connection">Άνοιξε τις «Ώρες Διδασκαλίας» από το Κεντρικό Μενού, αφού ανοίξεις το αρχείο πληροφοριών του σχολείου. Απαιτείται η τελευταία έκδοση του index.html.</p></main><script src="_ui.js"></script>
+<script src="_data.js"></script>
+<script>
+// A category owns one shared activity tag. Hour names remain independent of tags.
+window.TeachingHoursModel=(()=>{
+ const categories=[['early','Πρωϊνή Ζώνη'],['morning','Πρωϊνό'],['meal','Γεύμα'],['afternoon','Ολοήμερο'],['extended','Διευρυμένο'],['break','Διάλειμμα']];
+ const weekdays=[['mon','Δευτέρα','ΔΕΥΤΕΡΑ'],['tue','Τρίτη','ΤΡΙΤΗ'],['wed','Τετάρτη','ΤΕΤΑΡΤΗ'],['thu','Πέμπτη','ΠΕΜΠΤΗ'],['fri','Παρασκευή','ΠΑΡΑΣΚΕΥΗ']];
+ const defaultDayTags=()=>Object.fromEntries(weekdays.map(([key,label,upper])=>[key,'[ΗΜ_'+upper+']']));
+ const defaults=()=>Object.fromEntries(categories.map(([k,label])=>[k,'['+label+']']));
+ const {child,children:elements,text:value}=SchoolFet;
+ const marker='SchApps:TeachingHours:';
+ // Weekday names of FET files (D1–D5, Greek or English): the shared SchoolText.weekdayIndex of _data.js.
+ const {weekdayIndex}=SchoolText;
+ function normalize(data){return {hours:Array.isArray(data?.hours)?structuredClone(data.hours).map(h=>({...h,fetTag:h.fetTag??''})):[],tags:{...defaults(),...data?.tags},dayTags:{...defaultDayTags(),...data?.dayTags}}}
+ function validate(data,allowUnknown=false){
+  if(!data||!Array.isArray(data.hours)||data.hours.length>2000)throw Error('Μη έγκυρος πίνακας ωρών.');
+  const ids=new Set(),names=new Set(),tags=new Set();
+  for(const h of data.hours){
+   if(!h||typeof h.id!=='string'||!h.id||ids.has(h.id))throw Error('Μη έγκυρες ταυτότητες ωρών.');ids.add(h.id);
+   if(typeof h.name!=='string'||!h.name.trim()||h.name.length>1000)throw Error('Συμπλήρωσε ένα όνομα ή χρονικό διάστημα σε κάθε ώρα.');
+   if(names.has(h.name.trim()))throw Error('Το όνομα «'+h.name.trim()+'» χρησιμοποιείται σε περισσότερες από μία ώρες.');names.add(h.name.trim());
+   if(h.fetTag!==undefined&&(typeof h.fetTag!=='string'||h.fetTag.length>1000))throw Error('Η ετικέτα FET κάθε ώρας πρέπει να έχει έως 1000 χαρακτήρες.');
+   if(!categories.some(([key])=>key===h.category)&&!(allowUnknown&&h.category===''))throw Error('Διάλεξε χαρακτηρισμό για την ώρα «'+h.name+'».');
+  }
+  for(const [key,label] of categories){const tag=data.tags?.[key];if(typeof tag!=='string'||!tag.trim()||tag.length>1000)throw Error('Συμπλήρωσε ετικέτα FET για την κατηγορία «'+label+'».');if(tags.has(tag.trim()))throw Error('Κάθε κατηγορία χρειάζεται διαφορετική ετικέτα FET.');tags.add(tag.trim())}
+  const dayTags=data.dayTags||defaultDayTags(),seenDays=new Set();
+  for(const [key,label] of weekdays){const tag=dayTags[key];if(typeof tag!=='string'||!tag.trim()||tag.length>1000)throw Error('Συμπλήρωσε ετικέτα FET για την ημέρα «'+label+'».');if(seenDays.has(tag.trim()))throw Error('Κάθε ημέρα χρειάζεται διαφορετική ετικέτα FET.');seenDays.add(tag.trim())}
+  return data;
+ }
+ function parse(xml){const doc=SchoolFet.parse(xml,{require:['Hours_List'],message:'Το αρχείο δεν είναι έγκυρο FET με πίνακα ωρών.'});const mode=value(doc.documentElement,'Mode');if(mode&&mode!=='Official')throw Error('Υποστηρίζεται η κανονική λειτουργία Official του FET.');return doc}
+ function dayNames(doc){return elements(child(doc.documentElement,'Days_List')||doc.documentElement,'Day').map(d=>value(d,'Name')).filter(Boolean)}
+ function globalSlots(n){return n.tagName==='ConstraintActivitiesPreferredTimeSlots'&&['Teacher','Students','Subject','Duration'].every(k=>!value(n,k))}
+ function enabled(n){return value(n,'Active')!=='false'&&Number(value(n,'Weight_Percentage'))===100}
+ function coverage(n,slotTag,days,names){
+  const sets=new Map(days.map(day=>[day,new Set()]));
+  for(const slot of elements(n,slotTag)){
+   const d=value(slot,'Day'),h=value(slot,'Hour');
+   for(const day of d?[d]:days)if(sets.has(day))for(const hour of h?[h]:names)sets.get(day).add(hour);
+  }
+  return sets;
+ }
+ function importFet(xml,tags,current=[]){
+  const doc=parse(xml),days=dayNames(doc),nodes=elements(child(doc.documentElement,'Hours_List'),'Hour'),names=nodes.map(n=>value(n,'Name'));
+  if(!days.length||!names.length||names.some(x=>!x)||new Set(names).size!==names.length)throw Error('Το FET έχει κενές ή διπλές ώρες ή δεν έχει ημέρες.');
+  const constraints=child(doc.documentElement,'Time_Constraints_List'),all=constraints?[...constraints.children]:[],matches=new Map(names.map(n=>[n,[]]));
+  for(const [category] of categories){
+   const relevant=all.filter(n=>enabled(n)&&globalSlots(n)&&value(n,'Activity_Tag')===tags[category]?.trim());
+   for(const name of names){if(relevant.length&&relevant.every(n=>[...coverage(n,'Preferred_Time_Slot',days,names).values()].every(set=>set.has(name))))matches.get(name).push(category)}
+  }
+  const breaks=all.filter(n=>n.tagName==='ConstraintBreakTimes'&&enabled(n)),breakSets=days.map(day=>new Set(breaks.flatMap(n=>[...coverage(n,'Break_Time',days,names).get(day)])));
+  let unknown=0,ambiguous=0;
+  const rows=nodes.map(n=>{const name=value(n,'Name'),options=matches.get(name);if(breakSets.length&&breakSets.every(set=>set.has(name))&&!options.includes('break'))options.push('break');const previous=current.find(h=>h.name.trim()===name);const time=name.replace(/[–—−]/g,'-').replace(/\s/g,'');const known=time==='07:15-08:00'?'early':time==='13:20-14:00'?'meal':'';let category=known||(options.length===1?options[0]:options.length>1?'':previous?.category||'');if(!category)unknown++;if(!known&&options.length>1)ambiguous++;return {id:previous?.id||crypto.randomUUID(),name,longName:value(n,'Long_Name'),category,fetName:name,fetTag:previous?.fetTag||''}});
+  validate({hours:rows,tags},true);return {hours:rows,unknown,ambiguous};
+ }
+ function exportFet(xml,data,options={hours:true,tags:true,constraints:false}){
+  const opts={hours:!!options.hours,tags:!!options.tags,constraints:!!options.constraints};
+  if(!Object.values(opts).some(Boolean))throw Error('Επίλεξε τουλάχιστον ένα στοιχείο για εξαγωγή.');
+  validate(data);if((opts.hours||opts.constraints)&&!data.hours.length)throw Error('Πρόσθεσε τουλάχιστον μία ώρα πριν από την εξαγωγή.');
+  const doc=parse(xml),root=doc.documentElement;let days=dayNames(doc);if(!days.length)throw Error('Το FET δεν έχει ημέρες.');
+  const make=(tag,text)=>{const n=doc.createElement(tag);if(text!==undefined)n.textContent=text;return n};
+  const set=(node,tag,text)=>{let n=child(node,tag);if(!n){n=make(tag);node.append(n)}n.textContent=text};
+  let constraints=child(root,'Time_Constraints_List');
+  const ensureConstraints=()=>{if(!constraints){constraints=make('Time_Constraints_List');const space=child(root,'Space_Constraints_List');space?root.insertBefore(constraints,space):root.append(constraints)}return constraints};
+  const list=child(root,'Hours_List'),oldNodes=elements(list,'Hour'),oldNames=oldNodes.map(n=>value(n,'Name')),finalNames=new Set(data.hours.map(h=>h.name.trim()));
+  const rename=new Map(),claimed=new Set();let added=0,removed=0,tagCount=0,ruleCount=0,replacedRules=0;
+  if(opts.constraints&&constraints){for(const n of [...constraints.children])if(n.tagName==='ConstraintActivitiesPreferredTimeSlots'&&value(n,'Comments').startsWith(marker+'tag:')){n.remove();replacedRules++}}
+  if(opts.hours){
+   if(constraints)for(const n of [...constraints.children])if(n.tagName==='ConstraintBreakTimes'&&value(n,'Active')!=='false')n.remove();
+   const dayList=child(root,'Days_List'),oldDays=elements(dayList,'Day');
+   const dayMap=new Map(),usedDays=new Set();
+   oldDays.forEach((node,index)=>{const old=value(node,'Name');let mapped=weekdayIndex(old);if(mapped<0)mapped=weekdayIndex(value(node,'Long_Name'));if(mapped<0&&oldDays.length<=5)mapped=index;if(mapped>=0){const target='D'+(mapped+1);if(usedDays.has(target))throw Error('Πολλές ημέρες του FET αντιστοιχούν στην '+weekdays[mapped][1]+'. Διόρθωσε πρώτα τις ημέρες του FET.');usedDays.add(target);dayMap.set(old,target)}});
+   for(const node of [...root.getElementsByTagName('*')])if(!node.children.length&&['Day','Preferred_Day','Starting_Day','Day_Name'].includes(node.tagName)&&!dayList.contains(node)&&node.textContent){const target=dayMap.get(node.textContent);if(!target)throw Error('Η ημέρα «'+node.textContent+'» χρησιμοποιείται σε περιορισμό του FET και δεν αντιστοιχεί σε Δευτέρα–Παρασκευή. Διόρθωσε πρώτα αυτόν τον περιορισμό.');node.textContent=target}
+   const newDays=make('Days_List');newDays.append(make('Number_of_Days','5'));
+   weekdays.forEach(([key,label],index)=>{const name='D'+(index+1),old=oldDays.find(n=>dayMap.get(value(n,'Name'))===name),node=old?old.cloneNode(true):make('Day');set(node,'Name',name);set(node,'Long_Name',label);newDays.append(node)});
+   dayList.replaceWith(newDays);days=dayNames(doc);
+   for(const h of data.hours){const name=h.name.trim();if(finalNames.has(h.fetName)&&h.fetName!==name)continue;if(h.fetName&&oldNames.includes(h.fetName)&&h.fetName!==name){if(claimed.has(h.fetName))throw Error('Αμφίβολη μετονομασία ώρας. Κάνε ξανά εισαγωγή από το συγκεκριμένο FET.');rename.set(h.fetName,name);claimed.add(h.fetName)}}
+   const references=[...root.getElementsByTagName('*')].filter(n=>!n.children.length&&['Hour','Preferred_Hour','Starting_Hour','Start_Hour','End_Hour','Interval_Start_Hour','Interval_End_Hour'].includes(n.tagName)&&!list.contains(n)&&n.textContent);
+   for(const n of references){const target=rename.get(n.textContent)||n.textContent;if(!finalNames.has(target))throw Error('Η ώρα «'+n.textContent+'» χρησιμοποιείται σε άλλον περιορισμό του FET. Διατήρησέ την ή διόρθωσε πρώτα τον περιορισμό στο FET.');n.textContent=target}
+   const newList=make('Hours_List');newList.append(make('Number_of_Hours',String(data.hours.length)));
+   for(const h of data.hours){const old=oldNodes.find(n=>value(n,'Name')===(h.fetName||h.name.trim())),node=old?old.cloneNode(true):make('Hour');set(node,'Name',h.name.trim());set(node,'Long_Name',h.longName||value(node,'Long_Name'));newList.append(node)}list.replaceWith(newList);
+   added=data.hours.filter(h=>!oldNames.includes(h.fetName||h.name.trim())).length;removed=oldNames.filter(name=>!finalNames.has(name)&&!rename.has(name)).length;
+   const breaks=data.hours.filter(h=>h.category==='break');if(breaks.length){const n=make('ConstraintBreakTimes');n.append(make('Weight_Percentage','100'),make('Number_of_Break_Times',String(days.length*breaks.length)));for(const day of days)for(const hour of breaks){const slot=make('Break_Time');slot.append(make('Day',day),make('Hour',hour.name.trim()));n.append(slot)}n.append(make('Active','true'),make('Comments',marker+'breaks'));ensureConstraints().append(n)}
+  }
+  const dayTags=data.dayTags||defaultDayTags();
+  const allTags=new Set([...categories.map(([key])=>data.tags[key].trim()),...weekdays.map(([key])=>dayTags[key].trim()),...data.hours.map(h=>(h.fetTag||'').trim())].filter(Boolean));
+  let tagList=child(root,'Activity_Tags_List');
+  if(opts.tags){
+   if(!tagList){tagList=make('Activity_Tags_List');const next=child(root,'Students_List')||child(root,'Activities_List')||child(root,'Time_Constraints_List')||child(root,'Space_Constraints_List');next?root.insertBefore(tagList,next):root.append(tagList)}
+   for(const tag of allTags)if(!elements(tagList,'Activity_Tag').some(n=>value(n,'Name')===tag)){const n=make('Activity_Tag');n.append(make('Name',tag),make('Printable','true'),make('Comments',''));tagList.append(n);tagCount++}
+  }
+  if(opts.constraints){
+   const availableHours=opts.hours?[...finalNames]:oldNames;
+   for(const h of data.hours)if(!availableHours.includes(h.name.trim()))throw Error('Η ώρα «'+h.name+'» δεν υπάρχει στο FET. Επίλεξε και «Ώρες / Ημέρες» ή ενημέρωσε πρώτα τον πίνακα ωρών του FET.');
+   const rules=new Map(),slotKey=(day,hour)=>JSON.stringify([day,hour]);
+   const restrict=(tag,allowedDays,allowedHours)=>{if(!allowedHours.length||!allowedDays.length)return;const slots=new Set(allowedDays.flatMap(day=>allowedHours.map(hour=>slotKey(day,hour))));if(rules.has(tag))rules.set(tag,new Set([...rules.get(tag)].filter(s=>slots.has(s))));else rules.set(tag,slots)};
+   for(const [key] of categories)restrict(data.tags[key].trim(),days,data.hours.filter(h=>h.category===key).map(h=>h.name.trim()));
+   const perHour=new Map();for(const h of data.hours){const tag=(h.fetTag||'').trim();if(tag){if(!perHour.has(tag))perHour.set(tag,[]);perHour.get(tag).push(h.name.trim())}}
+   for(const [tag,hours] of perHour)restrict(tag,days,hours);
+   for(let i=0;i<weekdays.length;i++){const found=days.filter(day=>weekdayIndex(day)===i);if(found.length>1)throw Error('Πολλές ημέρες του FET αντιστοιχούν στην '+weekdays[i][1]+'. Διόρθωσε τα ονόματα ημερών στο FET.');if(found.length)restrict(dayTags[weekdays[i][0]].trim(),found,availableHours)}
+   const existingTags=new Set(tagList?elements(tagList,'Activity_Tag').map(n=>value(n,'Name')):[]);
+   for(const [tag,slots] of rules){
+    if(!existingTags.has(tag))throw Error('Η ετικέτα «'+tag+'» δεν υπάρχει στο FET. Επίλεξε και «Ετικέτες» για να προστεθεί.');
+    if(!slots.size)throw Error('Η ετικέτα «'+tag+'» έχει ασύμβατες αντιστοιχίσεις ημερών και ωρών. Χρησιμοποίησε διαφορετικές ετικέτες.');
+    const n=make('ConstraintActivitiesPreferredTimeSlots');n.append(make('Weight_Percentage','100'),make('Teacher',''),make('Students',''),make('Subject',''),make('Activity_Tag',tag),make('Duration',''),make('Number_of_Preferred_Time_Slots',String(slots.size)));
+    for(const key of slots){const [day,hour]=JSON.parse(key),slot=make('Preferred_Time_Slot');slot.append(make('Day',day),make('Hour',hour));n.append(slot)}
+    n.append(make('Active','true'),make('Comments',marker+'tag:'+tag));ensureConstraints().append(n);ruleCount++;
+   }
+  }
+  return {text:new XMLSerializer().serializeToString(doc),added,removed,renamed:rename.size,tagCount,ruleCount,replacedRules,options:opts};
+ }
+ return {categories,weekdays,defaults,defaultDayTags,normalize,validate,parse,importFet,exportFet};
+})();
+(()=>{'use strict';
+ // Messages, requests and their time limits: schoolHost in _ui.js.
+ const M=TeachingHoursModel,$=id=>document.getElementById(id),root=$('root'),esc=schoolEscape,post=schoolHost.post,Selection=schoolListSelection;
+ let context=null,draft=M.normalize(),dirty=false,busy=false,selected=new Set(),anchor=null,lastFile=null,fileKey='',restorePromise=Promise.resolve();
+ const fet=(action,extra={})=>schoolHost.request('school-hours:fet',{action,...extra});
+ const order=()=>draft.hours.map(h=>h.id);
+ function mark(value=true){dirty=value;post({type:'school-hours:dirty',dirty});buttons()}
+ function buttons(){$('save').classList.toggle('dirty',dirty);$('save').setAttribute('aria-label',dirty?'Αποθήκευση — υπάρχουν μη αποθηκευμένες αλλαγές':'Αποθήκευση');for(const id of ['save','undo'])$(id).disabled=busy||!context||!dirty;$('exportFet').disabled=busy||!context;for(const id of ['importFet','add','remove','up','down'])if($(id))$(id).disabled=busy; if($('remove'))$('remove').disabled=busy||!selected.size;const indices=draft.hours.map((h,i)=>selected.has(h.id)?i:-1).filter(i=>i>=0);if($('up'))$('up').disabled=busy||!indices.length||Math.min(...indices)===0;if($('down'))$('down').disabled=busy||!indices.length||Math.max(...indices)===draft.hours.length-1;root.classList.toggle('busy',busy);root.setAttribute('aria-busy',String(busy))}
+ function notice(text,error=false){if($('notice')){$('notice').textContent=text;$('notice').classList.toggle('error',error)}}
+ function setBusy(value){busy=value;buttons()}
+ function restoreFile(){const key=JSON.stringify([context.school.name,context.school.year]);if(key!==fileKey){fileKey=key;lastFile=null}restorePromise=fet('restore').then(result=>{if(fileKey===key)lastFile=result}).catch(()=>{});return restorePromise}
+ function receiveContext(c){context=c;draft=M.normalize(c.teachingHours);selected=new Set(draft.hours.length?[draft.hours[0].id]:[]);anchor=draft.hours[0]?.id||null;render();restoreFile()}
+ schoolHost.on('school-hours:context',m=>{if(!dirty&&!busy)receiveContext(m.context)});
+ function render(){
+  $('hoursSchoolYearValue').textContent=context.school.year;$('hoursSchoolYear').hidden=!context.school.year;
+  root.innerHTML=`<div class="workspace"><section class="hours-pane subapp-list-pane"><div class="hours-heading subapp-pane-heading subapp-list-heading"><div><h3 id="count">Ώρες (${draft.hours.length})</h3><p class="ui-helper">Όρισε τις ώρες, τον χαρακτηρισμό και την ετικέτα FET τους.</p></div><div class="subapp-transfer-actions"><button id="importFet" title="Εισαγωγή ωρών από FET" aria-label="Εισαγωγή ωρών από FET">${schoolIcon('import')}</button></div></div><div class="subapp-list-row"><div id="hoursList" class="table-scroll subapp-table-frame" tabindex="0" role="region" aria-label="Πίνακας ωρών, πολλαπλή επιλογή"></div><div class="subapp-order-controls" role="group" aria-label="Αλλαγή σειράς ωρών"><button id="up" title="Μετακίνηση επιλογής πάνω" aria-label="Μετακίνηση επιλογής πάνω">${schoolIcon('up')}</button><button id="down" title="Μετακίνηση επιλογής κάτω" aria-label="Μετακίνηση επιλογής κάτω">${schoolIcon('down')}</button></div></div><div class="subapp-list-actions"><button id="add" class="subapp-add-button">+ Προσθήκη</button><button id="remove" class="subapp-remove-button">Αφαίρεση</button></div><p id="notice" class="subapp-notice" role="status">Ctrl/Cmd+κλικ: πολλαπλή επιλογή · Shift+κλικ: εύρος · Ctrl/Cmd+A: όλες οι ώρες. Διπλό κλικ στο όνομα: επεξεργασία. Η επιλογή λειτουργεί και με ελληνικό πληκτρολόγιο.</p></section><section class="tags-pane subapp-side-pane"><div class="tags-heading subapp-pane-heading"><div><h3>Ετικέτες FET ημερών</h3><p class="ui-helper">Μία ετικέτα για κάθε ημέρα. Μπορείς να αλλάξεις ελεύθερα το κείμενό της.</p></div></div><div class="tags-content"><table class="tags-table subapp-data-table subapp-label-table day-tags-table" aria-label="Ετικέτες FET ημερών"><tbody>${M.weekdays.map(([key,label])=>`<tr><th scope="row"><label for="day-tag-${key}">${label}</label></th><td><input id="day-tag-${key}" data-day-tag="${key}" value="${esc(draft.dayTags[key])}" maxlength="1000" aria-label="Ετικέτα FET ημέρας: ${label}"></td></tr>`).join('')}</tbody></table><div class="category-tags-heading subapp-pane-heading"><div><h3>Ετικέτες FET ανά κατηγορία</h3><p class="ui-helper">Μία κοινή ετικέτα για όλες τις ώρες κάθε κατηγορίας. Μπορείς να αλλάξεις ελεύθερα το κείμενό της.</p></div></div><table class="tags-table subapp-data-table subapp-label-table category-tags-table"><tbody>${M.categories.map(([key,label])=>`<tr><th scope="row"><label for="tag-${key}">${label}</label></th><td><input id="tag-${key}" data-tag="${key}" value="${esc(draft.tags[key])}" maxlength="1000" aria-label="Ετικέτα FET: ${label}"></td></tr>`).join('')}</tbody></table><p class="ui-helper">Στην «Εξαγωγή σε FET...» επιλέγεις ώρες, ετικέτες ή χρονικούς περιορισμούς ετικετών, σε οποιονδήποτε συνδυασμό.</p></div></section></div>`;
+  root.querySelectorAll('[data-day-tag]').forEach(input=>input.oninput=()=>{draft.dayTags[input.dataset.dayTag]=input.value;mark()});
+  renderRows();root.querySelectorAll('[data-tag]').forEach(input=>input.oninput=()=>{draft.tags[input.dataset.tag]=input.value;mark()});
+  $('add').onclick=()=>{const h={id:crypto.randomUUID(),name:'',category:'morning',fetTag:''};draft.hours.push(h);selected=new Set([h.id]);anchor=h.id;mark();renderRows();const input=$('hoursList').querySelector(`[data-id="${h.id}"] input`);if(input){input.readOnly=false;input.focus()}input?.scrollIntoView({block:'nearest'})};
+  $('remove').onclick=async()=>{if(!selected.size)return;if(!await schoolConfirm('Να αφαιρεθούν οι '+selected.size+' επιλεγμένες ώρες;', {title:'Αφαίρεση ωρών',accept:'Αφαίρεση'}))return;const first=draft.hours.findIndex(h=>selected.has(h.id));draft.hours=draft.hours.filter(h=>!selected.has(h.id));const h=draft.hours[Math.min(first,draft.hours.length-1)];selected=new Set(h?[h.id]:[]);anchor=h?.id||null;mark();renderRows()};
+  $('up').onclick=()=>move(-1);$('down').onclick=()=>move(1);
+  $('hoursList').addEventListener('keydown',event=>{const input=event.target.closest('input:not([readonly]),textarea,select,[contenteditable="true"]');if(input)return;
+   if((event.key==='ArrowUp'||event.key==='ArrowDown')&&!event.ctrlKey&&!event.metaKey&&!event.altKey){
+    if(!draft.hours.length)return;event.preventDefault();
+    ({selected,anchor}=Selection.step(order(),selected,anchor,event.key==='ArrowDown'?1:-1));paintSelection();$('hoursList').focus({preventScroll:true});
+    [...$('hoursList').querySelectorAll('tr[data-id]')].find(row=>row.dataset.id===anchor)?.scrollIntoView({block:'nearest'});return;
+   }
+   if(Selection.isSelectAll(event)){event.preventDefault();selected=new Set(order());anchor=draft.hours[0]?.id||null;paintSelection()}});
+  $('importFet').onclick=()=>transferFet('import');$('exportFet').onclick=()=>transferFet('export');buttons();
+ }
+ function paintSelection(){root.querySelectorAll('tr[data-id]').forEach(row=>{const active=selected.has(row.dataset.id);row.classList.toggle('selected',active);row.classList.toggle('break-row',draft.hours.find(h=>h.id===row.dataset.id)?.category==='break');row.setAttribute('aria-selected',String(active))});buttons()}
+ function renderRows(){const list=$('hoursList');$('count').textContent='Ώρες ('+draft.hours.length+')';
+  if(!draft.hours.length){const years=Object.keys(context.teachingHoursByYear||{}).filter(year=>year<context.school.year&&context.teachingHoursByYear[year]?.hours?.length).sort().reverse();list.innerHTML=`<div class="subapp-empty subapp-empty-stack"><p>Δεν έχουν καταχωριστεί ώρες.<br>Πάτησε «+ Προσθήκη» ή κάνε εισαγωγή από FET.</p>${years.length?`<label for="sourceYear">Εισαγωγή από παλαιότερο σχολικό έτος</label><select id="sourceYear">${years.map(year=>`<option value="${esc(year)}">${esc(year)} (${context.teachingHoursByYear[year].hours.length} ώρες)</option>`).join('')}</select><button id="importYear" class="primary">Εισαγωγή ωρών</button>`:''}</div>`;if($('importYear'))$('importYear').onclick=()=>{const year=$('sourceYear').value;draft=M.normalize(context.teachingHoursByYear[year]);draft.hours=draft.hours.map(h=>({...h,id:crypto.randomUUID()}));selected=new Set(draft.hours.length?[draft.hours[0].id]:[]);anchor=draft.hours[0]?.id;mark();render();notice('Εισήχθησαν οι ώρες και οι ετικέτες του '+year+'. Πάτησε «Αποθήκευση».')};buttons();return}
+  list.innerHTML=`<table class="hours-table subapp-data-table subapp-editable-table" aria-multiselectable="true"><thead><tr><th scope="col">#</th><th scope="col">Ώρα / χρονικό διάστημα</th><th scope="col">Χαρακτηρισμός</th><th scope="col">Ετικέτα FET</th></tr></thead><tbody>${draft.hours.map((h,i)=>`<tr data-id="${esc(h.id)}" tabindex="-1"><td>${i+1}</td><td><input readonly value="${esc(h.name)}" maxlength="1000" placeholder="π.χ. 08:15–09:00" aria-label="Όνομα ώρας ${i+1}"></td><td><select aria-label="Χαρακτηρισμός ώρας ${i+1}"><option value="">— Επίλεξε —</option>${M.categories.map(([key,label])=>`<option value="${key}" ${h.category===key?'selected':''}>${label}</option>`).join('')}</select></td><td><input class="hour-fet-tag" value="${esc(h.fetTag||'')}" maxlength="1000" placeholder="Προαιρετική ετικέτα" aria-label="Ετικέτα FET ώρας ${i+1}"></td></tr>`).join('')}</tbody></table>`;
+  list.querySelectorAll('tr[data-id]').forEach(row=>{const id=row.dataset.id,h=draft.hours.find(x=>x.id===id);row.onclick=event=>{const modified=event.ctrlKey||event.metaKey||event.shiftKey,inField=!!event.target.closest('input,select');if(modified||!(inField&&selected.has(id)))({selected,anchor}=Selection.click(order(),selected,anchor,id,event));if(modified||!inField)list.focus({preventScroll:true});paintSelection()};const nameInput=row.querySelector('input');let originalName=h.name;
+  const editName=()=>{originalName=h.name;nameInput.readOnly=false;nameInput.focus();nameInput.select()};
+  row.ondblclick=event=>{if(!event.ctrlKey&&!event.metaKey&&!event.shiftKey&&event.target.closest('td')===nameInput.parentElement)editName()};
+  nameInput.onclick=event=>{if(!nameInput.readOnly)event.stopPropagation()};
+  nameInput.oninput=event=>{h.name=event.target.value;mark()};
+  nameInput.onblur=()=>{nameInput.readOnly=true};
+  nameInput.onkeydown=event=>{if(nameInput.readOnly)return;if(event.key==='Enter'){event.preventDefault();nameInput.blur();list.focus()}else if(event.key==='Escape'){event.preventDefault();event.stopPropagation();h.name=originalName;nameInput.value=originalName;nameInput.blur();list.focus()}};
+  const tagInput=row.querySelector('.hour-fet-tag');tagInput.oninput=()=>{h.fetTag=tagInput.value;mark()};tagInput.onkeydown=event=>{if(event.key==='Enter'){event.preventDefault();tagInput.blur();list.focus()}};
+  row.querySelector('select').onchange=event=>{h.category=event.target.value;mark();paintSelection()}});paintSelection();
+ }
+ function move(direction){const rows=draft.hours;if(!selected.size)return;if(direction<0){if(selected.has(rows[0]?.id))return;for(let i=1;i<rows.length;i++)if(selected.has(rows[i].id)&&!selected.has(rows[i-1].id))[rows[i-1],rows[i]]=[rows[i],rows[i-1]]}else{if(selected.has(rows.at(-1)?.id))return;for(let i=rows.length-2;i>=0;i--)if(selected.has(rows[i].id)&&!selected.has(rows[i+1].id))[rows[i+1],rows[i]]=[rows[i],rows[i+1]]}mark();renderRows();$('hoursList').focus();$('hoursList').querySelector('tr.selected')?.scrollIntoView({block:'nearest'})}
+ $('save').onclick=async()=>{try{M.validate(draft);setBusy(true);const saved=structuredClone(draft);saved.hours.forEach(h=>{h.name=h.name.trim();h.fetTag=(h.fetTag||'').trim()});for(const k in saved.tags)saved.tags[k]=saved.tags[k].trim();for(const k in saved.dayTags)saved.dayTags[k]=saved.dayTags[k].trim();const c=await schoolHost.request('school-hours:save',{revision:context.revision,year:context.school.year,teachingHours:saved});mark(false);receiveContext(c);notice('Οι ώρες και οι ετικέτες αποθηκεύτηκαν στο κοινό αρχείο .data.')}catch(e){notice(e.message,true)}finally{setBusy(false)}};
+ $('undo').onclick=async()=>{if(dirty&&!await schoolConfirm('Να απορριφθούν οι αλλαγές των ωρών και των ετικετών που δεν αποθηκεύτηκαν;', {title:'Μη αποθηκευμένες αλλαγές',accept:'Απόρριψη αλλαγών'}))return;mark(false);receiveContext(context);post({type:'school-hours:ready'});notice('Οι μη αποθηκευμένες αλλαγές απορρίφθηκαν.')};
+ // FET file choice: the last file of this school year or another one from the disk (shared dialog: schoolChoiceDialog).
+ function fileDialog(mode){
+  let exportFieldset=null;
+  if(mode==='export'){exportFieldset=document.createElement('fieldset');exportFieldset.className='subapp-import-mode';exportFieldset.innerHTML='<legend>Τι θέλεις να εξαγάγεις;</legend><label><input type="checkbox" name="export-hours" checked> Ώρες / Ημέρες</label><label><input type="checkbox" name="export-tags" checked> Ετικέτες</label><label><input type="checkbox" name="export-constraints"> Χρονικοί περιορισμοί ετικετών</label>'}
+  const choose=async existing=>{
+   const checked=name=>exportFieldset?exportFieldset.querySelector(`[name=${name}]`).checked:name!=='export-constraints';
+   const exportOptions={hours:checked('export-hours'),tags:checked('export-tags'),constraints:checked('export-constraints')};
+   if(mode==='export'&&!Object.values(exportOptions).some(Boolean))throw Error('Επίλεξε τουλάχιστον ένα στοιχείο για εξαγωγή.');
+   if(!existing)lastFile=await fet('choose');
+   return {...lastFile,exportOptions};
+  };
+  return schoolChoiceDialog({
+   title:mode==='import'?'Εισαγωγή ωρών από FET':'Εξαγωγή σε FET',
+   content:[mode==='import'?'Θα διαβαστούν οι ώρες και οι κατηγορίες τους με βάση τις ετικέτες που έχεις δηλώσει. Ο πίνακας θα αντικατασταθεί μετά την επιβεβαίωση.':'Επίλεξε τι θα εξαχθεί και ποιο αρχείο FET θα ενημερωθεί. Η επιλογή «Ώρες / Ημέρες» ορίζει τις ημέρες D1–D5, με πλήρη ονόματα Δευτέρα–Παρασκευή. Οι περιορισμοί αφορούν ημέρες, κατηγορίες και μεμονωμένες ώρες, με βάρος 100%.',exportFieldset],
+   choices:[{label:lastFile?'Τελευταίο αρχείο: '+lastFile.name:'Δεν υπάρχει τελευταίο αρχείο FET',disabled:!lastFile,run:()=>choose(true)},{label:'Επιλογή άλλου αρχείου FET από τον δίσκο…',run:()=>choose(false)}]
+  });
+ }
+ async function transferFet(mode){if(busy)return;if(mode==='export'&&dirty){notice('Πάτησε πρώτα «Αποθήκευση» για να αποθηκευτούν οι αλλαγές.',true);return}
+  try{if(mode==='export')M.validate(draft);else M.validate({hours:[],tags:draft.tags});await restorePromise;const chosen=await fileDialog(mode);if(!chosen)return;setBusy(true);const permission=await fet('permission',{mode:mode==='import'?'read':'readwrite'});if(permission!=='granted')throw Error('Δεν δόθηκε άδεια πρόσβασης στο FET.');const file=await fet('read');
+   if(mode==='import'){const plan=M.importFet(file.text,draft.tags,draft.hours);if(!await schoolConfirm('Θα εισαχθούν '+plan.hours.length+' ώρες από το «'+file.name+'» και θα αντικατασταθεί ο τρέχων πίνακας.'+(plan.unknown?'\n\n'+plan.unknown+' ώρες χρειάζονται επιλογή χαρακτηρισμού.':'')+'\n\nΝα συνεχίσω;', {title:'Εισαγωγή ωρών',accept:'Εισαγωγή'}))return;draft.hours=plan.hours;selected=new Set(draft.hours.length?[draft.hours[0].id]:[]);anchor=draft.hours[0]?.id;mark();renderRows();notice('Εισήχθησαν '+plan.hours.length+' ώρες. '+(plan.unknown?'Χαρακτήρισε τις '+plan.unknown+' ώρες χωρίς κατηγορία. ':'')+'Πάτησε «Αποθήκευση».',!!plan.unknown)}
+   else{const plan=M.exportFet(file.text,draft,chosen.exportOptions);if(!await schoolConfirm('Ενημέρωση του «'+file.name+'»\n\n'+(plan.options.hours?'Ημέρες: D1–D5 (Δευτέρα–Παρασκευή).\nΏρες: '+draft.hours.length+' (νέες: '+plan.added+', μετονομασίες: '+plan.renamed+', αφαιρέσεις: '+plan.removed+'). Τα ενεργά διαλείμματα θα ενημερωθούν.\n':'')+(plan.options.tags?'Νέες ετικέτες: '+plan.tagCount+'\n':'')+(plan.options.constraints?'Χρονικοί περιορισμοί ετικετών: '+plan.ruleCount+' (παλαιότεροι αυτόματοι που αντικαθίστανται: '+plan.replacedRules+').\n':'')+'\nΝα συνεχίσω;', {title:'Ενημέρωση FET',accept:'Ενημέρωση'}))return;await fet('write',{text:plan.text});notice('Το αρχείο FET ενημερώθηκε με τις επιλεγμένες εξαγωγές.')}
+  }catch(e){notice(e.message,true)}finally{setBusy(false)}
+ }
+ post({type:'school-hours:ready'});
+})();
+</script></body></html>

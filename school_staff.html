@@ -1,0 +1,440 @@
+<!doctype html><html lang="el" class="subapp-page"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Προσωπικό σχολείου</title><link rel="stylesheet" href="_ui.css">
+<link rel="stylesheet" href="_subapp.css">
+<style>
+
+/* Personnel-specific layout. Shared appearance: _ui.css and _subapp.css. */
+/* --staff-* : colours whose meaning exists only in this list (director, newly added rows). */
+:root{--app-mark-bg:var(--school-app-staff);--staff-lead-text:#c32222;--staff-added-text:#2467c8}
+.staff-manager{display:grid;grid-template-columns:minmax(280px,.65fr) minmax(420px,1.35fr);grid-template-rows:minmax(0,1fr);gap:24px;flex:1;min-height:440px;height:calc(100dvh - 97px);overflow:hidden}
+.staff-list-pane{display:flex;flex-direction:column;min-width:0;min-height:0;max-height:100%;overflow:hidden;container-type:inline-size;container-name:staff-list}
+.staff-list{overflow-y:auto;overflow-x:hidden;min-height:0;scrollbar-gutter:stable;overscroll-behavior:contain}
+.staff-list-item.lead{color:var(--staff-lead-text);font-weight:700}
+.staff-list-item.import-added,.staff-list-item.manual-added{color:var(--staff-added-text);font-style:italic}
+.staff-list-item.import-updated,.staff-list-item.manual-updated{font-style:italic}
+/* List row: the name, and on the right the class the person is homeroom teacher of. */
+.staff-list-item{display:flex;align-items:baseline;gap:10px}
+.staff-list-name{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.staff-list-homeroom{flex:none;font-size:12px;font-weight:650;font-style:normal;color:var(--school-ui-muted);font-variant-numeric:tabular-nums}
+.staff-list-item.selected .staff-list-homeroom{color:var(--school-ui-label-text)}
+.staff-limit-warning{flex:none;margin-top:8px}
+/* Delete dialog: each person with the programs they appear in. */
+.staff-removal-list{margin:12px 0 0;padding-left:20px}
+.staff-removal-list>li+li{margin-top:8px}
+.staff-removal-list ul{margin:2px 0 0;padding-left:18px;font-size:14px;color:var(--school-ui-label-text)}
+.staff-removal-note{margin-top:12px!important;font-size:14px;color:var(--school-ui-muted)}
+.staff-details{padding-right:2px;container-type:inline-size}
+.staff-details .field:first-of-type{margin-top:2px}
+.staff-service-dates{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.staff-leaves-field{margin-top:14px}
+.staff-leaves{display:grid;gap:6px}
+.staff-leave-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 34px;gap:8px;align-items:end}
+.staff-leave-date{display:grid;gap:4px;font-size:13px;font-weight:600}
+.staff-leave-date input{width:100%;min-width:0}
+.staff-leave-remove{width:34px;height:36px;padding:0;font-size:20px;line-height:1}
+.staff-leave-add{justify-self:start}
+.staff-code-value{min-width:0}
+.staff-import-empty{height:auto;min-height:100%}
+/* «Υπεύθυνος τμήματος» is unavailable for service types other than Δάσκαλος and Ειδικότητα. */
+.staff-fields input:disabled{background:var(--school-ui-disabled-bg);color:var(--school-ui-disabled-text);opacity:1;cursor:default}
+@container (min-width:620px){
+  .staff-fields>.field,.staff-fields .staff-service-dates>.field{display:grid;grid-template-columns:215px minmax(0,1fr);align-items:center;gap:0 18px;margin:0!important;padding:12px 16px}
+  .staff-fields .field>label{padding-right:12px}
+  .staff-fields .field>input,.staff-fields .field>select{grid-column:2}
+  .staff-fields .staff-service-dates{display:block}
+  .staff-fields>.staff-leaves-field{align-items:start;border-bottom:0;row-gap:10px}
+  .staff-fields .staff-leaves-field>label{grid-column:1;grid-row:1 / span 3;padding-top:8px}
+  .staff-fields .staff-leaves-field>:not(label){grid-column:2}
+  .staff-fields .staff-leaves-field .helper{line-height:1.5}
+  .staff-fields .staff-leave-date{font-weight:600;font-size:12px}
+  .staff-fields .staff-leave-add{margin:0}
+  .staff-code-value{grid-column:2}
+  .staff-fields .field:has(>.staff-code-value)>label{grid-column:1;grid-row:1;align-self:center}
+  .staff-fields .staff-code-value{display:contents}
+  .staff-fields .staff-code-value>input{grid-column:2;grid-row:1}
+  .staff-fields .staff-code-value>.staff-code-error{grid-column:2;grid-row:2}
+}
+@media(min-width:651px){
+  .staff-manager{height:auto;min-height:0}
+  .staff-list-pane{height:100%}
+  .staff-details{min-height:0}
+}
+@media(max-width:650px){
+  .staff-manager{grid-template-columns:1fr;grid-template-rows:auto auto;gap:12px;height:auto;min-height:0;overflow:visible;--subapp-stacked:1}
+  .staff-list-pane{height:calc(100dvh - var(--subapp-header-height,110px) - 32px);min-height:220px;max-height:none}
+  .staff-service-dates{grid-template-columns:1fr;gap:0}
+  .staff-details{overflow:visible}
+}
+.staff-list-header{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(66px,1fr);align-items:center;gap:12px;margin-bottom:9px;flex:none}
+.staff-list-header .staff-list-top,.staff-list-header .staff-list-heading{display:contents}
+.staff-list-header .staff-title-group{grid-column:1;grid-row:1;display:flex;flex-direction:column;gap:1px;min-width:0}
+.staff-list-header #staffListTitle{margin:0;line-height:1.25}
+.staff-list-header .staff-view-buttons{grid-column:2;grid-row:1;justify-self:center}
+.staff-list-header .subapp-transfer-actions{grid-column:3;grid-row:1;justify-self:end}
+@container staff-list (max-width:520px){.staff-list-header{grid-template-columns:minmax(0,1fr) auto;gap:8px}.staff-list-header .subapp-transfer-actions{grid-column:2}.staff-list-header .staff-view-buttons{grid-column:1 / -1;grid-row:2;justify-self:center}}
+</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" aria-label="Προσωπικό — άνοιγμα κεντρικού μενού" title="Άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΠΡ</span></span><span class="brand-text"><span>Προσωπικό</span><span class="small version">v0.68</span></span></button></h1></div><button id="applyStaff" class="save-main" type="button" disabled>Αποθήκευση</button><button id="cancelStaff" type="button" disabled>Αναίρεση Όλων</button><div class="header-right"><span id="staffSchoolYear" class="school-year-indicator" hidden><span>Σχολικό έτος:</span> <span id="staffSchoolYearValue"></span></span></div></header><main id="staff-root" class="page-main"><p class="connection subapp-connection">Άνοιξε τη σελίδα «Προσωπικό» μέσα από το Κεντρικό Μενού, αφού ανοίξεις το αρχείο πληροφοριών του σχολείου.</p></main><script src="_ui.js"></script>
+<script src="_data.js"></script>
+<script>
+(()=>{'use strict';
+
+const StaffModel = (()=>{
+ // Service type: one per person. The data keep the key; the label may change without touching saved data.
+ // «Ιδιότητα» (role) stays apart: it says the post of responsibility (director, deputy), not the kind of work.
+ const serviceTypes=[['classroom','Δάσκαλος'],['specialty','Ειδικότητα'],['inclusion','Ειδική Αγωγή – Τμήμα Ένταξης'],['parallel','Ειδική Αγωγή – Παράλληλη Στήριξη'],['zep','ΖΕΠ – Τμήμα Υποδοχής'],['oloimero','Υπεύθυνος Ολοημέρου'],['psychologist','ΕΕΠ – Ψυχολόγος'],['socialWorker','ΕΕΠ – Κοινωνικός Λειτουργός'],['ebp','Ειδικό Βοηθητικό Προσωπικό (ΕΒΠ)'],['nurse','Νοσηλευτικό Προσωπικό'],['other','Άλλο']];
+ const serviceKeys=new Set(serviceTypes.map(([key])=>key));
+ // Only these service types may have a homeroom class («Υπεύθυνος τμήματος»).
+ const allowsHomeroom=type=>type==='classroom'||type==='specialty';
+ const fold=value=>SchoolText.withoutTones(String(value??'')).toLocaleUpperCase('el').trim();
+ // Class names in their canonical spelling («ΣΤ1» → «Στ1»), from the shared SchoolTimetable.classSpelling.
+ const spellClass=value=>{const text=String(value??'').trim();return SchoolTimetable.classSpelling(text)||text};
+ // The other person (not `except`) who is homeroom teacher of the class, or null.
+ function homeroomHolder(rows,className,except){
+  const key=fold(className);if(!key)return null;
+  return rows.find(other=>other!==except&&allowsHomeroom(other.serviceType)&&fold(other.homeroomClass)===key)||null;
+ }
+ // Suggested values from the short name, which is the teacher's Name in FET (e.g. «[Α1] - Δασκάλα», «[ΠΕ06] - ΑΓΓ - Θωμάς»).
+ function suggestFields(shortName){
+  const name=String(shortName??'').trim(),text=fold(name);
+  const tag=(/^\[([^\]]+)\]/.exec(name)?.[1]||'').trim(),tagKey=fold(tag).replace(/\s+/g,'');
+  const pe=/^ΠΕ(\d+(?:\.\d+)?)$/.exec(tagKey);
+  const out={serviceType:'',branch:pe?'ΠΕ'+pe[1]:'',homeroomClass:'',director:tagKey==='ΔΘ'||tagKey.startsWith('ΔΙΕΥΘ')};
+  if(text.includes('ΥΠΕΥΘΥΝ')&&text.includes('ΟΛΟΗΜΕΡ'))out.serviceType='oloimero';
+  else if(/(^|[^Α-Ω])ΖΕΠ([^Α-Ω]|$)/.test(text)||text.includes('ΥΠΟΔΟΧ'))out.serviceType='zep';
+  else if(pe){
+   const number=pe[1];
+   if(number==='70')out.serviceType='classroom';
+   else if(number.startsWith('70.')){if(text.includes('ΕΝΤΑΞ'))out.serviceType='inclusion';else if(text.includes('ΠΑΡΑΛΛΗΛ'))out.serviceType='parallel'}
+   else if(number==='23')out.serviceType='psychologist';
+   else if(number==='30')out.serviceType='socialWorker';
+   else out.serviceType='specialty';
+  }
+  else if(!out.director&&SchoolTimetable.classSpelling(tag)){out.serviceType='classroom';out.homeroomClass=SchoolTimetable.classSpelling(tag)}
+  return out;
+ }
+ // Fills only empty fields, so a value set by hand is never replaced. The homeroom class is not set when
+ // another person of rows already has it: that case comes back in `blocked` ({person, className, holder}).
+ // Returns {changed, blocked}.
+ function fillEmpty(person,rows=[]){
+  const suggested=suggestFields(person.shortName);let changed=false,blocked=null;
+  if(!person.serviceType&&suggested.serviceType){person.serviceType=suggested.serviceType;changed=true}
+  // A classroom teacher («Δάσκαλος») without a branch in the name is ΠΕ70.
+  const branch=suggested.branch||(person.serviceType==='classroom'?'ΠΕ70':'');
+  if(!String(person.branch??'').trim()&&branch){person.branch=branch;changed=true}
+  if(!String(person.homeroomClass??'').trim()&&suggested.homeroomClass&&allowsHomeroom(person.serviceType)){
+   const holder=homeroomHolder(rows,suggested.homeroomClass,person);
+   if(holder)blocked={person,className:suggested.homeroomClass,holder};
+   else{person.homeroomClass=suggested.homeroomClass;changed=true}
+  }
+  if(suggested.director&&(person.role||'teacher')==='teacher'){person.role='director';changed=true}
+  return {changed,blocked};
+ }
+ const canFill=(person,rows)=>fillEmpty(structuredClone(person),rows).changed;
+ // Another person who is homeroom teacher of the same class (a warning, not an error), or -1.
+ function homeroomConflict(rows,index){
+  const person=rows[index],key=fold(person?.homeroomClass);
+  if(!key||!allowsHomeroom(person.serviceType))return -1;
+  return rows.findIndex((other,i)=>i!==index&&allowsHomeroom(other.serviceType)&&fold(other.homeroomClass)===key);
+ }
+ // Dates: 'YYYY-MM-DD' in the data, dd/mm/yyyy for the user (shared SchoolDate).
+ const validDateKey=SchoolDate.valid;
+ const yearStart=year=>SchoolDate.schoolYear(year)?.from||`${String(year).slice(0,4)}-09-01`;
+ function codeConflict(rows,index,code=rows[index]?.code){const key=String(code??'').trim();return key?rows.findIndex((person,i)=>i!==index&&String(person.code??'').trim()===key):-1}
+ function validateRows(rows){
+  if(!Array.isArray(rows)||rows.length>2000)throw Error('Η λίστα προσωπικού δεν είναι έγκυρη.');
+  const codes=new Set();
+  for(const person of rows){
+   if(!person||typeof person!=='object'||Array.isArray(person))throw Error('Μη έγκυρη εγγραφή προσωπικού.');
+   if(['code','shortName','name'].some(key=>typeof person[key]!=='string')||person.code.length>1000||person.shortName.length>4000||person.name.length>4000)throw Error('Τα στοιχεία προσωπικού δεν είναι έγκυρα.');
+   if(!person.code.trim())throw Error('Ο κωδικός εκπαιδευτικού είναι υποχρεωτικός.');
+   if(!person.shortName.trim())throw Error('Το σύντομο όνομα εκπαιδευτικού είναι υποχρεωτικό.');
+   const code=String(person.code??'').trim();if(code&&codes.has(code))throw Error('Ο κωδικός «'+code+'» χρησιμοποιείται ήδη από άλλον εκπαιδευτικό.');if(code)codes.add(code);
+   if(person.serviceType!==undefined&&person.serviceType!==''&&!serviceKeys.has(person.serviceType))throw Error('Μη έγκυρο είδος υπηρεσίας.');
+   for(const [key,label] of [['branch','Κλάδος'],['homeroomClass','Υπεύθυνος τμήματος']]){const value=person[key];if(value!==undefined&&(typeof value!=='string'||value.trim().length>20))throw Error(label+': έως 20 χαρακτήρες.')}
+   if(String(person.homeroomClass??'').trim()&&!allowsHomeroom(person.serviceType))throw Error('Ο υπεύθυνος τμήματος ορίζεται μόνο για δασκάλους και ειδικότητες.');
+   const holder=homeroomHolder(rows,person.homeroomClass,person);
+   if(allowsHomeroom(person.serviceType)&&holder)throw Error('Το τμήμα «'+String(person.homeroomClass).trim()+'» έχει δύο υπευθύνους. Κάθε τμήμα έχει το πολύ έναν υπεύθυνο.');
+   for(const [key,label] of [['requiredHours','Υποχρεωτικό ωράριο'],['schoolHours','Ωράριο στο σχολείο']]){const value=person[key]===undefined?0:person[key];if(!Number.isInteger(value)||value<0||value>30)throw Error(label+': συμπλήρωσε ακέραιο αριθμό από 0 έως 30.');}
+   if(!validDateKey(person.startDate))throw Error('Συμπλήρωσε έγκυρη ημερομηνία ανάληψης υπηρεσίας.');
+   if(person.endDate&&(!validDateKey(person.endDate)||person.endDate<person.startDate))throw Error('Η ημερομηνία αποχώρησης πρέπει να είναι έγκυρη και να μην προηγείται της ανάληψης υπηρεσίας.');
+   if(!Array.isArray(person.leaves)||person.leaves.some(x=>!validDateKey(x.from)||!validDateKey(x.to)||x.from>x.to))throw Error('Συμπλήρωσε έγκυρες ημερομηνίες «Από» και «Έως» για κάθε άδεια ή αφαίρεσε το κενό διάστημα.');
+  }
+ }
+ // Preserve future data fields while excluding temporary presentation markers.
+ function persistedFields(person){const {manualAdded,manualUpdated,importAdded,importUpdated,...fields}=person;return fields}
+ function normalizeRows(rows,year){return Array.isArray(rows)?rows.filter(x=>x&&typeof x==='object').map(x=>({...persistedFields(x),id:typeof x.id==='string'&&x.id?x.id:crypto.randomUUID(),code:String(x.code??''),shortName:String(x.shortName??''),name:String(x.name??''),role:['director','deputy'].includes(x.role)?x.role:'teacher',serviceType:serviceKeys.has(x.serviceType)?x.serviceType:'',branch:String(x.branch??'').trim(),homeroomClass:allowsHomeroom(x.serviceType)?spellClass(x.homeroomClass):'',requiredHours:Number.isInteger(x.requiredHours)&&x.requiredHours>=0&&x.requiredHours<=30?x.requiredHours:0,schoolHours:Number.isInteger(x.schoolHours)&&x.schoolHours>=0&&x.schoolHours<=30?x.schoolHours:0,startDate:validDateKey(x.startDate)?x.startDate:yearStart(year),endDate:validDateKey(x.endDate)?x.endDate:'',leaves:Array.isArray(x.leaves)?x.leaves.map(l=>({...l,from:String(l.from||''),to:String(l.to||'')})):[],fetImported:!!x.fetImported})):[]}
+ // A date the user typed that is not valid stays in the draft as 'invalid:<text>', so the field keeps it
+ // and validateRows reports it, instead of the date being dropped.
+ function displayDate(value){return SchoolDate.format(value)||String(value||'').replace(/^invalid:/,'')}
+ function parseDate(value){const text=String(value||'').trim();return text?SchoolDate.parse(text)||`invalid:${text}`:''}
+ function importYear(rows,year){return normalizeRows(structuredClone(rows),year).map(person=>({...person,startDate:yearStart(year),endDate:'',leaves:[],manualAdded:true}))}
+ return {validDateKey,yearStart,validateRows,normalizeRows,codeConflict,displayDate,parseDate,importYear,serviceTypes,allowsHomeroom,fillEmpty,canFill,homeroomConflict,homeroomHolder,spellClass};
+})();
+
+ const $=id=>document.getElementById(id),root=$('staff-root');
+ // Messages, requests and their time limits: schoolHost in _ui.js.
+ const post=schoolHost.post,escapeHtml=schoolEscape,Selection=schoolListSelection;
+ let fetHandle=null,fetKey="";
+ let staffListView='full';
+ let editingStaff=false;
+ let context=null,data={},schoolYear='',dirty=false,saving=false;
+ function staffDefaultDate(){return StaffModel.yearStart(schoolYear)}
+ // Limit of the number of staff of a year (from the context of the Index): a warning from warnRatio on,
+ // and no additions at the limit. The Index refuses a save above it.
+ const staffLimit=()=>Number.isInteger(context?.limits?.staff)?context.limits.staff:100;
+ const staffWarnAt=()=>Math.ceil(staffLimit()*(Number(context?.limits?.warnRatio)||0.9));
+ const personLabel=person=>person.name.trim()||person.shortName.trim()||person.code.trim()||'χωρίς όνομα';
+ const validDateKey=StaffModel.validDateKey;
+ function normalizeStaff(rows){return StaffModel.normalizeRows(rows,schoolYear)}
+ function getYearStaff(){return normalizeStaff(context.staff||[])}
+ function modal(title,body,actions){root.innerHTML=body}
+ // «Αποθήκευση» and «Αναίρεση Όλων» are active only while there are unsaved changes, and never while saving.
+ function refreshSaveButtons(){for(const id of ['applyStaff','cancelStaff'])if($(id))$(id).disabled=saving||!dirty}
+ function setDirtyState(value){dirty=value;$('applyStaff').classList.toggle('dirty',value);post({type:'school-staff:dirty',dirty:value});refreshSaveButtons()}
+ function markDraftDirty(){setDirtyState(true)}
+ function setBusy(value){saving=value;for(const id of ['exportFet','importFet'])if($(id))$(id).disabled=value;root.classList.toggle('busy',value);root.setAttribute('aria-busy',String(value));refreshSaveButtons()}
+ // Resolves with the new context of the Index.
+ // staffRemovals: [{id, mode:'unmatch'|'remove'}] for removed people who appear in programs.
+ function requestSave(staff,removedCodes,staffRemovals){return schoolHost.request('school-staff:save',{revision:context.revision,year:schoolYear,staff,removedCodes,staffRemovals},{timeoutMessage:'Δεν επιβεβαιώθηκε η αποθήκευση. Οι αλλαγές σου παραμένουν στη σελίδα.'})}
+ schoolHost.on('school-staff:context',message=>{
+  if(dirty||saving)return;
+  context=message.context;schoolYear=context.school.year;data={ssdMeetings:context.ssdMeetings||{},pedagogicMeetings:context.pedagogicMeetings||{}};openStaffManager();
+ });
+
+function openStaffManager(){
+ $('staffSchoolYearValue').textContent=schoolYear;$('staffSchoolYear').hidden=!schoolYear;
+ refreshSaveButtons();
+ const original=getYearStaff();let draft=structuredClone(original),selected=draft.length?0:-1;const sourceCodes=new WeakMap();draft.forEach((person,index)=>sourceCodes.set(person,new Set(original[index].code?[original[index].code]:[])));const pendingAttendanceCleanup=new Set(),pendingRemovals=new Map(),selectedIndices=new Set(selected>=0?[selected]:[]);let selectionAnchor=selected;const staffNameCollator=new Intl.Collator('el',{sensitivity:'base',numeric:true});
+ modal('Προσωπικό',`<div class="staff-manager"><section class="staff-list-pane subapp-list-pane"><div class="staff-list-header subapp-list-heading"><div class="staff-list-top"><div class="staff-title-group"><h3 id="staffListTitle">Εκπαιδευτικοί (0)</h3></div><div class="subapp-transfer-actions" role="group" aria-label="Μεταφορά εκπαιδευτικών FET"><button id="importFet" type="button" title="Εισαγωγή εκπαιδευτικών από FET" aria-label="Εισαγωγή εκπαιδευτικών από FET">${schoolIcon('import')}</button><button id="exportFet" type="button" title="Εξαγωγή εκπαιδευτικών σε FET" aria-label="Εξαγωγή εκπαιδευτικών σε FET">${schoolIcon('export')}</button></div></div><div class="staff-list-heading"><div class="staff-view-buttons subapp-view-buttons" role="group" aria-label="Προβολή εκπαιδευτικών"><button id="staffViewFull" type="button" aria-pressed="true" title="Αλφαβητικά με πλήρες όνομα">Πλήρες όνομα</button><button id="staffViewShort" type="button" aria-pressed="false" title="Σύντομο όνομα και προσωπική σειρά">Σύντομο όνομα</button></div></div></div><div class="subapp-list-row"><div id="staffList" class="staff-list subapp-list" tabindex="0" role="listbox" aria-multiselectable="true" aria-label="Λίστα εκπαιδευτικών"><div class="subapp-empty">Δεν έχουν καταχωριστεί εκπαιδευτικοί. Πάτησε «+ Προσθήκη».</div></div><div id="staffOrderControls" class="subapp-order-controls" role="group" aria-label="Αλλαγή σειράς" hidden><button id="staffMoveUp" type="button" title="Μετακίνηση επιλογής πάνω" aria-label="Μετακίνηση επιλογής πάνω">${schoolIcon('up')}</button><button id="staffMoveDown" type="button" title="Μετακίνηση επιλογής κάτω" aria-label="Μετακίνηση επιλογής κάτω">${schoolIcon('down')}</button></div></div><div class="subapp-list-actions"><button id="addStaff" class="subapp-add-button" type="button">+ Προσθήκη</button><button id="removeStaff" class="subapp-remove-button" type="button">Αφαίρεση</button><button id="autofillStaff" type="button" hidden title="Συμπληρώνει μόνο τα κενά πεδία Είδος υπηρεσίας, Κλάδος και Υπεύθυνος τμήματος, από το σύντομο όνομα">Αυτόματη συμπλήρωση κενών</button></div><p id="staffLimitWarning" class="staff-limit-warning ui-validation-warning" role="status" hidden></p><div id="staffSummary" class="subapp-notice" aria-live="polite">Μπορείς να επιλέξεις πολλούς με Ctrl/Cmd+κλικ ή εύρος με Shift+κλικ, και να τους αφαιρέσεις μαζί.</div></section><section class="staff-details subapp-side-pane" id="staffDetails"></section></div>`,'','staff-dialog');
+ const sortedStaff=()=>draft.map((person,index)=>({person,index})).sort((a,b)=>{
+   if(staffListView==='short'){
+     const ar=Number.isInteger(a.person.shortNameOrder)&&a.person.shortNameOrder>=0?a.person.shortNameOrder:Infinity;
+     const br=Number.isInteger(b.person.shortNameOrder)&&b.person.shortNameOrder>=0?b.person.shortNameOrder:Infinity;
+     if(ar!==br)return ar<br?-1:1;
+   }
+   const key=staffListView==='short'?'shortName':'name';
+   return staffNameCollator.compare(a.person[key].trim(),b.person[key].trim())||staffNameCollator.compare(a.person.code,b.person.code)||a.index-b.index;
+ });
+ const refreshViewControls=()=>{
+   const short=staffListView==='short';
+   $('staffViewFull').setAttribute('aria-pressed',String(!short));
+   $('staffViewShort').setAttribute('aria-pressed',String(short));
+   $('staffOrderControls').hidden=!short;
+   const order=sortedStaff();
+   $('staffMoveUp').disabled=!order.some((x,i)=>i>0&&selectedIndices.has(x.index)&&!selectedIndices.has(order[i-1].index));
+   $('staffMoveDown').disabled=!order.some((x,i)=>i<order.length-1&&selectedIndices.has(x.index)&&!selectedIndices.has(order[i+1].index));
+ };
+ const fillableCount=()=>draft.filter(person=>StaffModel.canFill(person,draft)).length;
+ const refreshLimit=()=>{
+   const count=draft.length,limit=staffLimit(),warning=$('staffLimitWarning');
+   $('addStaff').disabled=count>=limit;
+   warning.hidden=count<staffWarnAt();
+   warning.textContent=count>limit?`Το Προσωπικό έχει ${count} εκπαιδευτικούς, πάνω από το όριο των ${limit} ανά σχολικό έτος. Η αποθήκευση δεν θα γίνει· αφαίρεσε όσους δεν χρειάζονται.`
+     :count===limit?`Το Προσωπικό έχει ${count} εκπαιδευτικούς, όσο το όριο των ${limit} ανά σχολικό έτος. Δεν μπορούν να προστεθούν άλλοι.`
+     :`Το Προσωπικό έχει ${count} εκπαιδευτικούς· το όριο είναι ${limit} ανά σχολικό έτος.`;
+ };
+ // Names of autofill cases where the homeroom class was not set because another person has it.
+ const blockedText=list=>list.map(item=>`«${item.person.shortName.trim()}» (το ${item.className} έχει ήδη τον/την «${personLabel(item.holder)}»)`).join(', ');
+ const refreshAutofill=()=>{const count=fillableCount(),button=$('autofillStaff');button.hidden=!count;button.textContent=`Αυτόματη συμπλήρωση κενών (${count})`};
+ const renderList=()=>{refreshViewControls();refreshAutofill();refreshLimit();const list=$('staffList');$('staffListTitle').textContent=`Εκπαιδευτικοί (${draft.length})`;$('removeStaff').textContent=selectedIndices.size>1?`Αφαίρεση (${selectedIndices.size})`:'Αφαίρεση';list.innerHTML='';if(!draft.length){list.removeAttribute('role');
+ const years=Object.keys(context.staffByYear||{}).filter(year=>/^\d{4}-\d{4}$/.test(year)&&Number(year.slice(0,4))<Number(schoolYear.slice(0,4))&&Array.isArray(context.staffByYear[year])&&context.staffByYear[year].length).sort().reverse();
+ list.innerHTML=`<div class="staff-import-empty subapp-empty subapp-empty-stack"><p>Δεν έχουν καταχωριστεί εκπαιδευτικοί.</p>${years.length?`<label for="staffImportYear">Εισαγωγή από παλαιότερο σχολικό έτος</label><select id="staffImportYear">${years.map(year=>`<option value="${escapeHtml(year)}">${escapeHtml(year)} (${context.staffByYear[year].length} εκπαιδευτικοί)</option>`).join('')}</select><button id="staffImportYearButton" type="button" class="primary">Εισαγωγή προσωπικού</button><span class="helper ui-helper">Ανάληψη: 01/09/${escapeHtml(schoolYear.slice(0,4))}. Χωρίς ημερομηνία αποχώρησης και άδειες.</span>`:'<span class="helper ui-helper">Δεν υπάρχει προσωπικό σε παλαιότερο σχολικό έτος. Πάτησε «+ Προσθήκη».</span>'}</div>`;
+ if(years.length)$('staffImportYearButton').onclick=()=>{if(saving||draft.length)return;const year=$('staffImportYear').value;if(context.staffByYear[year].length>staffLimit()){setSummary(`Το ${year} έχει ${context.staffByYear[year].length} εκπαιδευτικούς, πάνω από το όριο των ${staffLimit()} ανά σχολικό έτος. Η εισαγωγή δεν έγινε.`,true);return}draft=StaffModel.importYear(context.staffByYear[year],schoolYear);selected=draft.length?0:-1;selectedIndices.clear();if(selected>=0)selectedIndices.add(selected);selectionAnchor=selected;markDraftDirty();render();setSummary(`Εισήχθησαν ${draft.length} εκπαιδευτικοί από το ${year}. Πάτησε «Αποθήκευση» για να διατηρηθούν στο νέο έτος.`)};return}list.setAttribute('role','listbox');const sorted=sortedStaff(),order=sorted.map(item=>item.index);sorted.forEach(({person,index},rank)=>{const b=document.createElement('button');b.type='button';b.className='staff-list-item subapp-list-item'+(selectedIndices.has(index)?' selected':'')+(person.role==='director'?' lead':'')+(person.manualAdded?' manual-added':person.manualUpdated?' manual-updated':'')+(person.importAdded?' import-added':person.importUpdated?' import-updated':'');b.setAttribute('role','option');b.setAttribute('aria-selected',selectedIndices.has(index)?'true':'false');b.dataset.index=String(index);b.tabIndex=index===selected?0:-1;const label=document.createElement('span');label.className='staff-list-name';label.textContent=`${rank+1}. ${(staffListView==='short'?person.shortName:person.name).trim()||(staffListView==='short'?'(χωρίς σύντομο όνομα)':'(χωρίς όνομα)')}`;b.append(label);const homeroom=StaffModel.allowsHomeroom(person.serviceType)?String(person.homeroomClass||'').trim():'';if(homeroom){const tag=document.createElement('span');tag.className='staff-list-homeroom';tag.textContent=homeroom;b.append(tag)}b.title=(staffListView==='short'?person.name+' — '+person.shortName:label.textContent)+(homeroom?' — υπεύθυνος/η '+homeroom:'');b.onclick=event=>{selected=index;const next=Selection.click(order,selectedIndices,selectionAnchor,index,event);selectedIndices.clear();next.selected.forEach(item=>selectedIndices.add(item));selectionAnchor=next.anchor;render();$('staffList').querySelector(`[data-index="${index}"]`)?.focus()};b.onkeydown=event=>{if(event.key!=='ArrowUp'&&event.key!=='ArrowDown')return;event.preventDefault();selected=Selection.step(order,new Set([index]),index,event.key==='ArrowUp'?-1:1).anchor;selectedIndices.clear();selectedIndices.add(selected);selectionAnchor=selected;render();$('staffList').querySelector(`[data-index="${selected}"]`)?.focus()};list.append(b)});$('removeStaff').textContent=selectedIndices.size>1?`Αφαίρεση (${selectedIndices.size})`:'Αφαίρεση'};
+ const render=()=>{renderList();const detail=$('staffDetails');if(selected<0||!draft[selected]){detail.innerHTML='<div class="subapp-empty">Πρόσθεσε έναν εκπαιδευτικό για να καταχωρίσεις τα στοιχεία του.</div>';$('removeStaff').disabled=selectedIndices.size===0;return}const person=draft[selected],readOnly=!editingStaff;detail.innerHTML=`<div class="subapp-pane-heading"><h3>Στοιχεία εκπαιδευτικού</h3><button id="toggleStaffEdit" class="ui-toggle" type="button" aria-pressed="${editingStaff}" aria-controls="staffFields">Επεξεργασία</button></div><fieldset id="staffFields" class="staff-fields ui-fields subapp-record-fields" aria-label="Στοιχεία εκπαιδευτικού" ${editingStaff?'':'disabled'}><div class="field ui-field"><label for="staffCode">Κωδικός</label><div class="staff-code-value"><input id="staffCode" type="text" required aria-required="true" value="${escapeHtml(person.code)}" aria-describedby="staffCodeError" ${readOnly?'readonly':''}><p id="staffCodeError" class="staff-code-error ui-validation-error" role="alert" hidden></p></div></div><div class="field ui-field"><label for="staffShortName">Σύντομο Όνομα</label><div class="staff-code-value"><input id="staffShortName" type="text" required aria-required="true" aria-describedby="staffShortNameError" value="${escapeHtml(person.shortName)}" ${readOnly?'readonly':''}><p id="staffShortNameError" class="staff-code-error ui-validation-error" role="alert" hidden></p></div></div><div class="field ui-field"><label for="staffName">Πλήρες Όνομα</label><input id="staffName" type="text" value="${escapeHtml(person.name)}" ${readOnly?'readonly':''}></div><div class="field ui-field"><label for="staffRole">Ιδιότητα</label><select id="staffRole"><option value="teacher" ${person.role==='teacher'?'selected':''}>Εκπαιδευτικός</option><option value="director" ${person.role==='director'?'selected':''}>Διευθυντής</option><option value="deputy" ${person.role==='deputy'?'selected':''}>Υποδιευθυντής</option></select></div><div class="field ui-field"><label for="staffServiceType">Είδος υπηρεσίας</label><select id="staffServiceType"><option value="" ${person.serviceType?'':'selected'}>— Δεν έχει οριστεί —</option>${StaffModel.serviceTypes.map(([key,label])=>`<option value="${key}" ${person.serviceType===key?'selected':''}>${escapeHtml(label)}</option>`).join('')}</select></div><div class="field ui-field"><label for="staffBranch">Κλάδος</label><input id="staffBranch" type="text" maxlength="20" placeholder="π.χ. ΠΕ70" value="${escapeHtml(person.branch||'')}" ${readOnly?'readonly':''}></div><div class="field ui-field"><label for="staffHomeroom">Υπεύθυνος τμήματος</label><div class="staff-code-value"><input id="staffHomeroom" type="text" maxlength="20" placeholder="${StaffModel.allowsHomeroom(person.serviceType)?'π.χ. Α1':'Μόνο για δασκάλους και ειδικότητες'}" aria-describedby="staffHomeroomWarning" value="${escapeHtml(person.homeroomClass||'')}" ${readOnly?'readonly':''} ${StaffModel.allowsHomeroom(person.serviceType)?'':'disabled'}><p id="staffHomeroomWarning" class="staff-code-error ui-validation-warning" role="status" hidden></p></div></div><div class="field ui-field"><label for="staffSchoolHours">Ωράριο στο σχολείο</label><input id="staffSchoolHours" type="number" min="0" max="30" step="1" required value="${escapeHtml(person.schoolHours)}" inputmode="numeric"></div><div class="field ui-field"><label for="staffRequiredHours">Υποχρεωτικό ωράριο</label><input id="staffRequiredHours" type="number" min="0" max="30" step="1" required value="${escapeHtml(person.requiredHours)}" inputmode="numeric"></div><div class="staff-service-dates"><div class="field ui-field"><label for="staffStartDate">Ημερομηνία ανάληψης υπηρεσίας</label><input id="staffStartDate" type="text" inputmode="numeric" placeholder="dd/mm/yyyy" maxlength="10" value="${escapeHtml(StaffModel.displayDate(person.startDate))}"></div><div class="field ui-field"><label for="staffEndDate">Ημερομηνία αποχώρησης</label><input id="staffEndDate" type="text" inputmode="numeric" placeholder="dd/mm/yyyy" maxlength="10" value="${escapeHtml(StaffModel.displayDate(person.endDate))}"></div></div><div class="field staff-leaves-field ui-field"><label>Άδειες</label><div class="staff-leaves">${(Array.isArray(person.leaves)?person.leaves:[]).map((leave,index)=>`<div class="staff-leave-row"><label class="staff-leave-date">Από<input class="staff-leave-from" data-index="${index}" type="text" inputmode="numeric" placeholder="dd/mm/yyyy" maxlength="10" value="${escapeHtml(StaffModel.displayDate(leave.from))}"></label><label class="staff-leave-date">Έως<input class="staff-leave-to" data-index="${index}" type="text" inputmode="numeric" placeholder="dd/mm/yyyy" maxlength="10" value="${escapeHtml(StaffModel.displayDate(leave.to))}"></label><button type="button" class="staff-leave-remove" data-index="${index}" title="Αφαίρεση διαστήματος άδειας" aria-label="Αφαίρεση διαστήματος άδειας">×</button></div>`).join('')}</div><button id="addStaffLeave" type="button" class="staff-leave-add">+ Προσθήκη διαστήματος άδειας</button><span class="helper ui-helper">Καταχώρισε ένα ή περισσότερα διαστήματα άδειας για τον εκπαιδευτικό.</span></div></fieldset><p class="helper ui-helper">${editingStaff?'Τα στοιχεία αποθηκεύονται στο κοινό αρχείο .data με την «Αποθήκευση».':'Πάτησε «Επεξεργασία» για να αλλάξεις τα στοιχεία του εκπαιδευτικού.'}</p>`;$('removeStaff').disabled=selectedIndices.size===0;const markManualEdit=()=>{markDraftDirty();if(!person.manualAdded)person.manualUpdated=true;renderList()};$('staffCode').oninput=e=>{person.code=e.target.value;markManualEdit();refreshCodeError()};$('staffShortName').oninput=e=>{person.shortName=e.target.value;markManualEdit();refreshCodeError()};$('staffName').oninput=e=>{person.name=e.target.value;markManualEdit()};$('staffRole').onchange=e=>{person.role=e.target.value;markManualEdit()};$('staffServiceType').onchange=e=>{person.serviceType=e.target.value;if(!StaffModel.allowsHomeroom(person.serviceType))person.homeroomClass='';markManualEdit();render();$('staffServiceType').focus()};$('staffBranch').oninput=e=>{person.branch=e.target.value;markManualEdit()};let homeroomBefore=person.homeroomClass||'';$('staffHomeroom').onfocus=()=>{homeroomBefore=person.homeroomClass||''};$('staffHomeroom').oninput=e=>{person.homeroomClass=e.target.value;markManualEdit();refreshHomeroomWarning()};$('staffHomeroom').onchange=async e=>{
+  // One homeroom teacher per class: moving the class to this person asks first; otherwise nothing changes.
+  const spelled=StaffModel.spellClass(e.target.value),holder=StaffModel.homeroomHolder(draft,spelled,person);
+  if(holder&&!(await schoolConfirm(`Το ${spelled} έχει υπεύθυνο τον/την «${personLabel(holder)}».\n\nΝα οριστεί νέος/νέα υπεύθυνος ο/η «${personLabel(person)}»;`,{title:'Υπεύθυνος τμήματος',accept:'Ορισμός'}))){person.homeroomClass=homeroomBefore;render();$('staffHomeroom')?.focus();return}
+  if(holder){holder.homeroomClass='';if(!holder.manualAdded)holder.manualUpdated=true}
+  if(holder||spelled!==person.homeroomClass){person.homeroomClass=spelled;markManualEdit()}
+  homeroomBefore=spelled;render();
+  if(holder)setSummary(`Το ${spelled} έχει πλέον υπεύθυνο τον/την «${personLabel(person)}». Πάτησε «Αποθήκευση».`);
+};for(const [id,key] of [['staffRequiredHours','requiredHours'],['staffSchoolHours','schoolHours']])$(id).oninput=e=>{person[key]=e.target.value===''?'':e.target.valueAsNumber;markManualEdit()};$('staffEndDate').oninput=e=>{person.endDate=StaffModel.parseDate(e.target.value);markManualEdit()};$('staffStartDate').oninput=e=>{person.startDate=StaffModel.parseDate(e.target.value);markManualEdit()};detail.querySelectorAll('.staff-leave-from').forEach(input=>input.oninput=e=>{person.leaves[input.dataset.index].from=StaffModel.parseDate(e.target.value);markManualEdit()});detail.querySelectorAll('.staff-leave-to').forEach(input=>input.oninput=e=>{person.leaves[input.dataset.index].to=StaffModel.parseDate(e.target.value);markManualEdit()});detail.querySelectorAll('.staff-leave-remove').forEach(button=>button.onclick=()=>{person.leaves.splice(Number(button.dataset.index),1);markManualEdit();render()});$('addStaffLeave').onclick=()=>{person.leaves=Array.isArray(person.leaves)?person.leaves:[];person.leaves.push({from:'',to:''});markManualEdit();render();$('staffDetails').querySelector('.staff-leave-from:last-of-type')?.focus()};$('toggleStaffEdit').onclick=()=>{editingStaff=!editingStaff;render();if(editingStaff)$('staffCode').focus()};refreshCodeError();refreshHomeroomWarning()};
+ // Two homeroom teachers for one class is allowed (e.g. while a teacher is being replaced), but flagged.
+ const refreshHomeroomWarning=()=>{
+   const warning=$('staffHomeroomWarning');if(selected<0||!draft[selected]||!warning)return;
+   const other=StaffModel.homeroomConflict(draft,selected);
+   warning.textContent=other<0?'':'Προσοχή: το τμήμα «'+StaffModel.spellClass(draft[selected].homeroomClass)+'» έχει ήδη υπεύθυνο τον/την '+(draft[other].name.trim()||draft[other].shortName.trim()||'άλλον εκπαιδευτικό')+'.';
+   warning.hidden=other<0;
+ };
+ const refreshCodeError=()=>{
+   if(selected<0||!draft[selected]||!$('staffCodeError'))return;
+   const other=StaffModel.codeConflict(draft,selected);
+   const message=!draft[selected].code.trim()?'Ο κωδικός είναι υποχρεωτικός.':other<0?'':'Ο κωδικός «'+draft[selected].code.trim()+'» χρησιμοποιείται ήδη από τον/την '+(draft[other].name.trim()||draft[other].shortName.trim()||'άλλον εκπαιδευτικό')+'.';
+   $('staffCodeError').textContent=message;$('staffCodeError').hidden=!message;
+   $('staffCode').setAttribute('aria-invalid',String(!!message));$('staffCode').setCustomValidity(message);
+   const shortMessage=draft[selected].shortName.trim()?'':'Το σύντομο όνομα είναι υποχρεωτικό.';
+   $('staffShortNameError').textContent=shortMessage;$('staffShortNameError').hidden=!shortMessage;
+   $('staffShortName').setAttribute('aria-invalid',String(!!shortMessage));$('staffShortName').setCustomValidity(shortMessage);
+ };
+ const codesForPerson=person=>new Set([String(person.code||'').trim(),...(sourceCodes.get(person)||[])].filter(Boolean));
+ const setSummary=(message,error=false)=>{const summary=$('staffSummary');summary.textContent=message;summary.classList.toggle('error',error)};
+ $('staffList').onpointerdown=event=>{if(event.target===$('staffList'))$('staffList').focus()};
+ $('staffList').onkeydown=event=>{
+  if(!Selection.isSelectAll(event)||!draft.length||saving)return;
+  if(event.target.closest('input,select,textarea,[contenteditable="true"]'))return;
+  event.preventDefault();event.stopPropagation();
+  const list=$('staffList'),scroll=list.scrollTop,focused=document.activeElement?.dataset.index;
+  selectedIndices.clear();draft.forEach((_,index)=>selectedIndices.add(index));
+  if(selected<0)selected=sortedStaff()[0].index;selectionAnchor=selected;
+  renderList();$('removeStaff').disabled=false;
+  if(focused!==undefined)list.querySelector(`[data-index="${focused}"]`)?.focus({preventScroll:true});else list.focus({preventScroll:true});
+  list.scrollTop=scroll;
+ };
+ setupFet(async (h,importMode)=>{
+  if(await h.queryPermission()!=='granted')throw Error('Δεν δόθηκε άδεια πρόσβασης στο αρχείο FET.');
+  const file=await h.getFile(),doc=parseFet(await file.text()),nodes=SchoolFet.children(SchoolFet.child(doc.documentElement,'Teachers_List'),'Teacher');
+  const value=(n,tag)=>SchoolFet.text(n,tag).trim();
+  const incoming=nodes.map(n=>({code:value(n,'Code'),shortName:value(n,'Name'),name:SchoolText.withoutTones(value(n,'Long_Name')||value(n,'Name')).toLocaleUpperCase('el'),schoolHours:value(n,'Target_Number_of_Hours')===''?null:Number(value(n,'Target_Number_of_Hours'))}));
+  if(!incoming.length)throw Error('Το FET δεν περιέχει εκπαιδευτικούς.');
+  const plan=planFetImport(draft,incoming,importMode);
+  if(plan.rows.length>staffLimit())throw Error(`Μετά την εισαγωγή το Προσωπικό θα είχε ${plan.rows.length} εκπαιδευτικούς, πάνω από το όριο των ${staffLimit()} ανά σχολικό έτος. Η εισαγωγή δεν έγινε.`);
+  StaffModel.validateRows(plan.rows);
+  if(!plan.updated&&!plan.added){setSummary('Δεν υπάρχουν εκπαιδευτικοί για την επιλεγμένη ενέργεια εισαγωγής.');return}
+  const blockedNote=plan.blocked.length?`\n\nΔεν θα οριστεί υπεύθυνος τμήματος, γιατί το τμήμα έχει ήδη υπεύθυνο: ${blockedText(plan.blocked)}.`:'';
+  if(!(await schoolConfirm(`Αρχείο: ${h.name}\n\nΘα ενημερωθούν: ${plan.updated} εκπαιδευτικοί.\nΘα προστεθούν: ${plan.added} εκπαιδευτικοί.\n\nΟι ημερομηνίες, οι άδειες και τα υπόλοιπα στοιχεία των υπαρχόντων διατηρούνται. Το Είδος υπηρεσίας, ο Κλάδος και ο Υπεύθυνος τμήματος συμπληρώνονται μόνο όπου είναι κενά.${blockedNote}`,{title:'Εισαγωγή εκπαιδευτικών',accept:'Εισαγωγή'})))return;
+  plan.rows.slice(0,draft.length).forEach((person,index)=>sourceCodes.set(person,new Set(sourceCodes.get(draft[index])||[draft[index].code].filter(Boolean))));
+  draft=plan.rows;selected=draft.length?0:-1;selectedIndices.clear();if(selected>=0)selectedIndices.add(selected);selectionAnchor=selected;markDraftDirty();render();setSummary(`Εισαγωγή από «${h.name}»: ${plan.updated} ενημερώθηκαν, ${plan.added} προστέθηκαν.${plan.blocked.length?` Δεν ορίστηκε υπεύθυνος τμήματος για ${blockedText(plan.blocked)}.`:''} Πάτησε «Αποθήκευση».`);
+ });
+ $('staffViewFull').onclick=()=>{staffListView='full';renderList()};
+ $('staffViewShort').onclick=()=>{staffListView='short';renderList()};
+ const moveSelection=direction=>{
+   if(saving||staffListView!=='short')return;
+   const order=sortedStaff(),before=order.map(x=>x.index).join(',');
+   if(direction<0){for(let i=1;i<order.length;i++)if(selectedIndices.has(order[i].index)&&!selectedIndices.has(order[i-1].index))[order[i-1],order[i]]=[order[i],order[i-1]];}
+   else{for(let i=order.length-2;i>=0;i--)if(selectedIndices.has(order[i].index)&&!selectedIndices.has(order[i+1].index))[order[i],order[i+1]]=[order[i+1],order[i]];}
+   if(before===order.map(x=>x.index).join(','))return;
+   order.forEach(({person},rank)=>person.shortNameOrder=rank);
+   markDraftDirty();renderList();
+   $('staffList').querySelector(`[data-index="${selected}"]`)?.scrollIntoView({block:'nearest'});
+   setSummary('Η σειρά άλλαξε. Πάτησε «Αποθήκευση» για να διατηρηθεί στο κοινό αρχείο.');
+ };
+ $('staffMoveUp').onclick=()=>moveSelection(-1);
+ $('staffMoveDown').onclick=()=>moveSelection(1);
+ $('autofillStaff').onclick=()=>{
+   if(saving)return;
+   // In list order, so of two people with «[Α1]» the first gets the class; the cases left out are reported.
+   let filled=0;const blocked=[];
+   draft.forEach(person=>{const result=StaffModel.fillEmpty(person,draft);if(result.changed){filled++;if(!person.manualAdded)person.manualUpdated=true}if(result.blocked)blocked.push(result.blocked)});
+   if(!filled&&!blocked.length)return;
+   if(filled){markDraftDirty();render()}
+   setSummary((filled?`Συμπληρώθηκαν στοιχεία για ${filled} ${filled===1?'εκπαιδευτικό':'εκπαιδευτικούς'} από το σύντομο όνομα. Έλεγξέ τα και πάτησε «Αποθήκευση».`:'')+(blocked.length?`${filled?' ':''}Δεν ορίστηκε υπεύθυνος τμήματος, γιατί το τμήμα έχει ήδη υπεύθυνο: ${blockedText(blocked)}.`:''));
+ };
+ render();
+ {const count=fillableCount();if(count)setSummary(`${count} ${count===1?'εκπαιδευτικός έχει':'εκπαιδευτικοί έχουν'} κενά στοιχεία (Είδος υπηρεσίας, Κλάδος, Υπεύθυνος τμήματος) που μπορούν να συμπληρωθούν από το σύντομο όνομα. Πάτησε «Αυτόματη συμπλήρωση κενών».`)}
+ $('addStaff').onclick=()=>{if(draft.length>=staffLimit())return;markDraftDirty();draft.push({code:'',shortName:'',name:'',role:'teacher',serviceType:'',branch:'',homeroomClass:'',requiredHours:0,schoolHours:0,startDate:staffDefaultDate(),endDate:'',leaves:[],fetImported:false,manualAdded:true});selected=draft.length-1;selectedIndices.clear();selectedIndices.add(selected);selectionAnchor=selected;render();$('toggleStaffEdit').focus()};$('removeStaff').onclick=async()=>{if(!selectedIndices.size)return;const removing=[...selectedIndices].map(index=>draft[index]).filter(Boolean);
+  // People who appear in programs: one choice for all of them, after the programs of each one are shown.
+  const usage=context.timetableUsage||{},inPrograms=removing.filter(person=>person.id&&Array.isArray(usage[person.id])&&usage[person.id].length);
+  let removalMode=null;
+  if(inPrograms.length){removalMode=await removalDialog(inPrograms,usage,removing.length);if(!removalMode)return}
+  const meetings=[...Object.values(data.ssdMeetings||{}),...Object.values(data.pedagogicMeetings||{})],withAttendance=removing.filter(person=>{const codes=codesForPerson(person);return meetings.some(meeting=>[...(meeting.present||[]),...(meeting.absent||[])].some(code=>codes.has(String(code))))});if(withAttendance.length){const names=withAttendance.map(person=>person.name.trim()||person.code||'χωρίς όνομα').join(', ');if(!(await schoolConfirm(`Προσοχή: θα σβηστούν και οι παρουσίες/απουσίες του/των εκπαιδευτικού/ών ${names} από τις συνεδριάσεις ΣΣΔ και τις Παιδαγωγικές Συναντήσεις.\n\nΘέλεις να συνεχίσεις;`, {title:'Αφαίρεση εκπαιδευτικών',accept:'Συνέχεια'})))return;if(!(await schoolConfirm(`Τα δεδομένα παρουσιών/απουσιών για τον/τους εκπαιδευτικό/ούς ${names} δεν θα μπορούν να ανακτηθούν.\n\nΘέλεις να προχωρήσεις στη διαγραφή;`, {title:'Αφαίρεση εκπαιδευτικών',accept:'Διαγραφή'})))return;for(const person of withAttendance)for(const code of codesForPerson(person))pendingAttendanceCleanup.add(code)}for(const person of inPrograms)pendingRemovals.set(person.id,removalMode);markDraftDirty();const firstRemoved=Math.min(...selectedIndices);draft=draft.filter((_,index)=>!selectedIndices.has(index));selected=draft.length?Math.min(firstRemoved,draft.length-1):-1;selectedIndices.clear();if(selected>=0)selectedIndices.add(selected);selectionAnchor=selected;render()};$('cancelStaff').onclick=async()=>{if(dirty&&!(await schoolConfirm('Να απορριφθούν οι αλλαγές του προσωπικού που δεν αποθηκεύτηκαν;', {title:'Μη αποθηκευμένες αλλαγές',accept:'Απόρριψη αλλαγών'})))return;setDirtyState(false);openStaffManager();setSummary('Οι μη αποθηκευμένες αλλαγές απορρίφθηκαν.');post({type:'school-staff:ready'})};
+ $('applyStaff').onclick=async()=>{
+  const missing=draft.findIndex(person=>!person.code.trim()||!person.shortName.trim());
+  if(missing>=0){selected=missing;selectedIndices.clear();selectedIndices.add(selected);selectionAnchor=selected;editingStaff=true;render();const input=!draft[selected].code.trim()?$('staffCode'):$('staffShortName');input.focus();input.scrollIntoView({block:'nearest'});setSummary('Συμπλήρωσε κωδικό και σύντομο όνομα για κάθε εκπαιδευτικό πριν από την αποθήκευση.',true);return}
+
+  const duplicate=draft.findIndex((person,index)=>StaffModel.codeConflict(draft,index)>=0);
+  if(duplicate>=0){selected=duplicate;selectedIndices.clear();selectedIndices.add(selected);selectionAnchor=selected;editingStaff=true;render();$('staffCode').focus();setSummary('Διόρθωσε τον διπλό κωδικό πριν από την αποθήκευση.',true);return}
+  const homeroomDuplicate=draft.findIndex((person,index)=>StaffModel.homeroomConflict(draft,index)>=0);
+  if(homeroomDuplicate>=0){selected=homeroomDuplicate;selectedIndices.clear();selectedIndices.add(selected);selectionAnchor=selected;editingStaff=true;render();$('staffHomeroom').focus();setSummary('Το τμήμα «'+draft[selected].homeroomClass.trim()+'» έχει δύο υπευθύνους. Κάθε τμήμα έχει το πολύ έναν υπεύθυνο.',true);return}
+  try{StaffModel.validateRows(draft)}catch(error){setSummary(error.message,true);return}
+  const updated=normalizeStaff(draft),retainedCodes=new Set(updated.map(p=>p.code.trim()).filter(Boolean)),codesToRemove=[...pendingAttendanceCleanup].filter(code=>!retainedCodes.has(code));
+  const retainedIds=new Set(updated.map(person=>person.id)),staffRemovals=[...pendingRemovals].filter(([id])=>!retainedIds.has(id)).map(([id,mode])=>({id,mode}));
+  setBusy(true);setSummary('Αποθήκευση στο κοινό αρχείο…');
+  try{context=await requestSave(updated,codesToRemove,staffRemovals);data={ssdMeetings:context.ssdMeetings||{},pedagogicMeetings:context.pedagogicMeetings||{}};setDirtyState(false);openStaffManager();$('staffSummary').textContent='Το προσωπικό αποθηκεύτηκε στο κοινό αρχείο .data.'+(staffRemovals.length?' Ενημερώθηκαν και τα προγράμματα όπου εμφανίζονταν όσοι αφαιρέθηκαν.':'')}
+  catch(error){setSummary(error.message,true)}finally{setBusy(false)}
+ };
+}
+
+ // Delete dialog for people who appear in programs (timetableUsage of the context): for each person, the programs
+ // and how many activities; one choice for all. → 'unmatch' | 'remove' | null (Ακύρωση, the default).
+ function removalDialog(people,usage,selectedCount){
+  const many=people.length>1,element=(tag,className,text)=>{const node=document.createElement(tag);if(className)node.className=className;if(text!=null)node.textContent=text;return node};
+  const label=person=>person.name.trim()||person.shortName.trim()||person.code.trim()||'χωρίς όνομα';
+  const where=item=>`${item.kindLabel} – ${item.periodId?'περίοδος «'+(item.periodName||'χωρίς όνομα')+'»':'προσχέδιο «'+(item.name||'χωρίς όνομα')+'»'}: ${item.activities} ${item.activities===1?'δραστηριότητα':'δραστηριότητες'}`;
+  const list=element('ul','staff-removal-list');
+  for(const person of people){const row=element('li'),programs=element('ul');row.append(element('strong','',label(person)));for(const item of usage[person.id])programs.append(element('li','',where(item)));row.append(programs);list.append(row)}
+  const notes=[];
+  if(selectedCount>people.length)notes.push(element('p','staff-removal-note',selectedCount-people.length===1?'Ο άλλος επιλεγμένος εκπαιδευτικός δεν εμφανίζεται σε προγράμματα και αφαιρείται κανονικά.':'Οι άλλοι επιλεγμένοι εκπαιδευτικοί δεν εμφανίζονται σε προγράμματα και αφαιρούνται κανονικά.'));
+  notes.push(element('p','staff-removal-note','«Κράτησε τις αναφορές»: στα προγράμματα μένει το σύντομο όνομα ως εκπαιδευτικός χωρίς αντιστοίχιση. «Μαζί με όλες τις αναφορές»: φεύγει από τα προγράμματα, και όσες δραστηριότητες μείνουν χωρίς εκπαιδευτικό σβήνονται. Τα προγράμματα αλλάζουν με την «Αποθήκευση».'));
+  return schoolChoiceDialog({
+   title:many?'Αφαίρεση εκπαιδευτικών που εμφανίζονται σε προγράμματα':'Αφαίρεση εκπαιδευτικού που εμφανίζεται σε προγράμματα',
+   content:[many?'Οι παρακάτω εκπαιδευτικοί εμφανίζονται σε προγράμματα του σχολικού έτους (και σε προσχέδια):':'Ο/Η εκπαιδευτικός εμφανίζεται σε προγράμματα του σχολικού έτους (και σε προσχέδια):',list,...notes],
+   choices:[{label:'Διαγραφή, κράτησε τις αναφορές χωρίς αντιστοίχιση',value:'unmatch'},{label:`Διαγραφή μαζί με όλες τις αναφορές ${many?'τους':'του'}`,value:'remove'}],
+   actions:[{label:'Ακύρωση'}],
+   // «Ακύρωση» is the default: it takes the focus instead of the first choice.
+   ready:controls=>controls.dialog.querySelector('.school-confirm-actions button')?.focus()
+  });
+ }
+ const fetCall=(action,extra={})=>schoolHost.request('school-staff:fet',{action,...extra});
+ function fetProxy(info){if(!info)return null;return {name:info.name,queryPermission:()=>fetCall('permission'),requestPermission:()=>fetCall('permission'),getFile:async()=>{const file=await fetCall('read');return {...file,text:async()=>file.text}},createWritable:async()=>{let text='';return {write:async value=>{text=value},close:()=>fetCall('write',{text}),abort:async()=>{}}}}}
+ function fetStore(mode){if(mode==='put')return Promise.resolve();return fetCall(mode==='get'?'restore':'unlink').then(fetProxy)}
+ function parseFet(xml){return SchoolFet.parse(xml,{require:['Teachers_List'],message:'Το αρχείο δεν είναι έγκυρο FET.'})}
+ function planFetImport(current,incoming,importMode='both'){
+  if(!['both','updates','additions'].includes(importMode))throw Error('Μη έγκυρη επιλογή εισαγωγής.');
+  const rows=structuredClone(current),seenCodes=new Set(),seenNames=new Set(),used=new Set(),blocked=[];let updated=0,added=0;
+  for(const item of incoming){
+   if(!item.shortName||seenNames.has(item.shortName)||item.code&&seenCodes.has(item.code))throw Error('Το FET περιέχει κενά ή διπλά ονόματα/κωδικούς εκπαιδευτικών.');
+   seenNames.add(item.shortName);if(item.code)seenCodes.add(item.code);
+   if(item.schoolHours!==null&&(!Number.isInteger(item.schoolHours)||item.schoolHours<0||item.schoolHours>30))throw Error('Μη έγκυρο Target Hours για '+item.shortName+'. Επιτρέπονται τιμές 0–30.');
+   let matches=item.code?rows.filter(p=>p.code.trim()===item.code):[];
+   if(!matches.length)matches=rows.filter(p=>p.shortName.trim()===item.shortName&&(!item.code||!p.code.trim()));
+   if(matches.length>1||matches[0]&&used.has(matches[0]))throw Error('Αμφίβολη αντιστοίχιση για '+item.shortName+'.');
+   let person=matches[0];
+   if(person&&importMode==='additions'||!person&&importMode==='updates')continue;
+   if(person){updated++;used.add(person);person.manualUpdated=true}
+   else{person={id:crypto.randomUUID(),code:'',shortName:'',name:'',role:'teacher',serviceType:'',branch:'',homeroomClass:'',requiredHours:0,schoolHours:0,startDate:staffDefaultDate(),endDate:'',leaves:[],manualAdded:true};rows.push(person);added++}
+   if(item.code)person.code=item.code;person.shortName=item.shortName;person.name=item.name;if(item.schoolHours!==null)person.schoolHours=item.schoolHours;person.fetImported=true;
+   // Service type, branch and homeroom class come from the FET name, only where they are still empty.
+   const filled=StaffModel.fillEmpty(person,rows);if(filled.blocked)blocked.push(filled.blocked);
+  }
+  const names=rows.map(p=>p.shortName.trim()).filter(Boolean);if(new Set(names).size!==names.length)throw Error('Η εισαγωγή θα δημιουργούσε διπλά σύντομα ονόματα.');
+  return {rows,updated,added,blocked};
+ }
+ // FET file choice: the last file of this school year or another one from the disk (shared dialog: schoolChoiceDialog).
+ function fetFileDialog(mode){
+  let modeFieldset=null;
+  if(mode==='import'){modeFieldset=document.createElement('fieldset');modeFieldset.className='subapp-import-mode';modeFieldset.innerHTML='<legend>Τι θέλεις να εισαγάγεις;</legend><label><input type="radio" name="fet-import-mode" value="both" checked> Ενημερώσεις και προσθήκες</label><label><input type="radio" name="fet-import-mode" value="updates"> Μόνο ενημερώσεις εκπαιδευτικών</label><label><input type="radio" name="fet-import-mode" value="additions"> Μόνο προσθήκες εκπαιδευτικών</label>'}
+  const choose=async existing=>{const h=existing?fetHandle:fetProxy(await fetCall('choose'));if(!h)throw Error('Δεν επιλέχθηκε αρχείο.');fetHandle=h;return {handle:h,importMode:modeFieldset?.querySelector('input:checked')?.value||'both'}};
+  return schoolChoiceDialog({
+   title:mode==='import'?'Εισαγωγή εκπαιδευτικών από FET':'Εξαγωγή εκπαιδευτικών σε FET',
+   content:[mode==='import'?'Επίλεξε το FET από το οποίο θα διαβαστούν οι εκπαιδευτικοί. Μετά την εισαγωγή πάτησε «Αποθήκευση» στο Προσωπικό.':'Επίλεξε το FET που θα ενημερωθεί με τους αποθηκευμένους εκπαιδευτικούς του τρέχοντος σχολικού έτους.',modeFieldset],
+   choices:[{label:fetHandle?'Τελευταίο αρχείο: '+fetHandle.name:'Δεν υπάρχει τελευταίο αρχείο FET',disabled:!fetHandle,run:()=>choose(true)},{label:'Επιλογή άλλου αρχείου FET από τον δίσκο…',run:()=>choose(false)}]
+  });
+ }
+ function setupFet(importRows){
+ const key=JSON.stringify([context.school.name,schoolYear]);if(fetKey!==key){fetKey=key;fetHandle=null}
+ // Both operations reuse the same most recently selected file, persisted by the index.
+ const restore=fetHandle?Promise.resolve(fetHandle):fetStore('get').then(h=>{if(fetKey===key)fetHandle=h;return h}).catch(()=>null);
+ $('importFet').onclick=async()=>{if(saving)return;await restore;const selection=await fetFileDialog('import');if(!selection)return;setBusy(true);try{await importRows(selection.handle,selection.importMode)}catch(e){$('staffSummary').textContent=e.message}finally{setBusy(false)}};
+ $('exportFet').onclick=async()=>{
+ if(saving)return;
+ if(dirty){$('staffSummary').textContent='Πάτησε πρώτα «Αποθήκευση» για να αποθηκευτούν οι αλλαγές του προσωπικού.';return}
+ await restore;const selection=await fetFileDialog('export');if(!selection)return;const h=selection.handle;
+ setBusy(true);
+ try{
+ let permission=await h.queryPermission({mode:'readwrite'});if(permission!=='granted')permission=await h.requestPermission({mode:'readwrite'});if(permission!=='granted')throw Error('Δεν δόθηκε άδεια ενημέρωσης του αρχείου FET.');
+ const rows=getYearStaff(),names=rows.map(p=>p.shortName.trim());if(names.some(n=>!n)||new Set(names).size!==names.length)throw Error('Κάθε εκπαιδευτικός χρειάζεται μοναδικό, μη κενό σύντομο όνομα για το FET.');
+ const file=await h.getFile(),doc=parseFet(await file.text()),list=SchoolFet.child(doc.documentElement,'Teachers_List'),teachers=SchoolFet.children(list,'Teacher');
+ const value=SchoolFet.text;
+ const set=(n,tag,text)=>{let c=SchoolFet.child(n,tag);if(!c){c=doc.createElement(tag);n.append(c)}c.textContent=text};
+ const plans=rows.map(p=>{
+ const code=p.code.trim();
+ let matches=code?teachers.filter(n=>value(n,'Code').trim()===code):[];
+ if(!matches.length)matches=teachers.filter(n=>value(n,'Name')===p.shortName.trim()&&(!code||!value(n,'Code').trim()));
+ if(matches.length>1)throw Error('Υπάρχουν πολλαπλές εγγραφές στο FET για τον εκπαιδευτικό: '+(code||p.shortName));
+ return {p,node:matches[0]};
+ });
+ const used=plans.map(x=>x.node).filter(Boolean);if(new Set(used).size!==used.length)throw Error('Πολλές εγγραφές αντιστοιχούν στον ίδιο εκπαιδευτικό του FET.');
+ const rename=new Map();for(const {p,node} of plans)if(node&&value(node,'Name')!==p.shortName.trim())rename.set(value(node,'Name'),p.shortName.trim());
+ const finalNames=teachers.map(n=>rename.get(value(n,'Name'))||value(n,'Name')).concat(plans.filter(x=>!x.node).map(x=>x.p.shortName.trim()));if(new Set(finalNames).size!==finalNames.length)throw Error('Η ενημέρωση θα δημιουργούσε διπλά ονόματα στο FET.');
+ for(const n of [...doc.getElementsByTagName('*')])if(!n.children.length&&['Teacher','Teacher_Name'].includes(n.tagName)&&rename.has(n.textContent))n.textContent=rename.get(n.textContent);
+ for(const {p,node} of plans){const n=node||doc.createElement('Teacher');set(n,'Name',p.shortName.trim());set(n,'Long_Name',p.name);set(n,'Code',p.code);set(n,'Target_Number_of_Hours',String(p.schoolHours));if(!node){n.append(doc.createElement('Qualified_Subjects'));set(n,'Comments','');list.append(n)}}
+ const updateCount=plans.filter(item=>item.node).length,addCount=plans.length-updateCount;
+ if(!(await schoolConfirm(`Ενημέρωση του «${h.name}»\n\nΘα ενημερωθούν: ${updateCount} εκπαιδευτικοί που υπάρχουν ήδη στο FET.\nΘα προστεθούν: ${addCount} εκπαιδευτικοί που δεν υπάρχουν στο FET.\n\nΟι υπόλοιποι εκπαιδευτικοί του FET διατηρούνται.\nΝα συνεχίσω;`, {title:'Ενημέρωση FET',accept:'Ενημέρωση'})))return;
+ const latest=await h.getFile();if(latest.lastModified!==file.lastModified||latest.size!==file.size)throw Error('Το FET άλλαξε στο μεταξύ. Δοκίμασε ξανά.');
+ const writer=await h.createWritable();try{await writer.write(new XMLSerializer().serializeToString(doc));await writer.close()}catch(e){await writer.abort().catch(()=>{});throw e}
+ $('staffSummary').textContent='Το συνεργαζόμενο αρχείο FET ενημερώθηκε.';
+ }catch(e){$('staffSummary').textContent=e.message}finally{setBusy(false)}
+ };
+ }
+
+ post({type:'school-staff:ready'});
+})();
+</script></body></html>

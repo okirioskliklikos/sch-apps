@@ -1,0 +1,846 @@
+<!doctype html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Έλεγχος _data.js και _host_timetables.js</title>
+<!--
+  Σελίδα ελέγχου του _data.js και του _host_timetables.js, εκτός σουίτας: δεν μπαίνει στο Κεντρικό Μενού
+  και δεν ακολουθεί τις συμβάσεις των υποεφαρμογών. Μπαίνει στον ίδιο φάκελο με τα δύο αρχεία και ανοίγει μόνη της.
+  Έκδοση αρχείου: 0.10
+-->
+<style>
+:root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
+body{font:15px/1.45 system-ui,sans-serif;color:var(--text);margin:0;background:#fff}
+main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:22px;margin:0 0 6px}
+h2{font-size:17px;margin:26px 0 8px;padding-top:10px;border-top:1px solid var(--line)}
+p{margin:6px 0}
+.drop{border:2px dashed #94a3b8;border-radius:10px;padding:16px;margin:14px 0;background:#f8fafc}
+.drop.over{background:#e0f2fe;border-color:#0284c7}
+.files{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;margin-top:10px;font-size:14px}
+.files .have{color:var(--ok)}.files .miss{color:var(--skip)}
+.summary{font-weight:600;padding:8px 12px;border-radius:8px;margin:12px 0}
+.summary.ok{background:var(--ok-bg);color:var(--ok)}.summary.fail{background:var(--fail-bg);color:var(--fail)}
+ul.checks{list-style:none;padding:0;margin:0}
+ul.checks li{padding:5px 10px;border-left:4px solid;margin:3px 0;border-radius:0 6px 6px 0;overflow-wrap:anywhere}
+ul.checks li.ok{border-color:var(--ok);background:var(--ok-bg)}
+ul.checks li.fail{border-color:var(--fail);background:var(--fail-bg)}
+ul.checks li.skip{border-color:var(--skip);background:var(--skip-bg);color:var(--skip)}
+li .detail{display:block;font-size:13px;color:#334155;white-space:pre-wrap}
+button{font:inherit;padding:6px 14px;border-radius:8px;border:1px solid #94a3b8;background:#fff;cursor:pointer}
+</style>
+</head>
+<body>
+<main>
+<h1>Έλεγχος του _data.js και του _host_timetables.js</h1>
+<p>Η σελίδα ελέγχει τις κοινές λειτουργίες του <code>_data.js</code> και τις καθαρές συναρτήσεις του <code>_host_timetables.js</code> με τα αρχεία δοκιμής του <code>timetables_plan.md</code>. Δεν αλλάζει κανένα αρχείο.</p>
+<div class="drop" id="drop">
+  <p><strong>Αρχεία δοκιμής:</strong> σύρε τα εδώ ή <input type="file" id="files" multiple accept=".fet,.csv,.data"></p>
+  <div class="files" id="fileList"></div>
+</div>
+<p><button id="run" type="button">Εκτέλεση ελέγχων</button></p>
+<div id="summary"></div>
+<div id="out"></div>
+</main>
+<script src="_data.js"></script>
+<script src="_host_timetables.js"></script>
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+const FILES = {
+  oldFet: 'porfiriada_2026-2027.fet',
+  oldCsv: 'porfiriada_2026-2027_timetable.csv',
+  oldDesign: 'oloimero_designer_porfiriada.csv',
+  v2Fet: 'porfiriada_2026-2027v2.fet',
+  v2Csv: 'porfiriada_2026-2027v2_timetable.csv',
+  v2Design: 'oloimero_designer_porfiriada_v2.csv'
+};
+// Προαιρετικό: ένα κοινό αρχείο .data χωρίς κωδικό, με Προσωπικό και Ώρες Διδασκαλίας (για τους ελέγχους του host).
+const DATA_LABEL = 'κοινό αρχείο .data χωρίς κωδικό (προαιρετικό, για τον host)';
+const texts = {};
+let dataName = '';
+
+function showFiles() {
+  $('fileList').innerHTML = '';
+  const rows = [...Object.entries(FILES), ['data', dataName ? DATA_LABEL + ': ' + dataName : DATA_LABEL]];
+  for (const [key, name] of rows) {
+    const mark = document.createElement('span'), label = document.createElement('span');
+    mark.textContent = texts[key] != null ? '✓' : '—';
+    mark.className = label.className = texts[key] != null ? 'have' : 'miss';
+    label.textContent = name;
+    $('fileList').append(mark, label);
+  }
+}
+// Το όνομα του αρχείου μπορεί να έχει και πρόθεμα (π.χ. από αποθήκευση συνημμένου).
+async function addFiles(list) {
+  for (const file of list) {
+    if (/\.data$/i.test(file.name)) { texts.data = await file.text(); dataName = file.name; continue; }
+    const key = Object.keys(FILES).sort((a, b) => FILES[b].length - FILES[a].length).find(k => file.name === FILES[k] || file.name.endsWith('-' + FILES[k]) || file.name.endsWith('_' + FILES[k]));
+    if (key) texts[key] = await file.text();
+  }
+  showFiles();
+}
+$('files').onchange = event => addFiles(event.target.files);
+$('drop').ondragover = event => { event.preventDefault(); $('drop').classList.add('over'); };
+$('drop').ondragleave = () => $('drop').classList.remove('over');
+$('drop').ondrop = event => { event.preventDefault(); $('drop').classList.remove('over'); addFiles(event.dataTransfer.files); };
+showFiles();
+
+// ---- Δεδομένα δοκιμής που δεν έρχονται από αρχεία ----
+// Ώρες Διδασκαλίας του σχολείου, με τις ετικέτες FET των παλιών ή των νέων (v2) αρχείων.
+function teachingHours(tags) {
+  const rows = [
+    ['07:15-08:00', '07:15-08:00', 'early', tags.early],
+    ['Δ0', '08:00-08:15', 'break'],
+    ['08:15-09:00', '08:15-09:00', 'morning'], ['09:00-09:40', '09:00-09:40', 'morning'],
+    ['Δ1', '09:40-10:00', 'break'],
+    ['10:00-10:45', '10:00-10:45', 'morning'], ['10:45-11:30', '10:45-11:30', 'morning'],
+    ['Δ2', '11:30-11:45', 'break'], ['11:45-12:25', '11:45-12:25', 'morning'],
+    ['Δ3', '12:25-12:35', 'break'], ['12:35-13:15', '12:35-13:15', 'morning'],
+    ['Δ4', '13:15-13:20', 'break'],
+    ['13:20-14:00', '13:20-14:00', 'meal', tags.meal],
+    ['14:10-14:55', '14:10-14:55', 'afternoon', tags.h1], ['15:05-15:50', '15:05-15:50', 'afternoon', tags.h2],
+    ['15:55-16:40', '15:55-16:40', 'extended', tags.h3], ['16:45-17:30', '16:45-17:30', 'extended', tags.h4]
+  ];
+  return {
+    hours: rows.map(([name, longName, category, fetTag], index) => ({id: 'h' + index, name, longName, category, fetName: name, fetTag: fetTag || ''})),
+    tags: {early: '[Πρωϊνή Ζώνη]', morning: '[Πρωϊνό]', meal: '[Γεύμα]', afternoon: '[Ολοήμερο]', extended: '[Διευρυμένο]', break: '[Διάλειμμα]'},
+    dayTags: tags.days
+  };
+}
+const HOURS_OLD = teachingHours({early: 'ΩΡΑ_ΟΛΟ_ΠΖ', meal: 'ΩΡΑ_ΟΛΟ_1', h1: 'ΩΡΑ_ΟΛΟ_2', h2: 'ΩΡΑ_ΟΛΟ_3', h3: 'ΩΡΑ_ΟΛΟ_4', h4: 'ΩΡΑ_ΟΛΟ_5',
+  days: {mon: 'ΜΕΡΑ_ΟΛΟ_Δευτέρα', tue: 'ΜΕΡΑ_ΟΛΟ_Τρίτη', wed: 'ΜΕΡΑ_ΟΛΟ_Τετάρτη', thu: 'ΜΕΡΑ_ΟΛΟ_Πέμπτη', fri: 'ΜΕΡΑ_ΟΛΟ_Παρασκευή'}});
+const HOURS_V2 = teachingHours({early: 'ΩΡΑ_ΠΖ_1', meal: 'ΩΡΑ_ΟΛΟ_ΓΕΥΜΑ', h1: 'ΩΡΑ_ΟΛΟ_1', h2: 'ΩΡΑ_ΟΛΟ_2', h3: 'ΩΡΑ_ΟΛΟ_3', h4: 'ΩΡΑ_ΟΛΟ_4',
+  days: {mon: '[ΗΜ_ΔΕΥΤΕΡΑ]', tue: '[ΗΜ_ΤΡΙΤΗ]', wed: '[ΗΜ_ΤΕΤΑΡΤΗ]', thu: '[ΗΜ_ΠΕΜΠΤΗ]', fri: '[ΗΜ_ΠΑΡΑΣΚΕΥΗ]'}});
+const CLASSES = ['Α1', 'Α2', 'Β1', 'Β2', 'Γ1', 'Γ2', 'Δ1', 'Δ2', 'Ε1', 'Ε2', 'Στ1', 'Στ2'];
+
+// Προσωπικό: οι εκπαιδευτικοί του v2.fet που έχουν κωδικό, συμπληρωμένοι όπως η αυτόματη
+// συμπλήρωση του Προσωπικού («[Α1]» → υπεύθυνος Α1, κλάδος ΠΕ70, «[Στ1]» → «Στ1», «[ΔΘ]» → διευθύντρια,
+// «[ΠΕxx]» → κλάδος ΠΕxx). Όσοι δεν έχουν κωδικό («[ΠΕ99] - Debug Teacher», «[ΠΕ05] - Γαλλικά») δεν μπαίνουν,
+// όπως στο πραγματικό Προσωπικό, όπου ο κωδικός είναι υποχρεωτικός.
+function staffFromFet(fetText) {
+  const doc = SchoolFet.parse(fetText, {require: ['Teachers_List']});
+  return SchoolFet.children(SchoolFet.child(doc.documentElement, 'Teachers_List'), 'Teacher').map(node => ({
+    shortName: SchoolFet.text(node, 'Name').trim(), code: SchoolFet.text(node, 'Code').trim(),
+    name: SchoolFet.text(node, 'Long_Name').trim(), schoolHours: Number(SchoolFet.text(node, 'Target_Number_of_Hours')) || 0
+  })).filter(person => person.code).map(person => {
+    const prefix = /^\[([^\]]+)\]/.exec(person.shortName)?.[1] || '';
+    const homeroom = /^[Α-Ωα-ωΆ-Ώά-ώ]{1,2}\d$/.test(prefix) ? prefix.charAt(0).toUpperCase() + prefix.slice(1).toLowerCase() : '';
+    const branch = /^ΠΕ[\d.]+/.exec(prefix)?.[0] || (homeroom || prefix === 'ΔΘ' ? 'ΠΕ70' : '');
+    return {id: 'staff-' + person.code, ...person, role: prefix === 'ΔΘ' ? 'director' : 'teacher', branch,
+      serviceType: homeroom ? 'classroom' : /^ΠΕ/.test(prefix) ? 'specialty' : '', homeroomClass: homeroom};
+  });
+}
+
+// ---- Καταγραφή ελέγχων ----
+let section = null, totals = {ok: 0, fail: 0, skip: 0};
+function start(title) {
+  const h = document.createElement('h2'); h.textContent = title;
+  section = document.createElement('ul'); section.className = 'checks';
+  $('out').append(h, section);
+}
+function record(state, label, detail) {
+  totals[state]++;
+  const li = document.createElement('li'); li.className = state;
+  li.textContent = (state === 'ok' ? '✓ ' : state === 'fail' ? '✗ ' : '— ') + label;
+  if (detail) { const span = document.createElement('span'); span.className = 'detail'; span.textContent = detail; li.append(span); }
+  section.append(li);
+}
+function check(label, condition, detail) { record(condition ? 'ok' : 'fail', label, detail); }
+function equal(label, actual, expected, detail) {
+  const a = JSON.stringify(actual), e = JSON.stringify(expected);
+  record(a === e ? 'ok' : 'fail', label, a === e ? detail : 'αναμενόταν: ' + e + '\nβρέθηκε: ' + a + (detail ? '\n' + detail : ''));
+}
+function skip(label, why) { record('skip', label, why); }
+function attempt(label, fn) { try { fn(); } catch (error) { record('fail', label + ': απρόσμενο λάθος', error.stack || error.message); } }
+const has = (list, text) => (list || []).some(item => item.includes(text));
+const messages = analysis => [...analysis.errors.map(m => 'Λάθος: ' + m), ...analysis.warnings.map(m => 'Προειδοποίηση: ' + m), ...(analysis.info || []).map(m => 'Ενημέρωση: ' + m)].join('\n');
+const rowKey = row => [row.studentsSets, row.subject, row.teachers.join('+'), row.tags.join('+')].join(' | ');
+const activitiesPart = text => String(text).split('# OLOIMERO_DESIGNER_JSON_BEGIN')[0].replace(/^﻿/, '').replace(/\r\n/g, '\n').trimEnd();
+
+// ---- Έλεγχοι ----
+function basics() {
+  start('Κοινές βοηθητικές λειτουργίες');
+  const T = SchoolTimetable, D = SchoolDate;
+  equal('weekdayIndex: D1, Δευτέρα, ΤΡΙΤΗ, Τετ, thursday, Παρασκευή, Σάββατο', ['D1', 'Δευτέρα', 'ΤΡΙΤΗ', 'Τετ', 'thursday', 'Παρασκευή', 'Σάββατο'].map(SchoolText.weekdayIndex), [0, 0, 1, 2, 3, 4, -1]);
+  equal('SchoolDate.parse: 5/9/2026, 31/02/2027, 29.02.2028', ['5/9/2026', '31/02/2027', '29.02.2028'].map(D.parse), ['2026-09-05', '', '2028-02-29']);
+  equal('SchoolDate.format', D.format('2026-11-10'), '10/11/2026');
+  equal('SchoolDate.schoolYear 2026-2027', D.schoolYear('2026-2027'), {from: '2026-09-01', to: '2027-08-31'});
+  check('SchoolDate.inSchoolYear: 31/08/2027 μέσα, 31/08/2026 έξω', D.inSchoolYear('2027-08-31', '2026-2027') && !D.inSchoolYear('2026-08-31', '2026-2027'));
+  equal('SchoolDate.weekday: 26/10/2026 Δευτέρα, 1/11/2026 Κυριακή', [D.weekday('2026-10-26'), D.weekday('2026-11-01')], [1, 7]);
+  equal('hourTimes από longName (Δ0)', T.hourTimes({name: 'Δ0', longName: '08:00-08:15'}), {start: '08:00', end: '08:15'});
+  equal('hourTimes με «–» και ώρα μίας ψηφίας', T.hourTimes({name: '8:15 – 9:00'}), {start: '08:15', end: '09:00'});
+  let message = '';
+  try { T.timedHours({hours: [{name: 'Πρώτη', longName: 'πρωί', category: 'morning'}]}); } catch (error) { message = error.message; }
+  check('Ώρα χωρίς «HH:MM-HH:MM» σταματά με μήνυμα', message.includes('«Πρώτη»') && message.includes('Ώρες Διδασκαλίας'), message);
+  equal('Ομάδες ωρών: early 1, morning 6, meal 1, afternoon 2, extended 2, break 5', Object.fromEntries(Object.entries(T.hourGroups(HOURS_V2)).map(([k, v]) => [k, v.length])), {early: 1, morning: 6, meal: 1, afternoon: 2, extended: 2, break: 5});
+
+  const periods = [
+    {id: 'a', name: 'Α περίοδος', from: '2026-09-11', to: '2026-11-15'},
+    {id: 'b', name: 'Β περίοδος', from: '2026-11-10', to: ''},
+    {id: 'c', name: 'Γ περίοδος', from: '2027-01-08', to: '2027-06-15'}
+  ];
+  const warnings = T.periodWarnings(periods);
+  check('Προειδοποίηση επικάλυψης με την περίοδο που ισχύει', warnings.some(w => w.type === 'overlap' && w.message.includes('στις 10/11/2026–15/11/2026 ισχύει η «Β περίοδος»')), warnings.map(w => w.message).join('\n'));
+  check('Προειδοποίηση για κενό «έως» σε περίοδο που δεν είναι τελευταία', warnings.some(w => w.type === 'openEnd' && w.periodIds[0] === 'b'));
+  check('Κενό ανάμεσα σε περιόδους: χωρίς μήνυμα', T.periodWarnings([periods[0], {id: 'd', name: 'Δ', from: '2026-12-01', to: ''}]).length === 0);
+  equal('Ποια περίοδος ισχύει: 12/11 → Β, 20/02/2027 → Γ, 01/09/2026 → καμία', [T.periodAt(periods, '2026-11-12')?.id, T.periodAt(periods, '2027-02-20')?.id, T.periodAt(periods, '2026-09-01')?.id ?? null], ['b', 'c', null]);
+  const timetables = {periods, programs: [{id: 'p1', kind: 'school', periodId: 'a'}, {id: 'p2', kind: 'oloimero', periodId: 'b'}, {id: 'p3', kind: 'school', periodId: null, name: 'Προσχέδιο'}]};
+  equal('Πρόγραμμα σε ημερομηνία: school 01/10 → p1, school 12/11 → κανένα (δεν συνεχίζει)', [T.programAt(timetables, 'school', '2026-10-01')?.id, T.programAt(timetables, 'school', '2026-11-12')], ['p1', null]);
+  equal('classSpelling: ΣΤ1, στ2, Στ 1, α1, Ά2, Ε10, Α\', Υποδοχή, Ζ1, κενό', ['ΣΤ1', 'στ2', 'Στ 1', 'α1', 'Ά2', 'Ε10', "Α'", 'Υποδοχή', 'Ζ1', ''].map(T.classSpelling), ['Στ1', 'Στ2', 'Στ1', 'Α1', 'Α2', 'Ε10', '', '', '', '']);
+  equal('Κατάλογος ειδών: μετρούν school, support, special', Object.keys(T.kinds).filter(T.countsInHours), ['school', 'support', 'special']);
+}
+
+// Εμφάνιση μαθητών (studentsText) και ανάλυση ονομάτων ομάδων (studentsFromNames).
+function studentsChecks(v2Program) {
+  start('Εμφάνιση μαθητών (studentsText)');
+  const T = SchoolTimetable, text = (classes, subsets = []) => T.studentsText({classes, subsets}, {classes: CLASSES});
+  const cases = [
+    [['Α1'], [], 'Α1'], [['Α2', 'Α1'], [], "Α'"], [['Στ1'], [], 'Στ1'],
+    [['Α1', 'Α2', 'Β1', 'Β2', 'Γ1', 'Γ2'], [], "Α'-Γ'"], [['Β1', 'Β2'], [], "Β'"], [['Ε1'], ['Ε1-Γαλ'], 'Ε1-Γαλ'],
+    [['Β1', 'Γ1', 'Γ2'], [], "Β1, Γ'"], [['Α1', 'Α2', 'Β1', 'Β2'], [], "Α', Β'"], [['Α1', 'Α2', 'Γ1', 'Γ2'], [], "Α', Γ'"],
+    [CLASSES, [], "Α'-Στ'"], [['Β2', 'Ε1'], ['Ε1-Γαλ', 'Β2'], 'Β2, Ε1-Γαλ'], [['Α1', 'Υποδοχή'], [], 'Α1, Υποδοχή']
+  ];
+  for (const [classes, subsets, expected] of cases) equal('[' + classes.join(',') + ']' + (subsets.length ? ' + [' + subsets.join(',') + ']' : '') + ' → ' + expected, text(classes, subsets), expected);
+  equal('Τάξη με ένα μόνο τμήμα: γράφεται το τμήμα («Α1, Β\'»)', T.studentsText({classes: ['Α1', 'Β1', 'Β2']}, {classes: ['Α1', 'Β1', 'Β2', 'Γ1', 'Γ2']}), "Α1, Β'");
+  equal('Τρεις συνεχόμενες ολόκληρες, η μία με ένα τμήμα: εύρος', T.studentsText({classes: ['Α1', 'Β1', 'Β2', 'Γ1', 'Γ2']}, {classes: ['Α1', 'Β1', 'Β2', 'Γ1', 'Γ2']}), "Α'-Γ'");
+  equal('Με το Προσωπικό (ctx.staff)', T.studentsText({classes: ['Δ1', 'Δ2', 'Ε1', 'Ε2', 'Στ1', 'Στ2']}, {staff: CLASSES.map(name => ({homeroomClass: name}))}), "Δ'-Στ'");
+  equal('Χωρίς μαθητές: κενό', T.studentsText({classes: []}, {classes: CLASSES}), '');
+  if (v2Program) {
+    const lang = v2Program.activities.find(a => v2Program.source.activities[a.id].students === 'Ε1-Γαλ+Ε2-Γαλ');
+    equal('Ωρολόγιο v2: «Ε1-Γαλ+Ε2-Γαλ» → «Ε1-Γαλ, Ε2-Γαλ»', lang && T.studentsText(lang, {classes: CLASSES}), 'Ε1-Γαλ, Ε2-Γαλ');
+    const all = v2Program.activities.find(a => v2Program.source.activities[a.id].students === "Α'-Στ'");
+    equal('Ωρολόγιο v2: «Α\'-Στ\'» → «Α\'-Στ\'»', all && T.studentsText(all, {classes: CLASSES}), "Α'-Στ'");
+  }
+  start('Ονόματα ομάδων μαθητών (studentsFromNames)');
+  const names = value => T.studentsFromNames(value, CLASSES);
+  equal('«Β1+Δ\'» → Β1, Δ1, Δ2', names("Β1+Δ'").classes, ['Β1', 'Δ1', 'Δ2']);
+  equal('«Α\'-Στ\'» → 12 τμήματα', names("Α'-Στ'").classes.length, 12);
+  equal('«Β΄» (με κεραία) → Β1, Β2', names('Β΄').classes, ['Β1', 'Β2']);
+  equal('«ΣΤ1» → «Στ1»', names('ΣΤ1').classes, ['Στ1']);
+  equal('«Ε1-Γαλ+Β2» → υποσύνολο με ολόκληρο τμήμα', names('Ε1-Γαλ+Β2'), {classes: ['Β2', 'Ε1'], subsets: ['Ε1-Γαλ', 'Β2'], unknown: []});
+  equal('«Υποδοχή» → άγνωστο, μένει όπως είναι', names('Υποδοχή'), {classes: ['Υποδοχή'], subsets: [], unknown: ['Υποδοχή']});
+}
+
+// Εισαγωγείς ανά είδος (SchoolTimetable.kinds): κατάλογος και ο εισαγωγέας «FET» του Ωρολογίου.
+function importerChecks(staff) {
+  start('2γ. Εισαγωγείς ανά είδος');
+  const T = SchoolTimetable;
+  check('Κάθε είδος έχει λίστα εισαγωγέων', Object.keys(T.kinds).every(kind => Array.isArray(T.kinds[kind].importers)));
+  equal('Εισαγωγείς ανά είδος', Object.fromEntries(Object.keys(T.kinds).map(kind => [kind, T.importers(kind).map(item => item.id)])), {school: ['fet'], oloimero: ['csv'], support: [], special: []});
+  const fet = T.importer('school', 'fet');
+  equal('Αρχεία του εισαγωγέα FET', fet?.files.map(file => file.key + ':' + Object.values(file.accept).flat().join(',')), ['csv:.csv', 'fet:.fet']);
+  equal('Αρχεία του εισαγωγέα του Ολοημέρου', T.importer('oloimero', 'csv')?.files.map(file => file.key + ':' + Object.values(file.accept).flat().join(',')), ['csv:.csv']);
+  check('Άγνωστος εισαγωγέας → null', T.importer('school', 'xyz') === null && T.importer('oloimero', 'fet') === null);
+  check('Κάθε είδος έχει όνομα εφαρμογής-κατόχου όταν έχει κάτοχο', Object.values(T.kinds).every(kind => !kind.owner || !!kind.ownerTitle));
+  if (!fet || !texts.v2Fet || !texts.v2Csv) return skip('Εισαγωγή μέσω του εισαγωγέα', 'Λείπουν τα αρχεία v2.');
+  const analysis = fet.analyze({csv: {name: FILES.v2Csv, text: texts.v2Csv}, fet: {name: FILES.v2Fet, text: texts.v2Fet}}, {staff, teachingHours: HOURS_V2});
+  check('Ανάλυση μέσω του εισαγωγέα', analysis.ok, messages(analysis));
+  equal('Σύνοψη της ανάλυσης', analysis.summary?.map(item => item.value), [385, 429, 12, analysis.counts.matched + '/' + analysis.counts.teachers]);
+  const program = fet.build(analysis, {unmatched: 'keep', kind: 'school', periodId: 'p1', name: ''});
+  check('Κατασκευή μέσω του εισαγωγέα: είδος, περίοδος, ονόματα αρχείων', program.kind === 'school' && program.periodId === 'p1' && program.activities.length === 385 && program.source.csvName === FILES.v2Csv && program.source.fetName === FILES.v2Fet);
+  const empty = fet.analyze({csv: {name: 'empty.csv', text: '"Activity Id","Day","Hour","Students Sets","Subject","Teachers","Activity Tags","Room"\n'}, fet: {name: FILES.v2Fet, text: texts.v2Fet}}, {staff, teachingHours: HOURS_V2});
+  check('Κενό CSV μέσω του εισαγωγέα: λάθος, χωρίς σύνοψη', !empty.ok && !empty.summary, empty.errors.join('\n'));
+}
+
+function importScenario(title, fetText, csvText, csvName, fetName, staff, hours, expected) {
+  start(title);
+  let analysis, program;
+  attempt('Ανάλυση', () => { analysis = SchoolTimetable.analyzeFetImport({csvText, csvName, fetText, fetName, staff, teachingHours: hours}); });
+  if (!analysis) return null;
+  check('Η ανάλυση επιτρέπει την εισαγωγή', analysis.ok, messages(analysis));
+  if (!analysis.ok) return null;
+  equal('Δραστηριότητες', analysis.counts.activities, expected.activities);
+  equal('Εκπαιδευτικοί χωρίς αντιστοίχιση', analysis.unmatchedTeachers, expected.unmatched, messages(analysis));
+  check('Ο «[ΠΕ99] - Debug Teacher» (χωρίς δραστηριότητα) δεν αναφέρεται', !messages(analysis).includes('Debug'));
+  for (const [text, label] of expected.info || []) check(label, has(analysis.info, text), analysis.info.join('\n'));
+  check('Χωρίς προειδοποίηση διαφοράς CSV και .fet', !has(analysis.warnings, 'διαφορετικό μάθημα'), analysis.warnings.join('\n'));
+  attempt('Κατασκευή', () => { program = SchoolTimetable.buildFetProgram(analysis, {unmatched: 'keep', name: 'Δοκιμή', periodId: null}); });
+  if (!program) return null;
+  const acts = program.activities;
+  equal('Δίωρες δραστηριότητες (2 εγγραφές στο times)', acts.filter(a => a.times.length === 2).length, 44);
+  const pz = acts.find(a => program.source.activities[a.id].students === "Α'-Στ'");
+  equal('Το «Α\'-Στ\'» αναπτύσσεται σε 12 τμήματα', pz?.classes, CLASSES);
+  check('Το «ΣΤ1» γράφεται «Στ1» (κανένα τμήμα «ΣΤ1»)', !acts.some(a => a.classes.includes('ΣΤ1')) && acts.some(a => a.classes.includes('Στ1')));
+  const twoHour = acts.find(a => a.times.length === 2 && a.times[0].start === '08:15');
+  equal('Δίωρη 08:15: ώρες 08:15–09:00 και 09:00–09:40', twoHour?.times.map(t => t.start + '-' + t.end), ['08:15-09:00', '09:00-09:40']);
+  const afterGap = acts.find(a => a.times.some(t => t.start === '14:10'));
+  check('Κενό 14:00–14:10: η ώρα μετά το γεύμα αρχίζει 14:10', !!afterGap && !acts.some(a => a.times.some(t => t.start === '14:00' || t.end === '14:10')));
+  const clashes = SchoolTimetable.conflicts(program);
+  const langClash = clashes.filter(c => c.type === 'class' && /Γαλ|Γερ/.test(c.a.subject + c.b.subject) && /Γαλ|Γερ/.test(c.a.subject) && /Γαλ|Γερ/.test(c.b.subject));
+  check('Γαλλικά και Γερμανικά του Ε1/Ε2 και Στ1/Στ2 δεν συγκρούονται', langClash.length === 0, langClash.map(c => c.who + ' ' + c.a.subject + '/' + c.b.subject).join('\n'));
+  const lang = acts.find(a => program.source.activities[a.id].students === 'Ε1-Γαλ+Ε2-Γαλ');
+  equal('Υποσύνολα «Ε1-Γαλ+Ε2-Γαλ»', lang && {classes: lang.classes, subsets: lang.subsets}, {classes: ['Ε1', 'Ε2'], subsets: ['Ε1-Γαλ', 'Ε2-Γαλ']});
+  record('ok', 'Συγκρούσεις στο πρόγραμμα: ' + clashes.length + ' (εκπαιδευτικοί ' + clashes.filter(c => c.type === 'staff').length + ', τμήματα ' + clashes.filter(c => c.type === 'class').length + ')', clashes.slice(0, 8).map(c => c.type + ' ' + c.who + ' ' + SchoolTimetable.dayLabels[c.day - 1] + ' ' + c.start + ' — ' + c.a.subject + ' / ' + c.b.subject).join('\n'));
+  if (expected.matinaActivities) equal('Δραστηριότητες της «Ματίνας» (χωρίς αντιστοίχιση)', acts.filter(a => a.unmatched.includes('[ΠΕ11] - ΓΥΜ - Ματίνα')).length, expected.matinaActivities);
+  const hoursMap = SchoolTimetable.staffHours(program);
+  const a1 = staff.find(p => p.code === 'Α1');
+  record('ok', 'Ώρες στο πρόγραμμα / schoolHours: ' + ['Α1', 'ΣΤ1', 'ΠΕ06Α', 'ΠΕ05Α'].map(code => { const p = staff.find(s => s.code === code); return p.shortName + ' ' + (hoursMap.get(p.id) || 0) + '/' + p.schoolHours; }).join(' · '));
+  check('Ώρες Α1 > 0', (hoursMap.get(a1.id) || 0) > 0);
+  const st1 = staff.find(p => p.code === 'ΣΤ1');
+  equal('Υπεύθυνος Στ1 από το Προσωπικό', SchoolTimetable.homeroomTeacher(program, 'Στ1', staff), {id: st1.id});
+  const noHomeroom = staff.map(p => p.id === st1.id ? {...p, homeroomClass: ''} : p);
+  equal('Υπεύθυνος Στ1 από το «[Στ1]» του ονόματος, όταν λείπει από το Προσωπικό', SchoolTimetable.homeroomTeacher(program, 'ΣΤ1', noHomeroom), {id: st1.id});
+  const unav = program.source.unavailable.filter(u => u.teacher === a1.shortName);
+  check('Μη διαθεσιμότητες στο source (Α1: ' + unav.length + ')', unav.length > 0 && SchoolTimetable.unavailableTimes(program, a1.id).length === unav.length);
+  const dropped = SchoolTimetable.buildFetProgram(analysis, {unmatched: 'drop'});
+  check('«Να μην εισαχθούν»: κανένα όνομα στο unmatched, οι δραστηριότητες μένουν', dropped.activities.every(a => !a.unmatched.length) && dropped.activities.length === acts.length);
+  const a2 = staff.find(p => p.code === 'Α2');
+  const replaced = SchoolTimetable.replaceStaff(program, [{from: a1.id, to: a2.id}], {staff});
+  check('Αντικατάσταση Α1 → Α2: σημείωση «τροποποιήθηκε μετά την εισαγωγή»', replaced.changed > 0 && !replaced.program.activities.some(a => a.staff.includes(a1.id)) && replaced.program.source.modifiedAfterImport?.replacements?.[0]?.toName === a2.name && program.activities.some(a => a.staff.includes(a1.id)), 'άλλαξαν ' + replaced.changed + ' δραστηριότητες');
+  const again = SchoolTimetable.analyzeFetImport({csvText, fetText, staff, teachingHours: hours, replacing: replaced.program});
+  check('Νέα εισαγωγή πάνω σε τροποποιημένο: υπενθύμιση για το FET', has(again.warnings, 'έχουν περάσει και στο FET'));
+  return program;
+}
+
+// Εισαγωγή ενός CSV του Ολοήμερου Designer (εισαγωγέας «csv» του είδους oloimero), εξαγωγή και γραμμές για το FET.
+function oloimeroImportScenario(title, designText, designName, staff, hours, expected) {
+  start(title);
+  const T = SchoolTimetable, importer = T.importer('oloimero', 'csv');
+  let analysis, program;
+  attempt('Ανάλυση', () => { analysis = importer.analyze({csv: {name: designName, text: designText}}, {staff, teachingHours: hours}); });
+  if (!analysis) return null;
+  check('Η ανάλυση επιτρέπει την εισαγωγή', analysis.ok, messages(analysis));
+  if (!analysis.ok) return null;
+  equal('Δραστηριότητες', analysis.counts.activities, expected.rows);
+  equal('Εκπαιδευτικοί χωρίς αντιστοίχιση', analysis.unmatchedTeachers, expected.unmatched, messages(analysis));
+  check('Κρατήθηκαν τα στοιχεία σχεδίασης του Designer', has(analysis.info, 'στοιχεία σχεδίασης'), analysis.info.join('\n'));
+  equal('Σύνοψη', analysis.summary.map(item => item.label + ' ' + item.value), ['δραστηριότητες ' + expected.rows, 'τμήματα 12', 'εκπαιδευτικοί με αντιστοίχιση ' + analysis.counts.matched + '/' + analysis.counts.teachers]);
+  attempt('Κατασκευή', () => { program = importer.build(analysis, {unmatched: 'keep', kind: 'oloimero', periodId: null, name: 'Σχέδιο δοκιμής'}); });
+  if (!program) return null;
+  const source = program.source, acts = program.activities;
+  check('Πρόγραμμα του είδους oloimero με source «oloimero-designer»', program.kind === 'oloimero' && source.type === 'oloimero-designer' && program.name === 'Σχέδιο δοκιμής' && program.periodId === null);
+  equal('Κάθε δραστηριότητα: μία ώρα, θέση στον πίνακα', acts.every(a => a.times.length === 1 && source.placements[a.id]), true);
+  const designHours = new Map(source.design.hours.map(item => [item.hourId, item]));
+  const fits = acts.every(a => { const place = source.placements[a.id], hour = designHours.get(place.hourId); return hour && place.slot < (hour.exceptionsEnabled ? hour.dayCounts[place.day - 1] : hour.count); });
+  check('Οι θέσεις χωρούν στον Σχεδιασμό', fits, JSON.stringify(source.design.hours));
+  const byStudents = value => acts.find(a => T.oloimeroStudents(source.placements[a.id].students, source, CLASSES).text === value);
+  equal('«Α\'-Στ\'» → 12 τμήματα, «Α\'-Στ\'»', [byStudents("Α'-Στ'")?.classes.length, byStudents("Α'-Στ'") && T.studentsText(byStudents("Α'-Στ'"), {staff})], [12, "Α'-Στ'"]);
+  equal('«Β1+Δ\'» → Β1, Δ1, Δ2, «Β1, Δ\'»', [byStudents("Β1+Δ'")?.classes, byStudents("Β1+Δ'") && T.studentsText(byStudents("Β1+Δ'"), {staff})], [['Β1', 'Δ1', 'Δ2'], "Β1, Δ'"]);
+  check('Εκπαιδευτικοί της αριστερής μπάρας με χρώματα', source.teachers.length > 0 && source.teachers.every(t => /^#[0-9a-f]{6}$/i.test(t.color)), source.teachers.map(t => t.name + ' ' + t.color + ' ' + t.availableHours).join('\n'));
+  const exported = T.oloimeroCsvFromProgram(program, {staff, teachingHours: hours});
+  equal('Εξαγωγή CSV: δραστηριότητες και ελλιπή', [exported.exported, exported.incomplete], [expected.rows, 0]);
+  // Τα παλιά CSV του Designer δεν έχουν τις ετικέτες ζώνης (π.χ. «[Γεύμα]»)· η εξαγωγή τις γράφει. Σε αυτά συγκρίνονται οι γραμμές χωρίς αυτές.
+  const zoneTags = new Set(Object.values(hours.tags || {}));
+  const key = row => rowKey(expected.exactText === false ? {...row, tags: row.tags.filter(tag => !zoneTags.has(tag))} : row);
+  const original = T.oloimeroRowsFromCsv(designText).map(key), again = T.oloimeroRowsFromCsv(exported.text).map(key);
+  equal('Εξαγωγή CSV: ίδιες γραμμές με το αρχείο, με την ίδια σειρά' + (expected.exactText === false ? ' (χωρίς τις ετικέτες ζώνης)' : ''), again.map((row, i) => row === original[i] ? null : (i + 1) + ': ' + original[i] + ' ≠ ' + row).filter(Boolean), []);
+  if (expected.exactText !== false) check('Εξαγωγή CSV: ίδιο κείμενο δραστηριοτήτων και σχολίων με το αρχείο του Designer', activitiesPart(exported.text) === activitiesPart(designText));
+  equal('Γραμμές σχεδίου από το πρόγραμμα (με τη σειρά του CSV για το FET) = γραμμές του CSV', T.oloimeroRowsFromProgram(program, {staff, teachingHours: hours}).map(key), original);
+  const reimported = importer.analyze({csv: {name: 'export.csv', text: exported.text}}, {staff, teachingHours: hours});
+  const second = reimported.ok ? importer.build(reimported, {unmatched: 'keep'}) : null;
+  check('Νέα εισαγωγή της εξαγωγής: ίδια τμήματα, συνενώσεις, χρώματα και Σχεδιασμός', !!second && JSON.stringify([second.source.departments, second.source.unions, second.source.design, second.source.teachers]) === JSON.stringify([source.departments, source.unions, source.design, source.teachers]), messages(reimported));
+  if (expected.unmatched.length) {
+    const dropped = importer.build(analysis, {unmatched: 'drop'});
+    check('«Να μην εισαχθούν»: κανένα όνομα στο unmatched ή στην αριστερή μπάρα', dropped.activities.every(a => !a.unmatched.length) && dropped.source.teachers.every(t => t.staffId));
+  }
+  const H = window.SchoolHostTimetables;
+  if (H) {
+    let error = '';
+    try { H.validateProgram(program, {staffIds: new Set(staff.map(p => p.id)), periodIds: new Set()}); } catch (e) { error = e.message; }
+    check('Το πρόγραμμα περνά την επικύρωση του host', !error, error);
+  }
+  return program;
+}
+
+// Εισαγωγή Ολοημέρου στο ωρολόγιο (FET Timetable Editor): οι δραστηριότητες του ωρολογίου σε ώρες Ολοημέρου
+// συγκρίνονται μία προς μία με του σχεδίου· οι ίδιες μένουν, οι άλλες αντικαθίστανται. Χωρίς Activity Id ή ετικέτες.
+// Κλειδί «ίδιας» δραστηριότητας, όπως στο _data.js: χωρίς αίθουσα, με τα τμήματα και το κείμενο μαθητών.
+const sameKey = (a, staff) => JSON.stringify([String(a.subject || '').trim(), [...(a.staff || [])].sort(), [...(a.unmatched || [])].sort(), [...(a.classes || [])].sort(), SchoolTimetable.studentsText(a, {staff}), (a.times || []).map(t => t.day + ' ' + t.start + '-' + t.end).sort()]);
+function oloimeroReplaceScenario(title, program, design, staff, hours, expected) {
+  start(title);
+  if (!program || !design) return skip('Εισαγωγή Ολοημέρου στο ωρολόγιο', 'Δεν υπάρχει ωρολόγιο ή σχέδιο από τις προηγούμενες εισαγωγές.');
+  const T = SchoolTimetable, options = {staff, teachingHours: hours, designName: 'Σχέδιο δοκιμής'};
+  const analysis = T.analyzeOloimeroReplace(program, design, options);
+  check('Η ανάλυση επιτρέπει την εισαγωγή', analysis.ok, messages(analysis));
+  if (!analysis.ok) return null;
+  const describe = a => (a.subject || '—') + ' · ' + T.studentsText(a, {staff}) + ' · ' + (a.times || []).map(t => T.dayLabels[t.day - 1] + ' ' + t.start).join(', ');
+  // Οι δραστηριότητες Ολοημέρου κατά το FET: όσες έχουν ετικέτα ημέρας των Ωρών Διδασκαλίας.
+  const dayTags = new Set(Object.values(hours.dayTags || {}));
+  const tagged = program.activities.filter(a => (program.source.activities[a.id]?.tags || []).some(tag => dayTags.has(tag))).map(a => a.id).sort();
+  const touched = [...analysis.kept, ...analysis.removed].sort();
+  equal('Οι δραστηριότητες του ωρολογίου σε ώρες Ολοημέρου (ίδιες και αφαιρούμενες) είναι όσες έχουν ετικέτα ημέρας στο FET', touched, tagged,
+    'μόνο κατά τις ώρες: ' + touched.filter(id => !tagged.includes(id)).join(', ') + ' · μόνο κατά τις ετικέτες: ' + tagged.filter(id => !touched.includes(id)).join(', '));
+  equal('Ίδιες και νέες = οι δραστηριότητες του σχεδίου', analysis.counts.kept + analysis.counts.added, expected.rows);
+  const byId = new Map(program.activities.map(a => [a.id, a]));
+  record('ok', 'Σύγκριση μία προς μία: ίδιες ' + analysis.counts.kept + ', αφαιρούνται ' + analysis.counts.removed + ', μπαίνουν ' + analysis.counts.added,
+    [...analysis.removed.slice(0, 5).map(id => '− ' + describe(byId.get(id))), ...analysis.added.slice(0, 5).map(a => '+ ' + describe(a))].join('\n'));
+  check('Εκπαιδευτικοί χωρίς αντιστοίχιση: μόνο από τις δραστηριότητες που μπαίνουν', analysis.unmatchedTeachers.every(name => expected.unmatched.includes(name) && analysis.added.some(a => a.unmatched.includes(name))), analysis.unmatchedTeachers.join(', '));
+  const updated = T.applyOloimeroReplace(program, analysis, {designId: design.id});
+  const after = new Map(updated.activities.map(a => [a.id, a]));
+  check('Οι ίδιες δραστηριότητες μένουν αυτούσιες (id, αίθουσα, στοιχεία του FET)', analysis.kept.every(id => JSON.stringify(after.get(id)) === JSON.stringify(byId.get(id)) && JSON.stringify(updated.source.activities[id]) === JSON.stringify(program.source.activities[id])));
+  const oloHours = T.oloimeroHours(hours), inside = t => oloHours.some(h => h.start <= t.start && t.end <= h.end);
+  check('Οι δραστηριότητες εκτός Ολοημέρου δεν αλλάζουν', JSON.stringify(program.activities.filter(a => !a.times.every(inside))) === JSON.stringify(updated.activities.filter(a => !a.times.every(inside))));
+  equal('Στις ώρες Ολοημέρου μένουν ακριβώς οι δραστηριότητες του σχεδίου', updated.activities.filter(a => a.times.every(inside)).map(a => sameKey(a, staff)).sort(), design.activities.map(a => sameKey(a, staff)).sort());
+  const changed = analysis.counts.removed + analysis.counts.added > 0;
+  check('source: φεύγουν μόνο τα Activity Id των αφαιρεμένων, κρατιέται το σχέδιο, σημείωση «τροποποιήθηκε» μόνο αν άλλαξε κάτι',
+    analysis.removed.every(id => !updated.source.activities[id]) && updated.source.oloimero?.design === design.id && !!updated.source.modifiedAfterImport?.oloimero === changed);
+  const langClash = T.conflicts(updated).filter(c => c.type === 'class' && /Γαλ|Γερ/.test(c.a.subject) && /Γαλ|Γερ/.test(c.b.subject));
+  check('Μετά την εισαγωγή: Γαλλικά και Γερμανικά δεν συγκρούονται', langClash.length === 0, langClash.map(c => c.who + ' ' + c.a.subject + '/' + c.b.subject).join('\n'));
+  const again = T.analyzeOloimeroReplace(updated, design, options);
+  check('Ξανά το ίδιο σχέδιο: όλες ίδιες, «είναι ήδη στο ωρολόγιο»', again.unchanged && again.counts.kept === expected.rows);
+  // Μία αλλαγή στο σχέδιο: αλλάζει μόνο αυτή η δραστηριότητα.
+  const edited = clone(design);
+  edited.activities[0].subject = 'Αλλαγμένο μάθημα';
+  const one = T.analyzeOloimeroReplace(updated, edited, options);
+  equal('Μία αλλαγή στο σχέδιο: ίδιες, αφαιρούνται, μπαίνουν', [one.counts.kept, one.counts.removed, one.counts.added], [expected.rows - 1, 1, 1]);
+  const oneUpdated = T.applyOloimeroReplace(updated, one, {designId: design.id});
+  check('Μία αλλαγή: οι υπόλοιπες κρατούν το id τους', one.kept.every(id => oneUpdated.activities.some(a => a.id === id)) && oneUpdated.activities.length === updated.activities.length);
+  const H = window.SchoolHostTimetables;
+  if (H) {
+    let error = '';
+    try { H.validateProgram(updated, {staffIds: new Set(staff.map(p => p.id)), periodIds: new Set()}); } catch (e) { error = e.message; }
+    check('Το ωρολόγιο μετά την εισαγωγή περνά την επικύρωση του host', !error, error);
+  }
+  return updated;
+}
+
+// Εισαγωγή Ολοημέρου στο ωρολόγιο με δεδομένα που φτιάχνονται εδώ (δεν χρειάζονται αρχεία δοκιμής).
+function oloimeroReplaceChecks() {
+  start('3α. Εισαγωγή Ολοημέρου στο ωρολόγιο: έλεγχοι χωρίς αρχεία δοκιμής');
+  const T = SchoolTimetable, hours = HOURS_V2;
+  const staff = [{id: 's1', shortName: '[Α1] - Δοκιμή', code: 'Α1', homeroomClass: 'Α1', branch: 'ΠΕ70'}, {id: 's2', shortName: '[ΠΕ06] - Αγγλικά', code: 'ΠΕ06', serviceType: 'specialty', branch: 'ΠΕ06'},
+    {id: 's3', shortName: '[Β2] - Δοκιμή', code: 'Β2', homeroomClass: 'Β2', branch: 'ΠΕ70'}, {id: 's4', shortName: '[Ε1] - Δοκιμή', code: 'Ε1', homeroomClass: 'Ε1', branch: 'ΠΕ70'}];
+  const act = (id, subject, times, people = ['s1'], extra = {}) => ({id, subject, staff: people, unmatched: [], classes: ['Α1'], subsets: [], room: '', times: times.map(([day, from, to]) => ({day, start: from, end: to})), ...extra});
+  // k: ίδια με τη d1 του σχεδίου, με αίθουσα· k2: ίδια με τη d3, με τα υποσύνολα που βάζει η εισαγωγή από FET.
+  const school = {id: 'p', formatVersion: 1, kind: 'school', periodId: null, name: 'Δοκιμή', activities: [
+    act('m', 'Γλώσσα', [[1, '08:15', '09:00']]), act('pz', 'Πρωινή Ζώνη', [[1, '07:15', '08:00']]), act('o', 'Μελέτη', [[2, '14:10', '14:55'], [2, '15:05', '15:50']]),
+    act('k', 'Αγγλικά', [[3, '14:10', '14:55']], ['s2'], {room: 'Αίθουσα 2'}),
+    act('k2', 'Γαλλικά', [[4, '14:10', '14:55']], ['s2'], {classes: ['Β2', 'Ε1'], subsets: ['Ε1-Γαλ', 'Β2', 'Β2-Γαλ', 'Β2-Γερ']})
+  ], source: {type: 'fet', activities: {m: {fetId: '1'}, pz: {fetId: '2'}, o: {fetId: '3'}, k: {fetId: '4', tags: ['[ΗΜ_ΤΕΤΑΡΤΗ]']}, k2: {fetId: '5', students: 'Ε1-Γαλ+Β2'}}, modifiedAfterImport: null, oloimero: null}};
+  const design = {id: 'd', formatVersion: 1, kind: 'oloimero', periodId: null, name: 'Σχέδιο', activities: [
+    act('d1', 'Αγγλικά', [[3, '14:10', '14:55']], ['s2']), act('d2', 'Εικαστικά', [[4, '15:55', '16:40']], [], {unmatched: ['Ξένος']}),
+    act('d3', 'Γαλλικά', [[4, '14:10', '14:55']], ['s2'], {classes: ['Β2', 'Ε1'], subsets: ['Ε1-Γαλ', 'Β2']})
+  ], source: {type: 'oloimero-designer', pending: [{hourId: 'h14', day: 5, slot: 0}]}};
+  const options = {staff, teachingHours: hours};
+  const a = T.analyzeOloimeroReplace(school, design, options);
+  check('Η ανάλυση επιτρέπει την εισαγωγή', a.ok, messages(a));
+  equal('Ίδιες: η k (με άλλη αίθουσα) και η k2 (με τα υποσύνολα του FET)', a.kept, ['k', 'k2']);
+  equal('Αφαιρούνται η Πρωινή Ζώνη και η δίωρη Μελέτη, μένει η Γλώσσα', [...a.removed].sort(), ['o', 'pz']);
+  equal('Μπαίνει μόνο η Εικαστικά, με εκπαιδευτικό χωρίς αντιστοίχιση', [a.added.map(x => x.subject), a.unmatchedTeachers, a.counts], [['Εικαστικά'], ['Ξένος'], {kept: 2, removed: 2, added: 1}]);
+  check('Προειδοποίηση για τον εκπαιδευτικό χωρίς αντιστοίχιση, ενημερωτικό για το ελλιπές κελί', has(a.warnings, '«Ξένος»') && has(a.info, 'ελλιπές κελί'), messages(a));
+  const u = T.applyOloimeroReplace(school, a, {designId: 'd'});
+  equal('Μετά την εισαγωγή: Γλώσσα, Αγγλικά, Γαλλικά, Εικαστικά', u.activities.map(x => x.subject), ['Γλώσσα', 'Αγγλικά', 'Γαλλικά', 'Εικαστικά']);
+  check('Οι ίδιες κρατούν id, αίθουσα, υποσύνολα και στοιχεία του FET', JSON.stringify(u.activities.find(x => x.id === 'k')) === JSON.stringify(school.activities[3]) && JSON.stringify(u.activities.find(x => x.id === 'k2')) === JSON.stringify(school.activities[4]) && JSON.stringify(u.source.activities.k) === JSON.stringify(school.source.activities.k));
+  check('source: φεύγουν τα Activity Id των αφαιρεμένων, κρατιέται το σχέδιο, σημείωση «τροποποιήθηκε»', JSON.stringify(Object.keys(u.source.activities)) === '["m","k","k2"]' && u.source.oloimero?.design === 'd' && u.source.oloimero?.name === 'Σχέδιο' && u.source.modifiedAfterImport?.oloimero?.name === 'Σχέδιο' && Array.isArray(u.source.modifiedAfterImport.replacements));
+  check('Το αρχικό ωρολόγιο δεν αλλάζει', school.activities.length === 5 && !school.source.oloimero && !school.source.modifiedAfterImport);
+  const again = T.analyzeOloimeroReplace(u, design, options);
+  check('Ξανά το ίδιο σχέδιο: όλες ίδιες, «είναι ήδη στο ωρολόγιο»', again.unchanged && again.counts.kept === 3 && !a.unchanged);
+  const same = {...clone(school), activities: [clone(school.activities[3])], source: {...clone(school.source), modifiedAfterImport: null}};
+  const sameAnalysis = T.analyzeOloimeroReplace(same, {...design, activities: [design.activities[0]]}, options);
+  check('Χωρίς διαφορές: χωρίς σημείωση «τροποποιήθηκε μετά την εισαγωγή»', sameAnalysis.unchanged && !T.applyOloimeroReplace(same, sameAnalysis, {designId: 'd'}).source.modifiedAfterImport);
+  const twice = T.analyzeOloimeroReplace({...clone(school), activities: [...clone(school.activities), act('k3', 'Αγγλικά', [[3, '14:10', '14:55']], ['s2'])]}, design, options);
+  check('Δύο ίδιες στο ωρολόγιο και μία στο σχέδιο: μένει η μία, αφαιρείται η άλλη', twice.kept.includes('k') && twice.removed.includes('k3'), JSON.stringify(twice.counts));
+  check('Ωρολόγιο χωρίς source του FET: η εισαγωγή γίνεται', T.analyzeOloimeroReplace({...school, source: null}, design, options).ok);
+  check('Σχέδιο χωρίς δραστηριότητες: προειδοποίηση ότι αφαιρούνται όλες οι δραστηριότητες Ολοημέρου', has(T.analyzeOloimeroReplace(school, {...design, activities: []}, options).warnings, 'αφαιρεί όλες'));
+  const mixed = {...clone(school), activities: [...clone(school.activities), act('x', 'Μαθηματικά', [[2, '13:20', '14:00'], [2, '12:35', '13:15']])]};
+  const m = T.analyzeOloimeroReplace(mixed, design, options);
+  check('Δραστηριότητα σε πρωινό και Ολοήμερο: η εισαγωγή σταματά, με τη δραστηριότητα και τις ώρες της', !m.ok && has(m.errors, '«Μαθηματικά»') && has(m.errors, 'Τρίτη 12:35–13:15 (άλλη ώρα), Τρίτη 13:20–14:00 (ώρα Ολοημέρου)') && has(m.errors, 'Χώρισε τη δραστηριότητα στο FET'), m.errors.join('\n'));
+  const two = {...clone(mixed), activities: [...clone(mixed.activities), act('y', 'Φυσική', [[3, '12:35', '13:15'], [3, '13:20', '14:00']])]};
+  check('Δύο τέτοιες δραστηριότητες: το μήνυμα λέει και για την άλλη', has(T.analyzeOloimeroReplace(two, design, options).errors, '1 ακόμη δραστηριότητα'));
+  const bad = T.analyzeOloimeroReplace(school, {...design, activities: [act('b', 'Φυσική', [[1, '09:00', '09:40']])]}, options);
+  check('Δραστηριότητα του σχεδίου σε ώρα που δεν είναι Ολοημέρου: σταματά', !bad.ok && has(bad.errors, 'δεν είναι ώρα Ολοημέρου') && has(bad.errors, 'Δευτέρα 09:00–09:40'), bad.errors.join('\n'));
+  const gone = T.analyzeOloimeroReplace(school, {...design, activities: [act('g', 'Φυσική', [[1, '14:10', '14:55']], ['no-id'])]}, options);
+  check('Εκπαιδευτικός του σχεδίου που δεν υπάρχει πια στο Προσωπικό: σταματά', !gone.ok && has(gone.errors, 'δεν υπάρχει πια στο Προσωπικό'), gone.errors.join('\n'));
+  check('Πρόγραμμα που δεν είναι σχέδιο Ολοημέρου: σταματά', !T.analyzeOloimeroReplace(school, school, options).ok);
+  check('Χωρίς Ώρες Διδασκαλίας: σταματά', !T.analyzeOloimeroReplace(school, design, {staff, teachingHours: {hours: []}}).ok);
+  const H = window.SchoolHostTimetables;
+  if (H) {
+    let error = '';
+    try { H.validateProgram(u, {staffIds: new Set(staff.map(p => p.id)), periodIds: new Set()}); } catch (e) { error = e.message; }
+    check('Το ωρολόγιο μετά την εισαγωγή περνά την επικύρωση του host', !error, error);
+  }
+}
+
+function availabilityChecks() {
+  start('Διαθεσιμότητα (πίνακας των συμβάσεων)');
+  const T = SchoolTimetable, person = {id: 'x', role: 'teacher'}, hours = HOURS_V2;
+  const program = times => ({kind: 'school', activities: [{id: 'a', staff: ['x'], unmatched: [], classes: [], subsets: [], times: times.map(([start, end]) => ({day: 1, start, end}))}]});
+  const firstFree = result => result.hours.find(h => h.status === 'free')?.start;
+  const cases = [
+    ['πρόγραμμα έως 11:30', [['08:15', '09:00'], ['10:45', '11:30']], '08:00', '14:00', '09:00', 'όλο το πρωινό'],
+    ['Πρωινή Ζώνη', [['07:15', '08:00']], '07:00', '13:00', '08:15', 'χωρίς την 6η ώρα'],
+    ['τελευταία ώρα έως 14:55', [['08:15', '09:00'], ['14:10', '14:55']], '08:55', '14:55', '09:00'],
+    ['έως 15:50', [['15:05', '15:50']], '09:50', '15:50', '10:00'],
+    ['έως 16:40', [['15:55', '16:40']], '10:40', '16:40', '10:45'],
+    ['έως 17:30', [['16:45', '17:30']], '11:30', '17:30', '11:45']
+  ];
+  for (const [label, times, from, to, free, note] of cases) {
+    const result = T.availability({programs: [program(times)], person, day: 1, teachingHours: hours});
+    const morning = result.hours.filter(h => h.category === 'morning');
+    let extra = true;
+    if (note === 'όλο το πρωινό') extra = morning.every(h => h.status !== 'outside');
+    if (note === 'χωρίς την 6η ώρα') extra = morning.find(h => h.start === '12:35').status === 'outside' && morning.filter(h => h.status === 'free').length === 5;
+    equal(label + ': διάστημα ' + from + '–' + to + ', διαθέσιμος από ' + free + (note ? ' (' + note + ')' : ''), [result.from, result.to, label === 'πρόγραμμα έως 11:30' ? '09:00' : firstFree(result), extra], [from, to, free, true], result.hours.map(h => h.start + ' ' + h.status).join(' · '));
+  }
+  check('Η διευθύντρια δεν εμφανίζεται', T.availability({programs: [], person: {id: 'd', role: 'director'}, day: 1, teachingHours: hours}) === null);
+  const both = T.availability({programs: [program([['07:15', '08:00'], ['14:10', '14:55']])], person, day: 1, teachingHours: hours});
+  check('Πρωινή Ζώνη και απογευματινή ώρα: σημείωση', both.earlyAndAfternoon && both.from === '08:55');
+  const unavailable = {kind: 'school', activities: [], source: {type: 'fet', teachers: [{name: 'Χ', staffId: 'x'}], unavailable: [{teacher: 'Χ', day: 1, start: '10:00', end: '10:45'}]}};
+  const blocked = T.availability({programs: [unavailable], person, day: 1, teachingHours: hours});
+  equal('Μη διαθέσιμος στο FET', blocked.hours.find(h => h.start === '10:00').status, 'unavailable');
+  equal('Σταθερές: 6 ώρες, 15 λεπτά', [T.STAY_MINUTES, T.EARLY_ARRIVAL_MINUTES], [360, 15]);
+}
+
+// ---- Host (_host_timetables.js) ----
+const FET_APP = 'fet_timetable_editor.html', OLO_APP = 'oloimero_designer.html', STAFF_APP = 'school_staff.html';
+const clone = value => structuredClone(value);
+
+// Βάση των ελέγχων του host: το .data δοκιμής, αν δόθηκε· αλλιώς Προσωπικό από το v2.fet και οι Ώρες Διδασκαλίας v2.
+function hostBase() {
+  if (texts.data) {
+    const box = JSON.parse(texts.data);
+    if (box?.encryption !== 'none') throw Error('Το .data έχει κωδικό. Για τους ελέγχους χρειάζεται αρχείο .data χωρίς κωδικό.');
+    const data = box.payload, year = data.school.year;
+    if (!data.staffByYear?.[year]?.length || !data.teachingHoursByYear?.[year]) throw Error('Το .data δεν έχει Προσωπικό και Ώρες Διδασκαλίας για το ' + year + '.');
+    // Οι έλεγχοι ξεκινούν χωρίς τα προγράμματα που έχει ήδη το .data δοκιμής.
+    delete data.timetablesByYear;
+    return {data, label: 'το .data δοκιμής (' + dataName + ')'};
+  }
+  return {label: 'Προσωπικό από το v2.fet και Ώρες Διδασκαλίας v2', data: {
+    format: 'school-shared-data', formatVersion: 1, school: {name: 'Σχολείο δοκιμής', year: '2026-2027'},
+    staffByYear: {'2026-2027': staffFromFet(texts.v2Fet)}, teachingHoursByYear: {'2026-2027': HOURS_V2}
+  }};
+}
+
+function hostChecks() {
+  start('5. Host: δικαιώματα, επικύρωση και πράξεις περιόδων');
+  const H = window.SchoolHostTimetables;
+  if (!H) return record('fail', 'Το _host_timetables.js δεν φορτώθηκε', 'Βάλε το _host_timetables.js στον ίδιο φάκελο με τη σελίδα.');
+  if (!texts.v2Fet || !texts.v2Csv) return skip('Έλεγχοι host', 'Χρειάζονται τα αρχεία v2: ' + [FILES.v2Fet, FILES.v2Csv].join(', ') + '.');
+  const {data: base, label} = hostBase(), year = base.school.year, staff = base.staffByYear[year], hours = base.teachingHoursByYear[year];
+  record('ok', 'Δεδομένα: ' + label + ' · ' + staff.length + ' εκπαιδευτικοί');
+  const analysis = SchoolTimetable.analyzeFetImport({csvText: texts.v2Csv, csvName: FILES.v2Csv, fetText: texts.v2Fet, fetName: FILES.v2Fet, staff, teachingHours: hours});
+  check('Εισαγωγή του v2 για τους ελέγχους', analysis.ok, messages(analysis));
+  if (!analysis.ok) return;
+  const PROG = H.PROGRAMS_APP;
+  equal('Δικαιώματα: FET Editor γράφει το Ωρολόγιο και αναθέτει σχέδια Ολοημέρου', [H.permissions(FET_APP).kinds, H.permissions(FET_APP).assign], [['school'], ['oloimero']]);
+  equal('Δικαιώματα: Ολοήμερο Designer γράφει μόνο το Ολοήμερο', [H.permissions(OLO_APP).kinds, H.permissions(OLO_APP).assign, H.permissions(OLO_APP).drafts], [['oloimero'], [], 'own']);
+  const periodA = {id: 'pa', name: 'Α περίοδος', from: '2026-09-11', to: '2026-11-15'};
+  const periodB = {id: 'pb', name: 'Β περίοδος', from: '2026-11-16', to: ''};
+  const school = SchoolTimetable.buildFetProgram(analysis, {unmatched: 'keep', periodId: 'pa', id: 'prog-school-a'});
+  // Σχέδιο Ολοημέρου με πηγή που δεν γνωρίζει το host (γίνεται δεκτή ως JSON).
+  const oloimero = {id: 'prog-olo-a', formatVersion: 1, kind: 'oloimero', periodId: 'pa', name: '', createdAt: school.createdAt, updatedAt: school.updatedAt,
+    activities: school.activities.filter(a => school.source.activities[a.id].tags.includes('[Ολοήμερο]')).map(a => ({...clone(a), id: 'olo-' + a.id})),
+    source: {type: 'oloimero-designer-test', note: 'πηγή που δεν γνωρίζει το host'}};
+  const trySave = (data, message, app) => { try { return {data: H.applySave(data, message, app)}; } catch (error) { return {error: error.message}; } };
+  const rejects = (text, result, contains) => check(text, !!result.error && (!contains || result.error.includes(contains)), result.error ? 'Μήνυμα: ' + result.error : 'η αποθήκευση έγινε δεκτή');
+  const accepts = (text, result) => { check(text, !!result.data, result.error); return result.data || null; };
+  const programsOf = data => H.yearData(data, year).programs;
+  const put = program => ({op: 'put', program});
+
+  // Περίοδοι
+  const d1 = accepts('«Σχολικά Προγράμματα»: δημιουργία περιόδου', trySave(base, {ops: [], periods: [periodA]}, PROG));
+  if (!d1) return;
+  check('Το αρχικό data δεν αλλάζει (η αποθήκευση γίνεται σε αντίγραφο)', !base.timetablesByYear?.[year]);
+  rejects('FET Editor: δεν αλλάζει τη λίστα περιόδων', trySave(base, {ops: [], periods: [periodA]}, FET_APP), 'μόνο από την εφαρμογή «Σχολικά Προγράμματα»');
+  rejects('Περίοδος που αρχίζει πριν από το σχολικό έτος (31/08/2026)', trySave(base, {ops: [], periods: [{...periodA, from: '2026-08-31'}]}, PROG), '01/09/2026–31/08/2027');
+  rejects('Δύο περίοδοι με την ίδια ταυτότητα', trySave(base, {ops: [], periods: [periodA, {...periodB, id: 'pa'}]}, PROG), 'ίδια ταυτότητα');
+  rejects('Περίοδος χωρίς όνομα', trySave(base, {ops: [], periods: [{...periodA, name: ' '}]}, PROG), 'χρειάζεται όνομα');
+  const manyPeriods = n => Array.from({length: n}, (_, i) => ({id: 'pp' + i, name: 'Περίοδος ' + (i + 1), from: '2026-09-' + String(i + 1).padStart(2, '0'), to: '2026-09-' + String(i + 1).padStart(2, '0')}));
+  accepts('15 περίοδοι (το όριο) γίνονται δεκτές', trySave(base, {ops: [], periods: manyPeriods(15)}, PROG));
+  rejects('16 περίοδοι: απορρίπτεται, με το όριο στο μήνυμα', trySave(base, {ops: [], periods: manyPeriods(16)}, PROG), 'πάνω από το όριο των 15');
+  accepts('Επικαλυπτόμενες περίοδοι γίνονται δεκτές (μόνο προειδοποίηση στην εφαρμογή)', trySave(base, {ops: [], periods: [periodA, {...periodB, from: '2026-11-10'}]}, PROG));
+
+  // Δικαιώματα και κανόνες προγραμμάτων
+  const d2 = accepts('FET Editor: ωρολόγιο στην Α περίοδο', trySave(d1, {ops: [put(school)]}, FET_APP));
+  if (!d2) return;
+  rejects('FET Editor: δεν γράφει νέο σχέδιο Ολοημέρου', trySave(d1, {ops: [put(oloimero)]}, FET_APP), 'υπάρχον πρόγραμμα');
+  rejects('Προσωπικό: δεν γράφει προγράμματα', trySave(d1, {ops: [put(school)]}, STAFF_APP), 'δεν έχει δικαίωμα');
+  rejects('Ολοήμερο Designer: δεν γράφει ωρολόγιο', trySave(d1, {ops: [put({...clone(school), id: 'olo-writes-school'})]}, OLO_APP), '«Ωρολόγιο»');
+  const d3 = accepts('Ολοήμερο Designer: σχέδιο στην Α περίοδο, με πηγή που δεν γνωρίζει το host', trySave(d2, {ops: [put(oloimero)]}, OLO_APP));
+  if (!d3) return;
+  rejects('Δεύτερο ωρολόγιο στην ίδια περίοδο', trySave(d3, {ops: [put({...clone(school), id: 'prog-school-a2'})]}, FET_APP), 'το πολύ ένα πρόγραμμα ανά είδος');
+  rejects('Πρόγραμμα σε περίοδο που δεν υπάρχει', trySave(d3, {ops: [put({...clone(school), id: 'prog-x', periodId: 'no-period'})]}, FET_APP), 'περίοδο που δεν υπάρχει');
+  rejects('Προσχέδιο χωρίς όνομα', trySave(d3, {ops: [put({...clone(school), id: 'draft-x', periodId: null, name: '  '})]}, FET_APP), 'χρειάζεται όνομα');
+  const broken = mutate => { const program = {...clone(school), id: 'draft-bad', periodId: null, name: 'Δοκιμή'}; mutate(program.activities[0]); return program; };
+  rejects('Ημέρα 8', trySave(d3, {ops: [put(broken(a => { a.times[0].day = 8; }))]}, FET_APP), 'από 1 (Δευτέρα) έως 7 (Κυριακή)');
+  rejects('Ώρα «8:15» αντί για «08:15»', trySave(d3, {ops: [put(broken(a => { a.times[0].start = '8:15'; }))]}, FET_APP), 'τη μορφή «ΩΩ:ΛΛ»');
+  rejects('Έναρξη μετά τη λήξη', trySave(d3, {ops: [put(broken(a => { a.times[0] = {day: 1, start: '10:00', end: '09:00'}; }))]}, FET_APP), 'δεν είναι πριν από τη λήξη');
+  rejects('Εκπαιδευτικός που δεν υπάρχει στο Προσωπικό', trySave(d3, {ops: [put(broken(a => { a.staff = ['no-such-id']; }))]}, FET_APP), 'δεν υπάρχει στο Προσωπικό');
+  rejects('Άγνωστο είδος', trySave(d3, {ops: [put({...clone(school), id: 'prog-future', kind: 'future'})]}, PROG), 'άγνωστο είδος');
+  rejects('Λάθος στοιχεία FET στο source', trySave(d3, {ops: [put({...clone(school), source: {...clone(school.source), teachers: 'κείμενο'}})]}, FET_APP), 'στοιχεία FET');
+  const atomic = trySave(d3, {ops: [put({...clone(school), id: 'draft-ok', periodId: null, name: 'Σωστό'}), put(broken(a => { a.times[0].day = 0; }))]}, FET_APP);
+  rejects('Όλα ή τίποτα: ένα λάθος ακυρώνει όλη την αποθήκευση', atomic);
+  check('Όλα ή τίποτα: το σωστό προσχέδιο δεν αποθηκεύτηκε', !programsOf(d3).some(p => p.id === 'draft-ok'));
+
+  // Προσχέδια και context
+  const d4 = accepts('FET Editor: προσχέδιο με όνομα', trySave(d3, {ops: [put({...clone(school), id: 'draft-fet', periodId: null, name: 'Δοκιμαστικό ωρολόγιο'})]}, FET_APP));
+  if (!d4) return;
+  const ctxFet = H.context(d4, FET_APP, 7), ctxProg = H.context(d4, PROG, 7), ctxOlo = H.context(d4, OLO_APP, 7);
+  equal('Context του FET Editor: τα προγράμματα περιόδων και το δικό του προσχέδιο', ctxFet.programs.map(p => p.id).sort(), ['draft-fet', 'prog-olo-a', 'prog-school-a']);
+  equal('Context του «Σχολικά Προγράμματα»: μόνο τα προγράμματα περιόδων', ctxProg.programs.map(p => p.id).sort(), ['prog-olo-a', 'prog-school-a']);
+  equal('Context του Ολοήμερου: χωρίς το προσχέδιο του FET Editor', ctxOlo.programs.map(p => p.id).sort(), ['prog-olo-a', 'prog-school-a']);
+  equal('draftCounts ανά είδος', ctxProg.draftCounts, {school: 1, oloimero: 0, support: 0, special: 0});
+  check('Context: revision, school, year, staff, teachingHours, periods', ctxProg.revision === 7 && ctxProg.school.year === year && ctxProg.year === year && ctxProg.staff.length === staff.length && !!ctxProg.teachingHours?.hours?.length && ctxProg.periods.length === 1);
+  // Τελευταία επιλογή (lastViewByYear)
+  equal('Κλειδί τελευταίας επιλογής ανά εφαρμογή', [H.viewKey(OLO_APP), H.viewKey(FET_APP), H.viewKey(PROG), H.viewKey(STAFF_APP)], ['oloimero', 'school', null, null]);
+  equal('Χωρίς τελευταία επιλογή: κενό στο context', ctxOlo.lastView, '');
+  const viewed = H.withView(d4, year, 'oloimero', 'draft:abc');
+  equal('Με τελευταία επιλογή: στο context της εφαρμογής της μόνο', [H.context(viewed, OLO_APP, 7).lastView, H.context(viewed, FET_APP, 7).lastView, H.context(viewed, PROG, 7).lastView], ['draft:abc', '', '']);
+  check('withView δεν αλλάζει το αρχικό data και κρατά τα άλλα έτη και κλειδιά', !d4.lastViewByYear && H.lastView(H.withView(H.withView(viewed, year, 'school', 'period:pa'), '2025-2026', 'school', 'period:x'), year, 'oloimero') === 'draft:abc');
+  equal('Μη έγκυρη τιμή αγνοείται', H.lastView(H.withView(d4, year, 'oloimero', 'κάτι άλλο'), year, 'oloimero'), '');
+  check('Η τελευταία επιλογή περνά αυτούσια από μια αποθήκευση προγράμματος', H.lastView(H.applySave(viewed, {ops: [put({...clone(programsOf(d4).find(p => p.id === 'draft-fet')), name: 'Άλλο όνομα'})]}, FET_APP), year, 'oloimero') === 'draft:abc');
+  rejects('«Σχολικά Προγράμματα»: δεν αλλάζει υπάρχον προσχέδιο', trySave(d4, {ops: [put({...clone(programsOf(d4).find(p => p.id === 'draft-fet')), name: 'Άλλο'})]}, PROG), 'μόνο από την εφαρμογή του είδους του');
+  rejects('«Σχολικά Προγράμματα»: δεν σβήνει υπάρχον προσχέδιο', trySave(d4, {ops: [{op: 'delete', id: 'draft-fet'}]}, PROG), 'μόνο από την εφαρμογή του είδους του');
+  rejects('«Σχολικά Προγράμματα»: δεν φτιάχνει νέο προσχέδιο', trySave(d4, {ops: [put({...clone(school), id: 'draft-prog', periodId: null, name: 'Νέο'})]}, PROG), 'μόνο από πρόγραμμα που ήταν σε περίοδο');
+  rejects('Διαγραφή προγράμματος που δεν υπάρχει', trySave(d4, {ops: [{op: 'delete', id: 'no-such-program'}]}, FET_APP), 'δεν υπάρχει πια');
+  const assigned = accepts('FET Editor: ανάθεση προσχεδίου στην Α περίοδο, το παλιό κρατιέται ως προσχέδιο', trySave(d4, {ops: [
+    put({...clone(programsOf(d4).find(p => p.id === 'draft-fet')), periodId: 'pa'}),
+    put({...clone(programsOf(d4).find(p => p.id === 'prog-school-a')), periodId: null, name: 'Ωρολόγιο Α περιόδου – αντικαταστάθηκε 27/10/2026'})
+  ]}, FET_APP));
+  if (assigned) equal('Μετά την ανάθεση: περίοδος και προσχέδια', programsOf(assigned).map(p => p.id + ':' + (p.periodId || 'προσχέδιο')).sort(), ['draft-fet:pa', 'prog-olo-a:pa', 'prog-school-a:προσχέδιο']);
+  rejects('Ανάθεση προσχεδίου χωρίς χειρισμό του παλιού: απορρίπτεται', trySave(d4, {ops: [put({...clone(programsOf(d4).find(p => p.id === 'draft-fet')), periodId: 'pa'})]}, FET_APP), 'το πολύ ένα πρόγραμμα ανά είδος');
+
+  // Διαγραφή περιόδου
+  rejects('Διαγραφή περιόδου χωρίς χειρισμό των προγραμμάτων της', trySave(d4, {ops: [], periods: []}, PROG), 'αφαιρείται');
+  const kept = accepts('Διαγραφή περιόδου, «κράτησέ τα ως προσχέδια»', trySave(d4, {periods: [], ops: [
+    put({...clone(programsOf(d4).find(p => p.id === 'prog-school-a')), periodId: null, name: 'Ωρολόγιο Α περιόδου'}),
+    put({...clone(programsOf(d4).find(p => p.id === 'prog-olo-a')), periodId: null, name: 'Ολοήμερο Α περιόδου'})
+  ]}, PROG));
+  if (kept) {
+    equal('Μετά τη διαγραφή: προσχέδια ανά είδος', H.context(kept, PROG, 1).draftCounts, {school: 2, oloimero: 1, support: 0, special: 0});
+    equal('Το Ολοήμερο βλέπει το δικό του προσχέδιο', H.context(kept, OLO_APP, 1).programs.map(p => p.id), ['prog-olo-a']);
+  }
+  const removedAll = accepts('Διαγραφή περιόδου, «διάγραψέ τα»', trySave(d4, {periods: [], ops: [{op: 'delete', id: 'prog-school-a'}, {op: 'delete', id: 'prog-olo-a'}]}, PROG));
+  if (removedAll) equal('Μετά τη διαγραφή: μένει μόνο το προσχέδιο του FET Editor', programsOf(removedAll).map(p => p.id), ['draft-fet']);
+
+  // Αντιγραφή περιόδου με αντικατάσταση
+  const a1 = staff.find(p => p.code === 'Α1'), a2 = staff.find(p => p.code === 'Α2');
+  const copy = SchoolTimetable.replaceStaff({...clone(programsOf(d4).find(p => p.id === 'prog-school-a')), id: 'prog-school-b', periodId: 'pb'}, [{from: a1.id, to: a2.id}], {staff}).program;
+  const copied = accepts('Αντιγραφή της Α περιόδου στη Β, με αντικατάσταση Α1 → Α2', trySave(d4, {periods: [periodA, periodB], ops: [put(copy), put({...clone(oloimero), id: 'prog-olo-b', periodId: 'pb'})]}, PROG));
+  if (copied) {
+    const saved = programsOf(copied).find(p => p.id === 'prog-school-b');
+    check('Το αντίγραφο έχει τη σημείωση «τροποποιήθηκε μετά την εισαγωγή» και όχι την Α1', !!saved.source.modifiedAfterImport?.replacements?.length && !saved.activities.some(a => a.staff.includes(a1.id)));
+    check('Η Α περίοδος μένει ίδια', programsOf(copied).find(p => p.id === 'prog-school-a').activities.some(a => a.staff.includes(a1.id)));
+  }
+
+  // Όριο πλήθους προγραμμάτων (μαζί με τα προσχέδια)
+  const full = clone(d4), fullPrograms = full.timetablesByYear[year].programs;
+  while (fullPrograms.length < H.LIMITS.programs) fullPrograms.push({id: 'filler-' + fullPrograms.length, formatVersion: 1, kind: 'school', periodId: null, name: 'Γέμισμα', activities: []});
+  const ctxFull = H.context(full, PROG, 1);
+  equal('Context: programCount (όλα τα προγράμματα, μαζί με τα προσχέδια) και όρια', [ctxFull.programCount, ctxFull.limits.programs, ctxFull.limits.periods, ctxFull.limits.warnRatio], [200, 200, 15, 0.9]);
+  rejects('201ο πρόγραμμα: απορρίπτεται, με το όριο στο μήνυμα', trySave(full, {ops: [put({...clone(school), id: 'draft-201', periodId: null, name: 'Ένα ακόμη'})]}, FET_APP), 'πάνω από το όριο των 200');
+  accepts('Στο όριο: αλλαγή χωρίς νέο πρόγραμμα γίνεται δεκτή', trySave(full, {ops: [put({...clone(fullPrograms.find(p => p.id === 'draft-fet')), name: 'Μετονομασία'})]}, FET_APP));
+  const bigProgram = {...clone(school), id: 'draft-big', periodId: null, name: 'Μεγάλο', activities: Array.from({length: H.LIMITS.activities + 1}, (_, i) => ({...clone(school.activities[0]), id: 'big-' + i}))};
+  rejects('2001 δραστηριότητες σε ένα πρόγραμμα: απορρίπτεται', trySave(d4, {ops: [put(bigProgram)]}, FET_APP), 'πάνω από το όριο των 2000');
+
+  // Άγνωστο είδος
+  const withFuture = clone(d4);
+  withFuture.timetablesByYear[year].programs.push({id: 'future-1', formatVersion: 1, kind: 'future', periodId: 'pa', activities: [], extra: {κάτι: 1}});
+  const future = accepts('Πρόγραμμα άγνωστου είδους: οι άλλες αποθηκεύσεις γίνονται κανονικά', trySave(withFuture, {ops: [put({...clone(oloimero), name: 'Μετονομασία'})]}, OLO_APP));
+  if (future) {
+    check('Το πρόγραμμα άγνωστου είδους διατηρείται αυτούσιο', JSON.stringify(programsOf(future).find(p => p.id === 'future-1')) === JSON.stringify(withFuture.timetablesByYear[year].programs.find(p => p.id === 'future-1')));
+    check('Δεν στέλνεται σε καμία εφαρμογή', ![PROG, FET_APP, OLO_APP].some(app => H.context(future, app, 1).programs.some(p => p.id === 'future-1')));
+  }
+  rejects('Πρόγραμμα άγνωστου είδους δεν σβήνεται από εδώ', trySave(withFuture, {ops: [{op: 'delete', id: 'future-1'}]}, PROG), 'άγνωστου είδους');
+
+  const d5 = hostOloimeroChecks(H, d4, staff, hours, {trySave, accepts, rejects, programsOf, put, a1});
+  hostStaffChecks(H, d4, staff, analysis, a1, d5);
+}
+
+// Σχέδια του Ολοήμερου Designer στο host: source «oloimero-designer» και η ανάθεση από τον FET Editor.
+function hostOloimeroChecks(H, d4, staff, hours, {trySave, accepts, rejects, programsOf, put}) {
+  start('5β. Host: σχέδια του Ολοήμερου Designer');
+  if (!texts.v2Design) { skip('Σχέδια του Ολοημέρου', 'Λείπει το ' + FILES.v2Design + '.'); return null; }
+  const importer = SchoolTimetable.importer('oloimero', 'csv');
+  const analysis = importer.analyze({csv: {name: FILES.v2Design, text: texts.v2Design}}, {staff, teachingHours: hours});
+  check('Εισαγωγή του σχεδίου v2 με το Προσωπικό και τις Ώρες Διδασκαλίας των ελέγχων', analysis.ok, messages(analysis));
+  if (!analysis.ok) return null;
+  const design = importer.build(analysis, {unmatched: 'keep', periodId: null, name: 'Σχέδιο Ολοημέρου δοκιμής', id: 'olo-draft'});
+  const d5 = accepts('Ολοήμερο Designer: προσχέδιο από εισαγωγή CSV, με source «oloimero-designer»', trySave(d4, {ops: [put(design)]}, OLO_APP));
+  const badPlace = {...clone(design), id: 'olo-bad', source: {...clone(design.source), placements: {x: {hourId: 'h', day: 9, slot: 0, students: []}}}};
+  rejects('Λάθος θέση στο source του Designer', trySave(d4, {ops: [put(badPlace)]}, OLO_APP), '(placements)');
+  const badDesign = {...clone(design), id: 'olo-bad2', source: {...clone(design.source), design: {hours: [{hourId: 'h', count: 21, exceptionsEnabled: false, dayCounts: [1, 1, 1, 1, 1]}]}}};
+  rejects('Σχεδιασμός με 21 κελιά: απορρίπτεται', trySave(d4, {ops: [put(badDesign)]}, OLO_APP), '(design)');
+  if (!d5) return null;
+  equal('Context του FET Editor: βλέπει και τα προσχέδια του Ολοημέρου', H.context(d5, FET_APP, 1).programs.map(p => p.id).sort(), ['draft-fet', 'olo-draft', 'prog-olo-a', 'prog-school-a']);
+  check('Context του «Σχολικά Προγράμματα»: χωρίς το προσχέδιο του Ολοημέρου', !H.context(d5, H.PROGRAMS_APP, 1).programs.some(p => p.id === 'olo-draft'));
+  equal('Context του Ολοήμερου: το δικό του προσχέδιο, όχι του FET Editor', H.context(d5, OLO_APP, 1).programs.map(p => p.id).sort(), ['olo-draft', 'prog-olo-a', 'prog-school-a']);
+  const saved = programsOf(d5).find(p => p.id === 'olo-draft'), old = programsOf(d5).find(p => p.id === 'prog-olo-a');
+  const kept = accepts('FET Editor: ανάθεση του προσχεδίου Ολοημέρου στην περίοδο, το παλιό κρατιέται ως προσχέδιο', trySave(d5, {ops: [put({...clone(saved), periodId: 'pa', updatedAt: 'x'}), put({...clone(old), periodId: null, name: 'Ολοήμερο Α περιόδου – αντικαταστάθηκε'})]}, FET_APP));
+  if (kept) equal('Μετά την ανάθεση: σχέδια Ολοημέρου', programsOf(kept).filter(p => p.kind === 'oloimero').map(p => p.id + ':' + (p.periodId || 'προσχέδιο')).sort(), ['olo-draft:pa', 'prog-olo-a:προσχέδιο']);
+  const replaced = accepts('FET Editor: ανάθεση με πλήρη αντικατάσταση του παλιού σχεδίου', trySave(d5, {ops: [put({...clone(saved), periodId: 'pa'}), {op: 'delete', id: 'prog-olo-a'}]}, FET_APP));
+  if (replaced) equal('Μετά την αντικατάσταση: σχέδια Ολοημέρου', programsOf(replaced).filter(p => p.kind === 'oloimero').map(p => p.id + ':' + (p.periodId || 'προσχέδιο')), ['olo-draft:pa']);
+  rejects('FET Editor: δεν αλλάζει το περιεχόμενο του σχεδίου', trySave(d5, {ops: [put({...clone(saved), periodId: 'pa', activities: saved.activities.slice(1)}), {op: 'delete', id: 'prog-olo-a'}]}, FET_APP), 'χωρίς να αλλάξει');
+  rejects('FET Editor: δεν μετονομάζει σχέδιο που ανατίθεται', trySave(d5, {ops: [put({...clone(saved), periodId: 'pa', name: 'Άλλο όνομα'}), {op: 'delete', id: 'prog-olo-a'}]}, FET_APP), 'χωρίς να αλλάξει');
+  rejects('FET Editor: δεν σβήνει σχέδιο περιόδου χωρίς ανάθεση', trySave(d5, {ops: [{op: 'delete', id: 'prog-olo-a'}]}, FET_APP), 'μόνο όταν στη θέση του');
+  rejects('FET Editor: δεν σβήνει προσχέδιο του Ολοημέρου', trySave(d5, {ops: [{op: 'delete', id: 'olo-draft'}]}, FET_APP), 'μόνο από την εφαρμογή');
+  rejects('FET Editor: δεν φτιάχνει νέο σχέδιο Ολοημέρου σε περίοδο', trySave(d5, {ops: [put({...clone(saved), id: 'olo-new', periodId: 'pa'}), {op: 'delete', id: 'prog-olo-a'}]}, FET_APP), 'υπάρχον πρόγραμμα');
+  rejects('FET Editor: δεν φτιάχνει νέο προσχέδιο Ολοημέρου χωρίς ανάθεση', trySave(d5, {ops: [put({...clone(saved), id: 'olo-new'})]}, FET_APP), 'μόνο ως αντίγραφο');
+  // «Ανάθεση σε περίοδο (το προσχέδιο διατηρείται)»: ακριβές αντίγραφο του προσχεδίου, στην ίδια αποθήκευση.
+  const copyOf = (extra = {}) => put({...clone(saved), id: 'olo-copy', periodId: null, ...extra});
+  const keptCopy = accepts('FET Editor: ανάθεση με αντίγραφο του προσχεδίου (το προσχέδιο διατηρείται)', trySave(d5, {ops: [put({...clone(saved), periodId: 'pa'}), {op: 'delete', id: 'prog-olo-a'}, copyOf()]}, FET_APP));
+  if (keptCopy) {
+    equal('Μετά την ανάθεση με αντίγραφο: σχέδια Ολοημέρου', programsOf(keptCopy).filter(p => p.kind === 'oloimero').map(p => p.id + ':' + (p.periodId || 'προσχέδιο')).sort(), ['olo-copy:προσχέδιο', 'olo-draft:pa']);
+    const pair = programsOf(keptCopy).filter(p => p.id === 'olo-copy' || p.id === 'olo-draft');
+    check('Το αντίγραφο έχει το ίδιο όνομα και περιεχόμενο', pair.length === 2 && pair[0].name === pair[1].name && JSON.stringify(pair[0].activities) === JSON.stringify(pair[1].activities) && JSON.stringify(pair[0].source) === JSON.stringify(pair[1].source));
+  }
+  accepts('FET Editor: αντίγραφο με ανάθεση σε κενή περίοδο, το παλιό σχέδιο κρατιέται ως προσχέδιο', trySave(d5, {ops: [put({...clone(saved), periodId: 'pa'}), put({...clone(old), periodId: null, name: 'Ολοήμερο Α – αντικαταστάθηκε'}), copyOf({updatedAt: 'x'})]}, FET_APP));
+  rejects('FET Editor: αντίγραφο με αλλαγμένο περιεχόμενο', trySave(d5, {ops: [put({...clone(saved), periodId: 'pa'}), {op: 'delete', id: 'prog-olo-a'}, copyOf({activities: saved.activities.slice(1)})]}, FET_APP), 'μόνο ως αντίγραφο');
+  rejects('FET Editor: αντίγραφο με άλλο όνομα', trySave(d5, {ops: [put({...clone(saved), periodId: 'pa'}), {op: 'delete', id: 'prog-olo-a'}, copyOf({name: 'Άλλο όνομα'})]}, FET_APP), 'μόνο ως αντίγραφο');
+  rejects('FET Editor: δύο αντίγραφα του ίδιου προσχεδίου', trySave(d5, {ops: [put({...clone(saved), periodId: 'pa'}), {op: 'delete', id: 'prog-olo-a'}, copyOf(), put({...clone(saved), id: 'olo-copy2', periodId: null})]}, FET_APP), 'μόνο ως αντίγραφο');
+  rejects('FET Editor: αντίγραφο σχεδίου περιόδου (όχι προσχεδίου)', trySave(d5, {ops: [put({...clone(old), id: 'olo-copy', periodId: null, name: old.name || 'Αντίγραφο'})]}, FET_APP), 'μόνο ως αντίγραφο');
+  rejects('«Σχολικά Προγράμματα»: δεν αναθέτει προσχέδιο του Ολοημέρου', trySave(d5, {ops: [put({...clone(saved), periodId: 'pa'}), {op: 'delete', id: 'prog-olo-a'}]}, H.PROGRAMS_APP), 'μόνο από την εφαρμογή του είδους του');
+  const designerMove = accepts('Ολοήμερο Designer: ανάθεση του προσχεδίου του (μετακίνηση) με αντικατάσταση', trySave(d5, {ops: [put({...clone(saved), periodId: 'pa'}), {op: 'delete', id: 'prog-olo-a'}]}, OLO_APP));
+  if (designerMove) check('Το προσχέδιο μετακινήθηκε στην περίοδο', programsOf(designerMove).find(p => p.id === 'olo-draft').periodId === 'pa');
+  return d5;
+}
+
+function hostStaffChecks(H, d4, staff, analysis, a1, d5) {
+  start('6. Host: διαγραφή εκπαιδευτικού');
+  const year = d4.school.year;
+  // Προσχέδιο με τους εκπαιδευτικούς χωρίς αντιστοίχιση «να μην εισαχθούν»: έχει δραστηριότητες ήδη χωρίς ανθρώπους.
+  const dropped = SchoolTimetable.buildFetProgram(analysis, {unmatched: 'drop', periodId: null, name: 'Χωρίς τους μη αντιστοιχισμένους', id: 'draft-drop'});
+  const data = H.applySave(d4, {ops: [{op: 'put', program: dropped}]}, FET_APP);
+  const programs = () => H.yearData(data, year).programs;
+  const usage = H.staffUsage(data, year);
+  equal('timetableUsage της Α1: σε ποια προγράμματα εμφανίζεται', (usage[a1.id] || []).map(item => item.programId).sort(), ['draft-drop', 'draft-fet', 'prog-school-a']);
+  record('ok', 'timetableUsage της Α1', (usage[a1.id] || []).map(item => item.kindLabel + ' · ' + (item.periodId ? item.periodName : 'προσχέδιο «' + item.name + '»') + ' · ' + item.activities + ' δραστηριότητες').join('\n'));
+  const after = staff.filter(person => person.id !== a1.id);
+  let message = '';
+  try { H.applyStaffRemovals(clone(data), year, staff, after, undefined); } catch (error) { message = error.message; }
+  check('Διαγραφή χωρίς οδηγία: απορρίπτεται, λέει σε ποια προγράμματα και ζητά νέα έκδοση του school_staff.html', message.includes(a1.shortName) && message.includes('Α περίοδος') && message.includes('school_staff.html'), message);
+  message = '';
+  try { H.applyStaffRemovals(clone(data), year, staff, after, [{id: a1.id, mode: 'άλλο'}]); } catch (error) { message = error.message; }
+  check('Μη έγκυρη οδηγία: απορρίπτεται', !!message, message);
+
+  // unmatch
+  const unmatched = clone(data);
+  const before = H.yearData(unmatched, year).programs.map(p => p.activities.length);
+  const summaryU = H.applyStaffRemovals(unmatched, year, staff, after, [{id: a1.id, mode: 'unmatch'}]);
+  const progU = H.yearData(unmatched, year).programs;
+  check('«Κράτησε τις αναφορές χωρίς αντιστοίχιση»: κανένα id της Α1 στα προγράμματα', !progU.some(p => p.activities.some(a => a.staff.includes(a1.id))));
+  equal('«Κράτησε τις αναφορές»: καμία δραστηριότητα δεν σβήνεται', progU.map(p => p.activities.length), before);
+  const hadA1 = programs().flatMap(p => p.activities.filter(a => a.staff.includes(a1.id)).map(a => p.id + '/' + a.id));
+  check('«Κράτησε τις αναφορές»: το σύντομο όνομα μπαίνει στο unmatched (και στα προσχέδια)', hadA1.length > 0 && hadA1.every(key => { const [pid, aid] = key.split('/'); return progU.find(p => p.id === pid).activities.find(a => a.id === aid).unmatched.includes(a1.shortName); }), hadA1.length + ' δραστηριότητες · ' + JSON.stringify(summaryU));
+  check('«Κράτησε τις αναφορές»: το source FET δεν δείχνει πια την Α1', progU.every(p => !(p.source?.teachers || []).some(t => t.staffId === a1.id)));
+  const staffIds = new Set(after.map(person => person.id)), periodIds = new Set(H.yearData(unmatched, year).periods.map(p => p.id));
+  let valid = '';
+  try { for (const program of progU) H.validateProgram(program, {staffIds, periodIds}); } catch (error) { valid = error.message; }
+  check('Μετά τη διαγραφή τα προγράμματα περνούν την επικύρωση', !valid, valid);
+
+  // remove
+  const removed = clone(data);
+  const onlyA1 = programs().map(p => p.activities.filter(a => a.staff.length === 1 && a.staff[0] === a1.id && !(a.unmatched || []).length).length);
+  const empty = programs().map(p => p.activities.filter(a => !a.staff.length && !(a.unmatched || []).length).length);
+  const summaryR = H.applyStaffRemovals(removed, year, staff, after, [{id: a1.id, mode: 'remove'}]);
+  const progR = H.yearData(removed, year).programs;
+  equal('«Διαγραφή μαζί με τις αναφορές»: σβήνονται μόνο οι δραστηριότητες που έμειναν χωρίς ανθρώπους', progR.map(p => p.activities.length), programs().map((p, i) => p.activities.length - onlyA1[i]), 'σβήστηκαν ' + summaryR.removedActivities);
+  equal('Δραστηριότητες που ήταν ήδη χωρίς ανθρώπους («Να μην εισαχθούν») μένουν', progR.map(p => p.activities.filter(a => !a.staff.length && !(a.unmatched || []).length).length), empty, 'ήδη χωρίς ανθρώπους: ' + empty.join(', '));
+  check('«Διαγραφή μαζί με τις αναφορές»: κανένα id ή όνομα της Α1', !progR.some(p => p.activities.some(a => a.staff.includes(a1.id) || (a.unmatched || []).includes(a1.shortName))));
+
+  // Εκπαιδευτικός χωρίς προγράμματα
+  const unused = staff.find(person => !usage[person.id]);
+  if (unused) {
+    let error = '';
+    try { H.applyStaffRemovals(clone(data), year, staff, staff.filter(p => p.id !== unused.id), undefined); } catch (e) { error = e.message; }
+    check('Εκπαιδευτικός που δεν εμφανίζεται σε προγράμματα (' + unused.shortName + '): διαγράφεται χωρίς οδηγία', !error, error);
+  } else skip('Εκπαιδευτικός χωρίς προγράμματα', 'Όλοι εμφανίζονται σε προγράμματα.');
+
+  // Σχέδιο του Ολοήμερου Designer: δραστηριότητες και εκπαιδευτικοί της αριστερής μπάρας
+  if (d5) {
+    const withDesign = clone(d5);
+    H.applyStaffRemovals(withDesign, year, staff, after, [{id: a1.id, mode: 'unmatch'}]);
+    const design = H.yearData(withDesign, year).programs.find(p => p.id === 'olo-draft');
+    check('Σχέδιο Ολοημέρου: η Α1 μένει με το όνομά της στο unmatched, και η αριστερή μπάρα δεν τη δείχνει πια ως αντιστοιχισμένη', design.activities.some(a => a.unmatched.includes(a1.shortName)) && !design.activities.some(a => a.staff.includes(a1.id)) && !design.source.teachers.some(t => t.staffId === a1.id) && design.source.teachers.some(t => t.name === a1.shortName && t.staffId === null));
+    const rows = SchoolTimetable.oloimeroRowsFromProgram(design, {staff: after, teachingHours: withDesign.teachingHoursByYear[year]});
+    check('Σχέδιο Ολοημέρου: η εξαγωγή γράφει το όνομα της Α1 για όσους δεν αντιστοιχίστηκαν', rows.some(row => row.teachers.includes(a1.shortName)));
+  }
+}
+
+function run() {
+  $('out').innerHTML = ''; $('summary').innerHTML = ''; totals = {ok: 0, fail: 0, skip: 0};
+  attempt('Βασικά', basics);
+
+  const oldStaff = texts.v2Fet || texts.oldFet ? staffFromFet(texts.v2Fet || texts.oldFet) : null;
+  let oldProgram = null, v2Program = null;
+
+  if (texts.oldFet && texts.oldCsv && oldStaff) {
+    attempt('Παλιά αρχεία', () => {
+      oldProgram = importScenario('1α. Παλιές ετικέτες: εισαγωγή', texts.oldFet, texts.oldCsv, FILES.oldCsv, FILES.oldFet, oldStaff, HOURS_OLD,
+        {activities: 393, unmatched: ['[ΠΕ11] - ΓΥΜ - Ματίνα'], matinaActivities: 8,
+         info: [['8 δραστηριότητες του CSV δεν υπάρχουν στο .fet', 'Ενημερωτικό: 8 δραστηριότητες του CSV λείπουν από το .fet'], ['Ματίνα', 'Ενημερωτικό: η «Ματίνα» λείπει από το .fet']]});
+    });
+    let oldDesign = null;
+    if (texts.oldDesign) attempt('Εισαγωγή CSV Ολοημέρου παλιό', () => { oldDesign = oloimeroImportScenario('1β. Παλιές ετικέτες: εισαγωγή του CSV του Ολοημέρου', texts.oldDesign, FILES.oldDesign, oldStaff, HOURS_OLD, {rows: 77, unmatched: ['[ΠΕ11] - ΓΥΜ - Ματίνα', '[ΠΕ05] - Γαλλικά'], exactText: false}); });
+    if (texts.oldDesign) attempt('Εισαγωγή Ολοημέρου στο ωρολόγιο παλιό', () => oloimeroReplaceScenario('1γ. Παλιές ετικέτες: Εισαγωγή Ολοημέρου στο ωρολόγιο', oldProgram, oldDesign, oldStaff, HOURS_OLD, {rows: 77, unmatched: ['[ΠΕ11] - ΓΥΜ - Ματίνα', '[ΠΕ05] - Γαλλικά']}));
+  } else { start('1. Παλιές ετικέτες'); skip('Εισαγωγή από FET και Εισαγωγή Ολοημέρου', 'Λείπουν αρχεία: ' + [FILES.oldFet, FILES.oldCsv].join(', ')); }
+
+  if (texts.v2Fet && texts.v2Csv) {
+    const staff = staffFromFet(texts.v2Fet);
+    attempt('v2', () => {
+      v2Program = importScenario('2α. Νέες ετικέτες (v2): εισαγωγή', texts.v2Fet, texts.v2Csv, FILES.v2Csv, FILES.v2Fet, staff, HOURS_V2,
+        {activities: 385, unmatched: ['[ΠΕ05] - Γαλλικά']});
+    });
+    let design = null;
+    if (texts.v2Design) attempt('Εισαγωγή CSV Ολοημέρου v2', () => { design = oloimeroImportScenario('2β. Νέες ετικέτες (v2): εισαγωγή του CSV του Ολοημέρου', texts.v2Design, FILES.v2Design, staff, HOURS_V2, {rows: 69, unmatched: []}); });
+    attempt('Εισαγωγείς', () => importerChecks(staff));
+    if (texts.v2Design) attempt('Εισαγωγή Ολοημέρου στο ωρολόγιο v2', () => oloimeroReplaceScenario('2δ. Νέες ετικέτες (v2): Εισαγωγή Ολοημέρου στο ωρολόγιο', v2Program, design, staff, HOURS_V2, {rows: 69, unmatched: []}));
+  } else { start('2. Νέες ετικέτες (v2)'); skip('Εισαγωγή από FET και Εισαγωγή Ολοημέρου', 'Λείπουν αρχεία: ' + [FILES.v2Fet, FILES.v2Csv].join(', ')); }
+
+  attempt('Εμφάνιση μαθητών', () => studentsChecks(v2Program));
+
+  attempt('Εισαγωγή Ολοημέρου στο ωρολόγιο', oloimeroReplaceChecks);
+  if (texts.oldDesign && texts.v2Fet) attempt('3β', () => {
+    start('3β. Εισαγωγή CSV του Ολοημέρου με ετικέτες που δεν ταιριάζουν');
+    const importer = SchoolTimetable.importer('oloimero', 'csv'), staff = staffFromFet(texts.v2Fet);
+    const wrong = importer.analyze({csv: {name: FILES.oldDesign, text: texts.oldDesign}}, {staff, teachingHours: HOURS_V2});
+    check('Παλιό σχέδιο με Ώρες Διδασκαλίας v2: η εισαγωγή σταματά', !wrong.ok && has(wrong.errors, 'ετικέτες των Ωρών Διδασκαλίας'), wrong.errors.join('\n'));
+    if (texts.v2Design) {
+      const lines = texts.v2Design.split('\n'), index = lines.findIndex(line => line.includes('[ΗΜ_ΤΡΙΤΗ]+ΩΡΑ_ΟΛΟ_2'));
+      lines[index] = lines[index].replace('ΩΡΑ_ΟΛΟ_2', 'ΩΡΑ_ΑΓΝΩΣΤΗ');
+      const one = importer.analyze({csv: {name: 'one.csv', text: lines.join('\n')}}, {staff, teachingHours: HOURS_V2});
+      check('Μία γραμμή χωρίς γνωστή ετικέτα ώρας: προειδοποίηση με τη γραμμή, οι υπόλοιπες εισάγονται', one.ok && one.counts.activities === 68 && has(one.warnings, 'γραμμές ' + (index + 1)), messages(one));
+    }
+    const plain = importer.analyze({csv: {name: 'plain.csv', text: activitiesPart(texts.v2Design || texts.oldDesign)}}, {staff, teachingHours: texts.v2Design ? HOURS_V2 : HOURS_OLD});
+    check('CSV χωρίς τα στοιχεία σχεδίασης: εισάγεται, με τμήματα και συνενώσεις από τα ονόματα', plain.ok && !has(plain.info, 'στοιχεία σχεδίασης'), messages(plain));
+    if (plain.ok) {
+      const program = importer.build(plain, {unmatched: 'keep'});
+      const pz = program.activities.find(a => program.source.placements[a.id].hourId === 'h0');
+      equal('Χωρίς στοιχεία σχεδίασης: «Α\'-Στ\'» → 12 τμήματα, προεπιλεγμένα χρώματα', [pz?.classes.length, program.source.teachers.every(t => t.color === SchoolTimetable.oloimeroTeacherColor(staff.find(p => p.id === t.staffId)))], [12, true]);
+    }
+    const empty = importer.analyze({csv: {name: 'empty.csv', text: '"Students Sets","Subject","Teachers","Activity Tags"\n'}}, {staff, teachingHours: HOURS_V2});
+    check('CSV χωρίς δραστηριότητες: η εισαγωγή σταματά', !empty.ok && has(empty.errors, 'δεν έχει δραστηριότητες'), empty.errors.join('\n'));
+    const noStaff = importer.analyze({csv: {name: FILES.oldDesign, text: texts.oldDesign}}, {staff: [], teachingHours: HOURS_OLD});
+    check('Χωρίς Προσωπικό: η εισαγωγή σταματά', !noStaff.ok && has(noStaff.errors, 'Προσωπικό'), noStaff.errors.join('\n'));
+  });
+
+  start('4. Κενό CSV και λάθη που σταματούν την εισαγωγή');
+  const fetText = texts.v2Fet || texts.oldFet;
+  if (fetText) attempt('Κενό CSV', () => {
+    const staff = staffFromFet(fetText), header = '"Activity Id","Day","Hour","Students Sets","Subject","Teachers","Activity Tags","Room","Comments"\n';
+    const empty = SchoolTimetable.analyzeFetImport({csvText: '﻿' + header, fetText, staff, teachingHours: HOURS_V2});
+    check('Κενό CSV: η εισαγωγή σταματά', !empty.ok && has(empty.errors, 'ολοκλήρωσε τη δημιουργία προγράμματος'), empty.errors.join('\n'));
+    const noHours = SchoolTimetable.analyzeFetImport({csvText: texts.v2Csv || texts.oldCsv, fetText, staff, teachingHours: {hours: []}});
+    check('Χωρίς Ώρες Διδασκαλίας: η εισαγωγή σταματά', !noHours.ok && has(noHours.errors, 'Ώρες Διδασκαλίας'), noHours.errors.join('\n'));
+    const noStaff = SchoolTimetable.analyzeFetImport({csvText: texts.v2Csv || texts.oldCsv, fetText, staff: [], teachingHours: HOURS_V2});
+    check('Χωρίς Προσωπικό: η εισαγωγή σταματά', !noStaff.ok && has(noStaff.errors, 'Προσωπικό'), noStaff.errors.join('\n'));
+    const fewer = structuredClone(HOURS_V2); fewer.hours = fewer.hours.filter(h => h.name !== '16:45-17:30');
+    const missingHour = SchoolTimetable.analyzeFetImport({csvText: texts.v2Csv || texts.oldCsv, fetText, staff, teachingHours: fewer});
+    check('Ώρα του FET που λείπει από τις Ώρες Διδασκαλίας: σταματά και λέει ποια', !missingHour.ok && has(missingHour.errors, '«16:45-17:30»'), missingHour.errors.join('\n'));
+    const saturday = (texts.v2Csv || texts.oldCsv).replace('"Δευτέρα","07:15-08:00"', '"Σάββατο","07:15-08:00"');
+    const badDay = SchoolTimetable.analyzeFetImport({csvText: saturday, fetText, staff, teachingHours: HOURS_V2});
+    check('Ημέρα εκτός Δευτέρας–Παρασκευής: σταματά', !badDay.ok && has(badDay.errors, '«Σάββατο»'), badDay.errors.join('\n'));
+    if (texts.oldCsv && texts.v2Fet) {
+      const mixed = SchoolTimetable.analyzeFetImport({csvText: texts.oldCsv, fetText: texts.v2Fet, staff, teachingHours: HOURS_V2});
+      check('CSV από άλλο .fet: προειδοποίηση διαφοράς', has(mixed.warnings, 'διαφορετικό μάθημα'), mixed.warnings.join('\n'));
+    }
+  }); else skip('Κενό CSV', 'Χρειάζεται ένα από τα αρχεία .fet.');
+
+  attempt('Διαθεσιμότητα', availabilityChecks);
+  attempt('Host', hostChecks);
+
+  const summary = document.createElement('div');
+  summary.className = 'summary ' + (totals.fail ? 'fail' : 'ok');
+  summary.textContent = (totals.fail ? 'Αποτυχίες: ' + totals.fail + ' · ' : 'Όλοι οι έλεγχοι πέτυχαν · ') + 'επιτυχίες: ' + totals.ok + (totals.skip ? ' · παραλείφθηκαν: ' + totals.skip : '');
+  $('summary').append(summary);
+  document.body.dataset.result = JSON.stringify(totals);
+}
+$('run').onclick = run;
+})();
+</script>
+</body>
+</html>

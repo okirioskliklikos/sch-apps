@@ -1,0 +1,452 @@
+/*
+ * Εφαρμογές σχολείου — Κοινή διάταξη υποεφαρμογών
+ * Έκδοση αρχείου: 0.29
+ * Όνομα κατά την εγκατάσταση: _subapp.css
+ */
+
+/* Shared page palette and typography for sub-applications. */
+:root{font-family:var(--school-ui-font);background:var(--school-ui-workspace-bg);color:var(--school-ui-text)}
+html,body{margin:0;min-height:100%}
+body{padding:0;background:var(--school-ui-workspace-bg)}
+
+/* Page shell for sub-applications hosted by Index.
+   Opt in with <html class="subapp-page">; other pages that load this file are not affected.
+   :where() keeps the specificity of the plain element/class selectors these rules replace. */
+:where(.subapp-page) h3{font-size:16px}
+:where(.subapp-page) .version{font-weight:650}
+:where(.subapp-page) .page-head{margin:0;flex:none}
+:where(.subapp-page) .page-main{display:flex;flex-direction:column;flex:1;min-height:0;padding:20px}
+/* Busy (an action is running): the page area under the header fades and takes no clicks.
+   Pages without a sidebar set .busy on .page-main; pages with a sidebar set it on <main>, so the sidebar
+   and the workspace fade together. */
+:where(.subapp-page) .page-main.busy,
+:where(.subapp-page) main:has(>aside).busy{pointer-events:none;opacity:.65}
+@media(min-width:651px){
+  html:where(.subapp-page),html:where(.subapp-page) body{height:100%;min-height:0}
+  html:where(.subapp-page) body{height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+  :where(.subapp-page) .page-main{overflow:hidden}
+}
+@media(max-width:650px){:where(.subapp-page) .page-main{padding:16px}}
+
+/* Generic button, select, primary and danger styles live in _ui.css. */
+
+header{
+  --subapp-header-padding-top:10px;
+  padding:var(--subapp-header-padding-top) 12px 9px;min-height:57px;background:#fff;border-bottom:1px solid #d8dee8;
+  display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;
+  position:sticky;top:0;z-index:30
+}
+/* Menu button («☰»): _ui.js puts it inside .toolbar-brand, before the application name, only when the page
+   runs inside the Index, so button and name always share one row (a narrow screen shortens the name instead).
+   It is shown at 1024px or narrower, where the Index keeps its sidebar hidden; wider screens open the sidebar
+   from the left edge of the Index. A zero-width character gives it the baseline of a text button,
+   so it joins the shared baseline and sits at the top padding like every other button, in line with the icon square. */
+.subapp-nav-button{display:none}
+@media(max-width:1024px){
+  header .subapp-nav-button{
+    display:inline-flex;align-items:center;justify-content:center;flex:none;
+    width:var(--school-ui-control-height);padding-left:0;padding-right:0;margin-right:8px
+  }
+}
+.subapp-nav-button::before{content:"\200b";width:0;overflow:hidden}
+.subapp-nav-button svg{display:block;flex:none;width:20px;height:20px}
+/* The header aligns everything on one baseline: icon letters, application name, version, button labels.
+   A baseline-aligned row starts at the top padding (10px), so the buttons sit 10px from the top.
+   Buttons and icon share one height (--school-ui-control-height, from _ui.css).
+   Separators have no text, so they are centred instead.
+   The icon is drawn in two parts: its letters take part in the baseline like any other text,
+   and its coloured square is drawn apart (::before), at the top padding of the header,
+   so the square always lines up with the buttons above and below, whatever the letter size.
+   When the width is not enough, the header wraps: items move to the next row only when they do not fit,
+   and each new row starts at the left. Nothing overlaps and nothing leaves the page. */
+header :is(.sep,.toolbar-separator){align-self:center}
+.toolbar-brand{display:flex;align-items:baseline;flex:0 1 auto;min-width:0;white-space:nowrap;margin-right:8px}
+/* Invisible strut with the metrics of a header button (no width, transparent border). It joins the baseline
+   like a button, so the row of the application name is always as tall as a button, even when the name is
+   alone in its row after a wrap: the coloured square fits in that row and the next row starts below it. */
+.toolbar-brand::before{
+  content:"\200b";flex:none;width:0;overflow:hidden;
+  padding:var(--school-ui-control-padding-y) 0;border:solid transparent;border-width:1px 0;
+  font-size:var(--school-ui-control-font-size);line-height:var(--school-ui-control-line-height)
+}
+.toolbar-brand h1{font-size:18px;font-weight:850;margin:0;min-width:0}
+.brand-menu{
+  display:flex;align-items:baseline;gap:8px;padding:0!important;border:0!important;
+  background:transparent!important;color:inherit;font:inherit;font-weight:inherit;border-radius:8px;cursor:pointer;
+  min-width:0;max-width:100%
+}
+.brand-menu:hover{color:#346f95!important;background:transparent!important}
+/* Application icon in the header, as tall as the header buttons. Colours and letter placement in _ui.css (.app-mark). */
+.app-mark{
+  flex:0 0 var(--school-ui-control-height);width:var(--school-ui-control-height);height:var(--school-ui-control-height);
+  border-radius:11px;font-size:18px
+}
+header .app-mark{height:auto;background:none}
+header .app-mark::before{
+  content:"";position:absolute;z-index:-1;top:var(--subapp-header-padding-top);
+  width:var(--school-ui-control-height);height:var(--school-ui-control-height);
+  border-radius:inherit;background:var(--app-mark-bg,var(--school-app-default))
+}
+.brand-text{display:flex;align-items:baseline;gap:5px;line-height:1.2;min-width:0}
+/* On very narrow screens the application name is shortened with «…»; the version stays visible. */
+.brand-text>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.brand-text>.version{flex:none}
+.small{font-size:12px;color:var(--muted,var(--school-ui-muted))}
+.status{
+  position:fixed;left:512px;right:170px;z-index:60;min-width:0;padding:2px 7px;
+  background:transparent;font-size:12px;color:#666;text-align:center;min-height:14px;line-height:14px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+/* Right-hand group: it keeps the width of its content, so it moves to the next row as a whole instead of
+   being squeezed under the buttons before it. It stays at the right, also in a row of its own, and wraps
+   inside only when even a whole row is too narrow for it. */
+.header-right{
+  margin-left:auto;display:flex;align-items:baseline;justify-content:flex-end;flex-wrap:wrap;gap:8px 7px;
+  min-width:0;flex:1 1 auto;overflow:visible
+}
+.save-control{display:inline-flex;align-items:stretch;position:relative}
+.save-control>button{border-radius:8px 0 0 8px}
+.save-control>.save-menu-button{width:29px;padding:6px 6px;border-left:0;border-radius:0 8px 8px 0;font-size:10px;line-height:1}
+/* Change dot: a blue dot at the top left corner of a button while it has class .dirty.
+   «Αποθήκευση» (.save-main) has it by default; any other button that shows pending changes takes
+   .subapp-change-dot (e.g. «Ανεύρεση πεδίων» and «Παραγωγή Εγγράφων» of Documents Templater). */
+:is(.save-main,.subapp-change-dot){position:relative}
+:is(.save-main,.subapp-change-dot).dirty::after{
+  content:"";position:absolute;top:2px;left:2px;right:auto;transform:translate(-50%,-50%);
+  width:11px;height:11px;border-radius:50%;pointer-events:none;
+  background:#1687e8;box-shadow:0 0 0 3px #fff,0 0 4px #1687e880
+}
+.save-menu{
+  position:absolute;top:calc(100% + 5px);left:0;z-index:90;min-width:170px;padding:5px;
+  background:#fff;border:1px solid #d8dee8;border-radius:8px;box-shadow:0 8px 24px #25364a24
+}
+.save-menu button{width:100%;text-align:left;border:0;background:transparent}
+.save-menu button:hover,.save-menu button:focus-visible{background:#e8f1ff;color:#154c91}
+.save-menu[hidden]{display:none}
+.file-state{
+  box-sizing:border-box;min-width:64px;max-width:320px;display:flex;align-items:center;gap:5px;
+  flex:0 1 auto;overflow:hidden;font-size:13px;line-height:normal;padding:4px 7px;border-radius:999px;
+  border:1px solid #d8dee8;color:#667085;background:#fff
+}
+.file-state:disabled{opacity:1;cursor:default}
+.file-state:disabled:hover{filter:none;box-shadow:none}
+.file-state-text{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-state.ok{color:#027a48;border-color:#a6f4c5;background:#ecfdf3}
+.file-state.warn{color:#b54708;border-color:#fedf89;background:#fffaeb}
+.file-state:hover{filter:brightness(.97);box-shadow:0 0 0 2px rgba(37,99,235,.08)}
+/* On a very narrow screen the mode list gives up width first, so the pair still fits in one header row. */
+.print-control{display:inline-flex;align-items:stretch;min-width:0;max-width:100%}
+.print-control>button{flex:none}
+.print-mode-wrap{min-width:0}
+.print-control select{min-width:0;max-width:100%}
+.print-mode-wrap{position:relative;display:inline-flex;align-items:stretch}
+.print-mode-wrap::after{
+  content:"▼";position:absolute;z-index:1;top:0;right:0;bottom:0;width:29px;
+  display:flex;align-items:center;justify-content:center;box-sizing:border-box;padding:6px;
+  font-size:10px;line-height:1;pointer-events:none
+}
+.print-control select{
+  appearance:none;-webkit-appearance:none;cursor:pointer;
+  border-radius:0 7px 7px 0;border-left:0;
+  padding:var(--school-ui-control-padding-y) 36px var(--school-ui-control-padding-y) 9px;background:#fff
+}
+.print-control select:hover{background:#f1f1f1}
+.print-control select:focus,
+.print-control select:focus-visible{outline:none;box-shadow:none;border-color:#bbb}
+.print-control button{border-radius:7px 0 0 7px}
+
+/* --subapp-header-height: the real height of the shared header, kept up to date by _ui.js (it grows when the header wraps). */
+main{display:grid;grid-template-columns:300px minmax(0,1fr);min-height:calc(100vh - var(--subapp-header-height,57px))}
+.subapp-workspace{background:var(--school-ui-workspace-bg)}
+.subapp-file-drop{
+  display:none;width:min(720px,calc(100% - 48px));min-height:190px;margin:54px auto 90px;
+  padding:34px 28px;border:2px dashed #79a2ff;border-radius:16px;background:#f3f7ff;
+  color:#7f8fa6;text-align:center;align-items:center;justify-content:center;
+  flex-direction:column;gap:10px;cursor:default;
+  transition:background .16s,border-color .16s,box-shadow .16s
+}
+.subapp-file-drop.visible{display:flex}
+.subapp-file-drop.drag-over{background:#e7f0ff;border-color:#2768df;box-shadow:0 0 0 4px rgba(39,104,223,.14)}
+.subapp-file-drop-icon{font-size:34px;line-height:1;color:#1455c0}
+.subapp-file-drop-title{font-size:19px;font-weight:750;color:#1455c0}
+.subapp-file-drop-text{max-width:600px;font-size:14px;line-height:1.55}
+.subapp-file-drop-files{font-weight:750;color:#1455c0}
+/* Sidebar of a sub-application: colours from the shared --school-ui-* variables. */
+aside{
+  background:var(--school-ui-surface);border-right:1px solid var(--school-ui-control-border);padding:14px;position:sticky;
+  top:var(--subapp-header-height,57px);height:calc(100vh - var(--subapp-header-height,57px));
+  overflow-y:auto;align-self:start;z-index:15
+}
+aside h2{font-size:17px;margin:0 0 10px}
+.section-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.section-heading .section-label{min-width:0}
+.section-heading-actions{display:flex;align-items:center;gap:4px;flex:0 0 auto}
+.hint{font-size:13px;color:#666;line-height:1.45;margin:8px 0 12px}
+.toolbox{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.section-empty{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  min-height:92px;text-align:center;color:#667085;font-size:13px
+}
+.section-empty button{font-weight:650}
+.toolbar-group{display:inline-flex;gap:2px;padding:2px;border:1px solid #cfcfcf;border-radius:7px;background:#f7f7f7}
+/* Toolbar separator: one look for .sep and .toolbar-separator. */
+.sep,.toolbar-separator{display:inline-block;flex:none;width:1px;height:26px;margin:0 4px;background:var(--school-ui-control-border);vertical-align:middle}
+.sidebar-add{width:100%;display:block;margin-top:8px;box-sizing:border-box;font-weight:700}
+.sidebar-divider{border:0;border-top:1px solid #cfcfcf;width:70%;margin:18px auto 0}
+.actions{display:flex;justify-content:flex-end;gap:8px;margin-top:20px;flex-wrap:wrap}
+
+/* Compact actions used in sidebar section headings and item rows. */
+.subapp-section-action{
+  box-sizing:border-box!important;display:inline-flex;align-items:center;justify-content:center;
+  flex:0 0 30px!important;width:30px!important;min-width:30px!important;max-width:30px!important;
+  height:28px!important;min-height:28px!important;max-height:28px!important;
+  margin:0!important;padding:0!important;line-height:1;color:#5f6368
+}
+.subapp-section-action svg,
+.sidebar-action-icon svg{
+  display:block;width:16px;height:16px;overflow:visible;fill:none;stroke:currentColor;
+  stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;pointer-events:none
+}
+.sidebar-action-icon{
+  appearance:none!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;
+  width:20px!important;height:20px!important;min-width:20px!important;min-height:20px!important;
+  margin:0!important;padding:0!important;border:0!important;border-radius:3px!important;
+  background:transparent!important;box-shadow:none!important;color:#5f6368!important;
+  font-family:inherit!important;font-size:18px!important;font-weight:700!important;
+  line-height:20px!important;cursor:pointer
+}
+.sidebar-action-icon:hover{background:rgba(255,255,255,.58)!important}
+
+/* Reusable dialog fields and selection lists. */
+.format-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.format-row label{margin:0}
+.format-row input[type=number]{width:76px;padding:6px}
+.format-row .check{display:flex;align-items:center;gap:4px}
+.readonly-value{
+  min-height:36px;padding:8px 10px;border:1px solid var(--school-ui-border);
+  border-radius:7px;background:var(--school-ui-readonly-bg);color:var(--school-ui-readonly-text)
+}
+.subapp-check-list{
+  max-height:220px;overflow:auto;border:1px solid #d5d5d5;border-radius:8px;
+  padding:8px;margin-top:6px;background:var(--school-ui-surface)
+}
+.subapp-check-list label{display:flex;align-items:center;gap:7px;margin:4px 0;padding:3px 2px}
+.subapp-import-toolbar{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  margin:8px 0 10px;padding-bottom:8px;border-bottom:1px solid #e1e5ea
+}
+.subapp-import-list{
+  display:flex;flex-direction:column;gap:6px;
+  min-width:min(560px,75vw);max-height:52vh;overflow:auto;padding:2px
+}
+.subapp-import-choice{
+  display:grid;grid-template-columns:auto minmax(0,1fr);gap:9px;align-items:start;
+  margin:0;padding:8px 9px;border:1px solid #d7dde5;border-radius:8px;
+  background:var(--school-ui-surface)
+}
+.subapp-import-choice input{margin-top:3px}
+.subapp-import-choice-main{display:flex;flex-direction:column;gap:2px;min-width:0}
+.subapp-import-choice-name{font-weight:700;overflow-wrap:anywhere}
+.subapp-import-choice-meta{font-size:12px;color:var(--school-ui-muted);overflow-wrap:anywhere}
+
+/* Shared foundation for list-order and formatting dialogs. */
+.section-manager{width:min(760px,calc(100vw - 28px));max-height:calc(100vh - 28px);overflow:auto}
+.section-manager-grid{
+  display:grid;grid-template-columns:minmax(260px,1fr) minmax(240px,.8fr);
+  row-gap:22px;column-gap:10px;align-items:stretch
+}
+.section-manager-column-title{margin:0 0 10px;font-size:15px;line-height:1.3}
+.section-manager-list{
+  max-height:52vh;overflow:auto
+}
+.section-manager-row{
+  display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;
+  gap:8px;padding:6px;border-radius:6px
+}
+.section-manager-list div.section-manager-row{margin:0;font-weight:400}
+.section-manager-list button.section-manager-row{
+  display:grid;grid-template-columns:auto minmax(0,1fr);white-space:normal;color:inherit
+}
+.section-manager-list button.section-manager-row:hover{background:#f0f4f8;border-color:transparent}
+.section-manager-row.selected{
+  background:var(--school-ui-primary-bg)!important;border-color:var(--school-ui-primary-border)!important;
+  color:var(--school-ui-primary-text)!important;font-weight:750
+}
+.section-manager-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.section-manager-format{border-left:1px solid var(--school-ui-border);padding-left:22px}
+.section-manager-format h4{margin-top:0}
+.section-manager-format .format-row{display:grid;gap:12px}
+
+@media(max-width:800px){
+  main{grid-template-columns:1fr}
+  aside{position:static;height:auto;overflow:visible;border-right:0;border-bottom:1px solid var(--school-ui-control-border)}
+  .status{left:206px;right:170px}
+}
+@media(max-width:760px){
+  .section-manager-grid{grid-template-columns:1fr}
+  .section-manager-format{border-left:0;border-top:1px solid var(--school-ui-border);padding:16px 0 0}
+}
+
+/* Pages with a sidebar (<main> with <aside> and a workspace next to it, e.g. Ολοήμερο, FET Timetable Editor).
+   Wide screens: the page shell gives the area under the header a fixed height, and the sidebar and the
+   workspace scroll inside it, each on its own. 651–800px: the sidebar is stacked above the workspace and
+   the area under the header scrolls as a whole. */
+@media(min-width:801px){
+  :where(.subapp-page) main:has(>aside){flex:1;min-height:0;grid-template-rows:minmax(0,1fr)}
+  :where(.subapp-page) main:has(>aside)>aside{position:static;height:auto;min-height:0;align-self:stretch}
+  /* Two sidebar widths: normal (300px, no class) and wide, for a sidebar that needs more room
+     (<main class="subapp-wide-aside">, e.g. Documents Templater). Stacked on narrow screens like the normal one. */
+  main.subapp-wide-aside{grid-template-columns:clamp(340px,34vw,500px) minmax(0,1fr)}
+}
+@media(min-width:651px) and (max-width:800px){
+  :where(.subapp-page) main:has(>aside){flex:1;min-height:0;overflow:auto;grid-auto-rows:max-content}
+}
+/* Tabs at the top of a sidebar (role="tablist", buttons with role="tab" and aria-selected). */
+.subapp-sidebar-tabs{
+  display:flex;margin:0 0 10px;border:1px solid var(--school-ui-control-border);border-radius:8px;overflow:hidden;flex:none
+}
+.subapp-sidebar-tabs button{flex:1 1 0;min-width:0;border:0;border-radius:0;background:var(--school-ui-surface);overflow:hidden;text-overflow:ellipsis}
+.subapp-sidebar-tabs button+button{border-left:1px solid var(--school-ui-control-border)}
+.subapp-sidebar-tabs button[aria-selected="true"]{background:var(--school-ui-primary-bg);color:var(--school-ui-primary-text);font-weight:700}
+/* Cards of a sidebar list: a name, an optional value on the right (e.g. hours) and an optional line below.
+   <div class="subapp-sidebar-list"><button class="subapp-sidebar-item [selected]">
+     <span class="subapp-sidebar-item-name">…</span><span class="subapp-sidebar-item-side">…</span>
+     <span class="subapp-sidebar-item-meta">…</span></button></div> */
+.subapp-sidebar-list{display:flex;flex-direction:column;gap:6px}
+.subapp-sidebar-item{
+  display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;gap:2px 10px;width:100%;margin:0;
+  padding:8px 10px;border:1px solid var(--school-ui-border);border-radius:9px;background:var(--school-ui-surface);
+  color:inherit;text-align:left;font-size:15px;line-height:1.3;white-space:normal;cursor:pointer
+}
+.subapp-sidebar-item:hover:not(:disabled):not(.selected){background:#f1f4f8}
+.subapp-sidebar-item.selected{background:var(--school-ui-primary-bg);border-color:var(--school-ui-primary-border)}
+.subapp-sidebar-item-name{min-width:0;font-weight:700;overflow-wrap:anywhere}
+.subapp-sidebar-item-side{font-size:12px;font-weight:650;color:var(--school-ui-muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.subapp-sidebar-item-meta{grid-column:1 / -1;min-width:0;font-size:12px;color:var(--school-ui-muted);overflow-wrap:anywhere}
+.subapp-sidebar-item.selected :is(.subapp-sidebar-item-side,.subapp-sidebar-item-meta){color:var(--school-ui-label-text)}
+
+/* Shared list actions: add/remove, transfer and ordering. */
+.subapp-list-actions{
+  display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:9px;flex:none
+}
+.subapp-list-actions button,
+button.subapp-add-button,button.subapp-remove-button{
+  height:var(--school-ui-control-height);min-height:var(--school-ui-control-height);max-height:var(--school-ui-control-height);
+  display:inline-flex;align-items:center;justify-content:center;line-height:1.2;
+  padding-top:0;padding-bottom:0;white-space:nowrap
+}
+.subapp-order-controls{display:flex;gap:4px;margin-left:auto;align-items:center}
+.subapp-order-controls button{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:40px;height:40px;min-width:40px;min-height:40px;max-height:40px;padding:0;line-height:1
+}
+.subapp-order-controls svg{display:block;flex:none;width:22px;height:22px}
+/* A list with its order arrows in a column on its right: <div class="subapp-list-row"><list/><div class="subapp-order-controls"></div></div>.
+   The list takes the remaining width and height; the arrows stay in the middle of its height.
+   A heading above the list (.subapp-list-heading inside the same .subapp-list-pane) ends where the list ends,
+   while the arrows are shown: 48px = 40px arrow button + 8px gap. */
+.subapp-list-row{display:flex;gap:8px;align-items:stretch;flex:1;min-width:0;min-height:0}
+.subapp-list-row>:first-child{flex:1;min-width:0;min-height:0}
+.subapp-list-row>.subapp-order-controls{flex:none;flex-direction:column;justify-content:center;align-self:center;gap:8px;margin:0}
+.subapp-list-pane:has(.subapp-list-row>.subapp-order-controls:not([hidden])) .subapp-list-heading{margin-right:48px}
+.subapp-transfer-actions{
+  display:flex;align-items:center;justify-content:flex-end;gap:6px;flex:none
+}
+.subapp-transfer-actions button{
+  width:30px;height:30px;min-width:30px;min-height:30px;max-height:30px;
+  padding:0;display:grid;place-items:center
+}
+.subapp-transfer-actions svg{display:block;flex:none;width:16.5px;height:16.5px}
+/* Shared school-year indicator in the right-hand toolbar area. */
+.school-year-indicator{
+  display:inline-flex;align-items:center;justify-content:center;gap:5px;
+  padding:0;border:0;border-radius:0;background:transparent;
+  color:var(--school-ui-muted,#667085);font-size:12px;font-weight:400;
+  line-height:1.5;white-space:nowrap;flex:none
+}
+.school-year-indicator strong{font-weight:400;color:inherit}
+
+/* List appearance; dimensions, scrolling height and placement belong to each app.
+   List rows keep the text size of the page, not the size of the text buttons. */
+.subapp-list{border:1px solid #d0d6db;border-radius:7px;padding:4px;background:var(--school-ui-surface)}
+.subapp-list-item{
+  display:block;width:100%;text-align:left;margin:0;border-color:transparent;background:transparent;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:3px 8px;font-size:inherit;line-height:1.2
+}
+/* List row with its own remove button («×»), shown on hover or keyboard focus.
+   Use a non-button element with .subapp-list-item .subapp-list-item-removable, holding a button.subapp-list-item-remove. */
+.subapp-list-item-removable{
+  display:flex;align-items:center;gap:8px;border:1px solid transparent;border-radius:7px;
+  padding-right:3px;cursor:pointer
+}
+.subapp-list-item-removable:hover:not(.selected){background:#f1f1f1}
+.subapp-list-item-remove{
+  flex:none;display:grid;place-items:center;width:22px;height:22px;margin:0;padding:0;
+  border:0;border-radius:5px;background:transparent;color:var(--school-ui-muted);
+  font-size:17px;line-height:1;opacity:0
+}
+.subapp-list-item-removable:hover .subapp-list-item-remove,
+.subapp-list-item-removable:focus-within .subapp-list-item-remove{opacity:1}
+.subapp-list-item-remove:hover:not(:disabled),.subapp-list-item-remove:focus-visible{background:#d5e5fb;color:var(--school-ui-error)}
+.subapp-list-item.selected{background:var(--school-ui-primary-bg);border-color:var(--school-ui-primary-border)}
+/* Empty state: fills its area (at least 220px tall) with the message in the middle. */
+.subapp-empty{display:flex;align-items:center;justify-content:center;text-align:center;color:#77818a;padding:16px;line-height:1.6;min-height:220px;height:100%}
+/* Empty state with stacked content (message plus a year selector or buttons). Use with .subapp-empty. */
+.subapp-empty-stack{flex-direction:column;gap:14px}
+.subapp-empty-stack p{margin:0}
+.subapp-empty-stack select{max-width:100%;padding:var(--school-ui-control-padding-y) 8px;border:1px solid var(--school-ui-control-border);border-radius:6px}
+/* Side pane next to a list: left rule plus its own scroll. When the app stacks the pane under the list
+   (on narrow screens, at a width the app chooses), it sets --subapp-stacked:1 on a parent of the pane in its
+   own media query; the pane then takes a rule above it instead of beside it. */
+.subapp-side-pane{border-left:1px solid var(--school-ui-border);padding-left:24px;overflow:auto;min-width:0}
+@container style(--subapp-stacked:1){
+  .subapp-side-pane{border-left:0;border-top:1px solid var(--school-ui-border);padding:16px 0 0}
+}
+/* Heading of a pane: title (h3) and an optional help line on the left, an action or a count on the right. */
+.subapp-pane-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;flex:none}
+.subapp-pane-heading h3{margin:0}
+.subapp-pane-heading p{margin:0;line-height:1.5}
+.subapp-pane-heading h3+p{margin-top:4px}
+.subapp-view-buttons{display:flex;gap:0;border:1px solid var(--school-ui-control-border);border-radius:7px;overflow:hidden}
+.subapp-view-buttons button{border:0;border-radius:0;padding:5px 8px;font-size:11px;line-height:normal;white-space:nowrap}
+.subapp-view-buttons button+button{border-left:1px solid var(--school-ui-control-border)}
+.subapp-view-buttons button[aria-pressed="true"]{
+  background:var(--school-ui-primary-bg);color:var(--school-ui-primary-text);
+  font-weight:700;box-shadow:inset 0 1px 3px #244b6920
+}
+.subapp-connection{padding:24px;border:1px solid #d0d6db;border-radius:10px;color:#607080}
+.subapp-import-mode{display:grid;gap:8px;margin:18px 0 0;padding:12px 14px;border:1px solid var(--school-ui-border);border-radius:8px}
+.subapp-import-mode legend{padding:0 6px;font-weight:650}
+.subapp-import-mode label{display:flex;align-items:center;gap:8px;cursor:pointer;margin:0;font-weight:400}
+.subapp-import-mode input{margin:0;accent-color:var(--school-ui-focus);flex:none}
+.subapp-import-mode label:hover{color:var(--school-ui-primary-text)}
+/* Record form appearance; the owning app supplies column width and alignment. */
+@container (min-width:620px){
+  fieldset.subapp-record-fields{border:1px solid var(--school-ui-border);border-radius:10px;overflow:hidden;background:var(--school-ui-surface)}
+  .subapp-record-fields .ui-field{
+    border-bottom:1px solid var(--school-ui-row-border);
+    background:linear-gradient(to right,var(--school-ui-label-bg) 0,var(--school-ui-label-bg) var(--subapp-label-column,231px),var(--school-ui-surface) var(--subapp-label-column,231px),var(--school-ui-surface) 100%)
+  }
+  .subapp-record-fields .ui-field>label{font-size:14px;line-height:1.5;font-weight:650;color:var(--school-ui-label-text)}
+  .subapp-record-fields .ui-field>input,.subapp-record-fields .ui-field>select{border-color:#d0d8e2}
+}
+
+/* Opt-in editable and label/value tables. Each app supplies column widths,
+   row padding, scrolling and responsive layout. */
+.subapp-table-frame{background:var(--school-ui-surface);border:1px solid #d0d6db;border-radius:8px}
+.subapp-data-table{border-collapse:collapse;width:100%;font-size:14px}
+.subapp-data-table th,.subapp-data-table td{border-bottom:1px solid var(--school-ui-row-border);text-align:left}
+.subapp-editable-table th{position:sticky;top:0;z-index:1;background:var(--school-ui-label-bg);color:var(--school-ui-label-text)}
+.subapp-editable-table tbody tr{cursor:pointer}
+.subapp-editable-table tbody tr.selected{background:var(--school-ui-primary-bg)}
+.subapp-editable-table input,.subapp-editable-table select{
+  width:100%;min-width:0;border:1px solid transparent;border-radius:5px;background:transparent;color:inherit
+}
+.subapp-editable-table input:focus,.subapp-editable-table select:focus{background:var(--school-ui-surface);border-color:var(--school-ui-primary-border)}
+.subapp-editable-table select option{background:var(--school-ui-surface);color:var(--school-ui-text)}
+.subapp-label-table{background:var(--school-ui-surface);border:1px solid var(--school-ui-border)}
+.subapp-label-table th{background:var(--school-ui-label-bg);font-weight:650;color:var(--school-ui-label-text)}
+.subapp-label-table input{width:100%;min-width:0;border:1px solid #d0d8e2;border-radius:6px;background:var(--school-ui-surface);color:var(--school-ui-text)}
+/* Status line under a list: room for two lines, scrolls when the message is longer. */
+.subapp-notice{flex:none;min-height:38px;max-height:120px;overflow:auto;margin:10px 0 0;font-size:12px;line-height:1.55;color:var(--school-ui-muted)}
+.subapp-notice.error{color:var(--school-ui-error)}

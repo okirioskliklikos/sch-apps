@@ -1,0 +1,772 @@
+<!doctype html>
+<html lang="el" class="subapp-page">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Σχολικά Προγράμματα v0.5</title>
+<link rel="stylesheet" href="_ui.css">
+<link rel="stylesheet" href="_subapp.css">
+<style>
+/* «Σχολικά Προγράμματα»: periods of the school year and the period programs of every kind.
+   Shared appearance: _ui.css / _subapp.css. --pg-* : colours whose meaning exists only here. */
+:root{
+  --app-mark-bg:var(--school-app-timetables);
+  --pg-note-bg:#fff7ed;--pg-note-border:#fed7aa;--pg-note-text:#9a3412;
+  --pg-empty-chip-bg:#eef1f5;--pg-empty-chip-text:#475467;
+  --pg-new-text:#1d6b46
+}
+.workspace{display:grid;grid-template-columns:minmax(300px,390px) minmax(0,1fr);gap:24px;flex:1;min-height:0}
+.periods-pane{display:flex;flex-direction:column;min-height:0;min-width:0}
+.periods-pane>.subapp-list-row>.period-list{min-height:150px;overflow:auto;outline-offset:2px}
+.period-item{
+  display:flex;align-items:baseline;justify-content:space-between;gap:10px;width:100%;
+  padding:8px 10px;border:1px solid transparent;border-radius:6px;cursor:pointer;white-space:normal
+}
+.period-item+.period-item{margin-top:2px}
+.period-item:hover:not(.selected){background:#f1f4f8}
+.period-item.selected{background:var(--school-ui-primary-bg);border-color:var(--school-ui-primary-border)}
+.period-name{min-width:0;overflow-wrap:anywhere}
+.period-dates{flex:none;font-size:13px;color:var(--school-ui-muted);white-space:nowrap}
+.period-item.invalid .period-dates{color:var(--school-ui-error)}
+.period-empty{
+  display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;font-size:11px;line-height:1.5;
+  background:var(--pg-empty-chip-bg);color:var(--pg-empty-chip-text);vertical-align:1px
+}
+.period-warnings{flex:none;max-height:120px;overflow:auto}
+.period-warnings:empty{display:none}
+.drafts-box{flex:none;margin-top:12px;padding:12px 14px;border:1px solid var(--school-ui-border);border-radius:10px;background:var(--school-ui-surface)}
+.drafts-box h3{margin:0 0 6px}
+.drafts-table{width:100%;border-collapse:collapse;font-size:14px}
+.drafts-table td{padding:4px 0;border-bottom:1px solid var(--school-ui-row-border);vertical-align:baseline}
+.drafts-table td:last-child{text-align:right;font-variant-numeric:tabular-nums;padding-left:10px}
+.drafts-table tr:last-child td{border-bottom:0}
+.drafts-owner{display:block;font-size:12px;color:var(--school-ui-muted)}
+.drafts-table .ui-validation-warning{display:block;margin:2px 0 0;text-align:left}
+.drafts-box .ui-helper{margin:8px 0 0;line-height:1.5}
+
+.period-pane{display:flex;flex-direction:column;gap:16px}
+.period-fields{display:grid;grid-template-columns:minmax(0,1fr) 170px 170px;gap:0 14px;margin:0}
+.period-fields .ui-field{margin:0;align-content:start}
+.kind-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.kind-card{display:flex;flex-direction:column;gap:10px;min-width:0;padding:14px 16px;border:1px solid var(--school-ui-border);border-radius:12px;background:var(--school-ui-surface)}
+.kind-card-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.kind-card-head h4{margin:0;font-size:16px;overflow-wrap:anywhere}
+.kind-card-tag{flex:none;font-size:12px;color:var(--school-ui-muted)}
+.kind-card-facts{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px;margin:0;font-size:14px;line-height:1.45}
+.kind-card-facts dt{color:var(--school-ui-muted)}
+.kind-card-facts dd{margin:0;overflow-wrap:anywhere}
+.kind-card-note{margin:0;padding:6px 9px;border:1px solid var(--pg-note-border);border-radius:8px;background:var(--pg-note-bg);color:var(--pg-note-text);font-size:13px;line-height:1.45}
+.kind-card-new{margin:0;font-size:13px;color:var(--pg-new-text)}
+.kind-card-help{margin:0;font-size:13px;color:var(--school-ui-muted);line-height:1.45}
+.kind-card-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:auto;padding-top:2px}
+.kind-card-actions+.kind-card-actions{margin-top:0;padding-top:0}
+.kind-card-empty{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:130px;padding:14px;
+  border:1px dashed var(--school-ui-control-border);border-radius:10px;text-align:center;color:var(--school-ui-muted);font-size:14px;line-height:1.45
+}
+.kind-card-empty p{margin:0}
+.kind-card-empty small{font-size:12px}
+.pane-empty{min-height:220px}
+
+/* Copy dialog (inside schoolChoiceDialog). */
+.copy-grid{display:grid;grid-template-columns:minmax(0,1fr) 140px 140px;gap:0 10px}
+.copy-section{margin:18px 0 0;font-size:16px}
+.copy-help{margin:4px 0 0!important;font-size:13px;color:var(--school-ui-muted)}
+.copy-rows{display:grid;gap:8px;margin-top:10px}
+.copy-row{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto;gap:8px;align-items:center}
+.copy-row select{width:100%;min-width:0;font-weight:400}
+.copy-arrow{color:var(--school-ui-muted)}
+.copy-row .copy-remove{width:var(--school-ui-control-height);padding-left:0;padding-right:0;display:grid;place-items:center}
+.copy-row .copy-remove svg{width:16px;height:16px}
+.copy-add{margin-top:10px}
+.copy-summary{margin-top:16px!important;padding:10px 12px;border-radius:10px;background:var(--school-ui-label-bg);font-size:14px;line-height:1.5}
+.copy-warnings .ui-validation-warning{font-size:13px}
+
+@media(max-width:850px){
+  .workspace{grid-template-columns:1fr;overflow:auto;--subapp-stacked:1}
+  .page-main{overflow:auto}
+  /* Stacked: each pane keeps the height of its content; the whole page scrolls. */
+  .workspace>section{min-height:auto}
+  .periods-pane>.subapp-list-row{flex:none}
+  .periods-pane>.subapp-list-row>.period-list{max-height:45dvh}
+}
+@media(max-width:620px){
+  .period-fields{grid-template-columns:1fr 1fr}
+  .period-fields .ui-field:first-child{grid-column:1 / -1}
+  .copy-grid{grid-template-columns:1fr 1fr}
+  .copy-grid>:first-child{grid-column:1 / -1}
+  .copy-row{grid-template-columns:minmax(0,1fr) auto}
+  .copy-row .copy-arrow{display:none}
+  .copy-row select:nth-of-type(2){grid-column:1}
+  .copy-row .copy-remove{grid-row:1 / span 2;grid-column:2}
+}
+@media(max-width:400px){
+  .period-fields{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<header class="page-head">
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΣΠ</span></span><span class="brand-text"><span>Σχολικά Προγράμματα</span><span class="small version">v0.5</span></span></button></h1></div>
+  <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
+  <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
+  <div class="header-right"><span id="schoolYear" class="school-year-indicator" hidden><span>Σχολικό έτος:</span> <span id="schoolYearValue"></span></span></div>
+</header>
+<main id="root" class="page-main"><p class="subapp-connection">Άνοιξε τα «Σχολικά Προγράμματα» από το Κεντρικό Μενού, αφού ανοίξεις το αρχείο πληροφοριών του σχολείου. Απαιτείται η τελευταία έκδοση του index.html.</p></main>
+<script src="_ui.js"></script>
+<script src="_data.js"></script>
+<script>
+(() => {
+  'use strict';
+  // Messages, requests and their time limits: schoolHost in _ui.js. Dates, kinds, import and replacements:
+  // SchoolDate and SchoolTimetable in _data.js. Everything changes in the page and is saved together with
+  // «Αποθήκευση», as one school-timetables:save (periods + put/delete), all or nothing.
+  const T = SchoolTimetable, D = SchoolDate, esc = schoolEscape, $ = id => document.getElementById(id);
+  const root = $('root'), post = schoolHost.post;
+  const DRAFT_WARNING_LIMIT = 5;
+  // Count limits of the host (school-timetables:context): above them a save is refused; from warnRatio on, a warning.
+  const limits = () => ({programs: 200, periods: 15, warnRatio: 0.9, ...(context.limits || {})});
+  const nearLimit = (count, limit) => count >= Math.ceil(limit * limits().warnRatio);
+  // Programs of the year after «Αποθήκευση»: every program of the file (drafts of all applications included),
+  // with the period programs as this page holds them, plus the drafts it will create.
+  const programCount = () => (Number(context.programCount) || saved.programs.length) - saved.programs.length + draft.programs.length;
+  const kindKeys = Object.keys(T.kinds);
+  const kindLabel = kind => T.kinds[kind]?.label || kind;
+  const quoted = value => '«' + value + '»';
+  const uid = () => crypto.randomUUID();
+  const clone = value => structuredClone(value);
+  const unique = list => [...new Set(list)];
+  const byShortName = (a, b) => String(a.shortName || a.name || '').localeCompare(String(b.shortName || b.name || ''), 'el');
+
+  let context = null;      // the last context of the host
+  let saved = null;        // {periods, programs} as stored in the file
+  let draft = null;        // {periods, programs} as shown in the page
+  let dirty = false, busy = false, selectedId = null;
+  let fieldErrors = {};    // {periodId: {name|from|to: {text, message}}}: field text that is not valid yet
+  let introShown = false;
+  // The files the host remembers for the importer of each kind ({kind: [names]}), for «… από τρέχοντα αρχεία».
+  // Only kinds with one importer; a kind is missing until every file of it has a remembered file.
+  let currentFiles = {}, currentFilesYear = '';
+
+  // ---- Dates ----
+  const addDays = (iso, days) => {
+    const [y, m, d] = iso.split('-').map(Number);
+    return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+  };
+  const localDay = value => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+  };
+  const rangeText = period => D.format(period.from) + ' – ' + (period.to ? D.format(period.to) : '…');
+  const yearRange = () => D.schoolYear(context.year);
+  const yearRangeText = () => D.format(yearRange().from) + '–' + D.format(yearRange().to);
+
+  // ---- Data helpers ----
+  const periodById = id => draft.periods.find(period => period.id === id) || null;
+  const programsOf = periodId => draft.programs.filter(program => program.periodId === periodId);
+  const programOf = (periodId, kind) => draft.programs.find(program => program.periodId === periodId && program.kind === kind) || null;
+  // A program that is stored in the file in a period: only such a program can become a draft.
+  const isStored = program => saved.programs.some(item => item.id === program.id && item.periodId != null);
+  const draftName = (program, period, reason) => (program.name || kindLabel(program.kind) + ' ' + quoted(period.name)) + ' – ' + reason + ' ' + D.format(D.today());
+  const programText = program => kindLabel(program.kind) + (program.name ? ' ' + quoted(program.name) : '');
+  const orderError = period => D.valid(period.from) && D.valid(period.to) && period.to < period.from ? 'Η λήξη είναι πριν από την έναρξη.' : '';
+  const hasErrors = period => !!(Object.keys(fieldErrors[period.id] || {}).length || orderError(period) || !period.name.trim());
+  function stats(program) {
+    const activities = program.activities || [];
+    return {
+      activities: activities.length,
+      staff: unique(activities.flatMap(activity => activity.staff || [])).length,
+      unmatched: unique(activities.flatMap(activity => activity.unmatched || [])).length,
+      classes: unique(activities.flatMap(activity => activity.classes || [])).length
+    };
+  }
+  const activitiesText = count => count === 1 ? '1 δραστηριότητα' : count + ' δραστηριότητες';
+
+  // ---- State ----
+  function mark(value = true) { dirty = value; post({type: 'school-programs:dirty', dirty}); buttons(); }
+  function setBusy(value) { busy = value; buttons(); }
+  function notice(textValue, error = false) {
+    const element = $('notice');
+    if (!element) return;
+    element.textContent = textValue;
+    element.classList.toggle('error', error);
+  }
+  function buttons() {
+    $('save').classList.toggle('dirty', dirty);
+    $('save').setAttribute('aria-label', dirty ? 'Αποθήκευση — υπάρχουν μη αποθηκευμένες αλλαγές' : 'Αποθήκευση');
+    // «Αποθήκευση» and «Αναίρεση Όλων» are active only while there are unsaved changes.
+    $('save').disabled = $('undo').disabled = busy || !context || !dirty;
+    root.classList.toggle('busy', busy);
+    root.setAttribute('aria-busy', String(busy));
+    if (!draft || !$('periodList')) return;
+    const index = draft.periods.findIndex(period => period.id === selectedId);
+    const full = draft.periods.length >= limits().periods;
+    $('add').disabled = busy || full;
+    $('add').title = full ? 'Ένα σχολικό έτος έχει έως ' + limits().periods + ' περιόδους.' : '';
+    $('remove').disabled = busy || index < 0;
+    $('copy').disabled = busy || !draft.periods.length || full;
+    $('up').disabled = busy || index <= 0;
+    $('down').disabled = busy || index < 0 || index === draft.periods.length - 1;
+  }
+  function receive(value) {
+    context = value;
+    saved = clone({periods: value.periods || [], programs: (value.programs || []).filter(program => program.periodId != null)});
+    draft = clone(saved);
+    fieldErrors = {};
+    if (!periodById(selectedId)) selectedId = draft.periods[0]?.id || null;
+    mark(false);
+    render();
+    loadCurrentFiles();
+  }
+  schoolHost.on('school-timetables:context', message => { if (!dirty && !busy) receive(message.context); });
+
+  // ---- Rendering ----
+  function render() {
+    $('schoolYearValue').textContent = context.year;
+    $('schoolYear').hidden = !context.year;
+    root.innerHTML = `<div class="workspace">
+      <section class="periods-pane subapp-list-pane" aria-labelledby="periodsTitle">
+        <div class="subapp-pane-heading subapp-list-heading"><div><h3 id="periodsTitle">Περίοδοι</h3><p class="ui-helper">Σε επικάλυψη ισχύει η περίοδος που είναι πιο κάτω στη λίστα.</p></div></div>
+        <div class="subapp-list-row">
+          <div id="periodList" class="period-list subapp-list" role="listbox" tabindex="0" aria-labelledby="periodsTitle"></div>
+          <div class="subapp-order-controls" role="group" aria-label="Αλλαγή σειράς περιόδων">
+            <button id="up" type="button" title="Μετακίνηση πάνω" aria-label="Μετακίνηση περιόδου πάνω">${schoolIcon('up')}</button>
+            <button id="down" type="button" title="Μετακίνηση κάτω" aria-label="Μετακίνηση περιόδου κάτω">${schoolIcon('down')}</button>
+          </div>
+        </div>
+        <div class="subapp-list-actions">
+          <button id="add" type="button" class="subapp-add-button">+ Προσθήκη</button>
+          <button id="remove" type="button" class="subapp-remove-button">Αφαίρεση</button>
+          <button id="copy" type="button">Αντιγραφή με αντικαταστάσεις…</button>
+        </div>
+        <div id="periodWarnings" class="period-warnings"></div>
+        <p id="notice" class="subapp-notice" role="status"></p>
+        <section id="drafts" class="drafts-box" aria-labelledby="draftsTitle"></section>
+      </section>
+      <section id="periodPane" class="period-pane subapp-side-pane" aria-live="off"></section>
+    </div>`;
+    $('add').onclick = addPeriod;
+    $('remove').onclick = () => { const period = periodById(selectedId); if (period) removePeriod(period); };
+    $('copy').onclick = copyPeriod;
+    $('up').onclick = () => movePeriod(-1);
+    $('down').onclick = () => movePeriod(1);
+    $('periodList').addEventListener('keydown', event => {
+      if ((event.key !== 'ArrowUp' && event.key !== 'ArrowDown') || event.altKey || event.ctrlKey || event.metaKey || !draft.periods.length) return;
+      event.preventDefault();
+      const index = draft.periods.findIndex(period => period.id === selectedId);
+      const next = Math.max(0, Math.min(draft.periods.length - 1, (index < 0 ? 0 : index + (event.key === 'ArrowDown' ? 1 : -1))));
+      select(draft.periods[next].id, true);
+    });
+    renderList(); renderWarnings(); renderDrafts(); renderPane();
+    if (!introShown) { notice('Οι αλλαγές γίνονται στη σελίδα και αποθηκεύονται όλες μαζί με την «Αποθήκευση».'); introShown = true; }
+    buttons();
+  }
+  function renderList() {
+    const list = $('periodList');
+    if (!draft.periods.length) {
+      list.innerHTML = '<div class="subapp-empty subapp-empty-stack"><p>Δεν υπάρχουν περίοδοι.<br>Πάτησε «+ Προσθήκη» για να δημιουργήσεις την πρώτη.</p></div>';
+      list.removeAttribute('aria-activedescendant');
+      buttons(); return;
+    }
+    list.innerHTML = draft.periods.map(period => {
+      const empty = !programsOf(period.id).length, active = period.id === selectedId;
+      return `<div id="period-${esc(period.id)}" class="period-item${active ? ' selected' : ''}${hasErrors(period) ? ' invalid' : ''}" role="option" aria-selected="${active}" data-id="${esc(period.id)}">
+        <span class="period-name">${esc(period.name.trim() || 'Χωρίς όνομα')}${empty ? '<span class="period-empty">κενή</span>' : ''}</span>
+        <span class="period-dates">${esc(rangeText(period))}</span></div>`;
+    }).join('');
+    if (selectedId) list.setAttribute('aria-activedescendant', 'period-' + selectedId);
+    list.querySelectorAll('.period-item').forEach(item => { item.onclick = () => select(item.dataset.id, true); });
+    buttons();
+  }
+  function select(id, focusList = false) {
+    if (id === selectedId) { if (focusList) $('periodList').focus({preventScroll: true}); return; }
+    selectedId = id;
+    renderList(); renderPane();
+    const item = [...$('periodList').querySelectorAll('.period-item')].find(row => row.dataset.id === id);
+    item?.scrollIntoView({block: 'nearest'});
+    if (focusList) $('periodList').focus({preventScroll: true});
+  }
+  function renderWarnings() {
+    const warnings = T.periodWarnings(draft.periods).filter(warning => warning.type !== 'order').map(warning => warning.message);
+    const count = draft.periods.length, limit = limits().periods;
+    if (count >= limit) warnings.unshift('Η λίστα έχει ' + count + ' περιόδους, το όριο για ένα σχολικό έτος. Για νέα περίοδο, αφαίρεσε μια που δεν χρειάζεται.');
+    else if (nearLimit(count, limit)) warnings.unshift('Η λίστα έχει ' + count + ' από τις ' + limit + ' περιόδους που επιτρέπονται σε ένα σχολικό έτος.');
+    $('periodWarnings').replaceChildren(...warnings.map(message => {
+      const p = document.createElement('p'); p.className = 'ui-validation-warning'; p.textContent = message; return p;
+    }));
+  }
+  function renderDrafts() {
+    // Counts of the file, plus the drafts this page will create on «Αποθήκευση».
+    const counts = Object.fromEntries(kindKeys.map(kind => [kind, Number(context.draftCounts?.[kind]) || 0]));
+    for (const program of draft.programs) if (program.periodId == null && counts[program.kind] != null) counts[program.kind]++;
+    $('drafts').innerHTML = `<h3 id="draftsTitle">Προσχέδια υποεφαρμογών</h3>
+      <table class="drafts-table"><tbody>${kindKeys.map(kind => {
+        const owner = T.kinds[kind].ownerTitle, many = counts[kind] > DRAFT_WARNING_LIMIT;
+        return `<tr><td>${esc(kindLabel(kind))}<span class="drafts-owner">${esc(owner || 'χωρίς εφαρμογή ακόμη')}</span>${many ? '<span class="ui-validation-warning">Πολλά προσχέδια: καλό είναι να γίνει εκκαθάριση.</span>' : ''}</td><td${many ? ' class="ui-validation-warning"' : ''}>${counts[kind]}</td></tr>`;
+      }).join('')}</tbody></table>
+      <p class="ui-helper">Τα προσχέδια μεγαλώνουν το αρχείο. Καλό είναι να γίνεται εκκαθάριση μέσα από την υποεφαρμογή τους.</p>`;
+    const total = programCount(), limit = limits().programs;
+    if (total > limit || nearLimit(total, limit)) {
+      const p = document.createElement('p');
+      p.className = total > limit ? 'ui-validation-error' : 'ui-validation-warning';
+      p.textContent = total > limit
+        ? 'Το σχολικό έτος θα είχε ' + total + ' προγράμματα (μαζί με τα προσχέδια), πάνω από το όριο των ' + limit + '. Η αποθήκευση δεν θα γίνει· διάγραψε προσχέδια που δεν χρειάζονται.'
+        : 'Το σχολικό έτος έχει ' + total + ' από τα ' + limit + ' προγράμματα που επιτρέπονται, μαζί με τα προσχέδια. Καλό είναι να διαγραφούν προσχέδια που δεν χρειάζονται.';
+      $('drafts').append(p);
+    }
+  }
+  // The message under a field: a value that is not valid yet, an end before the start, or an empty name.
+  const fieldMessage = (period, key) => fieldErrors[period.id]?.[key]?.message || (key === 'to' ? orderError(period) : '') ||
+    (key === 'name' && !period.name.trim() ? 'Η περίοδος χρειάζεται όνομα.' : '');
+  function fieldHtml(key, label, value, help) {
+    const error = fieldErrors[selectedId]?.[key], message = fieldMessage(periodById(selectedId), key);
+    return `<div class="ui-field"><label for="field-${key}">${label}</label>
+      <input id="field-${key}" type="text" ${key === 'name' ? 'maxlength="200"' : 'inputmode="numeric" maxlength="10" placeholder="ηη/μμ/εεεε"'} value="${esc(error ? error.text : value)}"${message ? ' aria-invalid="true"' : ''} aria-describedby="error-${key}${help ? ' help-' + key : ''}">
+      ${help ? `<p id="help-${key}" class="ui-helper" style="margin:0">${help}</p>` : ''}
+      <p id="error-${key}" class="ui-validation-error"${message ? '' : ' hidden'}>${esc(message)}</p></div>`;
+  }
+  function renderPane() {
+    const pane = $('periodPane'), period = periodById(selectedId);
+    if (!period) {
+      pane.innerHTML = '<div class="subapp-empty pane-empty"><p>Επίλεξε μια περίοδο, ή πρόσθεσε μια νέα, για να δεις τα προγράμματά της.</p></div>';
+      return;
+    }
+    pane.innerHTML = `<div class="subapp-pane-heading"><div><h3 id="paneTitle"></h3><p class="ui-helper">Ημερομηνίες μέσα στο σχολικό έτος (${esc(yearRangeText())}).</p></div></div>
+      <div class="period-fields ui-fields">
+        ${fieldHtml('name', 'Όνομα', period.name)}
+        ${fieldHtml('from', 'Από', D.format(period.from))}
+        ${fieldHtml('to', 'Έως', D.format(period.to), period.to || fieldErrors[period.id]?.to ? '' : 'Κενό: μέχρι το τέλος του έτους.')}
+      </div>
+      <div class="kind-cards">${kindKeys.map(kind => cardHtml(period, kind)).join('')}</div>`;
+    $('paneTitle').textContent = period.name.trim() || 'Χωρίς όνομα';
+    for (const key of ['name', 'from', 'to']) {
+      const input = $('field-' + key);
+      input.addEventListener('input', () => editField(period, key, input.value));
+      input.addEventListener('change', () => { if (key !== 'name' && !fieldErrors[period.id]?.[key] && D.valid(period[key])) input.value = D.format(period[key]); });
+      input.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); input.blur(); } });
+    }
+    bindCards(period);
+  }
+  function bindCards(period) {
+    $('periodPane').querySelectorAll('[data-action]').forEach(button => {
+      const kind = button.dataset.kind;
+      button.onclick = () => {
+        if (button.dataset.action === 'import') importProgram(period, kind);
+        else if (button.dataset.action === 'current') importProgram(period, kind, true);
+        else if (button.dataset.action === 'delete') deleteProgram(period, kind);
+      };
+    });
+  }
+  // Only the cards are drawn again, so a field that is being edited keeps its text and focus.
+  function renderCards() {
+    const period = periodById(selectedId), cards = $('periodPane')?.querySelector('.kind-cards');
+    if (!period || !cards) return;
+    cards.innerHTML = kindKeys.map(kind => cardHtml(period, kind)).join('');
+    bindCards(period);
+  }
+  // Asks the host which files it remembers for each kind with one importer (school-programs:file, 'last').
+  async function loadCurrentFiles() {
+    const year = context?.year, found = {};
+    for (const kind of kindKeys) {
+      const importers = T.importers(kind);
+      if (importers.length !== 1) continue;
+      try {
+        const names = [];
+        for (const file of importers[0].files) names.push((await fileRequest('last', kind, importers[0].id, file.key))?.name || '');
+        if (names.every(Boolean)) found[kind] = names;
+      } catch { /* an older Index: no button */ }
+    }
+    if (context?.year !== year) return;
+    const changed = JSON.stringify(found) !== JSON.stringify(currentFiles) || currentFilesYear !== year;
+    currentFiles = found; currentFilesYear = year;
+    if (changed) renderCards();
+  }
+  // «Εισαγωγή / Αντικατάσταση από τρέχοντα αρχεία»: the files the host remembers, read again from the disk.
+  function currentButton(kind, replace) {
+    const names = currentFilesYear === context.year ? currentFiles[kind] : null;
+    if (!names) return '';
+    return `<div class="kind-card-actions"><button type="button" data-action="current" data-kind="${kind}" title="${esc('Ξαναδιαβάζει τα αρχεία: ' + names.join(', '))}">${replace ? 'Αντικατάσταση' : 'Εισαγωγή'} από τρέχοντα αρχεία</button></div>`;
+  }
+  function cardHtml(period, kind) {
+    const info = T.kinds[kind], program = programOf(period.id, kind);
+    const head = `<div class="kind-card-head"><h4 id="card-${kind}">${esc(info.label)}</h4><span class="kind-card-tag">${info.counts ? 'μετρά στις ώρες' : 'δεν μετρά στις ώρες'}</span></div>`;
+    // Import: from the importers of the kind (SchoolTimetable.kinds). One importer: its own label;
+    // several: «Εισαγωγή…», and the user picks the importer first.
+    const importers = T.importers(kind), importable = importers.length > 0;
+    const importLabel = importers.length === 1 ? importers[0].label + '…' : 'Εισαγωγή…';
+    if (!program) {
+      const help = importable ? '' : info.ownerTitle ? 'Ανατίθεται σε περίοδο από την εφαρμογή ' + quoted(info.ownerTitle) + '.' : 'Δεν υπάρχει ακόμη εφαρμογή για αυτό το είδος.';
+      return `<section class="kind-card" aria-labelledby="card-${kind}">${head}<div class="kind-card-empty"><p>Δεν υπάρχει πρόγραμμα</p>${help ? `<small>${esc(help)}</small>` : ''}${importable ? `<button type="button" class="primary" data-action="import" data-kind="${kind}">${esc(importLabel)}</button>${currentButton(kind, false)}` : ''}</div></section>`;
+    }
+    const s = stats(program), source = program.source || {}, facts = [];
+    if (program.name) facts.push(['Όνομα', program.name]);
+    facts.push(['Δραστηριότητες', String(s.activities)]);
+    facts.push(['Εκπαιδευτικοί', s.staff + ' με αντιστοίχιση' + (s.unmatched ? ' · ' + s.unmatched + ' χωρίς' : '')]);
+    facts.push(['Τμήματα', String(s.classes)]);
+    if (source.type === 'fet') {
+      const files = [source.csvName, source.fetName].filter(Boolean);
+      if (files.length) facts.push(['Αρχεία', files.join('\n')]);
+      if (source.importedAt) facts.push(['Εισαγωγή', D.format(localDay(source.importedAt))]);
+      if (source.oloimero?.at) facts.push(['Ολοήμερο', (source.oloimero.name ? quoted(source.oloimero.name) + ', ' : '') + D.format(localDay(source.oloimero.at))]);
+    } else if (program.updatedAt) facts.push(['Τελ. αλλαγή', D.format(localDay(program.updatedAt))]);
+    const replacements = source.modifiedAfterImport?.replacements || [];
+    const note = replacements.length ? 'Τροποποιήθηκε μετά την εισαγωγή: ' + replacements.map(item => (item.fromName || '?') + ' → ' + (item.toName || '?')).join(', ') : '';
+    const help = info.ownerTitle ? 'Αλλαγές γίνονται στην εφαρμογή ' + quoted(info.ownerTitle) + '.' : '';
+    return `<section class="kind-card" aria-labelledby="card-${kind}">${head}
+      <dl class="kind-card-facts">${facts.map(([label, value]) => `<dt>${esc(label)}</dt><dd>${esc(value).replace(/\n/g, '<br>')}</dd>`).join('')}</dl>
+      ${note ? `<p class="kind-card-note">${esc(note)}</p>` : ''}
+      ${isStored(program) ? '' : '<p class="kind-card-new">Νέο· αποθηκεύεται με την «Αποθήκευση».</p>'}
+      ${help ? `<p class="kind-card-help">${esc(help)}</p>` : ''}
+      <div class="kind-card-actions">${importable ? `<button type="button" class="primary" data-action="import" data-kind="${kind}"${importers.length === 1 ? ` title="${esc(importers[0].label)}"` : ''}>Αντικατάσταση…</button>` : ''}<button type="button" class="danger" data-action="delete" data-kind="${kind}">Διαγραφή</button></div>
+      ${importable ? currentButton(kind, true) : ''}
+    </section>`;
+  }
+
+  // ---- Period fields ----
+  function setFieldError(period, key, text, message) {
+    const errors = fieldErrors[period.id] ||= {};
+    if (message) errors[key] = {text, message}; else delete errors[key];
+    if (!Object.keys(errors).length) delete fieldErrors[period.id];
+  }
+  function showFieldState(period) {
+    for (const key of ['name', 'from', 'to']) {
+      const input = $('field-' + key), error = $('error-' + key);
+      if (!input) continue;
+      const message = fieldMessage(period, key);
+      error.textContent = message; error.hidden = !message;
+      if (message) input.setAttribute('aria-invalid', 'true'); else input.removeAttribute('aria-invalid');
+    }
+    $('paneTitle').textContent = period.name.trim() || 'Χωρίς όνομα';
+  }
+  function editField(period, key, value) {
+    if (key === 'name') {
+      period.name = value;
+    } else {
+      const textValue = value.trim(), iso = D.parse(textValue);
+      let message = '';
+      if (!textValue) message = key === 'from' ? 'Συμπλήρωσε την ημερομηνία έναρξης (ηη/μμ/εεεε).' : '';
+      else if (!iso) message = 'Γράψε την ημερομηνία ως ηη/μμ/εεεε.';
+      else if (!D.inSchoolYear(iso, context.year)) message = 'Η ημερομηνία πρέπει να είναι μέσα στο σχολικό έτος (' + yearRangeText() + ').';
+      setFieldError(period, key, value, message);
+      if (!message) period[key] = textValue ? iso : '';
+    }
+    mark(); showFieldState(period); renderList(); renderWarnings();
+  }
+
+  // ---- Periods ----
+  function addPeriod() {
+    const range = yearRange(), last = draft.periods.at(-1), today = D.today();
+    let from;
+    if (!last) from = range.from;
+    else if (last.to) from = addDays(last.to, 1);
+    else {
+      const earliest = addDays(last.from, 1);
+      from = today > earliest ? today : earliest;
+    }
+    if (from < range.from) from = range.from;
+    if (from > range.to) from = range.to;
+    const names = new Set(draft.periods.map(period => period.name.trim()));
+    let name = 'Νέα περίοδος', number = 2;
+    while (names.has(name)) name = 'Νέα περίοδος ' + number++;
+    const period = {id: uid(), name, from, to: ''};
+    draft.periods.push(period);
+    mark(); selectedId = null; renderWarnings(); select(period.id);
+    const input = $('field-name'); input?.focus(); input?.select();
+    notice('Προστέθηκε η περίοδος ' + quoted(name) + '. Συμπλήρωσε όνομα και ημερομηνίες.');
+  }
+  function movePeriod(direction) {
+    const index = draft.periods.findIndex(period => period.id === selectedId), target = index + direction;
+    if (index < 0 || target < 0 || target >= draft.periods.length) return;
+    [draft.periods[index], draft.periods[target]] = [draft.periods[target], draft.periods[index]];
+    mark(); renderList(); renderWarnings();
+    $('periodList').querySelector('.selected')?.scrollIntoView({block: 'nearest'});
+  }
+  async function removePeriod(period) {
+    const programs = programsOf(period.id), stored = programs.filter(isStored);
+    let mode = 'delete';
+    if (!programs.length) {
+      if (!await schoolConfirm('Να αφαιρεθεί η περίοδος ' + quoted(period.name.trim() || 'Χωρίς όνομα') + ';', {title: 'Αφαίρεση περιόδου', accept: 'Αφαίρεση'})) return;
+    } else if (!stored.length) {
+      if (!await schoolConfirm('Η περίοδος ' + quoted(period.name) + ' έχει προγράμματα που δεν έχουν αποθηκευτεί (' + programs.map(programText).join(', ') + '). Θα αφαιρεθούν μαζί της. Να συνεχίσω;', {title: 'Αφαίρεση περιόδου', accept: 'Αφαίρεση'})) return;
+    } else {
+      mode = await schoolChoiceDialog({
+        title: 'Αφαίρεση περιόδου',
+        content: [
+          'Η περίοδος ' + quoted(period.name) + ' έχει ' + (programs.length === 1 ? 'το πρόγραμμα: ' : programs.length + ' προγράμματα: ') + programs.map(programText).join(', ') + '. Τι να γίνει με ' + (programs.length === 1 ? 'αυτό' : 'αυτά') + ';',
+          'Κάθε προσχέδιο ανήκει στην υποεφαρμογή του είδους του (π.χ. το Ωρολόγιο στον FET Timetable Editor).' + (stored.length < programs.length ? ' Όσα δεν έχουν αποθηκευτεί ακόμη αφαιρούνται.' : '')
+        ],
+        choices: [{label: programs.length === 1 ? 'Κράτησέ το ως προσχέδιο' : 'Κράτησέ τα ως προσχέδια', value: 'draft'}, {label: programs.length === 1 ? 'Διάγραψέ το' : 'Διάγραψέ τα', value: 'delete'}]
+      });
+      if (!mode) return;
+    }
+    const now = new Date().toISOString();
+    draft.programs = draft.programs.filter(program => {
+      if (program.periodId !== period.id) return true;
+      if (mode !== 'draft' || !isStored(program)) return false;
+      program.name = draftName(program, period, 'από διαγραμμένη περίοδο');
+      program.periodId = null; program.updatedAt = now;
+      return true;
+    });
+    const index = draft.periods.indexOf(period);
+    draft.periods.splice(index, 1);
+    delete fieldErrors[period.id];
+    selectedId = draft.periods[Math.min(index, draft.periods.length - 1)]?.id || null;
+    mark(); renderList(); renderWarnings(); renderDrafts(); renderPane();
+    notice('Η περίοδος ' + quoted(period.name) + ' αφαιρέθηκε' + (mode === 'draft' && stored.length ? ' και τα προγράμματά της θα κρατηθούν ως προσχέδια' : '') + '. Πάτησε «Αποθήκευση».');
+  }
+
+  // ---- Programs ----
+  const fileRequest = (action, kind, importer, file) => schoolHost.request('school-programs:file', {action, kind, importer, file});
+  // Before a period program is replaced: keep it as a draft or replace it. A program that is not stored yet is
+  // simply replaced. → true to go on, false when the user cancelled.
+  async function replaceExisting(old, period) {
+    if (!isStored(old)) { draft.programs = draft.programs.filter(program => program !== old); return true; }
+    const choice = await schoolReplaceProgram({
+      title: 'Αντικατάσταση: ' + kindLabel(old.kind),
+      message: 'Η περίοδος ' + quoted(period.name) + ' έχει ήδη ' + programText(old) + ' (' + activitiesText(stats(old).activities) + '). Τι να γίνει με αυτό; Με «Πλήρης αντικατάσταση» διαγράφεται κατά την Αποθήκευση.',
+      suggestedName: draftName(old, period, 'αντικαταστάθηκε')
+    });
+    if (!choice) return false;
+    if (choice.mode === 'draft') { old.periodId = null; old.name = choice.name; old.updatedAt = new Date().toISOString(); }
+    else draft.programs = draft.programs.filter(program => program !== old);
+    return true;
+  }
+  // Import with an importer of the kind (SchoolTimetable.kinds), with the shared dialog schoolProgramImport.
+  //   direct: «από τρέχοντα αρχεία»: the remembered files are read and analysed first; the dialog opens only
+  //   when the analysis has errors, warnings or teachers without a match (schoolProgramImport, options.direct).
+  async function importProgram(period, kind, direct = false) {
+    if (busy) return;
+    const importers = T.importers(kind), label = kindLabel(kind);
+    if (!importers.length) return;
+    if (!context.staff?.length) { await schoolMessage('Συμπλήρωσε πρώτα το Προσωπικό του σχολικού έτους στο «Προσωπικό».', {title: 'Εισαγωγή: ' + label}); return; }
+    if (!context.teachingHours?.hours?.length) { await schoolMessage('Συμπλήρωσε πρώτα τις Ώρες Διδασκαλίας του σχολικού έτους στις «Ώρες Διδασκαλίας».', {title: 'Εισαγωγή: ' + label}); return; }
+    if (hasErrors(period)) { notice('Διόρθωσε πρώτα τα στοιχεία της περιόδου.', true); return; }
+    const importer = importers.length === 1 ? importers[0] : direct ? null : await schoolChoiceDialog({
+      title: 'Εισαγωγή: ' + label, content: 'Από πού να γίνει η εισαγωγή;',
+      choices: importers.map(item => ({label: item.label + '…', value: item}))
+    });
+    if (!importer || !periodById(period.id)) return;
+    const replacing = programOf(period.id, kind);
+    const last = {};
+    try { for (const file of importer.files) last[file.key] = await fileRequest('last', kind, importer.id, file.key); }
+    catch (error) { notice(error.message, true); return; }
+    let directAnalysis = null;
+    if (direct) setBusy(true);   // the files are read before any dialog opens
+    const program = await schoolProgramImport({
+      direct,
+      title: label + ': ' + importer.label,
+      intro: 'Περίοδος ' + quoted(period.name) + ' (' + rangeText(period) + '). ' + importer.intro,
+      files: importer.files.map(file => ({
+        key: file.key, label: file.label, last: last[file.key]?.name || '',
+        read: () => fileRequest('read', kind, importer.id, file.key), choose: () => fileRequest('choose', kind, importer.id, file.key)
+      })),
+      analyze: loaded => importer.analyze(loaded, {staff: context.staff, teachingHours: context.teachingHours, replacing}),
+      build: (analysis, options) => {
+        if (options.direct) directAnalysis = analysis;
+        return importer.build(analysis, {unmatched: options.unmatched, kind, periodId: period.id, name: ''});
+      }
+    }).finally(() => { if (direct) setBusy(false); });
+    loadCurrentFiles();
+    if (!program || !periodById(period.id)) return;
+    const current = programOf(period.id, kind);
+    if (current && !await replaceExisting(current, period)) return;
+    draft.programs.push(program);
+    mark(); renderList(); renderDrafts(); renderPane();
+    notice('Εισήχθη το πρόγραμμα ' + quoted(label) + ' της περιόδου ' + quoted(period.name) + ' (' + activitiesText(program.activities.length) + '). Πάτησε «Αποθήκευση».');
+    if (directAnalysis) {
+      // Imported without the dialog: the summary of what was read, and the information messages, if any.
+      const files = importer.files.map(file => last[file.key]?.name).filter(Boolean);
+      const summary = (directAnalysis.summary || []).map(item => item.value + ' ' + item.label).join(' · ');
+      await schoolMessage('Η εισαγωγή έγινε από τα τρέχοντα αρχεία: ' + files.join(', ') + '.\n\n' + summary + '.' +
+        (directAnalysis.info?.length ? '\n\n' + directAnalysis.info.join('\n\n') : '') + '\n\nΓια να γραφτεί στο αρχείο, πάτησε «Αποθήκευση».', {title: label + ': ' + importer.label});
+    }
+  }
+  async function deleteProgram(period, kind) {
+    const program = programOf(period.id, kind);
+    if (!program) return;
+    if (!await schoolConfirm('Να διαγραφεί ' + (kind === 'school' ? 'το ' : 'το πρόγραμμα ') + programText(program) + ' της περιόδου ' + quoted(period.name) + ';' + (isStored(program) ? ' Η διαγραφή γίνεται οριστική με την «Αποθήκευση».' : ''), {title: 'Διαγραφή προγράμματος', accept: 'Διαγραφή'})) return;
+    draft.programs = draft.programs.filter(item => item !== program);
+    mark(); renderList(); renderDrafts(); renderPane();
+    notice('Το πρόγραμμα ' + programText(program) + ' αφαιρέθηκε από την περίοδο ' + quoted(period.name) + '. Πάτησε «Αποθήκευση».');
+  }
+
+  // ---- Copy a period with replacements ----
+  function copyPeriod() {
+    if (busy || !draft.periods.length) return;
+    const staff = [...(context.staff || [])].sort(byShortName);
+    const make = (tag, attributes = {}, textValue) => {
+      const node = document.createElement(tag);
+      for (const [key, value] of Object.entries(attributes)) node.setAttribute(key, value);
+      if (textValue != null) node.textContent = textValue;
+      return node;
+    };
+    const labelled = (labelText, control) => { const label = make('label', {class: 'school-choice-field'}, labelText); label.append(control); return label; };
+    const staffSelect = (aria) => {
+      const select = make('select', {'aria-label': aria});
+      select.append(make('option', {value: ''}, '— Επίλεξε —'), ...staff.map(person => make('option', {value: person.id}, (person.shortName || person.name || person.code) + (person.name && person.shortName ? ' — ' + person.name : ''))));
+      return select;
+    };
+    const source = make('select');
+    source.append(...draft.periods.map(period => make('option', {value: period.id}, period.name + ' (' + rangeText(period) + ')')));
+    source.value = periodById(selectedId)?.id || draft.periods[0].id;
+    const name = make('input', {type: 'text', maxlength: '200'});
+    const from = make('input', {type: 'text', inputmode: 'numeric', maxlength: '10', placeholder: 'ηη/μμ/εεεε'});
+    const to = make('input', {type: 'text', inputmode: 'numeric', maxlength: '10', placeholder: 'ηη/μμ/εεεε'});
+    const suggest = () => {
+      const period = periodById(source.value);
+      const names = new Set(draft.periods.map(item => item.name.trim()));
+      let suggestion = period.name + ' – αντίγραφο', number = 2;
+      while (names.has(suggestion)) suggestion = period.name + ' – αντίγραφο ' + number++;
+      name.value = suggestion;
+      from.value = period.to && period.to < yearRange().to ? D.format(addDays(period.to, 1)) : D.format(D.inSchoolYear(D.today(), context.year) ? D.today() : period.from);
+      to.value = '';
+    };
+    suggest();
+    const rows = make('div', {class: 'copy-rows'});
+    const addRow = () => {
+      const row = make('div', {class: 'copy-row'}), a = staffSelect('Εκπαιδευτικός που αντικαθίσταται'), b = staffSelect('Εκπαιδευτικός που μπαίνει στη θέση του');
+      const remove = make('button', {type: 'button', class: 'copy-remove', title: 'Αφαίρεση αντικατάστασης', 'aria-label': 'Αφαίρεση αντικατάστασης'});
+      remove.innerHTML = schoolIcon('close');
+      remove.onclick = () => { row.remove(); update(); };
+      row.append(a, make('span', {class: 'copy-arrow', 'aria-hidden': 'true'}, '→'), b, remove);
+      rows.append(row); update();
+      return row;
+    };
+    const addButton = make('button', {type: 'button', class: 'copy-add'}, '+ Αντικατάσταση');
+    addButton.onclick = () => addRow().querySelector('select').focus();
+    const summary = make('p', {class: 'copy-summary'}), warnings = make('div', {class: 'copy-warnings'});
+    const grid = make('div', {class: 'copy-grid'});
+    grid.append(labelled('Όνομα', name), labelled('Από', from), labelled('Έως', to));
+    const form = make('div');
+    form.append(labelled('Περίοδος-πηγή', source), make('h3', {class: 'copy-section'}, 'Νέα περίοδος'), grid,
+      make('h3', {class: 'copy-section'}, 'Αντικαταστάσεις εκπαιδευτικών'),
+      make('p', {class: 'copy-help'}, 'Και οι δύο από το Προσωπικό. Χωρίς αντικαταστάσεις γίνεται απλή αντιγραφή.'),
+      rows, addButton, summary, warnings);
+    grid.after(make('p', {class: 'copy-help'}, 'Κενό «Έως»: μέχρι το τέλος του σχολικού έτους.'));
+    const replacements = () => [...rows.querySelectorAll('.copy-row')].map(row => { const [a, b] = row.querySelectorAll('select'); return {from: a.value, to: b.value}; });
+    const shortName = id => { const person = staff.find(item => item.id === id); return person ? person.shortName || person.name : '?'; };
+    function update() {
+      const period = periodById(source.value), programs = programsOf(period.id), list = replacements().filter(item => item.from && item.to && item.from !== item.to);
+      if (!programs.length) summary.textContent = 'Η περίοδος-πηγή δεν έχει προγράμματα· θα δημιουργηθεί κενή περίοδος.';
+      else {
+        const parts = kindKeys.map(kind => programs.find(program => program.kind === kind)).filter(Boolean).map(program => {
+          const changed = list.length ? T.replaceStaff(program, list).changed : 0;
+          return kindLabel(program.kind) + ' (' + activitiesText(program.activities.length) + (changed ? ', ' + changed + ' αλλάζουν' : '') + ')';
+        });
+        const fetChanged = list.length && programs.some(program => program.source?.type === 'fet' && T.replaceStaff(program, list).changed);
+        summary.textContent = 'Θα αντιγραφούν: ' + parts.join(', ') + '.' + (fetChanged ? ' Όσα προγράμματα από FET αλλάζουν θα σημειωθούν «τροποποιήθηκε μετά την εισαγωγή».' : '');
+      }
+      const messages = [];
+      const used = new Set(programs.flatMap(program => program.activities.flatMap(activity => activity.staff || [])));
+      for (const item of list) if (!used.has(item.from)) messages.push('Ο/Η ' + quoted(shortName(item.from)) + ' δεν εμφανίζεται στα προγράμματα της περιόδου-πηγής.');
+      const fromIso = D.parse(from.value), toIso = to.value.trim() ? D.parse(to.value) : '';
+      if (fromIso && (toIso || !to.value.trim())) {
+        const preview = {id: 'copy-preview', name: name.value.trim() || 'Νέα περίοδος', from: fromIso, to: toIso};
+        for (const warning of T.periodWarnings([...draft.periods, preview])) if (warning.type !== 'order' && warning.periodIds.includes(preview.id)) messages.push(warning.message);
+      }
+      warnings.replaceChildren(...messages.map(message => make('p', {class: 'ui-validation-warning'}, message)));
+    }
+    source.addEventListener('change', () => { suggest(); update(); });
+    form.addEventListener('input', update);
+    form.addEventListener('change', update);
+    update();
+    const run = () => {
+      const period = periodById(source.value), range = yearRange();
+      const newName = name.value.trim();
+      if (!newName) { name.focus(); throw Error('Συμπλήρωσε όνομα για τη νέα περίοδο.'); }
+      const fromIso = D.parse(from.value);
+      if (!fromIso || !D.inSchoolYear(fromIso, context.year)) { from.focus(); throw Error('Η ημερομηνία «Από» πρέπει να είναι ηη/μμ/εεεε, μέσα στο σχολικό έτος (' + D.format(range.from) + '–' + D.format(range.to) + ').'); }
+      let toIso = '';
+      if (to.value.trim()) {
+        toIso = D.parse(to.value);
+        if (!toIso || !D.inSchoolYear(toIso, context.year)) { to.focus(); throw Error('Η ημερομηνία «Έως» πρέπει να είναι ηη/μμ/εεεε, μέσα στο σχολικό έτος, ή κενή.'); }
+        if (toIso < fromIso) { to.focus(); throw Error('Η λήξη είναι πριν από την έναρξη.'); }
+      }
+      const list = replacements(), seen = new Set();
+      for (const item of list) {
+        if (!item.from || !item.to) throw Error('Συμπλήρωσε και τους δύο εκπαιδευτικούς σε κάθε αντικατάσταση, ή αφαίρεσε τη γραμμή.');
+        if (item.from === item.to) throw Error('Ο/Η ' + quoted(shortName(item.from)) + ' δεν μπορεί να αντικαταστήσει τον εαυτό του/της.');
+        if (seen.has(item.from)) throw Error('Ο/Η ' + quoted(shortName(item.from)) + ' εμφανίζεται σε δύο αντικαταστάσεις.');
+        seen.add(item.from);
+      }
+      return {sourceId: period.id, name: newName, from: fromIso, to: toIso, replacements: list};
+    };
+    schoolChoiceDialog({
+      title: 'Αντιγραφή περιόδου με αντικαταστάσεις', content: form,
+      actions: [{label: 'Ακύρωση'}, {label: 'Αντιγραφή', accept: true, run}]
+    }).then(result => { if (result) applyCopy(result); });
+  }
+  function applyCopy({sourceId, name, from, to, replacements}) {
+    const source = periodById(sourceId);
+    if (!source) return;
+    const now = new Date().toISOString(), period = {id: uid(), name, from, to};
+    const copies = kindKeys.map(kind => programOf(sourceId, kind)).filter(Boolean).map(program => {
+      const copy = T.replaceStaff(program, replacements, {staff: context.staff, now}).program;
+      return Object.assign(copy, {id: uid(), periodId: period.id, createdAt: now, updatedAt: now});
+    });
+    draft.periods.push(period);
+    draft.programs.push(...copies);
+    mark(); renderWarnings(); renderDrafts(); select(period.id);
+    notice('Δημιουργήθηκε η περίοδος ' + quoted(name) + (copies.length ? ' με ' + copies.length + (copies.length === 1 ? ' πρόγραμμα' : ' προγράμματα') + ' από την ' + quoted(source.name) : '') + '. Πάτησε «Αποθήκευση».');
+  }
+
+  // ---- Save ----
+  function saveOps() {
+    const before = new Map(saved.programs.map(program => [program.id, program]));
+    const after = new Map(draft.programs.map(program => [program.id, program]));
+    const ops = [];
+    for (const program of draft.programs) {
+      const old = before.get(program.id);
+      if (!old || JSON.stringify(old) !== JSON.stringify(program)) ops.push({op: 'put', program: clone(program)});
+    }
+    for (const program of saved.programs) if (!after.has(program.id)) ops.push({op: 'delete', id: program.id});
+    return ops;
+  }
+  // After «Αποθήκευση»: the file must hold exactly what the page asked for.
+  function verifySaved(result, periods, expectedDraftCounts) {
+    const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    const expected = draft.programs.filter(program => program.periodId != null);
+    const got = new Map((result.programs || []).filter(program => program.periodId != null).map(program => [program.id, program]));
+    const ok = same(result.periods, periods) && got.size === expected.length && expected.every(program => same(got.get(program.id), program)) &&
+      kindKeys.every(kind => (Number(result.draftCounts?.[kind]) || 0) === expectedDraftCounts[kind]);
+    if (!ok) throw Error('Η αποθήκευση ολοκληρώθηκε, αλλά τα δεδομένα του αρχείου δεν είναι ίδια με αυτά της σελίδας. Έλεγξε τις περιόδους και τα προγράμματα που φαίνονται τώρα. Βεβαιώσου ότι το index.html είναι η τελευταία έκδοση.');
+  }
+  async function save() {
+    if (busy || !dirty) return;
+    const invalid = draft.periods.find(hasErrors);
+    if (invalid) {
+      select(invalid.id); showFieldState(invalid);
+      notice('Διόρθωσε τα στοιχεία της περιόδου ' + quoted(invalid.name.trim() || 'Χωρίς όνομα') + ' πριν από την αποθήκευση.', true);
+      return;
+    }
+    const periodIds = new Set(draft.periods.map(period => period.id));
+    if (draft.programs.some(program => program.periodId != null && !periodIds.has(program.periodId))) { notice('Βρέθηκε πρόγραμμα σε περίοδο που δεν υπάρχει. Πάτησε «Αναίρεση Όλων».', true); return; }
+    for (const period of draft.periods) period.name = period.name.trim();
+    const periods = clone(draft.periods), ops = saveOps();
+    const expectedDraftCounts = Object.fromEntries(kindKeys.map(kind => [kind, (Number(context.draftCounts?.[kind]) || 0) + draft.programs.filter(program => program.kind === kind && program.periodId == null).length]));
+    setBusy(true);
+    let result = null;
+    try {
+      result = await schoolHost.request('school-timetables:save', {revision: context.revision, year: context.year, ops, periods});
+      verifySaved(result, periods, expectedDraftCounts);
+      receive(result);
+      notice('Οι περίοδοι και τα προγράμματα αποθηκεύτηκαν στο κοινό αρχείο .data.');
+    } catch (error) {
+      if (result) receive(result);
+      notice(error.message, true);
+    } finally { setBusy(false); }
+  }
+  $('save').onclick = save;
+  $('undo').onclick = async () => {
+    // Takes back every change since the last save; it does not read anything again.
+    if (busy || !context || !dirty) return;
+    if (!await schoolConfirm('Να απορριφθούν οι αλλαγές στις περιόδους και στα προγράμματα που δεν αποθηκεύτηκαν;', {title: 'Μη αποθηκευμένες αλλαγές', accept: 'Απόρριψη αλλαγών'})) return;
+    receive(context);
+    notice('Οι μη αποθηκευμένες αλλαγές απορρίφθηκαν.');
+  };
+  post({type: 'school-timetables:ready'});
+})();
+</script>
+</body>
+</html>
