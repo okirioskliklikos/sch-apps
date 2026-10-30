@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>FET Timetable Editor v0.94</title>
+<title>FET Timetable Editor v0.96</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -51,6 +51,7 @@ aside{display:flex;flex-direction:column;gap:0}
 .ft-source b{font-weight:650;color:var(--school-ui-label-text)}
 .ft-source + .ft-source{margin-top:4px}
 .ft-note{margin:8px 0 0;padding:6px 9px;border:1px solid var(--ft-note-border);border-radius:8px;background:var(--ft-note-bg);color:var(--ft-note-text);font-size:13px;line-height:1.45}
+.ft-import-note{box-sizing:border-box;max-width:100%;overflow-wrap:anywhere}
 .ft-warnings .ui-validation-warning,.ft-warnings .ui-validation-error{font-size:13px}
 .ft-workspace .subapp-notice{margin:8px 0 0}
 .ft-workspace .subapp-notice:empty{display:none}
@@ -119,7 +120,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="FET Timetable Editor — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>FT</span></span><span class="brand-text"><span>FET Timetable Editor</span><span class="small version">v0.94</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="FET Timetable Editor — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>FT</span></span><span class="brand-text"><span>FET Timetable Editor</span><span class="small version">v0.96</span></span></button></h1></div>
   <select id="period" aria-label="Περίοδος" disabled hidden></select>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <span class="sep" aria-hidden="true"></span>
@@ -202,6 +203,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
   let cache = null;            // indexes of the current program, rebuilt after every change
   const printDates = new Map();            // «Ισχύει από» chosen per period in this session
   let staffById = new Map(), staffRanks = new Map();
+  let gridWidthObserver = null;
 
   // ---- Small helpers ----
   const periodOf = id => context?.periods?.find(period => period.id === id) || null;
@@ -624,7 +626,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     if (note?.replacements?.length) changes.push('αντικαταστάσεις ' + note.replacements.map(item => (item.fromName || '?') + ' → ' + (item.toName || '?')).join(', '));
     if (note?.oloimero) changes.push('Εισαγωγή Ολοημέρου' + (note.oloimero.name ? ' από ' + quoted(note.oloimero.name) : ''));
     if (note?.moved) changes.push('μετακινήσεις στον FET Timetable Editor');
-    if (changes.length) box.append(el('p', 'ft-note', 'Τροποποιήθηκε μετά την εισαγωγή: ' + changes.join('· ') + '.'));
+    if (changes.length) box.append(el('p', 'ft-note ft-import-note', 'Τροποποιήθηκε μετά την εισαγωγή: ' + changes.join('· ') + '.'));
   }
   function renderWarnings() {
     const limits = {programs: 200, activities: 2000, warnRatio: 0.9, ...(context.limits || {})}, list = [];
@@ -719,6 +721,14 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     }
     table.append(head, body);
     wrap.replaceChildren(table);
+    if (gridWidthObserver) gridWidthObserver.disconnect();
+    const importNote = document.querySelector('.ft-import-note');
+    if (importNote) {
+      const matchGridWidth = () => { importNote.style.width = table.getBoundingClientRect().width + 'px'; };
+      matchGridWidth();
+      gridWidthObserver = new ResizeObserver(matchGridWidth);
+      gridWidthObserver.observe(table);
+    } else gridWidthObserver = null;
     if (!current) wrap.append(el('p', 'ft-entity-empty', view === 'classes' ? 'Επίλεξε τμήμα.' : 'Επίλεξε εκπαιδευτικό.'));
   }
   // While a card is dragged in the class view, the cells where it can go are coloured.
