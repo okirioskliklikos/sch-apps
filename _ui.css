@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινό περιβάλλον χρήστη
- * Έκδοση αρχείου: 0.21
+ * Έκδοση αρχείου: 0.22
  * Όνομα κατά την εγκατάσταση: _ui.css
  */
 
@@ -10,6 +10,7 @@
   /* Controls: every text button, select and text field is this tall, with this text size,
      wherever it sits. The vertical padding follows from the height, the line and the 1px borders. */
   --school-ui-control-height:36px;
+  --school-ui-dropdown-arrow:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath fill='%231f2937' d='M0 2h10L5 8z'/%3E%3C/svg%3E");
   --school-ui-control-font-size:16px;
   --school-ui-control-line-height:22px;
   --school-ui-control-padding-y:calc((var(--school-ui-control-height) - var(--school-ui-control-line-height) - 2px) / 2);
@@ -75,7 +76,7 @@ button,select{
 select{
   appearance:none;-webkit-appearance:none;min-height:var(--school-ui-control-height);
   padding-right:32px;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath fill='%231f2937' d='M0 2h10L5 8z'/%3E%3C/svg%3E");
+  background-image:var(--school-ui-dropdown-arrow);
   background-repeat:no-repeat;background-position:right 10px center;background-size:10px 10px
 }
 /* Text fields: the same height and text size as the buttons. Editable tables set a smaller height of their own. */
