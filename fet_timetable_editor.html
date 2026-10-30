@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>FET Timetable Editor v0.93</title>
+<title>FET Timetable Editor v0.94</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -49,6 +49,7 @@ aside{display:flex;flex-direction:column;gap:0}
 .ft-controls select{min-width:0}
 .ft-source{display:flex;flex-wrap:wrap;gap:4px 14px;margin:0;font-size:13px;color:var(--school-ui-muted);line-height:1.5}
 .ft-source b{font-weight:650;color:var(--school-ui-label-text)}
+.ft-source + .ft-source{margin-top:4px}
 .ft-note{margin:8px 0 0;padding:6px 9px;border:1px solid var(--ft-note-border);border-radius:8px;background:var(--ft-note-bg);color:var(--ft-note-text);font-size:13px;line-height:1.45}
 .ft-warnings .ui-validation-warning,.ft-warnings .ui-validation-error{font-size:13px}
 .ft-workspace .subapp-notice{margin:8px 0 0}
@@ -118,7 +119,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="FET Timetable Editor — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>FT</span></span><span class="brand-text"><span>FET Timetable Editor</span><span class="small version">v0.93</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="FET Timetable Editor — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>FT</span></span><span class="brand-text"><span>FET Timetable Editor</span><span class="small version">v0.94</span></span></button></h1></div>
   <select id="period" aria-label="Περίοδος" disabled hidden></select>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <span class="sep" aria-hidden="true"></span>
@@ -590,18 +591,27 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     [work.scrollLeft, work.scrollTop] = scroll;
   }
   function renderSource() {
-    const box = $('sourceInfo'), source = program.source || {}, parts = [], period = periodOf(periodId);
+    const box = $('sourceInfo'), source = program.source || {}, parts = [], imports = [], period = periodOf(periodId);
     if (period) parts.push(['Περίοδος', D.format(period.from) + ' – ' + (period.to ? D.format(period.to) : '…')]);
     if (source.type === 'fet') {
       const files = [source.csvName, source.fetName].filter(Boolean).join(' · ');
       if (files) parts.push(['Αρχεία', files]);
-      if (source.importedAt) parts.push(['Εισαγωγή', D.format(localDay(source.importedAt))]);
+      if (source.importedAt) imports.push(['Εισαγωγή', D.format(localDay(source.importedAt))]);
     }
-    if (source.oloimero?.at) parts.push(['Εισαγωγή Ολοημέρου', (source.oloimero.name ? quoted(source.oloimero.name) + ', ' : '') + D.format(localDay(source.oloimero.at))]);
     parts.push(['Δραστηριότητες', String(program.activities.length)]);
-    const line = el('div', 'ft-source');
-    for (const [label, value] of parts) { const span = el('span'); span.append(el('b', '', label + ': '), value); line.append(span); }
-    box.replaceChildren(line);
+    const hasOloimero = !!source.oloimero?.at;
+    if (hasOloimero) imports.push(['Εισαγωγή Ολοημέρου', (source.oloimero.name ? quoted(source.oloimero.name) + ', ' : '') + D.format(localDay(source.oloimero.at))]);
+    const sourceLine = entries => {
+      const line = el('div', 'ft-source');
+      for (const [label, value] of entries) {
+        const span = el('span');
+        span.append(el('b', '', label + ': '), value);
+        line.append(span);
+      }
+      return line;
+    };
+    box.replaceChildren(sourceLine(hasOloimero ? parts : [...parts, ...imports]));
+    if (hasOloimero) box.append(sourceLine(imports));
     const designNote = oloimeroChangeNote();
     if (designNote) box.append(el('p', 'ui-validation-warning', designNote));
     if (assign) {
