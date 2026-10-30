@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινή διάταξη υποεφαρμογών
- * Έκδοση αρχείου: 0.32
+ * Έκδοση αρχείου: 0.33
  * Όνομα κατά την εγκατάσταση: _subapp.css
  */
 
@@ -106,13 +106,18 @@ header .app-mark::before{
 }
 .save-control{display:inline-flex;align-items:stretch;position:relative}
 .save-control>button{border-radius:8px 0 0 8px}
-/* Same dropdown arrow as select; text glyphs in older applications stay hidden. */
+/* Same dropdown arrow as select; keep it separate from the button background so
+   hover and disabled backgrounds cannot hide it. */
 .save-control>.save-menu-button{
-  width:29px;padding:6px 6px;border-left:0;border-radius:0 8px 8px 0;
-  font-size:0;line-height:1;
-  background-image:var(--school-ui-dropdown-arrow);
-  background-repeat:no-repeat;background-position:center;background-size:10px 10px
+  position:relative;width:29px;padding:6px 6px;border-left:0;border-radius:0 8px 8px 0;
+  font-size:0;line-height:1
 }
+.save-control>.save-menu-button::after{
+  content:"";position:absolute;inset:0;margin:auto;width:10px;height:10px;
+  background:var(--school-ui-dropdown-arrow) center / contain no-repeat;
+  pointer-events:none
+}
+.save-control>.save-menu-button:disabled::after{opacity:.45}
 /* Change dot: a blue dot at the top left corner of a button while it has class .dirty.
    «Αποθήκευση» (.save-main) has it by default; any other button that shows pending changes takes
    .subapp-change-dot (e.g. «Ανεύρεση πεδίων» and «Παραγωγή Εγγράφων» of Documents Templater). */
