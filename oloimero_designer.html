@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ολοήμερο Designer v1.78</title>
+<title>Ολοήμερο Designer v1.79</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -267,6 +267,8 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
 .teacher-section-manager .section-manager-row{grid-template-columns:auto minmax(210px,.85fr) minmax(300px,1.3fr)}
 .teacher-section-manager :is(.section-manager-name,.section-manager-row small){overflow:visible;text-overflow:clip;white-space:normal;font-size:inherit}
 .teacher-section-manager .section-manager-row.is-enabled :is(.section-manager-name,small){font-weight:750}
+/* Unselected rows in the three ordering lists have no visible outline. */
+.section-manager-list button.section-manager-row:not(.selected){border-color:transparent}
 
 @media(max-width:800px){
   .board-usage-summary{left:12px}
@@ -585,7 +587,7 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
 <body>
 
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΟΛ</span></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v1.78</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΟΛ</span></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v1.79</span></span></button></h1></div>
   <select id="program" aria-label="Σχέδιο" hidden></select>
   <span class="ol-menu">
     <button id="planMenuButton" type="button" aria-haspopup="true" aria-expanded="false" disabled>Σχέδιο</button>
