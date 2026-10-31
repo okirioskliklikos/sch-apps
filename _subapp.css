@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινή διάταξη υποεφαρμογών
- * Έκδοση αρχείου: 0.33
+ * Έκδοση αρχείου: 0.34
  * Όνομα κατά την εγκατάσταση: _subapp.css
  */
 
@@ -430,6 +430,12 @@ button.subapp-add-button,button.subapp-remove-button{
 .subapp-import-mode label{display:flex;align-items:center;gap:8px;cursor:pointer;margin:0;font-weight:400}
 .subapp-import-mode input{margin:0;accent-color:var(--school-ui-focus);flex:none}
 .subapp-import-mode label:hover{color:var(--school-ui-primary-text)}
+/* Opt-in information panel for visually separating a summary inside a sub-application.
+   Uses the shared workspace tone for a subtle contrast against white sidebars. */
+.subapp-info-panel{
+  padding:12px 14px;border:1px solid var(--school-ui-border);
+  border-radius:10px;background:var(--school-ui-workspace-bg)
+}
 /* Record form appearance; the owning app supplies column width and alignment. */
 @container (min-width:620px){
   fieldset.subapp-record-fields{border:1px solid var(--school-ui-border);border-radius:10px;overflow:hidden;background:var(--school-ui-surface)}
