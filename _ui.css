@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινό περιβάλλον χρήστη
- * Έκδοση αρχείου: 0.23
+ * Έκδοση αρχείου: 0.24
  * Όνομα κατά την εγκατάσταση: _ui.css
  */
 
@@ -98,6 +98,22 @@ button:is(.subapp-add-button,.primary){
 }
 button:is(.subapp-add-button,.primary):hover:not(:disabled){background:#d8e8ff;border-color:#709bd3}
 button:is(.subapp-remove-button,.danger){color:#a12626}
+/* Reusable compact status button: amber for pending, green for approved.
+   A disabled button matches the disabled input fields, regardless of its status. */
+button.ui-status-button{
+  min-width:0;height:var(--school-ui-control-height);padding:0 5px;
+  border:1px solid #e6b779;border-radius:7px;
+  background:#fff0d9;color:#9a4d00;font-size:12px;font-weight:400;
+  white-space:nowrap;cursor:pointer
+}
+button.ui-status-button.is-approved{border-color:#a5d4b3;background:#e7f5ec;color:#176534}
+button.ui-status-button:not(:disabled):hover{background:#fff0d9;filter:brightness(.96)}
+button.ui-status-button.is-approved:not(:disabled):hover{background:#e7f5ec}
+button.ui-status-button:disabled{
+  opacity:1;cursor:default;background:var(--school-ui-disabled-bg);
+  color:var(--school-ui-disabled-text);border-color:var(--school-ui-control-border)
+}
+
 /* Main completing action of an application (e.g. «Παραγωγή Εγγράφων»): solid green,
    with the same text weight as every other button. */
 button.success{
