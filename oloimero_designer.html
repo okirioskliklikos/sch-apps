@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ολοήμερο Designer v1.79</title>
+<title>Ολοήμερο Designer v1.81</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -587,7 +587,7 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
 <body>
 
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΟΛ</span></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v1.79</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΟΛ</span></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v1.81</span></span></button></h1></div>
   <select id="program" aria-label="Σχέδιο" hidden></select>
   <span class="ol-menu">
     <button id="planMenuButton" type="button" aria-haspopup="true" aria-expanded="false" disabled>Σχέδιο</button>
@@ -1287,9 +1287,8 @@ function updateTeacherColorDisplay(color){
 const key=(r,c)=>`${r}-${c}`;
 const parseKey=k=>k.split("-").map(Number);
 // ---- The design shown, the changes and «Αναίρεση» ----
-// current: the design shown ({id, periodId, name, createdAt, updatedAt, csvName, importedAt, isNew, keepCopy}),
+// current: the design shown ({id, periodId, name, createdAt, updatedAt, csvName, importedAt, isNew}),
 //   or null when a period without a design is selected (selectedPeriodId). isNew: not in the file yet.
-//   keepCopy: {id, name} when a draft assigned to a period also stays among the drafts (a copy, saved with it).
 // pending: changes to other designs, saved together with «Αποθήκευση»: id → {op:'put', program} | {op:'delete'}.
 // Every change keeps a snapshot of the whole session (current, pending, the board and the sidebar), so
 // «Αναίρεση» and «Επανάληψη» cover everything. baseline: the snapshot after the last load or save; the
@@ -3602,8 +3601,7 @@ function renderNotices(){
   if(context&&current){
     const limits={programs:200,activities:2000,warnRatio:0.9,...(context.limits||{})};
     const near=(count,limit)=>count>=Math.ceil(limit*limits.warnRatio);
-    const deleted=[...pending].filter(([id,change])=>change.op==="delete"&&savedProgram(id)).length;
-    const programs=(Number(context.programCount)||savedPrograms().length)+(current.isNew?1:0)+(current.keepCopy&&current.periodId!=null?1:0)-deleted;
+    const programs=(Number(context.programCount)||savedPrograms().length)+effectivePrograms().length-savedPrograms().length;
     if(programs>limits.programs)items.push(["error",`Το σχολικό έτος θα είχε ${programs} προγράμματα (μαζί με τα προσχέδια όλων των εφαρμογών), πάνω από το όριο των ${limits.programs}. Η αποθήκευση δεν θα γίνει· διάγραψε προσχέδια που δεν χρειάζονται.`]);
     else if(near(programs,limits.programs))items.push(["warning",`Το σχολικό έτος έχει ${programs} από τα ${limits.programs} προγράμματα που επιτρέπονται, μαζί με τα προσχέδια. Καλό είναι να διαγραφούν προσχέδια που δεν χρειάζονται.`]);
     let activities=0;
@@ -3742,8 +3740,8 @@ async function copyFromPeriod(){
   setStatus(`Αντιγράφηκε το σχέδιο της περιόδου ${quoted(periodOf(chosen)?.name||"")} — αποθηκεύεται με την «Αποθήκευση»`);
 }
 
-// «Ανάθεση σε περίοδο…»: the draft moves to the period; the user chooses whether a copy of it (same name and
-// content, saved together with it) stays among the drafts. A design already there becomes a draft or is deleted.
+// «Ανάθεση σε περίοδο…»: the original draft remains unchanged; a new independent design is
+// assigned to the period. A design already there becomes a draft or is deleted.
 async function assignToPeriod(){
   closeMenus();
   if(busy||!current||current.periodId!=null)return;
@@ -3756,15 +3754,14 @@ async function assignToPeriod(){
   field.append(select);
   const chosen=await schoolChoiceDialog({
     title:"Ανάθεση σε περίοδο",
-    content:[`Να ανατεθεί το προσχέδιο ${quoted(current.name)} στην περίοδο που θα επιλέξεις, ώστε να είναι το σχέδιο Ολοημέρου της; Αν το προσχέδιο διατηρηθεί, μένει και στα προσχέδια, με το ίδιο όνομα. Η ανάθεση γίνεται με την «Αποθήκευση».`,field],
+    content:[`Να ανατεθεί το προσχέδιο ${quoted(current.name)} στην περίοδο που θα επιλέξεις, ώστε να γίνει το σχέδιο Ολοημέρου της; Το προσχέδιο θα διατηρηθεί με το ίδιο όνομα. Η ανάθεση ολοκληρώνεται με την «Αποθήκευση».`,field],
     actions:[
-      {label:"Όχι"},
-      {label:"Ανάθεση σε περίοδο (το προσχέδιο αφαιρείται)",run:()=>({periodId:select.value,keep:false})},
-      {label:"Ανάθεση σε περίοδο (το προσχέδιο διατηρείται)",accept:true,run:()=>({periodId:select.value,keep:true})}
+      {label:"Ακύρωση"},
+      {label:"Ανάθεση",accept:true,run:()=>({periodId:select.value})}
     ]
   });
   if(!chosen?.periodId)return;
-  const {periodId,keep}=chosen;
+  const {periodId}=chosen;
   const period=periodOf(periodId),occupant=designOfPeriod(periodId,effectivePrograms());
   let choice=null;
   if(occupant){
@@ -3772,14 +3769,17 @@ async function assignToPeriod(){
     if(!choice)return;
   }
   const now=nowIso(),name=current.name;
+  // Preserve the original draft with its id, name and contents. A new, independent program is assigned to the period.
+  // New or modified drafts must be written together with the assigned program on «Αποθήκευση».
+  if(currentChanged())pending.set(current.id,{op:"put",program:buildProgram({...current,updatedAt:now},captureModel())});
   if(occupant){
     const old=programForId(occupant.id);
     if(old)pending.set(occupant.id,choice.mode==="draft"?{op:"put",program:{...structuredClone(old),periodId:null,name:choice.name,updatedAt:now}}:{op:"delete"});
   }
-  current={...current,periodId,...(keep?{keepCopy:{id:crypto.randomUUID(),name}}:{})};
+  current={...current,id:crypto.randomUUID(),periodId,isNew:true,createdAt:now,updatedAt:now};
   selectedPeriodId=periodId;
   commit();renderAll();
-  setStatus(`Το προσχέδιο ${quoted(name)} ανατέθηκε στην περίοδο ${quoted(period.name)}${keep?" και διατηρείται στα προσχέδια":""} — πάτησε «Αποθήκευση»`);
+  setStatus(`Το προσχέδιο ${quoted(name)} διατηρείται και δημιουργήθηκε ανεξάρτητο σχέδιο για την περίοδο ${quoted(period.name)} — πάτησε «Αποθήκευση»`);
 }
 
 // Deleting drafts: they are removed with «Αποθήκευση». When the draft shown is deleted, the design that
@@ -3907,8 +3907,6 @@ async function saveDesigns(){
     if(current.periodId==null&&!String(current.name||"").trim()){alert("Το προσχέδιο χρειάζεται όνομα. Δώσ' το από τη «Διαχείριση προσχεδίων…».");return}
     put=buildProgram({...current,updatedAt:nowIso()},captureModel());
     ops.push({op:"put",program:put});
-    // A draft assigned to a period that stays among the drafts: a copy with its own id, saved with it.
-    if(current.keepCopy&&current.periodId!=null)ops.push({op:"put",program:{...structuredClone(put),id:current.keepCopy.id,periodId:null,name:current.keepCopy.name}});
   }
   if(!ops.length){loadClean(savedTarget());return}
   // The design shown is remembered together with this save, also a new draft (it is in the same save).
@@ -3921,7 +3919,9 @@ async function saveDesigns(){
       const stored=savedProgram(put.id);
       if(!stored||JSON.stringify(stored)!==JSON.stringify(put))throw Error("Η αποθήκευση ολοκληρώθηκε, αλλά το σχέδιο του αρχείου δεν είναι ίδιο με αυτό της σελίδας. Βεβαιώσου ότι το index.html είναι η τελευταία έκδοση.");
     }
-    if(current?.keepCopy&&current.periodId!=null&&savedProgram(current.keepCopy.id)?.periodId!==null)throw Error("Η αποθήκευση ολοκληρώθηκε, αλλά το προσχέδιο που διατηρείται δεν κρατήθηκε στο αρχείο. Βεβαιώσου ότι το index.html είναι η τελευταία έκδοση.");
+    for(const op of ops.filter(op=>op.op==="put"&&op.program.periodId==null)){
+      if(savedProgram(op.program.id)?.periodId!==null)throw Error("Η αποθήκευση ολοκληρώθηκε, αλλά ένα προσχέδιο δεν διατηρήθηκε στο αρχείο. Βεβαιώσου ότι το index.html είναι η τελευταία έκδοση.");
+    }
     if(ops.some(op=>op.op==="delete"&&savedProgram(op.id)))throw Error("Η αποθήκευση ολοκληρώθηκε, αλλά κάποιο προσχέδιο δεν διαγράφηκε από το αρχείο. Βεβαιώσου ότι το index.html είναι η τελευταία έκδοση.");
     loadClean(current&&savedProgram(current.id)?{programId:current.id}:defaultTarget());
     setStatus("Οι αλλαγές αποθηκεύτηκαν στο κοινό αρχείο .data");
