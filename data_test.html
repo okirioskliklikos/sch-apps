@@ -7,7 +7,7 @@
 <!--
   Σελίδα ελέγχου του _data.js και του _host_timetables.js, εκτός σουίτας: δεν μπαίνει στο Κεντρικό Μενού
   και δεν ακολουθεί τις συμβάσεις των υποεφαρμογών. Μπαίνει στον ίδιο φάκελο με τα δύο αρχεία και ανοίγει μόνη της.
-  Έκδοση αρχείου: 0.10
+  Έκδοση αρχείου: 0.12
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -547,7 +547,7 @@ function hostChecks() {
   // Δικαιώματα και κανόνες προγραμμάτων
   const d2 = accepts('FET Editor: ωρολόγιο στην Α περίοδο', trySave(d1, {ops: [put(school)]}, FET_APP));
   if (!d2) return;
-  rejects('FET Editor: δεν γράφει νέο σχέδιο Ολοημέρου', trySave(d1, {ops: [put(oloimero)]}, FET_APP), 'υπάρχον πρόγραμμα');
+  rejects('FET Editor: δεν γράφει νέο σχέδιο Ολοημέρου', trySave(d1, {ops: [put(oloimero)]}, FET_APP), 'μόνο ως ακριβές αντίγραφο υπάρχοντος προσχεδίου');
   rejects('Προσωπικό: δεν γράφει προγράμματα', trySave(d1, {ops: [put(school)]}, STAFF_APP), 'δεν έχει δικαίωμα');
   rejects('Ολοήμερο Designer: δεν γράφει ωρολόγιο', trySave(d1, {ops: [put({...clone(school), id: 'olo-writes-school'})]}, OLO_APP), '«Ωρολόγιο»');
   const d3 = accepts('Ολοήμερο Designer: σχέδιο στην Α περίοδο, με πηγή που δεν γνωρίζει το host', trySave(d2, {ops: [put(oloimero)]}, OLO_APP));
@@ -668,7 +668,28 @@ function hostOloimeroChecks(H, d4, staff, hours, {trySave, accepts, rejects, pro
   rejects('FET Editor: δεν μετονομάζει σχέδιο που ανατίθεται', trySave(d5, {ops: [put({...clone(saved), periodId: 'pa', name: 'Άλλο όνομα'}), {op: 'delete', id: 'prog-olo-a'}]}, FET_APP), 'χωρίς να αλλάξει');
   rejects('FET Editor: δεν σβήνει σχέδιο περιόδου χωρίς ανάθεση', trySave(d5, {ops: [{op: 'delete', id: 'prog-olo-a'}]}, FET_APP), 'μόνο όταν στη θέση του');
   rejects('FET Editor: δεν σβήνει προσχέδιο του Ολοημέρου', trySave(d5, {ops: [{op: 'delete', id: 'olo-draft'}]}, FET_APP), 'μόνο από την εφαρμογή');
-  rejects('FET Editor: δεν φτιάχνει νέο σχέδιο Ολοημέρου σε περίοδο', trySave(d5, {ops: [put({...clone(saved), id: 'olo-new', periodId: 'pa'}), {op: 'delete', id: 'prog-olo-a'}]}, FET_APP), 'υπάρχον πρόγραμμα');
+  // Νέος κανόνας: ανάθεση ακριβούς αντιγράφου σε περίοδο, με νέο id και ανέπαφο το αρχικό προσχέδιο.
+  const assignedCopy = accepts('FET Editor: νέο ανεξάρτητο σχέδιο στην περίοδο, με διατήρηση του προσχεδίου',
+    trySave(d5, {ops: [put({...clone(saved), id: 'olo-new', periodId: 'pa'}), {op: 'delete', id: 'prog-olo-a'}]}, FET_APP));
+  if (assignedCopy) {
+    const drafts = programsOf(assignedCopy), original = drafts.find(p => p.id === saved.id), periodPlan = drafts.find(p => p.id === 'olo-new');
+    check('Η ανάθεση κρατά ανέπαφο το αρχικό προσχέδιο (id, όνομα, περιεχόμενο, περίοδος)',
+      !!original && JSON.stringify(original) === JSON.stringify(saved));
+    check('Το σχέδιο περιόδου έχει νέο id αλλά ίδιο όνομα, δραστηριότητες και source',
+      !!periodPlan && periodPlan.id !== saved.id && periodPlan.periodId === 'pa' && periodPlan.name === saved.name &&
+      JSON.stringify(periodPlan.activities) === JSON.stringify(saved.activities) && JSON.stringify(periodPlan.source) === JSON.stringify(saved.source));
+    equal('Μετά την ανάθεση και πλήρη αντικατάσταση: τα σχέδια Ολοημέρου',
+      drafts.filter(p => p.kind === 'oloimero').map(p => p.id + ':' + (p.periodId || 'προσχέδιο')).sort(),
+      ['olo-draft:προσχέδιο', 'olo-new:pa']);
+    check('Η αρχική κατάσταση δεν μεταβάλλεται από την ανάθεση',
+      JSON.stringify(programsOf(d5).find(p => p.id === saved.id)) === JSON.stringify(saved) && programsOf(d5).some(p => p.id === old.id));
+  }
+  rejects('FET Editor: το νέο σχέδιο περιόδου δεν επιτρέπεται να έχει αλλαγμένες δραστηριότητες',
+    trySave(d5, {ops: [put({...clone(saved), id: 'olo-new', periodId: 'pa', activities: saved.activities.slice(1)}), {op: 'delete', id: 'prog-olo-a'}]}, FET_APP), 'ακριβές αντίγραφο');
+  rejects('FET Editor: το νέο σχέδιο περιόδου δεν επιτρέπεται να έχει άλλο όνομα',
+    trySave(d5, {ops: [put({...clone(saved), id: 'olo-new', periodId: 'pa', name: 'Άλλο όνομα'}), {op: 'delete', id: 'prog-olo-a'}]}, FET_APP), 'ακριβές αντίγραφο');
+  rejects('FET Editor: νέο σχέδιο περιόδου χωρίς υπάρχον προσχέδιο απορρίπτεται',
+    trySave(d4, {ops: [put({...clone(saved), id: 'olo-new', periodId: 'pa'}), {op: 'delete', id: 'prog-olo-a'}]}, FET_APP), 'ακριβές αντίγραφο');
   rejects('FET Editor: δεν φτιάχνει νέο προσχέδιο Ολοημέρου χωρίς ανάθεση', trySave(d5, {ops: [put({...clone(saved), id: 'olo-new'})]}, FET_APP), 'μόνο ως αντίγραφο');
   // «Ανάθεση σε περίοδο (το προσχέδιο διατηρείται)»: ακριβές αντίγραφο του προσχεδίου, στην ίδια αποθήκευση.
   const copyOf = (extra = {}) => put({...clone(saved), id: 'olo-copy', periodId: null, ...extra});
@@ -684,8 +705,19 @@ function hostOloimeroChecks(H, d4, staff, hours, {trySave, accepts, rejects, pro
   rejects('FET Editor: δύο αντίγραφα του ίδιου προσχεδίου', trySave(d5, {ops: [put({...clone(saved), periodId: 'pa'}), {op: 'delete', id: 'prog-olo-a'}, copyOf(), put({...clone(saved), id: 'olo-copy2', periodId: null})]}, FET_APP), 'μόνο ως αντίγραφο');
   rejects('FET Editor: αντίγραφο σχεδίου περιόδου (όχι προσχεδίου)', trySave(d5, {ops: [put({...clone(old), id: 'olo-copy', periodId: null, name: old.name || 'Αντίγραφο'})]}, FET_APP), 'μόνο ως αντίγραφο');
   rejects('«Σχολικά Προγράμματα»: δεν αναθέτει προσχέδιο του Ολοημέρου', trySave(d5, {ops: [put({...clone(saved), periodId: 'pa'}), {op: 'delete', id: 'prog-olo-a'}]}, H.PROGRAMS_APP), 'μόνο από την εφαρμογή του είδους του');
-  const designerMove = accepts('Ολοήμερο Designer: ανάθεση του προσχεδίου του (μετακίνηση) με αντικατάσταση', trySave(d5, {ops: [put({...clone(saved), periodId: 'pa'}), {op: 'delete', id: 'prog-olo-a'}]}, OLO_APP));
-  if (designerMove) check('Το προσχέδιο μετακινήθηκε στην περίοδο', programsOf(designerMove).find(p => p.id === 'olo-draft').periodId === 'pa');
+  const designerCopy = accepts('Ολοήμερο Designer: ανάθεση νέου ανεξάρτητου σχεδίου με διατήρηση προσχεδίου',
+    trySave(d5, {ops: [put({...clone(saved), id: 'olo-designer-period', periodId: 'pa'}), {op: 'delete', id: 'prog-olo-a'}]}, OLO_APP));
+  if (designerCopy) {
+    const plans = programsOf(designerCopy), original = plans.find(p => p.id === saved.id), assigned = plans.find(p => p.id === 'olo-designer-period');
+    check('Ο Designer διατηρεί αυτούσιο το προσχέδιο και δημιουργεί ξεχωριστό σχέδιο περιόδου',
+      !!original && JSON.stringify(original) === JSON.stringify(saved) && !!assigned && assigned.periodId === 'pa' &&
+      assigned.id !== original.id && assigned.name === original.name &&
+      JSON.stringify(assigned.activities) === JSON.stringify(original.activities) && JSON.stringify(assigned.source) === JSON.stringify(original.source));
+  }
+  // Ο host εξακολουθεί να δέχεται την παλαιότερη μετακίνηση· έλεγχος συμβατότητας, όχι η νέα ροή UI.
+  const designerMove = accepts('Ολοήμερο Designer: παλαιότερη μετακίνηση προσχεδίου εξακολουθεί να γίνεται δεκτή',
+    trySave(d5, {ops: [put({...clone(saved), periodId: 'pa'}), {op: 'delete', id: 'prog-olo-a'}]}, OLO_APP));
+  if (designerMove) check('Στην παλαιότερη μετακίνηση το id παραμένει ίδιο', programsOf(designerMove).find(p => p.id === 'olo-draft').periodId === 'pa');
   return d5;
 }
 
