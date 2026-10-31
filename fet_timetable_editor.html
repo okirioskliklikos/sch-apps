@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>FET Timetable Editor v0.96</title>
+<title>FET Timetable Editor v0.97</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -120,7 +120,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="FET Timetable Editor — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>FT</span></span><span class="brand-text"><span>FET Timetable Editor</span><span class="small version">v0.96</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="FET Timetable Editor — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>FT</span></span><span class="brand-text"><span>FET Timetable Editor</span><span class="small version">v0.97</span></span></button></h1></div>
   <select id="period" aria-label="Περίοδος" disabled hidden></select>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <span class="sep" aria-hidden="true"></span>
@@ -192,8 +192,8 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
   let program = null;          // the program as shown in the page (or null)
   let undoStack = [], redoStack = [];     // JSON snapshots of {program, assign}, for «Αναίρεση» / «Επανάληψη»
   // A draft of the Ολοήμερο Designer to assign to this period with the next «Αποθήκευση» (after an Εισαγωγή
-  // Ολοημέρου from it): {draftId, keep, copyId, replace: null | {id, mode:'draft', name} | {id, mode:'delete'}}, or null.
-  // keep: a copy of the draft (copyId, same name and content) stays among the drafts.
+  // Ολοημέρου from it): {draftId, assignedId, replace: null | {id, mode:'draft', name} | {id, mode:'delete'}}, or null.
+  // The original draft keeps its id and contents; the period receives a new, independent design.
   let assign = null;
   let busy = false, dirty = false;
   let hours = [], hoursError = '';
@@ -618,8 +618,8 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     if (designNote) box.append(el('p', 'ui-validation-warning', designNote));
     if (assign) {
       const draft = oloimeroOf(assign.draftId);
-      box.append(el('p', 'ft-note', 'Με την «Αποθήκευση» το προσχέδιο ' + quoted(draft?.name || '') + ' του Ολοημέρου ανατίθεται στην περίοδο' +
-        (assign.keep ? '· το προσχέδιο διατηρείται' : '· το προσχέδιο αφαιρείται από τα προσχέδια') +
+      box.append(el('p', 'ft-note', 'Με την «Αποθήκευση» δημιουργείται ανεξάρτητο σχέδιο Ολοημέρου για την περίοδο από το προσχέδιο ' + quoted(draft?.name || '') +
+        '· το αρχικό προσχέδιο διατηρείται' +
         (assign.replace ? (assign.replace.mode === 'draft' ? '· το σημερινό σχέδιο της περιόδου κρατιέται ως προσχέδιο ' + quoted(assign.replace.name) : '· το σημερινό σχέδιο της περιόδου διαγράφεται') : '') + '.'));
     }
     const note = source.modifiedAfterImport, changes = [];
@@ -779,14 +779,13 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
 
   // ---- Save ----
   // The assignment of a draft of the Ολοήμερο Designer, as operations of the same save (all or nothing): the
-  // draft moves to the period unchanged (with keep, an exact copy stays among the drafts); the design already
+  // original draft is unchanged; a new independent design goes to the period. The design already
   // there becomes a draft or is deleted.
   function assignOps() {
     if (!assign) return [];
     const draft = oloimeroOf(assign.draftId);
     if (!draft || draft.periodId != null) throw Error('Το προσχέδιο του Ολοημέρου που θα ανατεθεί δεν υπάρχει πια στο αρχείο. Πάτησε «Αναίρεση» για να αφαιρεθεί η ανάθεση.');
-    const ops = [{op: 'put', program: {...clone(draft), periodId}}];
-    if (assign.keep) ops.push({op: 'put', program: {...clone(draft), id: assign.copyId, periodId: null}});
+    const ops = [{op: 'put', program: {...clone(draft), id: assign.assignedId, periodId}}];
     const old = assign.replace ? oloimeroOf(assign.replace.id) : oloimeroDesigns().find(item => item.periodId === periodId);
     if (old && old.id !== draft.id) {
       if (assign.replace?.mode === 'draft') ops.push({op: 'put', program: {...clone(old), periodId: null, name: assign.replace.name, updatedAt: new Date().toISOString()}});
@@ -801,7 +800,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     let ops;
     try { ops = [...(JSON.stringify(program) !== savedJson ? [{op: 'put', program: put}] : []), ...assignOps()]; }
     catch (error) { notice(error.message, true); return; }
-    const assigned = assign?.draftId || null, keptCopy = assign?.keep ? assign.copyId : null;
+    const originalDraftId = assign?.draftId || null, assignedId = assign?.assignedId || null;
     setBusy(true);
     let result = null;
     try {
@@ -809,8 +808,8 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
       applyContext(result);
       const stored = (result.programs || []).find(item => item.id === put.id);
       if (!stored || JSON.stringify(stored) !== JSON.stringify(put)) throw Error('Η αποθήκευση ολοκληρώθηκε, αλλά το ωρολόγιο του αρχείου δεν είναι ίδιο με αυτό της σελίδας. Βεβαιώσου ότι το index.html είναι η τελευταία έκδοση.');
-      if (assigned && oloimeroOf(assigned)?.periodId !== periodId) throw Error('Η αποθήκευση ολοκληρώθηκε, αλλά το προσχέδιο του Ολοημέρου δεν ανατέθηκε στην περίοδο. Βεβαιώσου ότι το index.html είναι η τελευταία έκδοση.');
-      if (keptCopy && oloimeroOf(keptCopy)?.periodId != null) throw Error('Η αποθήκευση ολοκληρώθηκε, αλλά το αντίγραφο του προσχεδίου του Ολοημέρου δεν κρατήθηκε. Βεβαιώσου ότι το index.html και το _host_timetables.js είναι η τελευταία έκδοση.');
+      if (assignedId && oloimeroOf(assignedId)?.periodId !== periodId) throw Error('Η αποθήκευση ολοκληρώθηκε, αλλά το νέο σχέδιο Ολοημέρου δεν ανατέθηκε στην περίοδο. Βεβαιώσου ότι το index.html είναι η τελευταία έκδοση.');
+      if (originalDraftId && oloimeroOf(originalDraftId)?.periodId != null) throw Error('Η αποθήκευση ολοκληρώθηκε, αλλά το αρχικό προσχέδιο Ολοημέρου δεν διατηρήθηκε. Βεβαιώσου ότι το index.html και το _host_timetables.js είναι η τελευταία έκδοση.');
       assign = null;
       // «Αναίρεση» / «Επανάληψη» work only within the changes since the last save.
       undoStack = []; redoStack = [];
@@ -876,8 +875,8 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     if (items.length > 30) list.append(el('li', '', 'και ' + (items.length - 30) + ' ακόμη'));
     box.append(list); return box;
   };
-  // «Να ανατεθεί το προσχέδιο στην περίοδο;» → the assignment ({draftId, keep, copyId, replace}), or null.
-  // keep: the draft goes to the period and a copy of it (same name and content) stays among the drafts.
+  // «Να ανατεθεί το προσχέδιο στην περίοδο;» → the assignment ({draftId, assignedId, replace}), or null.
+  // The original draft remains untouched and the assigned design gets a new id.
   async function askAssign(design, title) {
     const period = periodOf(periodId);
     const mode = await schoolChoiceDialog({
@@ -889,7 +888,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
       ]
     });
     if (mode !== 'keep') return null;
-    const base = {draftId: design.id, keep: true, copyId: crypto.randomUUID()};
+    const base = {draftId: design.id, assignedId: crypto.randomUUID()};
     const old = oloimeroDesigns().find(item => item.periodId === periodId && item.id !== design.id);
     if (!old) return {...base, replace: null};
     const choice = await schoolReplaceProgram({

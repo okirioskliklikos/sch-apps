@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Προγράμματα στο Κεντρικό Μενού (host)
- * Έκδοση αρχείου: 0.8
+ * Έκδοση αρχείου: 0.9
  * Όνομα κατά την εγκατάσταση: _host_timetables.js
  *
  * Κώδικας μόνο του host για τα προγράμματα (timetablesByYear). Το φορτώνει το index.html μετά το
@@ -43,8 +43,8 @@
   const WARN_RATIO = 0.9;
   // Εξαιρέσεις στα δικαιώματα: μια εφαρμογή που αναθέτει σε περίοδο ένα υπάρχον πρόγραμμα άλλου είδους,
   // χωρίς να αλλάζει το περιεχόμενό του. Ο FET Timetable Editor, μετά από Εισαγωγή Ολοημέρου από
-  // προσχέδιο, αναθέτει το προσχέδιο του Ολοημέρου στην περίοδο· αν ο χρήστης κρατά το προσχέδιο, γράφει στην
-  // ίδια αποθήκευση και ένα ακριβές αντίγραφό του ως προσχέδιο (νέο id, ίδιο όνομα και περιεχόμενο).
+  // προσχέδιο, δημιουργεί ανεξάρτητο σχέδιο Ολοημέρου στην περίοδο (νέο id), αφήνοντας το αρχικό
+  // προσχέδιο ανέπαφο. Η ενέργεια αποθηκεύεται μαζί με το ωρολόγιο.
   const ASSIGN = Object.freeze({[T.kinds.school.owner]: Object.freeze(['oloimero'])});
 
   const clone = value => structuredClone(value);
@@ -260,12 +260,12 @@
     const may = kind => rights.kinds.includes(kind);
     // Είδη που η εφαρμογή μόνο αναθέτει σε περίοδο (ASSIGN): αλλάζει μόνο η περίοδος, και το όνομα όταν γίνεται
     // προσχέδιο· διαγράφει πρόγραμμα περιόδου μόνο όταν στη θέση του ανατίθεται άλλο στην ίδια αποθήκευση·
-    // φτιάχνει νέο πρόγραμμα μόνο ως ακριβές αντίγραφο (προσχέδιο) ενός προσχεδίου που ανατίθεται στην ίδια
-    // αποθήκευση.
+    // επιτρέπει επίσης νέο πρόγραμμα περιόδου μόνο ως ακριβές αντίγραφο υπάρχοντος προσχεδίου που παραμένει
+    // ανέπαφο, και την παλιότερη μετακίνηση προσχεδίου με αντίγραφο για συμβατότητα.
     const assignOnly = kind => !may(kind) && rights.assign.includes(kind);
     const withoutPlace = program => { const {periodId, name, updatedAt, ...rest} = program; return stableJson(rest); };
     const withoutCopy = program => { const {id, periodId, updatedAt, ...rest} = program; return stableJson(rest); };
-    const assignDeletes = [], assignMoves = [], assignCopies = [];
+    const assignDeletes = [], assignMoves = [], assignCopies = [], assignPeriodCopies = [];
 
     for (const op of ops) {
       if (!isObject(op) || (op.op !== 'put' && op.op !== 'delete')) throw Error('Μη έγκυρη ενέργεια στα προγράμματα.');
@@ -295,6 +295,12 @@
           puts.push(program);
           continue;
         }
+        if (!existing && program.periodId != null) {
+          assignPeriodCopies.push(program);
+          result.set(id, program);
+          puts.push(program);
+          continue;
+        }
         if (!existing) throw Error('Η εφαρμογή μπορεί μόνο να αναθέσει σε περίοδο ένα υπάρχον πρόγραμμα του είδους ' + quoted(kindLabel(program.kind)) + '.');
         if (withoutPlace(program) !== withoutPlace(existing) || (program.periodId != null && (program.name || '') !== (existing.name || ''))) throw Error('Η εφαρμογή μπορεί μόνο να αναθέσει σε περίοδο το πρόγραμμα ' + programName(existing) + ', χωρίς να αλλάξει το περιεχόμενό του.');
         if (program.periodId != null && program.periodId !== existing.periodId) assignMoves.push(program);
@@ -316,8 +322,18 @@
       if (!original) throw Error('Η εφαρμογή μπορεί να φτιάξει πρόγραμμα του είδους ' + quoted(kindLabel(copy.kind)) + ' μόνο ως αντίγραφο του προσχεδίου που ανατίθεται σε περίοδο στην ίδια αποθήκευση, χωρίς αλλαγές.');
       copied.add(original.id);
     }
+    // New-period assignment: only one exact copy per original draft, which must remain unchanged.
+    // This cannot grant the FET Editor general creation or editing rights over Ολοήμερο designs.
+    const assignedFrom = new Set();
+    for (const copy of assignPeriodCopies) {
+      const original = [...before.values()].find(item => item.periodId == null && item.kind === copy.kind &&
+        !assignedFrom.has(item.id) && withoutCopy(item) === withoutCopy(copy) &&
+        result.has(item.id) && stableJson(result.get(item.id)) === stableJson(item));
+      if (!original) throw Error('Η εφαρμογή μπορεί να αναθέσει νέο σχέδιο περιόδου μόνο ως ακριβές αντίγραφο υπάρχοντος προσχεδίου που παραμένει ανέπαφο.');
+      assignedFrom.add(original.id);
+    }
     for (const removed of assignDeletes) {
-      if (!assignMoves.some(program => program.kind === removed.kind && program.periodId === removed.periodId)) throw Error('Το πρόγραμμα ' + programName(removed) + ' σβήνεται από εδώ μόνο όταν στη θέση του ανατίθεται άλλο σχέδιο.');
+      if (![...assignMoves, ...assignPeriodCopies].some(program => program.kind === removed.kind && program.periodId === removed.periodId)) throw Error('Το πρόγραμμα ' + programName(removed) + ' σβήνεται από εδώ μόνο όταν στη θέση του ανατίθεται άλλο σχέδιο.');
     }
 
     // Κανόνες του συνόλου: κανένα πρόγραμμα σε περίοδο που δεν υπάρχει, ένα πρόγραμμα ανά είδος και περίοδο.
