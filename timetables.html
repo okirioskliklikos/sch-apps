@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Σχολικά Προγράμματα v0.7</title>
+<title>Σχολικά Προγράμματα v0.9</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -15,7 +15,7 @@
   --pg-empty-chip-bg:#eef1f5;--pg-empty-chip-text:#475467;
   --pg-new-text:#1d6b46
 }
-.workspace{display:grid;grid-template-columns:minmax(300px,390px) minmax(0,1fr);gap:24px;flex:1;min-height:0}
+#root>.subapp-connection{grid-column:1/-1;margin:20px}
 .periods-pane{display:flex;flex-direction:column;min-height:0;min-width:0}
 .periods-pane>.subapp-list-row>.period-list{min-height:150px;overflow:auto;outline-offset:2px}
 .period-item{
@@ -81,13 +81,11 @@
 .copy-summary{margin-top:16px!important;padding:10px 12px;border-radius:10px;background:var(--school-ui-label-bg);font-size:14px;line-height:1.5}
 .copy-warnings .ui-validation-warning{font-size:13px}
 
-@media(max-width:850px){
-  .workspace{grid-template-columns:1fr;overflow:auto;--subapp-stacked:1}
-  .page-main{overflow:auto}
-  /* Stacked: each pane keeps the height of its content; the whole page scrolls. */
-  .workspace>section{min-height:auto}
+@media(max-width:800px){
+  /* Shared main + aside stack vertically; scroll the main area as one. */
   .periods-pane>.subapp-list-row{flex:none}
   .periods-pane>.subapp-list-row>.period-list{max-height:45dvh}
+  .period-pane{overflow:visible;min-height:auto}
 }
 @media(max-width:620px){
   .period-fields{grid-template-columns:1fr 1fr}
@@ -106,12 +104,12 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΣΠ</span></span><span class="brand-text"><span>Σχολικά Προγράμματα</span><span class="small version">v0.7</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΣΠ</span></span><span class="brand-text"><span>Σχολικά Προγράμματα</span><span class="small version">v0.9</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <div class="header-right"><span id="schoolYear" class="school-year-indicator" hidden><span>Σχολικό έτος:</span> <span id="schoolYearValue"></span></span></div>
 </header>
-<main id="root" class="page-main"><p class="subapp-connection">Άνοιξε τα «Σχολικά Προγράμματα» από το Κεντρικό Μενού, αφού ανοίξεις το αρχείο πληροφοριών του σχολείου. Απαιτείται η τελευταία έκδοση του index.html.</p></main>
+<main id="root" class="subapp-wide-aside"><p class="subapp-connection">Άνοιξε τα «Σχολικά Προγράμματα» από το Κεντρικό Μενού, αφού ανοίξεις το αρχείο πληροφοριών του σχολείου. Απαιτείται η τελευταία έκδοση του index.html.</p></main>
 <script src="_ui.js"></script>
 <script src="_data.js"></script>
 <script>
@@ -220,8 +218,7 @@
   function render() {
     $('schoolYearValue').textContent = context.year;
     $('schoolYear').hidden = !context.year;
-    root.innerHTML = `<div class="workspace">
-      <section class="periods-pane subapp-list-pane" aria-labelledby="periodsTitle">
+    root.innerHTML = `<aside class="periods-pane subapp-list-pane" aria-labelledby="periodsTitle">
         <div class="subapp-pane-heading subapp-list-heading"><div><h3 id="periodsTitle">Περίοδοι</h3><p class="ui-helper">Σε επικάλυψη ισχύει η περίοδος που είναι πιο κάτω στη λίστα.</p></div></div>
         <div class="subapp-list-row">
           <div id="periodList" class="period-list subapp-list" role="listbox" tabindex="0" aria-labelledby="periodsTitle"></div>
@@ -238,9 +235,8 @@
         <div id="periodWarnings" class="period-warnings"></div>
         <p id="notice" class="subapp-notice" role="status"></p>
         <section id="drafts" class="drafts-box" aria-labelledby="draftsTitle"></section>
-      </section>
-      <section id="periodPane" class="period-pane subapp-side-pane" aria-live="off"></section>
-    </div>`;
+      </aside>
+      <section id="periodPane" class="period-pane page-main" aria-live="off"></section>`;
     $('add').onclick = addPeriod;
     $('remove').onclick = () => { const period = periodById(selectedId); if (period) removePeriod(period); };
     $('copy').onclick = copyPeriod;
