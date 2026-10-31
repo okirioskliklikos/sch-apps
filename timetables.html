@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Σχολικά Προγράμματα v0.6</title>
+<title>Σχολικά Προγράμματα v0.7</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -106,7 +106,7 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΣΠ</span></span><span class="brand-text"><span>Σχολικά Προγράμματα</span><span class="small version">v0.6</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΣΠ</span></span><span class="brand-text"><span>Σχολικά Προγράμματα</span><span class="small version">v0.7</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <div class="header-right"><span id="schoolYear" class="school-year-indicator" hidden><span>Σχολικό έτος:</span> <span id="schoolYearValue"></span></span></div>
@@ -362,10 +362,9 @@
   function cardHtml(period, kind) {
     const info = T.kinds[kind], program = programOf(period.id, kind);
     const head = `<div class="kind-card-head"><h4 id="card-${kind}">${esc(info.label)}</h4><span class="kind-card-tag">${info.counts ? 'μετρά στις ώρες' : 'δεν μετρά στις ώρες'}</span></div>`;
-    // Import: from the importers of the kind (SchoolTimetable.kinds). One importer: its own label;
-    // several: «Εισαγωγή…», and the user picks the importer first.
+    // Import: always show «Εισαγωγή…»; with several importers, the user chooses one first.
     const importers = T.importers(kind), importable = importers.length > 0;
-    const importLabel = importers.length === 1 ? importers[0].label + '…' : 'Εισαγωγή…';
+    const importLabel = 'Εισαγωγή…';
     if (!program) {
       const help = importable ? '' : info.ownerTitle ? 'Ανατίθεται σε περίοδο από την εφαρμογή ' + quoted(info.ownerTitle) + '.' : 'Δεν υπάρχει ακόμη εφαρμογή για αυτό το είδος.';
       return `<section class="kind-card" aria-labelledby="card-${kind}">${head}<div class="kind-card-empty"><p>Δεν υπάρχει πρόγραμμα</p>${help ? `<small>${esc(help)}</small>` : ''}${importable ? `<button type="button" class="primary" data-action="import" data-kind="${kind}">${esc(importLabel)}</button>` : ''}</div></section>`;
