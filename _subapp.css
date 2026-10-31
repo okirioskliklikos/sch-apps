@@ -434,7 +434,7 @@ button.subapp-add-button,button.subapp-remove-button{
    Uses the shared workspace tone for a subtle contrast against white sidebars. */
 .subapp-info-panel{
   padding:12px 14px;border:1px solid var(--school-ui-border);
-  border-radius:10px;background:var(--school-ui-workspace-bg)
+  border-radius:10px;background:#f8f9fa
 }
 /* Record form appearance; the owning app supplies column width and alignment. */
 @container (min-width:620px){
