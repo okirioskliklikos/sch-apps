@@ -7,7 +7,7 @@
 <!--
   Σελίδα ελέγχου του _data.js και του _host_timetables.js, εκτός σουίτας: δεν μπαίνει στο Κεντρικό Μενού
   και δεν ακολουθεί τις συμβάσεις των υποεφαρμογών. Μπαίνει στον ίδιο φάκελο με τα δύο αρχεία και ανοίγει μόνη της.
-  Έκδοση αρχείου: 0.12
+  Έκδοση αρχείου: 0.13
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -168,6 +168,8 @@ function basics() {
   equal('SchoolDate.parse: 5/9/2026, 31/02/2027, 29.02.2028', ['5/9/2026', '31/02/2027', '29.02.2028'].map(D.parse), ['2026-09-05', '', '2028-02-29']);
   equal('SchoolDate.format', D.format('2026-11-10'), '10/11/2026');
   equal('SchoolDate.schoolYear 2026-2027', D.schoolYear('2026-2027'), {from: '2026-09-01', to: '2027-08-31'});
+  equal('Αυτόματη λήξη σχολικών ετών', ['2025-2026', '2026-2027', '2027-2028'].map(D.schoolYearTeachingEnd), ['2026-06-15', '2027-06-15', '2028-06-15']);
+  equal('Μη έγκυρο σχολικό έτος: χωρίς λήξη', D.schoolYearTeachingEnd('2026-2028'), '');
   check('SchoolDate.inSchoolYear: 31/08/2027 μέσα, 31/08/2026 έξω', D.inSchoolYear('2027-08-31', '2026-2027') && !D.inSchoolYear('2026-08-31', '2026-2027'));
   equal('SchoolDate.weekday: 26/10/2026 Δευτέρα, 1/11/2026 Κυριακή', [D.weekday('2026-10-26'), D.weekday('2026-11-01')], [1, 7]);
   equal('hourTimes από longName (Δ0)', T.hourTimes({name: 'Δ0', longName: '08:00-08:15'}), {start: '08:00', end: '08:15'});
@@ -182,9 +184,16 @@ function basics() {
     {id: 'b', name: 'Β περίοδος', from: '2026-11-10', to: ''},
     {id: 'c', name: 'Γ περίοδος', from: '2027-01-08', to: '2027-06-15'}
   ];
+  const open = {id: 'open', name: 'Ανοιχτή', from: '2026-09-10', to: ''};
+  equal('Κενή λήξη υπολογίζεται, χωρίς μεταβολή των δεδομένων', [T.periodEnd(open), T.periodEnd(open, '2026-2027'), open.to], ['2027-06-15', '2027-06-15', '']);
+  equal('Ρητή ημερομηνία λήξης υπερισχύει', T.periodEnd({...open, to: '2027-07-10'}), '2027-07-10');
+  equal('Έναρξη τον Ιανουάριο: ίδιο σχολικό έτος', T.periodEnd({...open, from: '2027-01-10'}), '2027-06-15');
+  equal('15/06 ενεργή, 16/06 ανενεργή', [T.periodAt([open], '2027-06-15')?.id || null, T.periodAt([open], '2027-06-16')?.id || null], ['open', null]);
+  equal('programAt και programsAt μετά τη λήξη', [T.programAt({periods: [open], programs: [{id: 'x', periodId: 'open', kind: 'school'}]}, 'school', '2027-06-16'), T.programsAt({periods: [open], programs: [{id: 'x', periodId: 'open', kind: 'school'}]}, '2027-06-16')], [null, []]);
   const warnings = T.periodWarnings(periods);
   check('Προειδοποίηση επικάλυψης με την περίοδο που ισχύει', warnings.some(w => w.type === 'overlap' && w.message.includes('στις 10/11/2026–15/11/2026 ισχύει η «Β περίοδος»')), warnings.map(w => w.message).join('\n'));
   check('Προειδοποίηση για κενό «έως» σε περίοδο που δεν είναι τελευταία', warnings.some(w => w.type === 'openEnd' && w.periodIds[0] === 'b'));
+  check('Επικάλυψη ανοιχτής περιόδου περιορίζεται στην 15η Ιουνίου', !T.periodWarnings([open, {id: 'late', name: 'Θερινή', from: '2027-06-16', to: '2027-06-30'}]).some(w => w.type === 'overlap'));
   check('Κενό ανάμεσα σε περιόδους: χωρίς μήνυμα', T.periodWarnings([periods[0], {id: 'd', name: 'Δ', from: '2026-12-01', to: ''}]).length === 0);
   equal('Ποια περίοδος ισχύει: 12/11 → Β, 20/02/2027 → Γ, 01/09/2026 → καμία', [T.periodAt(periods, '2026-11-12')?.id, T.periodAt(periods, '2027-02-20')?.id, T.periodAt(periods, '2026-09-01')?.id ?? null], ['b', 'c', null]);
   const timetables = {periods, programs: [{id: 'p1', kind: 'school', periodId: 'a'}, {id: 'p2', kind: 'oloimero', periodId: 'b'}, {id: 'p3', kind: 'school', periodId: null, name: 'Προσχέδιο'}]};

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>FET Timetable Editor v0.97</title>
+<title>FET Timetable Editor v0.98</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -120,7 +120,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="FET Timetable Editor — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>FT</span></span><span class="brand-text"><span>FET Timetable Editor</span><span class="small version">v0.97</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="FET Timetable Editor — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>FT</span></span><span class="brand-text"><span>FET Timetable Editor</span><span class="small version">v0.98</span></span></button></h1></div>
   <select id="period" aria-label="Περίοδος" disabled hidden></select>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <span class="sep" aria-hidden="true"></span>
@@ -212,7 +212,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
   const oloimeroDesigns = () => (context?.programs || []).filter(item => item.kind === 'oloimero');
   const oloimeroOf = id => oloimeroDesigns().find(item => item.id === id) || null;
   const oloimeroName = design => design.periodId != null ? 'Ολοήμερο ' + (periodOf(design.periodId)?.name || '') : design.name || 'Προσχέδιο';
-  const periodText = period => period.name + ' (' + D.format(period.from) + ' – ' + (period.to ? D.format(period.to) : '…') + ')';
+  const periodText = period => period.name + ' (' + D.format(period.from) + ' – ' + D.format(T.periodEnd(period, context.year)) + ')';
   const notice = (textValue, error = false) => { const node = $('notice'); if (!node) return; node.textContent = textValue; node.classList.toggle('error', error); };
   const message = (textValue, title) => schoolMessage(textValue, title ? {title} : {});
   const modeSafe = () => $('mode')?.value !== 'free';
@@ -594,7 +594,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
   }
   function renderSource() {
     const box = $('sourceInfo'), source = program.source || {}, parts = [], imports = [], period = periodOf(periodId);
-    if (period) parts.push(['Περίοδος', D.format(period.from) + ' – ' + (period.to ? D.format(period.to) : '…')]);
+    if (period) parts.push(['Περίοδος', D.format(period.from) + ' – ' + D.format(T.periodEnd(period, context.year))]);
     if (source.type === 'fet') {
       const files = [source.csvName, source.fetName].filter(Boolean).join(' · ');
       if (files) parts.push(['Αρχεία', files]);

@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων
- * Έκδοση αρχείου: 0.10
+ * Έκδοση αρχείου: 0.11
  * Όνομα κατά την εγκατάσταση: _data.js
  *
  * Φορτώνεται από όσες υποεφαρμογές διαβάζουν ή γράφουν CSV, FET, ημερομηνίες ή προγράμματα, μετά
@@ -140,6 +140,10 @@
     if (!match || Number(match[2]) !== Number(match[1]) + 1) return null;
     return {from: match[1] + '-09-01', to: match[2] + '-08-31'};
   }
+  // Τελευταία ημέρα διδασκαλίας για ανοιχτή περίοδο: 15 Ιουνίου του έτους λήξης.
+  function schoolYearTeachingEnd(year) {
+    return schoolYearRange(year) ? String(year).slice(5) + '-06-15' : '';
+  }
   function inSchoolYear(value, year) {
     const range = schoolYearRange(year);
     return !!range && isoValid(value) && value >= range.from && value <= range.to;
@@ -229,8 +233,20 @@
   }
 
   // ---- Περίοδοι ----
-  // Ισχύει η περίοδος στην ημερομηνία; Κενό `to`: από το `from` και μετά.
-  const periodCovers = (period, date) => isoValid(period?.from) && date >= period.from && (!period.to || date <= period.to);
+  // Κενή λήξη: 15 Ιουνίου του σχολικού έτους της έναρξης. Το αποθηκευμένο `to` μένει κενό.
+  // Χωρίς ρητό έτος, η έναρξη Σεπ.–Δεκ. ανήκει στο έτος που αρχίζει τότε,
+  // ενώ η έναρξη Ιαν.–Αύγ. στο σχολικό έτος που άρχισε το προηγούμενο ημερολογιακό έτος.
+  function periodEnd(period, year) {
+    if (period?.to) return period.to;
+    if (!year && isoValid(period?.from)) {
+      const start = Number(period.from.slice(0, 4));
+      const beginning = Number(period.from.slice(5, 7)) >= 9 ? start : start - 1;
+      year = beginning + '-' + (beginning + 1);
+    }
+    return schoolYearTeachingEnd(year);
+  }
+  // Ισχύει η περίοδος στην ημερομηνία; το άκρο είναι συμπεριληπτικό.
+  const periodCovers = (period, date) => isoValid(period?.from) && isoValid(date) && date >= period.from && date <= periodEnd(period);
 
   // Η περίοδος που ισχύει σε μια ημερομηνία: σε επικάλυψη, αυτή που είναι πιο κάτω στη λίστα.
   function periodAt(periods, date) {
@@ -263,8 +279,9 @@
       const a = list[i], b = list[j];
       if (!isoValid(a.from) || !isoValid(b.from) || (a.to && a.to < a.from) || (b.to && b.to < b.from)) continue;
       const from = a.from > b.from ? a.from : b.from;
-      const to = !a.to ? b.to : !b.to ? a.to : (a.to < b.to ? a.to : b.to);
-      if (to && to < from) continue;
+      const endA = periodEnd(a), endB = periodEnd(b);
+      const to = endA < endB ? endA : endB;
+      if (!to || to < from) continue;
       warnings.push({type: 'overlap', periodIds: [a.id, b.id], from, to, message: 'Οι περίοδοι ' + quoted(a.name) + ' και ' + quoted(b.name) + ' επικαλύπτονται: ' + (to ? 'στις ' : '') + dateRangeText(from, to) + ' ισχύει η ' + quoted(b.name) + '.'});
     }
     return warnings;
@@ -1318,12 +1335,12 @@
   window.SchoolCsv = Object.freeze({parse, quote, detectDelimiter});
   window.SchoolFet = Object.freeze({parse: parseFet, child, children, text});
   window.SchoolText = Object.freeze({withoutTones, weekdayIndex});
-  window.SchoolDate = Object.freeze({valid: isoValid, format: formatDate, parse: parseDate, schoolYear: schoolYearRange, inSchoolYear, today, weekday: isoWeekday});
+  window.SchoolDate = Object.freeze({valid: isoValid, format: formatDate, parse: parseDate, schoolYear: schoolYearRange, schoolYearTeachingEnd, inSchoolYear, today, weekday: isoWeekday});
   window.SchoolTimetable = Object.freeze({
     kinds: KINDS, countsInHours, importers: importersOf, importer: importerOf, hourGroupKeys: HOUR_GROUPS, dayLabels: DAY_LABELS,
     STAY_MINUTES, EARLY_ARRIVAL_MINUTES,
     parseTimeRange, hourTimes, timedHours, hourGroups,
-    periodAt, programAt, programsAt, periodWarnings,
+    periodEnd, periodAt, programAt, programsAt, periodWarnings,
     homeroomClasses, classSpelling, studentsIndex, expandStudents, studentsFromNames, studentsText, homeroomTeacher, isGeneralTeacher, sortStaff,
     conflicts, studentsClash, staffHours, unavailableTimes, availability, replaceStaff,
     analyzeOloimeroReplace, applyOloimeroReplace,

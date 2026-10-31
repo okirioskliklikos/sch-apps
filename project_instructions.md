@@ -568,11 +568,12 @@
 - `window.SchoolText`:
   - `withoutTones(value)`: χωρίς τόνους και διαλυτικά, π.χ. για σύγκριση ονομάτων ή για εκτύπωση με κεφαλαία.
   - `weekdayIndex(name)`: όνομα ημέρας (D1, Δευτέρα, Δευ, Monday…) → 0–4, ή −1.
-- `window.SchoolDate`: `format(iso)` → dd/mm/yyyy, `parse(κείμενο)` → `'YYYY-MM-DD'` (ή κενό), `valid(iso)`, `schoolYear('2026-2027')` → `{from:'2026-09-01', to:'2027-08-31'}`, `inSchoolYear(iso, year)`, `today()`, `weekday(iso)` (1 = Δευτέρα … 7 = Κυριακή). Το χρησιμοποιούν όλες οι εφαρμογές αντί για δικές τους συναρτήσεις.
+- `window.SchoolDate`: `format(iso)` → dd/mm/yyyy, `parse(κείμενο)` → `'YYYY-MM-DD'` (ή κενό), `valid(iso)`, `schoolYear('2026-2027')` → `{from:'2026-09-01', to:'2027-08-31'}`, `schoolYearTeachingEnd('2026-2027')` → `'2027-06-15'`, `inSchoolYear(iso, year)`, `today()`, `weekday(iso)` (1 = Δευτέρα … 7 = Κυριακή). Το χρησιμοποιούν όλες οι εφαρμογές αντί για δικές τους συναρτήσεις.
 - `window.SchoolTimetable`:
   - ο κατάλογος ειδών: `kinds`, `countsInHours(kind)`, και οι εισαγωγείς: `importers(kind)`, `importer(kind, id)`,
   - ώρες από τις Ώρες Διδασκαλίας: `hourTimes`, `timedHours`, `hourGroups`,
-  - ποιο πρόγραμμα ισχύει σε μια ημερομηνία: `periodAt`, `programAt`, `programsAt`,
+  - ημερομηνία λήξης περιόδου: `periodEnd(period, year)` επιστρέφει την καταχωρισμένη λήξη ή, όταν το `to` είναι κενό, τη 15η Ιουνίου του σχολικού έτους. Το `year` είναι προαιρετικό και, αν παραλειφθεί, συνάγεται από την έναρξη της περιόδου. Το κενό `to` παραμένει κενό στα αποθηκευμένα δεδομένα. Η υπολογισμένη λήξη χρησιμοποιείται τόσο στην εμφάνιση όσο και στους ελέγχους ισχύος και επικάλυψης περιόδων.
+  - ποιο πρόγραμμα ισχύει σε μια ημερομηνία: `periodAt`, `programAt`, `programsAt`, με συμπεριληπτική ημερομηνία λήξης,
   - προειδοποιήσεις περιόδων: `periodWarnings`,
   - τμήματα και υπεύθυνοι: `homeroomClasses`, `classSpelling` (κανονική γραφή τμήματος: «ΣΤ1», «στ1» → «Στ1»· ό,τι δεν είναι τμήμα → κενό), `expandStudents`, `homeroomTeacher`,
   - Προσωπικό: `isGeneralTeacher(person)` (δάσκαλος = κλάδος ΠΕ70) και `sortStaff(staff)` (σειρά της λίστας «Σύντομο Όνομα»),

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ολοήμερο Designer v1.81</title>
+<title>Ολοήμερο Designer v1.82</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -587,7 +587,7 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
 <body>
 
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΟΛ</span></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v1.81</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΟΛ</span></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v1.82</span></span></button></h1></div>
   <select id="program" aria-label="Σχέδιο" hidden></select>
   <span class="ol-menu">
     <button id="planMenuButton" type="button" aria-haspopup="true" aria-expanded="false" disabled>Σχέδιο</button>
@@ -3390,7 +3390,7 @@ const asideEl=document.querySelector("aside");
 const isReady=()=>!!context&&!hoursError;
 const periodsList=()=>context?.periods||[];
 const periodOf=id=>periodsList().find(period=>period.id===id)||null;
-const periodText=period=>`${period.name} (${D.format(period.from)} – ${period.to?D.format(period.to):"…"})`;
+const periodText=period=>`${period.name} (${D.format(period.from)} – ${D.format(T.periodEnd(period,context.year))})`;
 const savedPrograms=()=>(context?.programs||[]).filter(program=>program.kind===KIND);
 const savedProgram=id=>savedPrograms().find(program=>program.id===id)||null;
 const savedOfPeriod=periodId=>savedPrograms().find(program=>program.periodId===periodId)||null;
@@ -3586,7 +3586,7 @@ function renderNoDesign(){
       button("Εισαγωγή από CSV…",()=>void importCsv({periodId:period.id})),
       button("Αντιγραφή από άλλη περίοδο…",()=>void copyFromPeriod(),{disabled:!others})
     );
-    noDesign.replaceChildren(paragraph(`Η περίοδος ${quoted(period.name)} (${D.format(period.from)} – ${period.to?D.format(period.to):"…"}) δεν έχει σχέδιο Ολοημέρου.`),actions,
+    noDesign.replaceChildren(paragraph(`Η περίοδος ${quoted(period.name)} (${D.format(period.from)} – ${D.format(T.periodEnd(period,context.year))}) δεν έχει σχέδιο Ολοημέρου.`),actions,
       paragraph("Το CSV εισάγεται με τον ίδιο τρόπο και από τα «Σχολικά Προγράμματα».","ui-helper"));
     return;
   }
