@@ -367,7 +367,7 @@ body.session-locked #app-shell { visibility:hidden; pointer-events:none; }
     <div class="sidebar-head">
       <div class="brand">
         <span class="brand-name">Εφαρμογές σχολείου</span>
-        <span class="sidebar-version" aria-label="Έκδοση 0.88">v0.88</span>
+        <span class="sidebar-version" aria-label="Έκδοση 0.89">v0.89</span>
       </div>
     </div>
     <div id="sidebar-school" class="sidebar-school" hidden><span id="nav-school-name" class="sidebar-school-name"></span><span id="nav-school-year" class="sidebar-school-year"></span></div>
@@ -1372,7 +1372,7 @@ const StaffStorage = (() => {
   // Documents Templater file picker. The last chosen file is kept in IndexedDB and passed as startIn,
   // so the picker reopens in its folder even from file:// (the picker ID, max 32 characters, is a fallback).
   let documentsPickerBusy = false;
-  function documentsLastFile(operation, value) {
+  function documentsLastFile(operation, value, key = 'documents-last-template') {
     return new Promise((resolve, reject) => {
       if (!globalThis.indexedDB) { resolve(null); return; }
       const request = indexedDB.open('school-apps-local-files', 1);
@@ -1382,7 +1382,7 @@ const StaffStorage = (() => {
         const db = request.result, tx = db.transaction('references', operation === 'get' ? 'readonly' : 'readwrite');
         const store = tx.objectStore('references');
         let item;
-        try { item = operation === 'get' ? store.get('documents-last-template') : store.put(value, 'documents-last-template'); }
+        try { item = operation === 'get' ? store.get(key) : store.put(value, key); }
         catch (error) { db.close(); reject(error); return; }
         tx.oncomplete = () => { const result = item.result; db.close(); resolve(result); };
         tx.onabort = tx.onerror = () => { db.close(); reject(tx.error || Error('Δεν αποθηκεύτηκε ο τελευταίος φάκελος προτύπων.')); };
@@ -1408,6 +1408,36 @@ const StaffStorage = (() => {
     documentsPickerBusy = true;
     recordActivity();
     try {
+      if (message.action === 'exportValues') {
+        if (typeof message.text !== 'string' || message.text.length > 50 * 1024 * 1024)
+          throw Error('Τα δεδομένα του CSV δεν είναι έγκυρα.');
+        if (typeof window.showSaveFilePicker !== 'function')
+          throw Error('Η εξαγωγή αρχείων χρειάζεται Chrome ή άλλο Chromium browser.');
+        const key = 'documents-last-export';
+        const lastExport = await documentsLastFile('get', null, key).catch(() => null);
+        const lastTemplate = lastExport ? null : await documentsLastFile('get').catch(() => null);
+        const startIn = lastExport || lastTemplate;
+        const name = String(message.suggestedName || 'Documents_Templater_Τιμές.csv')
+          .replace(/[\\/:*?"<>|]+/g, '_').slice(0, 200) || 'Documents_Templater_Τιμές.csv';
+        const options = {
+          id:'school-docs-values-export',suggestedName:name,
+          types:[{description:'CSV τιμών πεδίων',accept:{'text/csv':['.csv']}}],
+          ...(startIn && typeof startIn.getFile === 'function' ? {startIn} : {})
+        };
+        let handle;
+        try { handle = await window.showSaveFilePicker(options); }
+        catch (error) {
+          if (error.name === 'AbortError' || !options.startIn) throw error;
+          delete options.startIn;
+          handle = await window.showSaveFilePicker(options);
+        }
+        const writer = await handle.createWritable();
+        try { await writer.write(new Blob([message.text], {type:'text/csv;charset=utf-8'})); await writer.close(); }
+        catch (error) { await writer.abort().catch(() => {}); throw error; }
+        await documentsLastFile('put', handle, key).catch(() => {});
+        reply({type:'school-documents:file-result',requestId:message.requestId,ok:true,result:{name:handle.name}});
+        return;
+      }
       if (message.action !== 'openTemplates') throw Error('Άγνωστη ενέργεια επιλογής αρχείων.');
       if (typeof window.showOpenFilePicker !== 'function') throw Error('Η επιλογή αρχείων χρειάζεται Chrome ή άλλο Chromium browser.');
       const lastFile = await documentsLastFile('get').catch(() => null);
