@@ -1,4 +1,4 @@
-<!doctype html><html lang="el" class="subapp-page"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ώρες Διδασκαλίας v0.36</title><link rel="stylesheet" href="_ui.css">
+<!doctype html><html lang="el" class="subapp-page"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ώρες Διδασκαλίας v0.37</title><link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
 /* ΩΔ-specific geometry and break rows. Shared appearance: _ui.css / _subapp.css. */
@@ -47,7 +47,7 @@
  .hours-pane{min-height:400px;height:60dvh}
  .page-main{overflow:auto}
 }
-</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ώρες Διδασκαλίας — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΩΔ</span></span><span class="brand-text"><span>Ώρες Διδασκαλίας</span><span class="small version">v0.36</span></span></button></h1></div><button id="save" class="save-main" disabled>Αποθήκευση</button><button id="undo" disabled>Αναίρεση Όλων</button><button id="exportFet" disabled>Εξαγωγή σε FET...</button><div class="header-right"><span id="hoursSchoolYear" class="school-year-indicator" hidden><span>Σχολικό έτος:</span> <span id="hoursSchoolYearValue"></span></span></div></header><main id="root" class="page-main"><p class="subapp-connection">Άνοιξε τις «Ώρες Διδασκαλίας» από το Κεντρικό Μενού, αφού ανοίξεις το αρχείο πληροφοριών του σχολείου. Απαιτείται η τελευταία έκδοση του index.html.</p></main><script src="_ui.js"></script>
+</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ώρες Διδασκαλίας — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΩΔ</span></span><span class="brand-text"><span>Ώρες Διδασκαλίας</span><span class="small version">v0.37</span></span></button></h1></div><button id="save" class="save-main" disabled>Αποθήκευση</button><button id="undo" disabled>Αναίρεση Όλων</button><button id="exportFet" disabled>Εξαγωγή σε FET...</button><div class="header-right"><span id="hoursSchoolYear" class="school-year-indicator" hidden><span>Σχολικό έτος:</span> <span id="hoursSchoolYearValue"></span></span></div></header><main id="root" class="page-main"><p class="subapp-connection">Άνοιξε τις «Ώρες Διδασκαλίας» από το Κεντρικό Μενού, αφού ανοίξεις το αρχείο πληροφοριών του σχολείου. Απαιτείται η τελευταία έκδοση του index.html.</p></main><script src="_ui.js"></script>
 <script src="_data.js"></script>
 <script>
 // A category owns one shared activity tag. Hour names remain independent of tags.
@@ -163,6 +163,18 @@ window.TeachingHoursModel=(()=>{
  // Messages, requests and their time limits: schoolHost in _ui.js.
  const M=TeachingHoursModel,$=id=>document.getElementById(id),root=$('root'),esc=schoolEscape,post=schoolHost.post,Selection=schoolListSelection;
  let context=null,draft=M.normalize(),dirty=false,busy=false,selected=new Set(),anchor=null,lastFile=null,fileKey='',restorePromise=Promise.resolve();
+ // Track the last edited field across toolbar clicks and confirmation dialogs.
+ let lastField=null;
+ root.addEventListener('focusin',event=>{
+  const field=event.target;
+  if(!field.matches('input,select'))return;
+  const row=field.closest('tr[data-id]');
+  if(row)lastField={rowId:row.dataset.id,column:[...row.querySelectorAll('input,select')].indexOf(field)};
+  else if(field.id)lastField={fieldId:field.id};
+ });
+ const findLastField=()=>lastField?.fieldId?$(lastField.fieldId):lastField?.rowId?[
+  ...($('hoursList')?.querySelector(`[data-id="${lastField.rowId}"]`)?.querySelectorAll('input,select')||[])
+ ][lastField.column]:null;
  const fet=(action,extra={})=>schoolHost.request('school-hours:fet',{action,...extra});
  const order=()=>draft.hours.map(h=>h.id);
  function mark(value=true){dirty=value;post({type:'school-hours:dirty',dirty});buttons()}
@@ -204,8 +216,58 @@ window.TeachingHoursModel=(()=>{
   row.querySelector('select').onchange=event=>{h.category=event.target.value;mark();paintSelection()}});paintSelection();
  }
  function move(direction){const rows=draft.hours;if(!selected.size)return;if(direction<0){if(selected.has(rows[0]?.id))return;for(let i=1;i<rows.length;i++)if(selected.has(rows[i].id)&&!selected.has(rows[i-1].id))[rows[i-1],rows[i]]=[rows[i],rows[i-1]]}else{if(selected.has(rows.at(-1)?.id))return;for(let i=rows.length-2;i>=0;i--)if(selected.has(rows[i].id)&&!selected.has(rows[i+1].id))[rows[i+1],rows[i]]=[rows[i],rows[i+1]]}mark();renderRows();$('hoursList').focus();$('hoursList').querySelector('tr.selected')?.scrollIntoView({block:'nearest'})}
- $('save').onclick=async()=>{try{M.validate(draft);setBusy(true);const saved=structuredClone(draft);saved.hours.forEach(h=>{h.name=h.name.trim();h.fetTag=(h.fetTag||'').trim()});for(const k in saved.tags)saved.tags[k]=saved.tags[k].trim();for(const k in saved.dayTags)saved.dayTags[k]=saved.dayTags[k].trim();const c=await schoolHost.request('school-hours:save',{revision:context.revision,year:context.school.year,teachingHours:saved});mark(false);receiveContext(c);notice('Οι ώρες και οι ετικέτες αποθηκεύτηκαν στο κοινό αρχείο .data.')}catch(e){notice(e.message,true)}finally{setBusy(false)}};
- $('undo').onclick=async()=>{if(dirty&&!await schoolConfirm('Να απορριφθούν οι αλλαγές των ωρών και των ετικετών που δεν αποθηκεύτηκαν;', {title:'Μη αποθηκευμένες αλλαγές',accept:'Απόρριψη αλλαγών'}))return;mark(false);receiveContext(context);post({type:'school-hours:ready'});notice('Οι μη αποθηκευμένες αλλαγές απορρίφθηκαν.')};
+ $('save').onclick=async()=>{try{
+  M.validate(draft);setBusy(true);
+  const saved=structuredClone(draft);
+  saved.hours.forEach(h=>{h.name=h.name.trim();h.fetTag=(h.fetTag||'').trim()});
+  for(const k in saved.tags)saved.tags[k]=saved.tags[k].trim();
+  for(const k in saved.dayTags)saved.dayTags[k]=saved.dayTags[k].trim();
+  const c=await schoolHost.request('school-hours:save',{revision:context.revision,year:context.school.year,teachingHours:saved});
+  context=c;
+  // Keep the existing rows and input handlers alive; only update normalized, saved values.
+  const confirmed=M.normalize(c.teachingHours),byId=new Map(confirmed.hours.map(h=>[h.id,h]));
+  for(const h of draft.hours){const current=byId.get(h.id);if(current)Object.assign(h,current)}
+  Object.assign(draft.tags,confirmed.tags);Object.assign(draft.dayTags,confirmed.dayTags);
+  $('hoursList').querySelectorAll('tr[data-id]').forEach(row=>{
+   const h=draft.hours.find(item=>item.id===row.dataset.id);if(!h)return;
+   const [name,,tag]=row.querySelectorAll('input,select');
+   if(name)name.value=h.name;if(tag)tag.value=h.fetTag||'';
+  });
+  root.querySelectorAll('[data-tag]').forEach(input=>input.value=draft.tags[input.dataset.tag]);
+  root.querySelectorAll('[data-day-tag]').forEach(input=>input.value=draft.dayTags[input.dataset.dayTag]);
+  mark(false);
+  notice('Οι ώρες και οι ετικέτες αποθηκεύτηκαν στο κοινό αρχείο .data.');
+  const focus=findLastField();if(focus&&!focus.disabled)focus.focus({preventScroll:true});
+ }catch(e){notice(e.message,true)}finally{setBusy(false)}};
+ $('undo').onclick=async()=>{
+  if(dirty&&!await schoolConfirm('Να απορριφθούν οι αλλαγές των ωρών και των ετικετών που δεν αποθηκεύτηκαν;', {title:'Μη αποθηκευμένες αλλαγές',accept:'Απόρριψη αλλαγών'}))return;
+  const list=$('hoursList'),scrollTop=list.scrollTop,scrollLeft=list.scrollLeft;
+  const tags=$('root').querySelector('.tags-content'),tagsScroll=tags?.scrollTop||0;
+  const pageScroll=root.scrollTop,previousIds=order(),previousAnchor=anchor;
+  const previousSelection=new Set(selected),saved=M.normalize(context.teachingHours);
+  const savedIds=new Set(saved.hours.map(h=>h.id));
+  const keptRows=new Map(draft.hours.map(h=>[h.id,h]));
+  draft.hours=saved.hours.map(h=>{const old=keptRows.get(h.id);if(old){Object.keys(old).forEach(key=>delete old[key]);Object.assign(old,h);return old}return h});
+  Object.assign(draft.tags,saved.tags);Object.assign(draft.dayTags,saved.dayTags);
+  selected=new Set([...previousSelection].filter(id=>savedIds.has(id)));
+  const lostActive=!!previousAnchor&&!savedIds.has(previousAnchor);
+  if(!selected.size&&saved.hours.length){
+   const oldIndex=previousIds.indexOf(previousAnchor);
+   const fallback=saved.hours[Math.min(Math.max(oldIndex,0),saved.hours.length-1)];
+   selected.add(fallback.id);
+  }
+  anchor=savedIds.has(previousAnchor)?previousAnchor:(saved.hours.find(h=>selected.has(h.id))?.id||null);
+  mark(false);renderRows();
+  root.querySelectorAll('[data-tag]').forEach(input=>input.value=draft.tags[input.dataset.tag]);
+  root.querySelectorAll('[data-day-tag]').forEach(input=>input.value=draft.dayTags[input.dataset.dayTag]);
+  list.scrollTop=scrollTop;list.scrollLeft=scrollLeft;
+  if(tags)tags.scrollTop=tagsScroll;root.scrollTop=pageScroll;
+  const focus=findLastField();
+  if(focus&&!focus.disabled)focus.focus({preventScroll:true});
+  else if(lostActive&&anchor)list.querySelector(`tr[data-id="${anchor}"]`)?.focus({preventScroll:true});
+  if(lostActive&&anchor)list.querySelector(`tr[data-id="${anchor}"]`)?.scrollIntoView({block:'nearest'});
+  notice('Οι μη αποθηκευμένες αλλαγές απορρίφθηκαν.');
+ };
  // FET file choice: the last file of this school year or another one from the disk (shared dialog: schoolChoiceDialog).
  function fileDialog(mode){
   let exportFieldset=null;
