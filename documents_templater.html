@@ -1,4 +1,4 @@
-<!doctype html><html lang="el" class="subapp-page"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Documents Templater v0.29</title><link rel="stylesheet" href="_ui.css">
+<!doctype html><html lang="el" class="subapp-page"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Documents Templater v0.30</title><link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <script src="_lib_jszip.min.js"></script>
 <style>
@@ -46,11 +46,11 @@
    (the shared .page-main keeps overflow:hidden from 651px on). */
 @media(max-width:800px){#root{overflow:visible}.files-list{min-height:240px;max-height:45dvh}.fields-pane .fields-content{overflow:visible}}
 @media(max-width:620px){.field-grid{grid-template-columns:1fr}}
-</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Documents Templater — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>DT</span></span><span class="brand-text"><span>Documents Templater</span><span class="small version">v0.29</span></span></button></h1></div><button id="exportValues" type="button" disabled>Εξαγωγή...</button><button id="reset" type="button" disabled>Αναίρεση Όλων</button><div class="header-right"><button id="findFields" class="primary subapp-change-dot" type="button" disabled>Ανεύρεση πεδίων</button><button id="produce" class="success subapp-change-dot" type="button" disabled>Παραγωγή Εγγράφων</button></div></header>
+</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Documents Templater — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>DT</span></span><span class="brand-text"><span>Documents Templater</span><span class="small version">v0.30</span></span></button></h1></div><button id="exportValues" type="button" disabled>Εξαγωγή...</button><button id="reset" type="button" disabled>Αναίρεση Όλων</button><div class="header-right"><button id="findFields" class="primary subapp-change-dot" type="button" disabled>Ανεύρεση πεδίων</button><button id="produce" class="success subapp-change-dot" type="button" disabled>Παραγωγή Εγγράφων</button></div></header>
 <main id="layout" class="subapp-wide-aside">
 <aside id="filesPane" aria-labelledby="filesTitle">
  <h2 id="filesTitle">Αρχεία (0)</h2>
- <p class="hint">Πρότυπα Word/Excel και προαιρετικά ένα CSV με τιμές πεδίων.</p>
+ <p class="hint">Πρότυπα Word/Excel ή CSV με τιμές πεδίων.</p>
  <div id="filesList" class="files-list subapp-list" tabindex="0" aria-label="Αρχεία προτύπων"></div>
  <div class="subapp-list-actions"><button id="addFiles" class="subapp-add-button" type="button">+ Προσθήκη</button><button id="removeFiles" class="subapp-remove-button" type="button" disabled>Αφαίρεση</button></div>
  <p id="notice" class="subapp-notice" role="status"></p>
@@ -294,7 +294,7 @@ window.TemplaterModel=(()=>{
   $('produce').disabled=busy||!scanned||!fields.size;
   $('exportValues').disabled=busy||!scanned||!fields.size||!hosted;
   // The change dot shows the next step: «Ανεύρεση πεδίων» until the current files are scanned, then «Παραγωγή Εγγράφων».
-  const needScan=files.some(isTemplate)&&!scanned,pendingProduce=dirty&&scanned&&fields.size>0;
+  const needScan=files.length>0&&!scanned,pendingProduce=dirty&&scanned&&fields.size>0;
   $('findFields').classList.toggle('dirty',needScan);
   $('findFields').setAttribute('aria-label',needScan?'Ανεύρεση πεδίων — τα αρχεία δεν έχουν σαρωθεί ακόμη':'Ανεύρεση πεδίων');
   $('produce').classList.toggle('dirty',pendingProduce);
@@ -304,7 +304,7 @@ window.TemplaterModel=(()=>{
   $('addFiles').title=hosted?'Επιλογή προτύπων από τον δίσκο':'Η επιλογή από τον δίσκο γίνεται μέσα από το Κεντρικό Μενού';
   $('removeFiles').disabled=busy||!selected.size;
   $('removeFiles').textContent=selected.size>1?`Αφαίρεση (${selected.size})`:'Αφαίρεση';
-  $('findFields').disabled=busy||!files.some(isTemplate);
+  $('findFields').disabled=busy||!files.length;
   // Busy: the sidebar and the fields fade together (shared main.busy of _subapp.css).
   layout.classList.toggle('busy',busy);layout.setAttribute('aria-busy',String(busy));
  }
@@ -362,7 +362,7 @@ window.TemplaterModel=(()=>{
   files=files.filter(f=>!removing.has(f));
   for(const f of removing)selected.delete(f);
   if(anchor&&removing.has(anchor))anchor=null;
-  clearScan(files.some(isTemplate)?'Η λίστα αρχείων άλλαξε. Πάτησε ξανά «Ανεύρεση πεδίων».':'Πρόσθεσε αρχεία και πάτησε «Ανεύρεση πεδίων».');
+  clearScan(files.length?'Η λίστα αρχείων άλλαξε. Πάτησε ξανά «Ανεύρεση πεδίων».':'Πρόσθεσε αρχεία και πάτησε «Ανεύρεση πεδίων».');
   renderFiles();mark(files.length>0||values.size>0);
   notice(count===1?'Αφαιρέθηκε 1 αρχείο από τη λίστα.':`Αφαιρέθηκαν ${count} αρχεία από τη λίστα.`);
  }
@@ -413,7 +413,7 @@ window.TemplaterModel=(()=>{
  function renderFields(){
   const out=$('fieldsContent');out.replaceChildren();
   $('fieldsCount').textContent=fieldsLabel(fields.size);
-  if(!fields.size){renderFieldsPlaceholder('Δεν βρέθηκαν πεδία στα επιλεγμένα πρότυπα.');$('fieldsCount').textContent='0 πεδία';return}
+  if(!fields.size){renderFieldsPlaceholder('Δεν βρέθηκαν πεδία στα επιλεγμένα αρχεία.');$('fieldsCount').textContent='0 πεδία';return}
   $('fieldsSubtitle').textContent='Συμπλήρωσε ή έλεγξε τις τιμές.';
   const set=document.createElement('fieldset');set.className='ui-fields field-grid';set.setAttribute('aria-label','Τιμές πεδίων');
   let i=0;
@@ -433,7 +433,7 @@ window.TemplaterModel=(()=>{
   }
   out.append(set);
   const note=document.createElement('p');note.className='syntax-note ui-helper';
-  note.innerHTML='Μορφή πεδίων: <code>{{Σχολικό Έτος}}</code> · <code>{{Τιμή:Decimal}}</code> · <code>{{Μέρες:Integer}}</code> · <code>{{Ημερομηνία:Date}}</code> · <code>{{Σημειώσεις:Textarea}}</code>. Μαζί με τα έγγραφα εξάγεται CSV με τα πεδία και τις τιμές τους, που μπορείς να ξαναπροσθέσεις την επόμενη φορά.';
+  note.innerHTML=files.some(isTemplate)?'Μορφή πεδίων: <code>{{Σχολικό Έτος}}</code> · <code>{{Τιμή:Decimal}}</code> · <code>{{Μέρες:Integer}}</code> · <code>{{Ημερομηνία:Date}}</code> · <code>{{Σημειώσεις:Textarea}}</code>. Μαζί με τα έγγραφα εξάγεται CSV με τα πεδία και τις τιμές τους, που μπορείς να ξαναπροσθέσεις την επόμενη φορά.':'Οι τιμές προέρχονται από το CSV. Μπορείς να τις τροποποιήσεις και να αποθηκεύσεις νέο CSV με «Εξαγωγή...» ή «Παραγωγή Εγγράφων».';
   out.append(note);
   updateButtons();
  }
@@ -448,19 +448,21 @@ window.TemplaterModel=(()=>{
  }
  const libraryMissing=()=>{if(window.JSZip)return false;notice('Δεν φορτώθηκε η βιβλιοθήκη ανάγνωσης αρχείων. Βεβαιώσου ότι το _lib_jszip.min.js βρίσκεται στον ίδιο φάκελο με την εφαρμογή.',true);return true};
  $('findFields').onclick=async()=>{
-  if(busy||libraryMissing())return;
+  if(busy)return;
   const templates=files.filter(isTemplate),csvFiles=files.filter(isCsv);
-  if(!templates.length){notice('Πρόσθεσε τουλάχιστον ένα πρότυπο DOCX ή XLSX.',true);return}
+  if(!templates.length&&!csvFiles.length){notice('Πρόσθεσε τουλάχιστον ένα πρότυπο DOCX, XLSX ή αρχείο CSV.',true);return}
+  if(templates.length&&libraryMissing())return;
   setBusy(true);notice('Σάρωση αρχείων…');
   try{
-   const found=await M.scanTemplates(templates),csvMap=await M.loadCsvValues(csvFiles);
+   const found=templates.length?await M.scanTemplates(templates):new Map(),csvMap=await M.loadCsvValues(csvFiles);
+   if(!templates.length)for(const name of csvMap.keys())found.set(name,{name,type:'Text',sources:new Set(csvFiles.map(f=>f.name))});
    fields=found;csvMatched.clear();let changed=false;
    for(const name of fields.keys())if(csvMap.has(name)){if(values.get(name)!==csvMap.get(name))changed=true;values.set(name,csvMap.get(name));csvMatched.add(name)}
    scanned=true;renderFields();if(changed)mark(true);
-   if(!fields.size)notice('Δεν εντοπίστηκαν πεδία. Έλεγξε ότι είναι γραμμένα ως {{Όνομα}}.',true);
+   if(!fields.size)notice(templates.length?'Δεν εντοπίστηκαν πεδία. Έλεγξε ότι είναι γραμμένα ως {{Όνομα}}.':'Δεν εντοπίστηκαν πεδία στο CSV. Έλεγξε τη μορφή των στηλών «Πεδίο» και «Τιμή».',true);
    else{
     let text=fields.size===1?'Βρέθηκε 1 πεδίο.':`Βρέθηκαν ${fields.size} πεδία.`;
-    if(csvFiles.length){const absent=fields.size-csvMatched.size;text+=` Από το CSV προσυμπληρώθηκαν ${csvMatched.size} από ${fields.size}`+(absent?`· ${absent} χωρίς αντιστοιχία.`:'.')}
+    if(csvFiles.length&&templates.length){const absent=fields.size-csvMatched.size;text+=` Από το CSV προσυμπληρώθηκαν ${csvMatched.size} από ${fields.size}`+(absent?`· ${absent} χωρίς αντιστοιχία.`:'.')}
     notice(text);
    }
   }catch(error){
@@ -470,7 +472,7 @@ window.TemplaterModel=(()=>{
  };
 
  // ---- CSV values export ----
- $('exportValues').onclick=async()=>{
+ async function exportValuesCsv(){
   if(busy||!scanned||!fields.size||!hosted)return;
   setBusy(true);
   try{
@@ -482,12 +484,15 @@ window.TemplaterModel=(()=>{
   }catch(error){
    if(!/ακυρώθηκε/.test(error.message||''))notice('Το CSV δεν αποθηκεύτηκε. '+(error.message||''),true);
   }finally{setBusy(false)}
- };
+ }
+ $('exportValues').onclick=exportValuesCsv;
 
  // ---- Production ----
  function saveBlob(blob,name){const a=document.createElement('a'),url=URL.createObjectURL(blob);a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000)}
  $('produce').onclick=async()=>{
-  if(busy||!scanned||!fields.size||libraryMissing())return;
+  if(busy||!scanned||!fields.size)return;
+  if(!files.some(isTemplate)){await exportValuesCsv();return}
+  if(libraryMissing())return;
   if(!validate()){notice('Διόρθωσε πρώτα τις τιμές που σημειώνονται (Decimal ή Integer).',true);return}
   for(const [name,f] of fields)if(f.conflict){notice(`Το πεδίο «${name}» έχει διαφορετικό τύπο σε διαφορετικά πρότυπα. Διόρθωσέ το στα πρότυπα και πάτησε ξανά «Ανεύρεση πεδίων».`,true);return}
   const templates=files.filter(isTemplate),map=new Map(),typeMap=new Map();
