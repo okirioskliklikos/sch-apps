@@ -367,7 +367,7 @@ body.session-locked #app-shell { visibility:hidden; pointer-events:none; }
     <div class="sidebar-head">
       <div class="brand">
         <span class="brand-name">Εφαρμογές σχολείου</span>
-        <span class="sidebar-version" aria-label="Έκδοση 0.92">v0.92</span>
+        <span class="sidebar-version" aria-label="Έκδοση 0.93">v0.93</span>
       </div>
     </div>
     <div id="sidebar-school" class="sidebar-school" hidden><span id="nav-school-name" class="sidebar-school-name"></span><span id="nav-school-year" class="sidebar-school-year"></span></div>
@@ -1200,16 +1200,29 @@ const StaffStorage = (() => {
       if(!staffCsvHandles.length)staffCsvHandles=await staffCsvStore('get',null,key)||[];
       return staffCsvHandles.map(h=>h.name);
     }
-    if(message.action==='choose'){
+    if(message.action==='choose'||message.action==='add'){
       if(!window.showOpenFilePicker)throw Error('Η επιλογή CSV απαιτεί Chrome ή Chromium σε υπολογιστή.');
+      // Each picker can open another folder. "choose" replaces the previous list;
+      // "add" extends it, without replacing already selected files.
       const handles=await window.showOpenFilePicker({id:'school-staff-csv',...(staffCsvHandles[0]?{startIn:staffCsvHandles[0]}:{}),multiple:true,types:[{description:'CSV',accept:{'text/csv':['.csv']}}]});
       if(!handles.length)throw Error('Δεν επιλέχθηκαν αρχεία CSV.');
-      if(new Set(handles.map(h=>h.name)).size!==handles.length)throw Error('Υπάρχουν CSV με ίδιο όνομα. Επίλεξε διαφορετικά αρχεία.');
-      // Έλεγχος πριν απομνημονευθούν.
+      // Validate the whole batch before changing the remembered collection.
       for(const h of handles)SchoolCsv.staffCsvRead(await (await h.getFile()).text());
-      staffCsvHandles=handles;staffCsvReads=[];
-      await staffCsvStore('put',handles,key).catch(()=>{});
-      return handles.map(h=>h.name);
+      const selected=message.action==='add'?[...staffCsvHandles]:[];
+      for(const handle of handles){
+        let duplicate=false;
+        for(const existing of selected)if(await existing.isSameEntry(handle)){duplicate=true;break}
+        if(!duplicate)selected.push(handle);
+      }
+      staffCsvHandles=selected;staffCsvReads=[];
+      await staffCsvStore('put',selected,key).catch(()=>{});
+      return selected.map(h=>h.name);
+    }
+    if(message.action==='remove'){
+      if(!Number.isInteger(message.index)||message.index<0||message.index>=staffCsvHandles.length)throw Error('Μη έγκυρο αρχείο CSV για αφαίρεση.');
+      staffCsvHandles=staffCsvHandles.filter((_,index)=>index!==message.index);staffCsvReads=[];
+      await staffCsvStore('put',staffCsvHandles,key).catch(()=>{});
+      return staffCsvHandles.map(h=>h.name);
     }
     if(!staffCsvHandles.length)throw Error('Επίλεξε πρώτα αρχεία CSV.');
     if(message.action==='read'){
