@@ -73,7 +73,7 @@
 .staff-list-header .staff-view-buttons{grid-column:2;grid-row:1;justify-self:center}
 .staff-list-header .subapp-transfer-actions{grid-column:3;grid-row:1;justify-self:end}
 @container staff-list (max-width:520px){.staff-list-header{grid-template-columns:minmax(0,1fr) auto;gap:8px}.staff-list-header .subapp-transfer-actions{grid-column:2}.staff-list-header .staff-view-buttons{grid-column:1 / -1;grid-row:2;justify-self:center}}
-</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" aria-label="Προσωπικό — άνοιγμα κεντρικού μενού" title="Άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΠΡ</span></span><span class="brand-text"><span>Προσωπικό</span><span class="small version">v0.74</span></span></button></h1></div><button id="applyStaff" class="save-main" type="button" disabled>Αποθήκευση</button><button id="cancelStaff" type="button" disabled>Αναίρεση Όλων</button><div class="header-right"><span id="staffSchoolYear" class="school-year-indicator" hidden><span>Σχολικό έτος:</span> <span id="staffSchoolYearValue"></span></span></div></header><main id="staff-root" class="page-main"><p class="connection subapp-connection">Άνοιξε τη σελίδα «Προσωπικό» μέσα από το Κεντρικό Μενού, αφού ανοίξεις το αρχείο πληροφοριών του σχολείου.</p></main><script src="_ui.js"></script>
+</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" aria-label="Προσωπικό — άνοιγμα κεντρικού μενού" title="Άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΠΡ</span></span><span class="brand-text"><span>Προσωπικό</span><span class="small version">v0.75</span></span></button></h1></div><button id="applyStaff" class="save-main" type="button" disabled>Αποθήκευση</button><button id="cancelStaff" type="button" disabled>Αναίρεση Όλων</button><div class="header-right"><span id="staffSchoolYear" class="school-year-indicator" hidden><span>Σχολικό έτος:</span> <span id="staffSchoolYearValue"></span></span></div></header><main id="staff-root" class="page-main"><p class="connection subapp-connection">Άνοιξε τη σελίδα «Προσωπικό» μέσα από το Κεντρικό Μενού, αφού ανοίξεις το αρχείο πληροφοριών του σχολείου.</p></main><script src="_ui.js"></script>
 <script src="_data.js"></script>
 <script>
 (()=>{'use strict';
@@ -206,6 +206,11 @@ function openStaffManager(){
  refreshSaveButtons();
  const original=getYearStaff();let draft=structuredClone(original),selected=draft.length?0:-1;const sourceCodes=new WeakMap();draft.forEach((person,index)=>sourceCodes.set(person,new Set(original[index].code?[original[index].code]:[])));const pendingAttendanceCleanup=new Set(),pendingRemovals=new Map(),selectedIndices=new Set(selected>=0?[selected]:[]);let selectionAnchor=selected;const staffNameCollator=new Intl.Collator('el',{sensitivity:'base',numeric:true});
  modal('Προσωπικό',`<div class="staff-manager"><section class="staff-list-pane subapp-list-pane"><div class="staff-list-header subapp-list-heading"><div class="staff-list-top"><div class="staff-title-group"><h3 id="staffListTitle">Εκπαιδευτικοί (0)</h3></div><div class="subapp-transfer-actions" role="group" aria-label="Μεταφορά εκπαιδευτικών FET"><button id="importFet" type="button" title="Εισαγωγή εκπαιδευτικών από FET" aria-label="Εισαγωγή εκπαιδευτικών από FET">${schoolIcon('import')}</button><button id="exportFet" type="button" title="Εξαγωγή εκπαιδευτικών σε FET" aria-label="Εξαγωγή εκπαιδευτικών σε FET">${schoolIcon('export')}</button></div></div><div class="staff-list-heading"><div class="staff-view-buttons subapp-view-buttons" role="group" aria-label="Προβολή εκπαιδευτικών"><button id="staffViewFull" type="button" aria-pressed="true" title="Αλφαβητικά με πλήρες όνομα">Πλήρες όνομα</button><button id="staffViewShort" type="button" aria-pressed="false" title="Σύντομο όνομα και προσωπική σειρά">Σύντομο όνομα</button></div></div></div><div class="subapp-list-row"><div id="staffList" class="staff-list subapp-list" tabindex="0" role="listbox" aria-multiselectable="true" aria-label="Λίστα εκπαιδευτικών"><div class="subapp-empty">Δεν έχουν καταχωριστεί εκπαιδευτικοί. Πάτησε «+ Προσθήκη».</div></div><div id="staffOrderControls" class="subapp-order-controls" role="group" aria-label="Αλλαγή σειράς" hidden><button id="staffMoveUp" type="button" title="Μετακίνηση επιλογής πάνω" aria-label="Μετακίνηση επιλογής πάνω">${schoolIcon('up')}</button><button id="staffMoveDown" type="button" title="Μετακίνηση επιλογής κάτω" aria-label="Μετακίνηση επιλογής κάτω">${schoolIcon('down')}</button></div></div><div class="subapp-list-actions"><button id="addStaff" class="subapp-add-button" type="button">+ Προσθήκη</button><button id="removeStaff" class="subapp-remove-button" type="button">Αφαίρεση</button><button id="autofillStaff" type="button" hidden title="Συμπληρώνει μόνο τα κενά πεδία Είδος υπηρεσίας, Κλάδος και Υπεύθυνος τμήματος, από το σύντομο όνομα">Αυτόματη συμπλήρωση κενών</button></div><p id="staffLimitWarning" class="staff-limit-warning ui-validation-warning" role="status" hidden></p><div id="staffSummary" class="subapp-notice" aria-live="polite">Μπορείς να επιλέξεις πολλούς με Ctrl/Cmd+κλικ ή εύρος με Shift+κλικ, και να τους αφαιρέσεις μαζί.</div></section><section class="staff-details subapp-side-pane" id="staffDetails"></section></div>`,'','staff-dialog');
+ // Remember the most recently focused details field across the Save toolbar click.
+ let lastDetailFocus=null;
+ $('staffDetails').addEventListener('focusin',event=>{
+  if(event.target.matches('input,select,button.staff-leave-status'))lastDetailFocus=event.target;
+ });
  const sortedStaff=()=>draft.map((person,index)=>({person,index})).sort((a,b)=>{
    if(staffListView==='short'){
      const ar=Number.isInteger(a.person.shortNameOrder)&&a.person.shortNameOrder>=0?a.person.shortNameOrder:Infinity;
@@ -339,7 +344,26 @@ function openStaffManager(){
   const updated=normalizeStaff(draft),retainedCodes=new Set(updated.map(p=>p.code.trim()).filter(Boolean)),codesToRemove=[...pendingAttendanceCleanup].filter(code=>!retainedCodes.has(code));
   const retainedIds=new Set(updated.map(person=>person.id)),staffRemovals=[...pendingRemovals].filter(([id])=>!retainedIds.has(id)).map(([id,mode])=>({id,mode}));
   setBusy(true);setSummary('Αποθήκευση στο κοινό αρχείο…');
-  try{context=await requestSave(updated,codesToRemove,staffRemovals);data={ssdMeetings:context.ssdMeetings||{},pedagogicMeetings:context.pedagogicMeetings||{}};setDirtyState(false);openStaffManager();$('staffSummary').textContent='Το προσωπικό αποθηκεύτηκε στο κοινό αρχείο .data.'+(staffRemovals.length?' Ενημερώθηκαν και τα προγράμματα όπου εμφανίζονταν όσοι αφαιρέθηκαν.':'')}
+  try{
+   context=await requestSave(updated,codesToRemove,staffRemovals);
+   data={ssdMeetings:context.ssdMeetings||{},pedagogicMeetings:context.pedagogicMeetings||{}};
+   // Keep the detail fields and their event handlers alive; refresh the saved records in place.
+   const saved=normalizeStaff(context.staff||[]);
+   draft.forEach((person,index)=>{
+    if(saved[index])Object.assign(person,saved[index]);
+    for(const key of ['manualAdded','manualUpdated','importAdded','importUpdated'])delete person[key];
+    sourceCodes.set(person,new Set(person.code?[person.code]:[]));
+   });
+   const removedFromPrograms=staffRemovals.length>0;
+   pendingAttendanceCleanup.clear();
+   pendingRemovals.clear();
+   const list=$('staffList'),listScroll=list.scrollTop;
+   setDirtyState(false);
+   renderList();
+   list.scrollTop=listScroll;
+   $('staffSummary').textContent='Το προσωπικό αποθηκεύτηκε στο κοινό αρχείο .data.'+(removedFromPrograms?' Ενημερώθηκαν και τα προγράμματα όπου εμφανίζονταν όσοι αφαιρέθηκαν.':'');
+   if(lastDetailFocus?.isConnected&&!lastDetailFocus.disabled)lastDetailFocus.focus({preventScroll:true});
+  }
   catch(error){setSummary(error.message,true)}finally{setBusy(false)}
  };
 }
