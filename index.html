@@ -367,7 +367,7 @@ body.session-locked #app-shell { visibility:hidden; pointer-events:none; }
     <div class="sidebar-head">
       <div class="brand">
         <span class="brand-name">Εφαρμογές σχολείου</span>
-        <span class="sidebar-version" aria-label="Έκδοση 0.91">v0.91</span>
+        <span class="sidebar-version" aria-label="Έκδοση 0.92">v0.92</span>
       </div>
     </div>
     <div id="sidebar-school" class="sidebar-school" hidden><span id="nav-school-name" class="sidebar-school-name"></span><span id="nav-school-year" class="sidebar-school-year"></span></div>
@@ -1180,6 +1180,73 @@ const StaffStorage = (() => {
     }
     throw Error('Άγνωστη ενέργεια FET.');
   }
+  // Ξεχωριστή απομνημόνευση πολλών CSV ανά σχολείο/έτος. Τα handles δεν περνούν από iframe.
+  let staffCsvHandles=[],staffCsvKey='',staffCsvReads=[];
+  function staffCsvStore(mode,value,key){return new Promise((resolve,reject)=>{
+    if(!globalThis.indexedDB){resolve(null);return}
+    const req=indexedDB.open('school-staff-linked-csv',1);
+    req.onupgradeneeded=()=>req.result.createObjectStore('files');
+    req.onerror=()=>reject(req.error);
+    req.onsuccess=()=>{const db=req.result,tx=db.transaction('files',mode==='get'?'readonly':'readwrite'),store=tx.objectStore('files');
+      const op=mode==='get'?store.get(key):store.put(value,key);let result;
+      op.onsuccess=()=>result=op.result;tx.oncomplete=()=>{db.close();resolve(result)};tx.onerror=()=>{db.close();reject(tx.error)};
+    };
+  })}
+  async function staffCsvAction(message){
+    if(!sharedData)throw Error('Άνοιξε πρώτα το αρχείο πληροφοριών.');
+    const key=JSON.stringify([sharedData.school.name,sharedData.school.year]);
+    if(staffCsvKey!==key){staffCsvKey=key;staffCsvHandles=[];staffCsvReads=[]}
+    if(message.action==='restore'){
+      if(!staffCsvHandles.length)staffCsvHandles=await staffCsvStore('get',null,key)||[];
+      return staffCsvHandles.map(h=>h.name);
+    }
+    if(message.action==='choose'){
+      if(!window.showOpenFilePicker)throw Error('Η επιλογή CSV απαιτεί Chrome ή Chromium σε υπολογιστή.');
+      const handles=await window.showOpenFilePicker({id:'school-staff-csv',...(staffCsvHandles[0]?{startIn:staffCsvHandles[0]}:{}),multiple:true,types:[{description:'CSV',accept:{'text/csv':['.csv']}}]});
+      if(!handles.length)throw Error('Δεν επιλέχθηκαν αρχεία CSV.');
+      if(new Set(handles.map(h=>h.name)).size!==handles.length)throw Error('Υπάρχουν CSV με ίδιο όνομα. Επίλεξε διαφορετικά αρχεία.');
+      // Έλεγχος πριν απομνημονευθούν.
+      for(const h of handles)SchoolCsv.staffCsvRead(await (await h.getFile()).text());
+      staffCsvHandles=handles;staffCsvReads=[];
+      await staffCsvStore('put',handles,key).catch(()=>{});
+      return handles.map(h=>h.name);
+    }
+    if(!staffCsvHandles.length)throw Error('Επίλεξε πρώτα αρχεία CSV.');
+    if(message.action==='read'){
+      const files=[];staffCsvReads=[];
+      for(const h of staffCsvHandles){
+        let permission=await h.queryPermission({mode:'readwrite'});
+        if(permission!=='granted')permission=await h.requestPermission({mode:'readwrite'});
+        if(permission!=='granted')throw Error('Δεν δόθηκε άδεια ενημέρωσης του «'+h.name+'».');
+        const file=await h.getFile(),body=await file.text();SchoolCsv.staffCsvRead(body);
+        staffCsvReads.push({handle:h,lastModified:file.lastModified,size:file.size});
+        files.push({name:h.name,text:body});
+      }
+      return files;
+    }
+    if(message.action==='write'){
+      const files=message.files;
+      if(!Array.isArray(files)||files.length!==staffCsvReads.length||!files.every((f,i)=>f.name===staffCsvReads[i].handle.name&&typeof f.text==='string'))throw Error('Μη έγκυρη ενημέρωση CSV.');
+      // Προέλεγχος ΟΛΩΝ πριν γίνει οποιαδήποτε εγγραφή.
+      for(let i=0;i<files.length;i++){
+        const old=staffCsvReads[i],now=await old.handle.getFile();
+        if(now.size!==old.size||now.lastModified!==old.lastModified)throw Error('Το «'+now.name+'» άλλαξε στο μεταξύ. Δοκίμασε ξανά.');
+        SchoolCsv.staffCsvRead(files[i].text);
+      }
+      let written=0;
+      try{
+        for(let i=0;i<files.length;i++){
+          if(files[i].text===message.originals?.[i])continue;
+          const writer=await staffCsvReads[i].handle.createWritable();
+          try{await writer.write(files[i].text);await writer.close();written++}
+          catch(e){await writer.abort().catch(()=>{});throw e}
+        }
+      }catch(error){throw Error('Ενημερώθηκαν '+written+' CSV πριν παρουσιαστεί σφάλμα: '+error.message)}
+      finally{staffCsvReads=[]}
+      return {written};
+    }
+    throw Error('Άγνωστη ενέργεια CSV.');
+  }
   const staffLocalFile = location.protocol === 'file:' || location.origin === 'null';
   const staffTargetOrigin = staffLocalFile ? '*' : location.origin;
   window.addEventListener('message', async event => {
@@ -1199,6 +1266,12 @@ const StaffStorage = (() => {
       reply({type:'school-staff:fet-ack',requestId:message.requestId});
       try{const result=await staffFetAction(message);reply({type:'school-staff:fet-result',requestId:message.requestId,ok:true,result})}
       catch(error){reply({type:'school-staff:fet-result',requestId:message.requestId,ok:false,error:error.name==='AbortError'?'Η επιλογή ακυρώθηκε.':error.message})}return;
+    }
+    if(message.type==='school-staff:csv'&&typeof message.requestId==='string'){
+      reply({type:'school-staff:csv-ack',requestId:message.requestId});
+      try{const result=await staffCsvAction(message);reply({type:'school-staff:csv-result',requestId:message.requestId,ok:true,result})}
+      catch(error){reply({type:'school-staff:csv-result',requestId:message.requestId,ok:false,error:error.name==='AbortError'?'Η επιλογή ακυρώθηκε.':error.message})}
+      return;
     }
     if (message.type === 'school-staff:dirty') { staffDirty = !!message.dirty; return; }
     if (message.type === 'school-staff:ready') { if (sharedData) reply({type:'school-staff:context', context:personnelContext()}); return; }

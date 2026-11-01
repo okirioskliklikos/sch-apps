@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων
- * Έκδοση αρχείου: 0.11
+ * Έκδοση αρχείου: 0.12
  * Όνομα κατά την εγκατάσταση: _data.js
  *
  * Φορτώνεται από όσες υποεφαρμογές διαβάζουν ή γράφουν CSV, FET, ημερομηνίες ή προγράμματα, μετά
@@ -72,6 +72,72 @@
 
   // Τιμή σε εισαγωγικά για CSV, με διπλασιασμένα τα εσωτερικά εισαγωγικά.
   function quote(value) { return '"' + String(value ?? '').replace(/"/g, '""') + '"'; }
+
+  // CSV προσωπικού: εντοπίζει τα πεδία με τις θέσεις τους ώστε τα υπόλοιπα bytes/σχόλια
+  // (ακόμη και τα μεταδεδομένα του Designer) να μην επαναδημιουργούνται κατά την ενημέρωση.
+  function staffCsvCells(source) {
+    const delimiter=detectDelimiter(source),rows=[];let cells=[],start=0,value='',quoted=false,inQuotes=false;
+    const finishCell=end=>{cells.push({start,end,value,quoted});value='';quoted=false;start=end+1};
+    const finishRow=()=>{rows.push(cells);cells=[]};
+    for(let i=0;i<source.length;i++){
+      const ch=source[i];
+      if(inQuotes){if(ch==='"'){if(source[i+1]==='"'){value+='"';i++}else inQuotes=false}else value+=ch;continue}
+      if(ch==='"'&&i===start){inQuotes=true;quoted=true;continue}
+      if(ch===delimiter){finishCell(i);continue}
+      if(ch==='\r'||ch==='\n'){
+        const end=i;finishCell(end);finishRow();if(ch==='\r'&&source[i+1]==='\n')i++;start=i+1;continue
+      }
+      value+=ch;
+    }
+    if(inQuotes)throw Error('Το CSV περιέχει πεδίο με εισαγωγικά που δεν κλείνουν.');
+    if(start<source.length||cells.length){finishCell(source.length);finishRow()}
+    return rows;
+  }
+  function staffCsvRead(source) {
+    if(typeof source!=='string')throw Error('Μη έγκυρο περιεχόμενο CSV.');
+    const rows=staffCsvCells(source),header=rows.find(r=>r.length>1&&r.some(c=>c.value.trim()==='Teachers'));
+    if(!header)throw Error('Το CSV δεν έχει στήλη «Teachers».');
+    const idx=header.findIndex(c=>c.value.trim()==='Teachers');
+    if(header.filter(c=>c.value.trim()==='Teachers').length!==1)throw Error('Το CSV έχει περισσότερες από μία στήλες «Teachers».');
+    const names=new Set();let count=0;
+    for(const row of rows.slice(rows.indexOf(header)+1)){
+      if(row.length===1&&row[0].value.trim()==='# OLOIMERO_DESIGNER_JSON_BEGIN')break;
+      if(row.length!==header.length)continue; // σχόλια, κενές γραμμές, μεταδεδομένα
+      const cell=row[idx];if(!cell.value.trim())continue;
+      count++;
+      for(const item of cell.value.split('+'))if(item.trim())names.add(item.trim());
+    }
+    return {names:[...names],rows:count};
+  }
+  function staffCsvUpdate(source,mapping) {
+    const rows=staffCsvCells(source),header=rows.find(r=>r.length>1&&r.some(c=>c.value.trim()==='Teachers'));
+    if(!header||header.filter(c=>c.value.trim()==='Teachers').length!==1)throw Error('Το CSV δεν έχει μοναδική στήλη «Teachers».');
+    const idx=header.findIndex(c=>c.value.trim()==='Teachers'),changes=[];let replacements=0;
+    for(const row of rows.slice(rows.indexOf(header)+1)){
+      if(row.length===1&&row[0].value.trim()==='# OLOIMERO_DESIGNER_JSON_BEGIN')break;
+      if(row.length!==header.length)continue;
+      const cell=row[idx];if(!cell.value.trim())continue;
+      const result=cell.value.split('+').map(part=>{
+        const old=part.trim(),target=mapping[old];
+        if(!old||typeof target!=='string'||!target.trim()||target===old)return part;
+        replacements++;return part.replace(old,target);
+      }).join('+');
+      if(result!==cell.value)changes.push({start:cell.start,end:cell.end,text:cell.quoted?quote(result):result});
+    }
+    let output=source;for(const c of changes.reverse())output=output.slice(0,c.start)+c.text+output.slice(c.end);
+    return {text:output,replacements};
+  }
+  // Ακριβές όνομα ή μοναδικό πρόθεμα που τελειώνει σε « - ...»· χωρίς αυθαίρετη επιλογή.
+  function staffCsvSuggest(names,staff) {
+    const current=staff.map(p=>String(p.shortName||'').trim()).filter(Boolean),out={};
+    for(const name of names){
+      const exact=current.filter(n=>n===name);
+      if(exact.length===1){out[name]=exact[0];continue}
+      const more=current.filter(n=>n.startsWith(name+' - '));
+      out[name]=more.length===1?more[0]:'';
+    }
+    return out;
+  }
 
   // ---- FET ----
   const child = (node, tag) => node ? [...node.children].find(item => item.tagName === tag) : undefined;
@@ -1332,7 +1398,7 @@
     });
   }
 
-  window.SchoolCsv = Object.freeze({parse, quote, detectDelimiter});
+  window.SchoolCsv = Object.freeze({parse, quote, detectDelimiter, staffCsvRead, staffCsvUpdate, staffCsvSuggest});
   window.SchoolFet = Object.freeze({parse: parseFet, child, children, text});
   window.SchoolText = Object.freeze({withoutTones, weekdayIndex});
   window.SchoolDate = Object.freeze({valid: isoValid, format: formatDate, parse: parseDate, schoolYear: schoolYearRange, schoolYearTeachingEnd, inSchoolYear, today, weekday: isoWeekday});

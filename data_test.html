@@ -7,7 +7,7 @@
 <!--
   Σελίδα ελέγχου του _data.js και του _host_timetables.js, εκτός σουίτας: δεν μπαίνει στο Κεντρικό Μενού
   και δεν ακολουθεί τις συμβάσεις των υποεφαρμογών. Μπαίνει στον ίδιο φάκελο με τα δύο αρχεία και ανοίγει μόνη της.
-  Έκδοση αρχείου: 0.13
+  Έκδοση αρχείου: 0.14
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -161,6 +161,23 @@ const rowKey = row => [row.studentsSets, row.subject, row.teachers.join('+'), ro
 const activitiesPart = text => String(text).split('# OLOIMERO_DESIGNER_JSON_BEGIN')[0].replace(/^﻿/, '').replace(/\r\n/g, '\n').trimEnd();
 
 // ---- Έλεγχοι ----
+function staffCsvChecks(){
+  start('Εξαγωγή Προσωπικού σε CSV');
+  const C=SchoolCsv, old='[ΠΕ86] - Πληροφορικός', newer='[ΠΕ86] - Πληροφορικός - Μιχάλης';
+  const mapping=C.staffCsvSuggest([old,'Ξένος'],[{shortName:newer},{shortName:'[ΠΕ05] - Γαλλικά - Έλη'}]);
+  equal('Μοναδικό πρόθεμα και άγνωστος εκπαιδευτικός',[mapping[old],mapping['Ξένος']],[newer,'']);
+  equal('Διφορούμενο πρόθεμα: χωρίς αυτόματη επιλογή',C.staffCsvSuggest([old],[{shortName:newer},{shortName:old+' - Άλλος'}])[old],'');
+  const content='"Students Sets","Subject","Teachers","Activity Tags"\r\n\r\n# σχόλιο #\r\n"Α1","Μάθημα","'+old+'+[ΠΕ05] - Γαλλικά","[Πρωϊνό]"\r\n# OLOIMERO_DESIGNER_JSON_BEGIN\r\n{"teacher":"'+old+'"}\r\n';
+  equal('Ανάγνωση: μόνο πραγματικές γραμμές',C.staffCsvRead(content).names,[old,'[ΠΕ05] - Γαλλικά']);
+  const result=C.staffCsvUpdate(content,{[old]:newer});
+  check('Μόνο το πεδίο Teachers αλλάζει και διατηρούνται τα μεταδεδομένα',result.text===content.replace('"'+old+'+[ΠΕ05] - Γαλλικά"','"'+newer+'+[ΠΕ05] - Γαλλικά"')&&result.replacements===1);
+  equal('Καμία αντικατάσταση: αμετάβλητο αρχείο',C.staffCsvUpdate(content,{}).text,content);
+  const basic='"Activity Id","Day","Teachers","Room"\n"1","Δευτέρα","'+old+'",""\n';
+  equal('CSV ωρολογίου: εντοπισμός διαφορετικής στήλης',C.staffCsvUpdate(basic,{[old]:newer}).text,basic.replace(old,newer));
+  let rejected=false;try{C.staffCsvRead('"Subject","Room"\n"A","B"')}catch(e){rejected=true}
+  check('CSV χωρίς Teachers απορρίπτεται',rejected);
+}
+
 function basics() {
   start('Κοινές βοηθητικές λειτουργίες');
   const T = SchoolTimetable, D = SchoolDate;
@@ -794,6 +811,7 @@ function hostStaffChecks(H, d4, staff, analysis, a1, d5) {
 
 function run() {
   $('out').innerHTML = ''; $('summary').innerHTML = ''; totals = {ok: 0, fail: 0, skip: 0};
+  attempt('CSV Προσωπικού', staffCsvChecks);
   attempt('Βασικά', basics);
 
   const oldStaff = texts.v2Fet || texts.oldFet ? staffFromFet(texts.v2Fet || texts.oldFet) : null;
