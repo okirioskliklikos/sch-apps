@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ολοήμερο Designer v1.82</title>
+<title>Ολοήμερο Designer v1.83</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -218,7 +218,7 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
 }
 .program-drag-ghost.copy .program-drag-copy-mark{display:flex}
 
-/* «Σχεδιασμός» dialog */
+/* «Διαμόρφωση» dialog */
 .school-confirm.design-dialog{width:min(720px,calc(100vw - 28px))}
 .design-help{margin:0 0 16px!important;color:var(--school-ui-muted);font-size:13px;line-height:1.45}
 .design-section{position:relative;border:1px solid var(--school-ui-border);border-radius:10px;padding:6px 12px 10px;margin-top:12px}
@@ -587,7 +587,7 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
 <body>
 
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΟΛ</span></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v1.82</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΟΛ</span></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v1.83</span></span></button></h1></div>
   <select id="program" aria-label="Σχέδιο" hidden></select>
   <span class="ol-menu">
     <button id="planMenuButton" type="button" aria-haspopup="true" aria-expanded="false" disabled>Σχέδιο</button>
@@ -608,7 +608,7 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
     <span id="saveMenu" class="save-menu" hidden><button id="exportCsv" type="button">Εξαγωγή CSV για το FET…</button></span>
   </span>
   <span class="toolbar-separator" aria-hidden="true"></span>
-  <button id="openDesign" type="button" disabled>Σχεδιασμός...</button>
+  <button id="openDesign" type="button" disabled>Διαμόρφωση...</button>
 
   <span class="sep"></span>
   <span id="undoControl" class="save-control undo-control">
@@ -3082,7 +3082,7 @@ function fillDesignForm(){
 
 document.querySelector("#openDesign").addEventListener("click",()=>{
   void formDialog({
-    title:"Σχεδιασμός προγράμματος",template:"#designTemplate",className:"design-dialog",accept:"Εφαρμογή",
+    title:"Διαμόρφωση προγράμματος",template:"#designTemplate",className:"design-dialog",accept:"Εφαρμογή",
     prepare:dialogElement=>{
       fillDesignForm();
       dialogElement.addEventListener("change",designExceptionToggled);
