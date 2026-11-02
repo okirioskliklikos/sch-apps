@@ -1,4 +1,4 @@
-<!doctype html><html lang="el" class="subapp-page"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Documents Templater v0.30</title><link rel="stylesheet" href="_ui.css">
+<!doctype html><html lang="el" class="subapp-page"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Documents Templater v0.31</title><link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <script src="_lib_jszip.min.js"></script>
 <style>
@@ -46,7 +46,7 @@
    (the shared .page-main keeps overflow:hidden from 651px on). */
 @media(max-width:800px){#root{overflow:visible}.files-list{min-height:240px;max-height:45dvh}.fields-pane .fields-content{overflow:visible}}
 @media(max-width:620px){.field-grid{grid-template-columns:1fr}}
-</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Documents Templater — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>DT</span></span><span class="brand-text"><span>Documents Templater</span><span class="small version">v0.30</span></span></button></h1></div><button id="exportValues" type="button" disabled>Εξαγωγή...</button><button id="reset" type="button" disabled>Αναίρεση Όλων</button><div class="header-right"><button id="findFields" class="primary subapp-change-dot" type="button" disabled>Ανεύρεση πεδίων</button><button id="produce" class="success subapp-change-dot" type="button" disabled>Παραγωγή Εγγράφων</button></div></header>
+</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Documents Templater — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>DT</span></span><span class="brand-text"><span>Documents Templater</span><span class="small version">v0.31</span></span></button></h1></div><button id="reset" type="button" disabled>Αναίρεση Όλων</button><div class="header-right"><button id="findFields" class="primary subapp-change-dot" type="button" disabled>Ανεύρεση πεδίων</button><button id="produce" class="success subapp-change-dot" type="button" disabled>Παραγωγή Εγγράφων</button></div></header>
 <main id="layout" class="subapp-wide-aside">
 <aside id="filesPane" aria-labelledby="filesTitle">
  <h2 id="filesTitle">Αρχεία (0)</h2>
@@ -292,7 +292,6 @@ window.TemplaterModel=(()=>{
  function setBusy(value){busy=value;updateButtons()}
  function updateButtons(){
   $('produce').disabled=busy||!scanned||!fields.size;
-  $('exportValues').disabled=busy||!scanned||!fields.size||!hosted;
   // The change dot shows the next step: «Ανεύρεση πεδίων» until the current files are scanned, then «Παραγωγή Εγγράφων».
   const needScan=files.length>0&&!scanned,pendingProduce=dirty&&scanned&&fields.size>0;
   $('findFields').classList.toggle('dirty',needScan);
@@ -433,7 +432,7 @@ window.TemplaterModel=(()=>{
   }
   out.append(set);
   const note=document.createElement('p');note.className='syntax-note ui-helper';
-  note.innerHTML=files.some(isTemplate)?'Μορφή πεδίων: <code>{{Σχολικό Έτος}}</code> · <code>{{Τιμή:Decimal}}</code> · <code>{{Μέρες:Integer}}</code> · <code>{{Ημερομηνία:Date}}</code> · <code>{{Σημειώσεις:Textarea}}</code>. Μαζί με τα έγγραφα εξάγεται CSV με τα πεδία και τις τιμές τους, που μπορείς να ξαναπροσθέσεις την επόμενη φορά.':'Οι τιμές προέρχονται από το CSV. Μπορείς να τις τροποποιήσεις και να αποθηκεύσεις νέο CSV με «Εξαγωγή...» ή «Παραγωγή Εγγράφων».';
+  note.innerHTML=files.some(isTemplate)?'Μορφή πεδίων: <code>{{Σχολικό Έτος}}</code> · <code>{{Τιμή:Decimal}}</code> · <code>{{Μέρες:Integer}}</code> · <code>{{Ημερομηνία:Date}}</code> · <code>{{Σημειώσεις:Textarea}}</code>. Μαζί με τα έγγραφα εξάγεται CSV με τα πεδία και τις τιμές τους, που μπορείς να ξαναπροσθέσεις την επόμενη φορά.':'Οι τιμές προέρχονται από το CSV. Μπορείς να τις τροποποιήσεις και να αποθηκεύσεις νέο CSV με «Παραγωγή Εγγράφων».';
   out.append(note);
   updateButtons();
  }
@@ -471,7 +470,7 @@ window.TemplaterModel=(()=>{
   }finally{setBusy(false)}
  };
 
- // ---- CSV values export ----
+ // ---- CSV-only production ----
  async function exportValuesCsv(){
   if(busy||!scanned||!fields.size||!hosted)return;
   setBusy(true);
@@ -485,7 +484,6 @@ window.TemplaterModel=(()=>{
    if(!/ακυρώθηκε/.test(error.message||''))notice('Το CSV δεν αποθηκεύτηκε. '+(error.message||''),true);
   }finally{setBusy(false)}
  }
- $('exportValues').onclick=exportValuesCsv;
 
  // ---- Production ----
  function saveBlob(blob,name){const a=document.createElement('a'),url=URL.createObjectURL(blob);a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000)}
