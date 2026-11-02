@@ -7,7 +7,7 @@
 <!--
   Σελίδα ελέγχου του _data.js και του _host_timetables.js, εκτός σουίτας: δεν μπαίνει στο Κεντρικό Μενού
   και δεν ακολουθεί τις συμβάσεις των υποεφαρμογών. Μπαίνει στον ίδιο φάκελο με τα δύο αρχεία και ανοίγει μόνη της.
-  Έκδοση αρχείου: 0.14
+  Έκδοση αρχείου: 0.15
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -608,6 +608,19 @@ function hostChecks() {
   const viewed = H.withView(d4, year, 'oloimero', 'draft:abc');
   equal('Με τελευταία επιλογή: στο context της εφαρμογής της μόνο', [H.context(viewed, OLO_APP, 7).lastView, H.context(viewed, FET_APP, 7).lastView, H.context(viewed, PROG, 7).lastView], ['draft:abc', '', '']);
   check('withView δεν αλλάζει το αρχικό data και κρατά τα άλλα έτη και κλειδιά', !d4.lastViewByYear && H.lastView(H.withView(H.withView(viewed, year, 'school', 'period:pa'), '2025-2026', 'school', 'period:x'), year, 'oloimero') === 'draft:abc');
+
+  const existingViews = {...d4, lastViewByYear: {
+    [year]: {oloimero: 'draft:old', school: 'period:pa'},
+    '2025-2026': {oloimero: 'period:older', school: 'draft:previous'}
+  }};
+  const existingSnapshot = JSON.stringify(existingViews);
+  const changedView = H.withView(existingViews, year, 'oloimero', 'draft:new');
+  check('withView: αλλάζει μόνο την επιλεγμένη τιμή, διατηρεί τις άλλες επιλογές και δεν μεταβάλλει το αρχικό data',
+    H.lastView(changedView, year, 'oloimero') === 'draft:new' &&
+    H.lastView(changedView, year, 'school') === 'period:pa' &&
+    H.lastView(changedView, '2025-2026', 'oloimero') === 'period:older' &&
+    H.lastView(changedView, '2025-2026', 'school') === 'draft:previous' &&
+    JSON.stringify(existingViews) === existingSnapshot);
   equal('Μη έγκυρη τιμή αγνοείται', H.lastView(H.withView(d4, year, 'oloimero', 'κάτι άλλο'), year, 'oloimero'), '');
   check('Η τελευταία επιλογή περνά αυτούσια από μια αποθήκευση προγράμματος', H.lastView(H.applySave(viewed, {ops: [put({...clone(programsOf(d4).find(p => p.id === 'draft-fet')), name: 'Άλλο όνομα'})]}, FET_APP), year, 'oloimero') === 'draft:abc');
   rejects('«Σχολικά Προγράμματα»: δεν αλλάζει υπάρχον προσχέδιο', trySave(d4, {ops: [put({...clone(programsOf(d4).find(p => p.id === 'draft-fet')), name: 'Άλλο'})]}, PROG), 'μόνο από την εφαρμογή του είδους του');
