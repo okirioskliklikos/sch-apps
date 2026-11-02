@@ -523,6 +523,7 @@ function hostBase() {
     if (!data.staffByYear?.[year]?.length || !data.teachingHoursByYear?.[year]) throw Error('Το .data δεν έχει Προσωπικό και Ώρες Διδασκαλίας για το ' + year + '.');
     // Οι έλεγχοι ξεκινούν χωρίς τα προγράμματα που έχει ήδη το .data δοκιμής.
     delete data.timetablesByYear;
+    delete data.lastViewByYear;
     return {data, label: 'το .data δοκιμής (' + dataName + ')'};
   }
   return {label: 'Προσωπικό από το v2.fet και Ώρες Διδασκαλίας v2', data: {
