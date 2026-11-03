@@ -367,7 +367,7 @@ body.session-locked #app-shell { visibility:hidden; pointer-events:none; }
     <div class="sidebar-head">
       <div class="brand">
         <span class="brand-name">Εφαρμογές σχολείου</span>
-        <span class="sidebar-version" aria-label="Έκδοση 0.93">v0.93</span>
+        <span class="sidebar-version" aria-label="Έκδοση 0.94">v0.94</span>
       </div>
     </div>
     <div id="sidebar-school" class="sidebar-school" hidden><span id="nav-school-name" class="sidebar-school-name"></span><span id="nav-school-year" class="sidebar-school-year"></span></div>
@@ -411,6 +411,7 @@ body.session-locked #app-shell { visibility:hidden; pointer-events:none; }
 <script src="_ui.js"></script>
 <script src="_data.js"></script>
 <script src="_host_timetables.js"></script>
+<script src="_host_calendar.js"></script>
 <script id="shared-data-codec">
 globalThis.SchoolDataCodec = (() => {
   const iterations = 310000, encoder = new TextEncoder(), decoder = new TextDecoder();
@@ -476,12 +477,16 @@ globalThis.SchoolDataCodec = (() => {
   let editingData = false;
   let rememberedHandle = null;
   let fileLoadGeneration = 0;
-  // The last selection of the program applications (lastViewByYear in .data) is not a change of data: it is
-  // kept in sharedData and written with the next save, or when the application is left (writeViews).
+  // The last selection of the program applications (lastViewByYear in .data) and the zoom of the Σχολικό
+  // Ημερολόγιο (calendarSettings) are not a change of data: they are kept in sharedData and written with the
+  // next save, or when the application is left (writeViews).
   let viewsChanged = 0, viewsWritten = 0, viewWrite = Promise.resolve(), dataWrites = 0;
   // Programs (timetablesByYear): validation and the school-timetables:* protocol live in _host_timetables.js.
   const Timetables = window.SchoolHostTimetables || null;
   const missingTimetables = 'Λείπει το αρχείο _data.js ή _host_timetables.js από τον φάκελο των εφαρμογών. Βεβαιώσου ότι το index.html και τα κοινά αρχεία είναι η τελευταία έκδοση.';
+  // Σχολικό Ημερολόγιο (calendarByYear): validation and the school-calendar:* protocol live in _host_calendar.js.
+  const Calendar = window.SchoolHostCalendar || null;
+  const missingCalendar = 'Λείπει το αρχείο _data.js ή _host_calendar.js από τον φάκελο των εφαρμογών. Βεβαιώσου ότι το index.html και τα κοινά αρχεία είναι η τελευταία έκδοση.';
 
   const $ = id => document.getElementById(id);
   const passwordToggles = [...document.querySelectorAll('.password-toggle')];
@@ -800,7 +805,7 @@ globalThis.SchoolDataCodec = (() => {
       const views = viewsChanged;
       const name = await writeData(data, password, filename, existingHandle);
       // The written file has the selections of sharedData when it was saved from it.
-      if (sharedData && JSON.stringify(data.lastViewByYear || null) === JSON.stringify(sharedData.lastViewByYear || null)) viewsWritten = views;
+      if (sharedData && JSON.stringify([data.lastViewByYear || null, data.calendarSettings || null]) === JSON.stringify([sharedData.lastViewByYear || null, sharedData.calendarSettings || null])) viewsWritten = views;
       return name;
     } finally { dataWrites--; }
   }
@@ -826,6 +831,11 @@ globalThis.SchoolDataCodec = (() => {
   function rememberView(year, key, view) {
     if (!sharedData || !Timetables || sharedData.school.year !== year) return;
     sharedData = Timetables.withView(sharedData, year, key, view);
+    viewsChanged++;
+  }
+  function rememberCalendarZoom(zoom) {
+    if (!sharedData || !Calendar) return;
+    sharedData = Calendar.withZoom(sharedData, zoom);
     viewsChanged++;
   }
   async function writeData(data, password, filename = '', existingHandle = null) {
@@ -1145,11 +1155,16 @@ const StaffStorage = (() => {
  return Object.freeze({prepareRows});
 })();
 
+  // The meetings of the Σχολικό Ημερολόγιο (calendarByYear[year]), for the delete checks of Προσωπικό.
+  function meetingsOf(year) {
+    const calendar = Calendar ? Calendar.yearData(sharedData, year) : {ssdMeetings:{}, pedagogicMeetings:{}};
+    return {ssdMeetings:calendar.ssdMeetings, pedagogicMeetings:calendar.pedagogicMeetings};
+  }
   function personnelContext() {
     const year = sharedData.school.year;
     const byYear = sharedData.staffByYear && typeof sharedData.staffByYear === 'object' ? sharedData.staffByYear : {};
     // timetableUsage: in which programs each person appears (for the delete dialog of Προσωπικό).
-    return {revision:schoolRevision, school:{...sharedData.school}, staff:Array.isArray(byYear[year]) ? byYear[year] : [], staffByYear:byYear, ssdMeetings:sharedData.ssdMeetings || {}, pedagogicMeetings:sharedData.pedagogicMeetings || {}, timetableUsage:Timetables ? Timetables.staffUsage(sharedData, year) : {}, limits:{staff:HOST_LIMITS.staff, warnRatio:HOST_LIMITS.warnRatio}};
+    return {revision:schoolRevision, school:{...sharedData.school}, staff:Array.isArray(byYear[year]) ? byYear[year] : [], staffByYear:byYear, ...meetingsOf(year), timetableUsage:Timetables ? Timetables.staffUsage(sharedData, year) : {}, limits:{staff:HOST_LIMITS.staff, warnRatio:HOST_LIMITS.warnRatio}};
   }
   let staffFetHandle=null,staffFetKey='',staffFetRead=null;
   function staffFetStore(mode,value,key){return new Promise((resolve,reject)=>{
@@ -1304,13 +1319,9 @@ const StaffStorage = (() => {
       else if (candidate.timetablesByYear) throw Error(missingTimetables);
       const previousCodes = new Set(previous.map(p=>String(p.code||'').trim()).filter(Boolean)), retainedCodes = new Set(staff.map(p=>p.code.trim()).filter(Boolean));
       const removedCodes = new Set((Array.isArray(message.removedCodes)?message.removedCodes:[]).filter(code => typeof code==='string' && previousCodes.has(code) && !retainedCodes.has(code)));
-      for (const meetings of [candidate.ssdMeetings, candidate.pedagogicMeetings]) {
-        for (const meeting of Object.values(meetings||{})) {
-          if (!meeting || typeof meeting !== 'object') continue;
-          for (const key of ['present','absent','leaveAutoCodes']) if (Array.isArray(meeting[key])) meeting[key] = meeting[key].filter(code=>!removedCodes.has(String(code)));
-          for (const key of ['absenceReasons','scheduleAutoReasons']) if (meeting[key]) for (const code of removedCodes) delete meeting[key][code];
-        }
-      }
+      // Meetings of the Σχολικό Ημερολόγιο that refer to removed staff change in this same save.
+      if (Calendar) Calendar.removeStaffCodes(candidate, message.year, [...removedCodes]);
+      else if (candidate.calendarByYear && removedCodes.size) throw Error(missingCalendar);
       staffSaving = true; ownsSave = true;
       const filename = await saveNewData(candidate, sessionPassword, sharedFilename, rememberedHandle);
       showSharedData(candidate, filename, sessionPassword !== '', sessionPassword);
@@ -1590,10 +1601,32 @@ const StaffStorage = (() => {
     view: rememberView
   });
 
+  // Σχολικό Ημερολόγιο (calendarByYear): menu, unsaved changes, data and zoom of school-calendar:*.
+  // Validation and replies are in _host_calendar.js; the Index only stores.
+  if (Calendar) Calendar.install({
+    frame,
+    acceptOrigin: event => staffLocalFile || event.origin === location.origin,
+    targetOrigin: staffTargetOrigin,
+    state: () => ({data:sharedData, revision:schoolRevision, app:currentAppFile, locked:sessionLocked, busy:staffSaving}),
+    save: async candidate => {
+      staffSaving = true;
+      try {
+        const filename = await saveNewData(candidate, sessionPassword, sharedFilename, rememberedHandle);
+        showSharedData(candidate, filename, sessionPassword !== '', sessionPassword);
+        staffDirty = false;
+      } finally { staffSaving = false; }
+    },
+    activity: recordActivity,
+    menu: () => { if (!sessionLocked) revealSidebarFromApp(); },
+    dirty: value => { staffDirty = value; },
+    zoom: rememberCalendarZoom
+  });
+
   window.addEventListener('beforeunload', event => { if (staffDirty || staffSaving || dropBusy) { event.preventDefault(); event.returnValue = ''; } });
 
   openHome();
   if (!Timetables) $('load-error').textContent = missingTimetables;
+  else if (!Calendar) $('load-error').textContent = missingCalendar;
   void restoreRememberedFile();
 })();
 </script>

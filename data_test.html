@@ -3,11 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Έλεγχος _data.js και _host_timetables.js</title>
+<title>Έλεγχος _data.js, _host_timetables.js και _host_calendar.js</title>
 <!--
-  Σελίδα ελέγχου του _data.js και του _host_timetables.js, εκτός σουίτας: δεν μπαίνει στο Κεντρικό Μενού
-  και δεν ακολουθεί τις συμβάσεις των υποεφαρμογών. Μπαίνει στον ίδιο φάκελο με τα δύο αρχεία και ανοίγει μόνη της.
-  Έκδοση αρχείου: 0.15
+  Σελίδα ελέγχου του _data.js, του _host_timetables.js και του _host_calendar.js, εκτός σουίτας: δεν μπαίνει
+  στο Κεντρικό Μενού και δεν ακολουθεί τις συμβάσεις των υποεφαρμογών. Μπαίνει στον ίδιο φάκελο με τα τρία αρχεία
+  και ανοίγει μόνη της.
+  Έκδοση αρχείου: 0.16
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -33,8 +34,8 @@ button{font:inherit;padding:6px 14px;border-radius:8px;border:1px solid #94a3b8;
 </head>
 <body>
 <main>
-<h1>Έλεγχος του _data.js και του _host_timetables.js</h1>
-<p>Η σελίδα ελέγχει τις κοινές λειτουργίες του <code>_data.js</code> και τις καθαρές συναρτήσεις του <code>_host_timetables.js</code> με τα αρχεία δοκιμής του <code>timetables_plan.md</code>. Δεν αλλάζει κανένα αρχείο.</p>
+<h1>Έλεγχος του _data.js, του _host_timetables.js και του _host_calendar.js</h1>
+<p>Η σελίδα ελέγχει τις κοινές λειτουργίες του <code>_data.js</code> και τις καθαρές συναρτήσεις του <code>_host_timetables.js</code> και του <code>_host_calendar.js</code> με τα αρχεία δοκιμής του <code>timetables_plan.md</code>. Δεν αλλάζει κανένα αρχείο.</p>
 <div class="drop" id="drop">
   <p><strong>Αρχεία δοκιμής:</strong> σύρε τα εδώ ή <input type="file" id="files" multiple accept=".fet,.csv,.data"></p>
   <div class="files" id="fileList"></div>
@@ -45,6 +46,7 @@ button{font:inherit;padding:6px 14px;border-radius:8px;border:1px solid #94a3b8;
 </main>
 <script src="_data.js"></script>
 <script src="_host_timetables.js"></script>
+<script src="_host_calendar.js"></script>
 <script>
 (() => {
 'use strict';
@@ -510,6 +512,65 @@ function availabilityChecks() {
   equal('Σταθερές: 6 ώρες, 15 λεπτά', [T.STAY_MINUTES, T.EARLY_ARRIVAL_MINUTES], [360, 15]);
 }
 
+// Απασχόληση σε ημερομηνία και ώρα (SchoolTimetable.staffBusyAt), για τις συνεδριάσεις του Ημερολογίου.
+function busyAtChecks(v2Program) {
+  start('Απασχόληση εκπαιδευτικών σε ημερομηνία και ώρα (συνεδριάσεις)');
+  const T = SchoolTimetable;
+  const activity = (id, staff, day, start, end) => ({id, subject: 'Μ', staff, unmatched: [], classes: ['Α1'], subsets: [], room: '', times: [{day, start, end}]});
+  const school = {id: 's', kind: 'school', periodId: 'p1', activities: [activity('a1', ['x'], 2, '13:15', '14:00'), activity('a2', ['y'], 2, '12:30', '13:15'), activity('a3', ['z'], 3, '13:15', '14:00')],
+    source: {type: 'fet', teachers: [{name: 'Χ', staffId: 'x'}, {name: 'Ψ', staffId: 'y'}, {name: 'Ω', staffId: 'w'}], unavailable: [{teacher: 'Ω', day: 2, start: '13:15', end: '14:00'}, {teacher: 'Χ', day: 2, start: '13:15', end: '14:00'}]}};
+  const oloimero = {id: 'o', kind: 'oloimero', periodId: 'p1', activities: [activity('o1', ['v'], 2, '13:15', '14:00')], source: {type: 'oloimero-designer'}};
+  const timetables = {periods: [{id: 'p1', name: 'Α περίοδος', from: '2026-09-11', to: ''}], programs: [school, oloimero]};
+  // 2026-11-10 is a Tuesday (day 2).
+  const result = T.staffBusyAt(timetables, '2026-11-10', '13:20', '14:00');
+  equal('Περίοδος και προγράμματα που μετρούν (όχι το Ολοήμερο)', [result.period?.id, result.programs.map(p => p.id)], ['p1', ['s']]);
+  equal('Σε μάθημα: μόνο όσοι έχουν δραστηριότητα που επικαλύπτει το διάστημα', [...result.lesson].sort(), ['x']);
+  equal('Μη διαθέσιμοι στο FET: χωρίς όσους έχουν ήδη μάθημα', [...result.unavailable].sort(), ['w']);
+  equal('Άκρα: λήξη 13:15 δεν επικαλύπτει έναρξη 13:15', [...T.staffBusyAt(timetables, '2026-11-10', '13:15', '13:20').lesson], ['x']);
+  equal('Άλλη ημέρα (Τετάρτη)', [...T.staffBusyAt(timetables, '2026-11-11', '13:20', '14:00').lesson], ['z']);
+  const none = T.staffBusyAt(timetables, '2026-09-01', '13:20', '14:00');
+  check('Χωρίς περίοδο στην ημερομηνία: period null, κανείς', none.period === null && !none.lesson.size && !none.unavailable.size);
+  check('Λάθος διάστημα ωρών: κανείς', !T.staffBusyAt(timetables, '2026-11-10', '14:00', '13:20').lesson.size);
+  if (v2Program) {
+    const real = T.staffBusyAt({periods: [{id: 'p', name: 'Π', from: '2026-09-01', to: ''}], programs: [{...v2Program, periodId: 'p'}]}, '2026-11-09', '08:15', '09:00');
+    check('Ωρολόγιο v2, Δευτέρα 08:15–09:00: βρίσκει εκπαιδευτικούς σε μάθημα', real.lesson.size > 0, real.lesson.size + ' εκπαιδευτικοί');
+  } else skip('Ωρολόγιο v2', 'Λείπουν τα αρχεία v2.');
+}
+
+// ---- Host (_host_calendar.js) ----
+function hostCalendarChecks() {
+  start('7. Host: Σχολικό Ημερολόγιο');
+  const C = window.SchoolHostCalendar;
+  if (!C) { record('fail', 'Λείπει το _host_calendar.js'); return; }
+  const year = '2026-2027';
+  const meeting = extra => ({startTime: '13:20', endTime: '14:00', subject: 'Θέμα', directorCode: 'ΔΘ', directorName: 'Δ', present: ['Α1'], absent: ['Α2'], absenceReasons: {'Α2': 'leavePending'}, scheduleAutoReasons: {}, leaveAutoCodes: ['Α2'], ...extra});
+  const base = {format: 'school-shared-data', formatVersion: 1, school: {name: 'Σχολείο', year},
+    staffByYear: {[year]: [{id: 's1', code: 'Α1'}, {id: 's2', code: 'Α2'}]},
+    calendarByYear: {'2025-2026': {entries: {'2026-01-10': {personal: 'παλιό', school: ''}}, ssdMeetings: {}, pedagogicMeetings: {}}}};
+  const calendar = {entries: {'2026-11-10': {personal: '<b>σημ.</b>', school: ''}, '2026-11-11': {personal: '', school: ''}},
+    ssdMeetings: {'2026-11-12': meeting({actNumber: 1}), '2026-12-01': meeting({actNumber: 2})}, pedagogicMeetings: {'2026-11-20': meeting()}};
+  const saved = C.applySave(base, {calendar});
+  equal('Αποθήκευση: γράφει μόνο το calendarByYear του έτους, τα άλλα έτη μένουν', [Object.keys(saved.calendarByYear).sort(), saved.calendarByYear['2025-2026'].entries['2026-01-10'].personal], [['2025-2026', year], 'παλιό']);
+  equal('Οι κενές σημειώσεις δεν κρατιούνται', Object.keys(saved.calendarByYear[year].entries), ['2026-11-10']);
+  equal('Ο λόγος «Αναμονή άδειας» γίνεται δεκτός', saved.calendarByYear[year].pedagogicMeetings['2026-11-20'].absenceReasons['Α2'], 'leavePending');
+  check('Το αρχικό data δεν αλλάζει', !base.calendarByYear[year]);
+  const rejects = (label, value, text) => { try { C.applySave(base, {calendar: value}); record('fail', label, 'έγινε δεκτό'); } catch (error) { check(label, error.message.includes(text), error.message); } };
+  rejects('Ημερομηνία έξω από το έτος: απορρίπτεται', {entries: {'2027-09-01': {personal: 'x', school: ''}}}, 'έξω από το σχολικό έτος');
+  rejects('Μη έγκυρη ημερομηνία: απορρίπτεται', {entries: {'2026-02-30': {personal: 'x', school: ''}}}, 'Μη έγκυρη ημερομηνία');
+  rejects('Λάθος ώρα συνεδρίασης: απορρίπτεται', {ssdMeetings: {'2026-11-12': meeting({actNumber: 1, startTime: '25:00'})}}, 'HH:MM');
+  rejects('Λήξη πριν από την έναρξη: απορρίπτεται', {pedagogicMeetings: {'2026-11-12': meeting({startTime: '14:00', endTime: '13:20'})}}, 'ώρα λήξης');
+  rejects('Διπλός αριθμός πράξης στο έτος: απορρίπτεται', {ssdMeetings: {'2026-11-12': meeting({actNumber: 3}), '2026-12-01': meeting({actNumber: 3})}}, 'υπάρχει στις 12/11/2026 και στις 01/12/2026');
+  rejects('ΣΣΔ χωρίς αριθμό πράξης: απορρίπτεται', {ssdMeetings: {'2026-11-12': meeting({})}}, 'αριθμός πράξης');
+  rejects('Άγνωστη αιτιολογία απουσίας: απορρίπτεται', {pedagogicMeetings: {'2026-11-12': meeting({absenceReasons: {'Α2': 'xyz'}})}}, 'αιτιολογία');
+  rejects('Εκπαιδευτικός και στους Παρόντες και στους Απόντες: απορρίπτεται', {pedagogicMeetings: {'2026-11-12': meeting({present: ['Α2']})}}, 'και στους Παρόντες');
+  const removed = C.removeStaffCodes(clone(saved), year, ['Α2']);
+  const after = removed.calendarByYear[year].ssdMeetings['2026-11-12'];
+  check('Διαγραφή εκπαιδευτικού από το Προσωπικό: ο κωδικός φεύγει από τις συνεδριάσεις του έτους', !after.absent.includes('Α2') && !after.absenceReasons['Α2'] && !after.leaveAutoCodes.includes('Α2') && after.present.includes('Α1'));
+  equal('Ζουμ: προεπιλογή 100, ισχύει για όλα τα έτη (calendarSettings)', [C.zoom(base), C.zoom(C.withZoom(base, 120)), C.withZoom(base, 120).calendarSettings.zoom, C.zoom({calendarSettings: {zoom: 500}})], [100, 120, 120, 100]);
+  const context = C.context(C.withZoom(saved, 90), 7);
+  equal('Context: έτος, Προσωπικό, Ημερολόγιο του έτους, ζουμ', [context.revision, context.year, context.staff.length, Object.keys(context.calendar.ssdMeetings).length, context.zoom], [7, year, 2, 2, 90]);
+}
+
 // ---- Host (_host_timetables.js) ----
 const FET_APP = 'fet_timetable_editor.html', OLO_APP = 'oloimero_designer.html', STAFF_APP = 'school_staff.html';
 const clone = value => structuredClone(value);
@@ -904,7 +965,9 @@ function run() {
   }); else skip('Κενό CSV', 'Χρειάζεται ένα από τα αρχεία .fet.');
 
   attempt('Διαθεσιμότητα', availabilityChecks);
+  attempt('Απασχόληση σε ημερομηνία και ώρα', () => busyAtChecks(v2Program));
   attempt('Host', hostChecks);
+  attempt('Host: Σχολικό Ημερολόγιο', hostCalendarChecks);
 
   const summary = document.createElement('div');
   summary.className = 'summary ' + (totals.fail ? 'fail' : 'ok');

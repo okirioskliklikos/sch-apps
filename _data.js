@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων
- * Έκδοση αρχείου: 0.12
+ * Έκδοση αρχείου: 0.13
  * Όνομα κατά την εγκατάσταση: _data.js
  *
  * Φορτώνεται από όσες υποεφαρμογές διαβάζουν ή γράφουν CSV, FET, ημερομηνίες ή προγράμματα, μετά
@@ -15,7 +15,8 @@
  *                           εμφάνιση μαθητών, συγκρούσεις, ώρες ανά εκπαιδευτικό, διαθεσιμότητα,
  *                           αντικαταστάσεις, Εισαγωγή Ολοημέρου στο ωρολόγιο, εισαγωγείς ανά είδος
  *                           (από FET και από το CSV του Ολοήμερου Designer), εξαγωγή CSV του Ολοημέρου
- *                           για το FET, δάσκαλοι και σειρά του Προσωπικού, κανονική γραφή τμημάτων
+ *                           για το FET, δάσκαλοι και σειρά του Προσωπικού, κανονική γραφή τμημάτων,
+ *                           απασχόληση εκπαιδευτικών σε ημερομηνία και ώρα (συνεδριάσεις)
  */
 (() => {
   'use strict';
@@ -605,6 +606,36 @@
         status: overlapsAny(item, own) ? 'busy' : overlapsAny(item, blocked) ? 'unavailable' : (minutes(item.start) >= from && minutes(item.end) <= to ? 'free' : 'outside')
       }))
     };
+  }
+
+  // Ποιοι είναι απασχολημένοι σε μια ημερομηνία και ένα διάστημα ωρών (π.χ. την ώρα μιας συνεδρίασης),
+  // σύμφωνα με τα προγράμματα της περιόδου που ισχύει τότε. Μετρούν μόνο τα είδη που μετρούν στις ώρες.
+  //   timetables: timetablesByYear[year] ({periods, programs})· date: 'YYYY-MM-DD'· start, end: 'HH:MM'.
+  // → {period, programs, lesson:Set(id), unavailable:Set(id)}:
+  //   lesson       έχουν δραστηριότητα που επικαλύπτει το διάστημα,
+  //   unavailable  είναι μη διαθέσιμοι στο FET σε ώρα που επικαλύπτει το διάστημα (και δεν είναι στο lesson).
+  //   period είναι null όταν καμία περίοδος δεν ισχύει στην ημερομηνία· programs κενό όταν η περίοδος
+  //   δεν έχει πρόγραμμα που μετρά.
+  function staffBusyAt(timetables, date, start, end) {
+    const period = periodAt(timetables?.periods, date);
+    const programs = period ? programsAt(timetables, date).filter(program => countsInHours(program.kind)) : [];
+    const lesson = new Set(), unavailable = new Set();
+    const day = isoValid(date) ? isoWeekday(date) : 0, from = minutes(start), to = minutes(end);
+    if (!day || !(from < to)) return {period, programs, lesson, unavailable};
+    const overlaps = time => time?.day === day && minutes(time.start) < to && from < minutes(time.end);
+    for (const program of programs) {
+      for (const activity of program.activities || []) {
+        if ((activity.times || []).some(overlaps)) for (const id of activity.staff || []) lesson.add(id);
+      }
+    }
+    for (const program of programs) {
+      if (program.source?.type !== 'fet') continue;
+      for (const teacher of program.source.teachers || []) {
+        if (!teacher?.staffId || lesson.has(teacher.staffId)) continue;
+        if (unavailableTimes(program, teacher.staffId).some(overlaps)) unavailable.add(teacher.staffId);
+      }
+    }
+    return {period, programs, lesson, unavailable};
   }
 
   // ---- Αντικαταστάσεις ----
@@ -1408,7 +1439,7 @@
     parseTimeRange, hourTimes, timedHours, hourGroups,
     periodEnd, periodAt, programAt, programsAt, periodWarnings,
     homeroomClasses, classSpelling, studentsIndex, expandStudents, studentsFromNames, studentsText, homeroomTeacher, isGeneralTeacher, sortStaff,
-    conflicts, studentsClash, staffHours, unavailableTimes, availability, replaceStaff,
+    conflicts, studentsClash, staffHours, unavailableTimes, availability, staffBusyAt, replaceStaff,
     analyzeOloimeroReplace, applyOloimeroReplace,
     OLOIMERO_CATEGORIES, OLOIMERO_MAX_SLOTS, oloimeroHours, oloimeroTeacherColor, oloimeroStudents,
     oloimeroRowsFromCsv, oloimeroRowsFromProgram, oloimeroCsvFromProgram, analyzeOloimeroImport, buildOloimeroProgram,
