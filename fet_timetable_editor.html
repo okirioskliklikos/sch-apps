@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>FET Timetable Editor v0.99</title>
+<title>FET Timetable Editor v1.01</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -54,9 +54,21 @@ aside{display:flex;flex-direction:column;gap:0}
 .ft-info-button[aria-expanded="true"] .ft-info-chevron{transform:rotate(180deg)}
 .ft-source-details{margin-top:6px}
 .ft-source-details .ft-source + .ft-source{margin-top:4px}
-.ft-controls{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;font-size:14px}
-.ft-controls label{display:inline-flex;align-items:center;gap:6px;margin:0;white-space:nowrap}
 .ft-controls select{min-width:0}
+/* Controls of the board: groups with a small title above, ending at the visible right edge of the timetable
+   (same width as the information strip). Groups wrap as whole units; the filters stay on the right. */
+.ft-controls{display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px 18px;max-width:100%}
+.ft-control-group{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:0}
+.ft-filters{display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px 12px;margin-left:auto;min-width:0}
+.ft-control-title{margin:0;font-size:12px;font-weight:400;line-height:1.3;color:var(--school-ui-muted)}
+/* Joined buttons (one choice: Λειτουργία; one or more: Εμφάνιση). Pressed look from .ui-toggle (_ui.css). */
+.ft-segmented{display:inline-flex}
+.ft-segmented button{border-radius:0;margin:0}
+.ft-segmented button+button{margin-left:-1px}
+.ft-segmented button:first-child{border-top-left-radius:7px;border-bottom-left-radius:7px}
+.ft-segmented button:last-child{border-top-right-radius:7px;border-bottom-right-radius:7px}
+.ft-segmented button[aria-pressed="true"]{position:relative;z-index:1}
+.ft-segmented button:focus-visible{position:relative;z-index:2}
 .ft-source{display:flex;flex-wrap:wrap;gap:4px 14px;margin:0;font-size:13px;color:var(--school-ui-muted);line-height:1.5}
 .ft-source b{font-weight:650;color:var(--school-ui-label-text)}
 .ft-source + .ft-source{margin-top:4px}
@@ -130,7 +142,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="FET Timetable Editor — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>FT</span></span><span class="brand-text"><span>FET Timetable Editor</span><span class="small version">v0.99</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="FET Timetable Editor — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>FT</span></span><span class="brand-text"><span>FET Timetable Editor</span><span class="small version">v1.01</span></span></button></h1></div>
   <select id="period" aria-label="Περίοδος" disabled hidden></select>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <span class="sep" aria-hidden="true"></span>
@@ -226,7 +238,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
   const periodText = period => period.name + ' (' + D.format(period.from) + ' – ' + D.format(T.periodEnd(period, context.year)) + ')';
   const notice = (textValue, error = false) => { const node = $('notice'); if (!node) return; node.textContent = textValue; node.classList.toggle('error', error); };
   const message = (textValue, title) => schoolMessage(textValue, title ? {title} : {});
-  const modeSafe = () => $('mode')?.value !== 'free';
+  const modeSafe = () => controlState.mode !== 'free';
 
   // Teachers: 'id:<staff id>' for people of Προσωπικό, 'name:<name>' for names without a match.
   const keyOfId = id => 'id:' + id, keyOfName = name => 'name:' + name;
@@ -307,14 +319,14 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
 
   // ---- Teacher filter of the class view ----
   function shownTeachers(keys, className, hour) {
-    const filter = $('teacherFilter')?.value || 'all', morning = hour && isMorning(hour), home = homeroomKey(className);
+    const filter = controlState.teacherFilter, morning = hour && isMorning(hour), home = homeroomKey(className);
     // «Δάσκαλοι»: in the morning only the homeroom teacher of the class. «Ειδικότητες»: in the morning also
     // a classroom teacher who is not the homeroom teacher of the class.
     if (filter === 'classroom') return keys.filter(key => isClassroom(key) && (!morning || key === home));
     if (filter === 'specialties') return keys.filter(key => isSpecialty(key) || (morning && isClassroom(key) && key !== home));
     return keys;
   }
-  const passesFilter = (keys, className, hour) => ($('teacherFilter')?.value || 'all') === 'all' || shownTeachers(keys, className, hour).length > 0;
+  const passesFilter = (keys, className, hour) => controlState.teacherFilter === 'all' || shownTeachers(keys, className, hour).length > 0;
   function relevant() {
     const current = selected[view];
     if (!current) return [];
@@ -568,11 +580,15 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     list.replaceChildren(...(items.length ? items : [el('p', 'ft-entity-empty', all.length ? 'Δεν βρέθηκε κάτι με αυτή την αναζήτηση.' : view === 'classes' ? 'Δεν υπάρχουν τμήματα με υπεύθυνο στο Προσωπικό.' : 'Το ωρολόγιο δεν έχει εκπαιδευτικούς.')]));
   }
   // Controls of the workspace keep their values between renders.
+  // Εμφάνιση in the class view: at least one of Μάθημα / Εκπαιδευτικοί is always shown (default: both).
+  // In the teacher view the cards always show the students, so Μάθημα alone may be turned off.
   const controlState = {mode: 'safe', subject: true, teachers: true, hourFilter: 'all', teacherFilter: 'all'};
+  const showSubject = () => controlState.subject || (view === 'classes' && !controlState.teachers);
+  const showTeachers = () => controlState.teachers;
   function readControls() {
-    if (!$('mode')) return;
-    controlState.mode = $('mode').value; controlState.subject = $('showSubject').checked; controlState.teachers = $('showTeachers').checked;
-    controlState.hourFilter = $('hourFilter').value; controlState.teacherFilter = $('teacherFilter').value;
+    if (!$('hourFilter')) return;
+    controlState.hourFilter = $('hourFilter').value;
+    if ($('teacherFilter')) controlState.teacherFilter = $('teacherFilter').value;
   }
   function renderWorkspace(work) {
     const keepNotice = $('notice') ? [$('notice').textContent, $('notice').classList.contains('error')] : ['', false];
@@ -585,19 +601,54 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     work.innerHTML = `<div class="ft-toolbar">
         <h2 class="ft-title">${esc(title)}</h2>
         <div id="sourceInfo" class="ft-source-info"></div>
-        <div class="ft-controls">
-          <label>Λειτουργία: <select id="mode"><option value="safe">Ασφαλής</option><option value="free">Ελεύθερη</option></select></label>
-          <label><input type="checkbox" id="showSubject"> Μάθημα</label>
-          <label${view === 'classes' ? '' : ' hidden'}><input type="checkbox" id="showTeachers"> Εκπαιδευτικοί</label>
-          <label>Ώρες: <select id="hourFilter"><option value="all">Όλες</option><option value="morning">Πρωινό</option><option value="afternoon">Ολοήμερο</option></select></label>
-          <label${view === 'classes' ? '' : ' hidden'}>Εκπαιδευτικοί: <select id="teacherFilter"><option value="all">Όλοι</option><option value="classroom">Δάσκαλοι</option><option value="specialties">Ειδικότητες</option></select></label>
+        <div id="controls" class="ft-controls">
+          <div class="ft-control-group" role="group" aria-labelledby="modeTitle">
+            <span id="modeTitle" class="ft-control-title">Λειτουργία</span>
+            <div class="ft-segmented">
+              <button id="modeSafe" class="ui-toggle" type="button" data-mode="safe" title="Η μεταφορά επιτρέπεται μόνο χωρίς συγκρούσεις και μη διαθεσιμότητες">Ασφαλής</button><button id="modeFree" class="ui-toggle" type="button" data-mode="free" title="Η μεταφορά επιτρέπεται παντού">Ελεύθερη</button>
+            </div>
+          </div>
+          <div class="ft-control-group" role="group" aria-labelledby="showTitle">
+            <span id="showTitle" class="ft-control-title">Εμφάνιση</span>
+            <div class="ft-segmented">
+              <button id="showSubject" class="ui-toggle" type="button">Μάθημα</button>${view === 'classes' ? '<button id="showTeachers" class="ui-toggle" type="button">Εκπαιδευτικοί</button>' : ''}
+            </div>
+          </div>
+          <div class="ft-filters">
+            <div class="ft-control-group">
+              <label for="hourFilter" class="ft-control-title">Ώρες</label>
+              <select id="hourFilter"><option value="all">Όλες</option><option value="morning">Πρωινό</option><option value="afternoon">Ολοήμερο</option></select>
+            </div>${view === 'classes' ? `
+            <div class="ft-control-group">
+              <label for="teacherFilter" class="ft-control-title">Εκπαιδευτικοί</label>
+              <select id="teacherFilter"><option value="all">Όλοι</option><option value="classroom">Δάσκαλοι</option><option value="specialties">Ειδικότητες</option></select>
+            </div>` : ''}
+          </div>
         </div>
         <p id="notice" class="subapp-notice" role="status"></p>
       </div>
       <div id="gridWrap" class="ft-grid-wrap"></div>`;
-    $('mode').value = controlState.mode; $('showSubject').checked = controlState.subject; $('showTeachers').checked = controlState.teachers;
-    $('hourFilter').value = controlState.hourFilter; $('teacherFilter').value = controlState.teacherFilter;
-    for (const id of ['mode', 'showSubject', 'showTeachers', 'hourFilter', 'teacherFilter']) $(id).onchange = () => { readControls(); renderSide(); renderWorkspace(work); };
+    $('hourFilter').value = controlState.hourFilter;
+    if ($('teacherFilter')) $('teacherFilter').value = controlState.teacherFilter;
+    // After a change the board is drawn again; the control that changed keeps the focus.
+    const refresh = id => { renderSide(); renderWorkspace(work); $(id)?.focus(); };
+    for (const id of ['hourFilter', 'teacherFilter']) if ($(id)) $(id).onchange = () => { readControls(); refresh(id); };
+    for (const button of [$('modeSafe'), $('modeFree')]) {
+      button.setAttribute('aria-pressed', String(controlState.mode === button.dataset.mode));
+      button.onclick = () => { if (controlState.mode === button.dataset.mode) return; controlState.mode = button.dataset.mode; refresh(button.id); };
+    }
+    const shows = [[$('showSubject'), 'subject', showSubject()], [$('showTeachers'), 'teachers', showTeachers()]].filter(([button]) => button);
+    for (const [button, key, pressed] of shows) {
+      const last = pressed && shows.filter(([, , on]) => on).length === 1 && shows.length > 1;
+      button.setAttribute('aria-pressed', String(pressed));
+      button.title = last ? 'Πρέπει να εμφανίζεται τουλάχιστον ένα από τα δύο.' : '';
+      button.onclick = () => {
+        if (last) return;
+        controlState.subject = showSubject(); controlState.teachers = showTeachers();
+        controlState[key] = !pressed;
+        refresh(button.id);
+      };
+    }
     notice(...keepNotice);
     renderSource(); renderWarnings(); renderGrid();
     [work.scrollLeft, work.scrollTop] = scroll;
@@ -684,7 +735,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     const current = selected[view];
     if (view === 'classes') {
       const anySpecialty = item.keys.some(isSpecialty);
-      if (($('teacherFilter').value === 'all') && anySpecialty) card.classList.add('specialty');
+      if (controlState.teacherFilter === 'all' && anySpecialty) card.classList.add('specialty');
       else if (isMorning(hour) && !anySpecialty && item.keys.some(key => isClassroom(key) && key !== homeroomKey(current))) card.classList.add('non-homeroom');
     }
     if (index().conflictIds.has(item.id)) card.classList.add('conflict');
@@ -698,22 +749,22 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
       requestAnimationFrame(() => highlight(item.id));
     });
     card.addEventListener('dragend', () => { draggedId = null; clearHighlight(); });
-    if ($('showSubject').checked) card.append(el('div', 'ft-subject', (entryIndex === 0 ? '' : '↳ ') + (activity.subject || '—')));
+    if (showSubject()) card.append(el('div', 'ft-subject', (entryIndex === 0 ? '' : '↳ ') + (activity.subject || '—')));
     if (view === 'classes') {
-      if ($('showTeachers').checked) {
+      if (showTeachers()) {
         const keys = shownTeachers(item.keys, current, hour);
         const meta = el('div', 'ft-meta', keys.map(shortOf).join(', ') || '—');
         card.append(meta);
       }
     } else {
-      card.append(el('div', $('showSubject').checked ? 'ft-meta' : 'ft-subject', studentsLabel(activity) || '—'));
+      card.append(el('div', showSubject() ? 'ft-meta' : 'ft-subject', studentsLabel(activity) || '—'));
     }
     if (entryIndex === 0 && item.entries.length > 1) card.append(el('span', 'ft-badge', item.entries.length + ' ώρες'));
     return card;
   }
   function renderGrid() {
     const wrap = $('gridWrap'), list = teachingHours().filter(hour => {
-      const filter = $('hourFilter').value;
+      const filter = controlState.hourFilter;
       return filter === 'all' || (filter === 'morning' && isMorning(hour)) || (filter === 'afternoon' && isAfternoon(hour));
     });
     const bySlot = new Map(), current = selected[view];
@@ -755,9 +806,10 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     table.append(head, body);
     wrap.replaceChildren(table);
     if (gridWidthObserver) gridWidthObserver.disconnect();
-    const info = $('sourceInfo');
+    const info = $('sourceInfo'), controls = $('controls');
     const matchGridWidth = () => {
-      info.style.width = Math.min(table.getBoundingClientRect().width, wrap.clientWidth) + 'px';
+      const width = Math.min(table.getBoundingClientRect().width, wrap.clientWidth) + 'px';
+      info.style.width = width; controls.style.width = width;
     };
     matchGridWidth();
     gridWidthObserver = new ResizeObserver(matchGridWidth);
