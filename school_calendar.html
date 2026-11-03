@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Σχολικό Ημερολόγιο v0.73</title>
+<title>Σχολικό Ημερολόγιο v0.74</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -212,7 +212,7 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v0.73</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v0.74</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="print" type="button" disabled>Εκτύπωση...</button>
@@ -639,7 +639,7 @@ function directorTitleFor(fullName) {
   return 'Διευθυντής/Διευθύντρια';
 }
 const nextActNumber = () => Math.max(0, ...Object.values(cal.ssdMeetings).map(meeting => Number(meeting.actNumber) || 0)) + 1;
-// The staff of the year, in the order of Προσωπικό. Meetings refer to people by their id in Προσωπικό.
+// The staff of the year (the lists show them alphabetically). Meetings refer to people by their id in Προσωπικό.
 function meetingStaff() {
   const byId = new Map(), yearStart = `${startYear}-09-01`;
   for (const person of T.sortStaff(context.staff || [])) {
@@ -681,10 +681,9 @@ function applyLeaveAttendance(key, people, lists, reasons, leaveAutoIds, inServi
 async function openMeeting(kind, date) {
   const spec = MEETINGS[kind], ssd = kind === 'ssd', key = dateKey(date), stored = cal[spec.field][key] || null, isEditing = !!stored;
   const meeting = stored ? clone(stored) : {...(ssd ? {actNumber: nextActNumber()} : {}), subject:'', directorId:'', directorName:'', present:[], absent:[], absenceReasons:{}, scheduleAutoReasons:{}, leaveAutoIds:[], startTime: DEFAULT_TIMES.start, endTime: DEFAULT_TIMES.end};
-  // Present and Absent empty (new meeting, or nothing chosen yet): the program is checked at once.
-  const checkAtOpen = !(meeting.present || []).length && !(meeting.absent || []).length;
   let pendingActRenumbering = null;
-  const staffById = meetingStaff(), people = [...staffById.values()], order = new Map(people.map((person, index) => [person.id, index]));
+  const staffById = meetingStaff(), people = [...staffById.values()];
+  const collator = new Intl.Collator('el', {sensitivity: 'base', numeric: true});
   const inService = person => !!person && person.startDate <= key && (!person.endDate || person.endDate >= key);
   const currentDirector = people.find(person => person.role === 'director');
   // A new meeting takes the director of Προσωπικό; a saved one keeps its own (only the name, if that person was removed).
@@ -699,7 +698,6 @@ async function openMeeting(kind, date) {
   for (const id of Object.keys(reasons)) if (!absent.includes(id)) delete reasons[id];
   for (const id of absent) if (!REASON_KEYS.has(reasons[id])) reasons[id] = 'other';
   const leaveAutoIds = new Set(meeting.leaveAutoIds || []);
-  const activeLeave = applyLeaveAttendance(key, people, lists, reasons, leaveAutoIds, inService);
   const autoReasons = new Map(Object.entries(meeting.scheduleAutoReasons || {}).filter(([id, reason]) => staffById.has(id) && AUTO_REASONS.has(reason)));
   let selection = {available: new Set(), present: new Set(), absent: new Set()};
   const anchors = {available: null, present: null, absent: null};
@@ -720,9 +718,9 @@ async function openMeeting(kind, date) {
     q('[data-role="serviceError"]').textContent = issues.length ? `Σφάλμα: ${issues.map(person => person.startDate > key ? `${person.name} (ανάληψη ${D.format(person.startDate)})` : `${person.name} (αποχώρηση ${D.format(person.endDate)})`).join(', ')} — δεν υπηρετεί στο σχολείο την ημερομηνία της συνεδρίασης. Μετακίνησέ τους εκτός των Παρόντων/Απόντων ή διόρθωσε τις ημερομηνίες στο Προσωπικό.` : '';
     return issues;
   };
-  // Display order of a list: the order of Προσωπικό; the «Απόντες» grouped by reason.
+  // Display order of a list: alphabetical by full name; the «Απόντες» grouped by reason, alphabetical in each group.
   const displayOrder = name => {
-    const sorted = [...lists[name]].sort((a, b) => (order.get(a) ?? 1e9) - (order.get(b) ?? 1e9) || a.localeCompare(b, 'el'));
+    const sorted = [...lists[name]].sort((a, b) => collator.compare(displayName(a), displayName(b)) || a.localeCompare(b));
     return name === 'absent' ? REASONS.flatMap(([reason]) => sorted.filter(id => (reasons[id] || 'other') === reason)) : sorted;
   };
   const moveIds = (from, to, ids) => {
@@ -774,7 +772,7 @@ async function openMeeting(kind, date) {
       });
       if (name !== 'available' && !ids.length) {
         const hint = document.createElement('div'); hint.className = 'ssd-empty-instruction'; hint.setAttribute('role', 'presentation');
-        hint.textContent = 'Σύρε εδώ εκπαιδευτικούς ή πάτησε «Έλεγχος από το πρόγραμμα»: όσοι έχουν μάθημα ή δεν είναι διαθέσιμοι μπαίνουν στους Απόντες, οι υπόλοιποι στους Παρόντες.';
+        hint.textContent = 'Σύρε εδώ εκπαιδευτικούς ή πάτησε «Έλεγχος από το πρόγραμμα»: όσοι έχουν άδεια, μάθημα ή δεν είναι διαθέσιμοι μπαίνουν στους Απόντες, οι υπόλοιποι στους Παρόντες.';
         container.append(hint);
       }
       container.scrollTop = scroll; container.classList.remove('dragover');
@@ -803,16 +801,20 @@ async function openMeeting(kind, date) {
   }
   body.querySelectorAll('.ssd-move').forEach(button => button.addEventListener('click', () => moveIds(button.dataset.from, button.dataset.to, [...selection[button.dataset.from]])));
 
-  // «Έλεγχος από το πρόγραμμα»: the programs of the period in force on the date (Σχολικά Προγράμματα).
-  // An activity at the time of the meeting → «Σε μάθημα»; unavailable in FET → «Σε άλλο σχολείο»; every other
-  // available person → «Παρόντες». People on leave keep their leave. auto: the check made when the dialog opens.
-  const checkProgram = (auto = false) => {
+  // «Έλεγχος από το πρόγραμμα» (only with the button, never on its own): first the leaves of Προσωπικό on the date
+  // (approved → «Σε άδεια», in progress → «Αναμονή άδειας»), then the programs of the period in force on the date
+  // (Σχολικά Προγράμματα): an activity at the time of the meeting → «Σε μάθημα»; unavailable in FET → «Σε άλλο
+  // σχολείο»; every other available person → «Παρόντες».
+  const checkProgram = () => {
     const start = startInput.value.trim(), end = endInput.value.trim();
     if (!TIME.test(start) || !TIME.test(end) || end <= start) { status('Συμπλήρωσε έγκυρες ώρες συνεδρίασης για να ελεγχθεί το πρόγραμμα.', true); return; }
-    if (!timetables) { status('Τα Σχολικά Προγράμματα δεν έχουν φορτωθεί ακόμη. Δοκίμασε ξανά σε λίγο.', !auto); return; }
+    const activeLeave = applyLeaveAttendance(key, people, lists, reasons, leaveAutoIds, inService);
+    const leaveText = `${[...activeLeave.values()].filter(reason => reason === 'leave').length} σε άδεια, ${[...activeLeave.values()].filter(reason => reason === 'leavePending').length} σε αναμονή άδειας`;
+    const stop = message => { selection = {available: new Set(), present: new Set(), absent: new Set()}; renderLists(); refreshServiceError(); status(`Άδειες: ${leaveText}. ${message} Δεν έγινε έλεγχος μαθημάτων.`, true); };
+    if (!timetables) { stop('Τα Σχολικά Προγράμματα δεν έχουν φορτωθεί ακόμη· δοκίμασε ξανά σε λίγο.'); return; }
     const busyAt = T.staffBusyAt(timetables, key, start, end);
-    if (!busyAt.period) { status(`Δεν υπάρχει περίοδος στα Σχολικά Προγράμματα για τις ${D.format(key)}. Οι λίστες δεν άλλαξαν.`, !auto); return; }
-    if (!busyAt.programs.length) { status(`Η περίοδος «${busyAt.period.name}» δεν έχει πρόγραμμα στα Σχολικά Προγράμματα. Οι λίστες δεν άλλαξαν.`, !auto); return; }
+    if (!busyAt.period) { stop(`Δεν υπάρχει περίοδος στα Σχολικά Προγράμματα για τις ${D.format(key)}.`); return; }
+    if (!busyAt.programs.length) { stop(`Η περίοδος «${busyAt.period.name}» δεν έχει πρόγραμμα στα Σχολικά Προγράμματα.`); return; }
     for (const [id, reason] of autoReasons) {
       if (!lists.absent.includes(id) || reasons[id] !== reason) continue;
       lists.absent = lists.absent.filter(value => value !== id); delete reasons[id];
@@ -838,7 +840,7 @@ async function openMeeting(kind, date) {
     }
     selection = {available: new Set(), present: new Set(), absent: new Set()};
     renderLists(); refreshServiceError();
-    status(`Πρόγραμμα της περιόδου «${busyAt.period.name}», ${start}–${end}: ${lessons} σε μάθημα, ${others} σε άλλο σχολείο (μη διαθέσιμοι στο FET), ${moved} μεταφέρθηκαν στους Παρόντες.`);
+    status(`Άδειες: ${leaveText}. Πρόγραμμα της περιόδου «${busyAt.period.name}», ${start}–${end}: ${lessons} σε μάθημα, ${others} σε άλλο σχολείο (μη διαθέσιμοι στο FET), ${moved} μεταφέρθηκαν στους Παρόντες.`);
   };
   q('[data-role="checkProgram"]').addEventListener('click', () => checkProgram());
 
@@ -925,7 +927,6 @@ async function openMeeting(kind, date) {
       clearErrorOnInput(dialog);
       if (ssd) renderActNumber();
       renderLists(); refreshServiceError();
-      if (checkAtOpen) checkProgram(true);
       q('#ssdSubject').focus();
     }
   });
