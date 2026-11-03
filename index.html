@@ -367,7 +367,7 @@ body.session-locked #app-shell { visibility:hidden; pointer-events:none; }
     <div class="sidebar-head">
       <div class="brand">
         <span class="brand-name">Εφαρμογές σχολείου</span>
-        <span class="sidebar-version" aria-label="Έκδοση 0.94">v0.94</span>
+        <span class="sidebar-version" aria-label="Έκδοση 0.95">v0.95</span>
       </div>
     </div>
     <div id="sidebar-school" class="sidebar-school" hidden><span id="nav-school-name" class="sidebar-school-name"></span><span id="nav-school-year" class="sidebar-school-year"></span></div>
@@ -1317,11 +1317,11 @@ const StaffStorage = (() => {
       // Programs that refer to removed staff change in this same save, all or nothing (staffRemovals).
       if (Timetables) Timetables.applyStaffRemovals(candidate, message.year, previous, staff, message.staffRemovals);
       else if (candidate.timetablesByYear) throw Error(missingTimetables);
-      const previousCodes = new Set(previous.map(p=>String(p.code||'').trim()).filter(Boolean)), retainedCodes = new Set(staff.map(p=>p.code.trim()).filter(Boolean));
-      const removedCodes = new Set((Array.isArray(message.removedCodes)?message.removedCodes:[]).filter(code => typeof code==='string' && previousCodes.has(code) && !retainedCodes.has(code)));
-      // Meetings of the Σχολικό Ημερολόγιο that refer to removed staff change in this same save.
-      if (Calendar) Calendar.removeStaffCodes(candidate, message.year, [...removedCodes]);
-      else if (candidate.calendarByYear && removedCodes.size) throw Error(missingCalendar);
+      // Meetings of the Σχολικό Ημερολόγιο that refer to removed staff (by id, found by comparing before and after)
+      // change in this same save.
+      const retainedIds = new Set(staff.map(p=>p.id)), removedIds = previous.map(p=>p?.id).filter(id => id && !retainedIds.has(id));
+      if (Calendar) Calendar.removeStaff(candidate, message.year, removedIds);
+      else if (candidate.calendarByYear && removedIds.length) throw Error(missingCalendar);
       staffSaving = true; ownsSave = true;
       const filename = await saveNewData(candidate, sessionPassword, sharedFilename, rememberedHandle);
       showSharedData(candidate, filename, sessionPassword !== '', sessionPassword);

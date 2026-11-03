@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Σχολικό Ημερολόγιο στο Κεντρικό Μενού (host)
- * Έκδοση αρχείου: 0.1
+ * Έκδοση αρχείου: 0.2
  * Όνομα κατά την εγκατάσταση: _host_calendar.js
  *
  * Κώδικας μόνο του host για το Σχολικό Ημερολόγιο (calendarByYear). Το φορτώνει το index.html μετά το
@@ -10,12 +10,12 @@
  *   APP                                     το αρχείο της εφαρμογής (school_calendar.html)
  *   yearData(data, year)                    το calendarByYear[year] ({entries, ssdMeetings, pedagogicMeetings})
  *   context(data, revision)                 το school-calendar:context
- *   validateCalendar(calendar, year)        έλεγχος των δεδομένων ενός έτους· επιστρέφει καθαρό αντίγραφο
+ *   validateCalendar(calendar, year, staff) έλεγχος των δεδομένων ενός έτους· επιστρέφει καθαρό αντίγραφο
  *                                           (πετά λάθος)
  *   applySave(data, message)                εφαρμογή ενός school-calendar:save σε αντίγραφο του data
  *   zoom(data)                              το ζουμ του Ημερολογίου (calendarSettings.zoom, κοινό για όλα τα έτη)
  *   withZoom(data, zoom)                    αντίγραφο του data με νέο ζουμ
- *   removeStaffCodes(data, year, codes)     αφαιρεί κωδικούς εκπαιδευτικών από τις συνεδριάσεις ενός έτους
+ *   removeStaff(data, year, ids)            αφαιρεί εκπαιδευτικούς (id) από τις συνεδριάσεις ενός έτους
  *                                           (αλλάζει το data· για το αντίγραφο της αποθήκευσης του Προσωπικού)
  *   install(bridge)                         σύνδεση με το index (πρωτόκολλο school-calendar:*)
  *
@@ -24,7 +24,8 @@
  *                           pedagogicMeetings:{'YYYY-MM-DD':{…}}}
  *   calendarSettings = {zoom}   έξω από το calendarByYear, ώστε να ισχύει για όλα τα σχολικά έτη. Δεν μετρά
  *                               ως αλλαγή δεδομένων: γράφεται όπως το lastViewByYear (βλέπε install).
- * Οι εκπαιδευτικοί των συνεδριάσεων αναφέρονται με τον κωδικό τους (code) του Προσωπικού.
+ * Οι εκπαιδευτικοί των συνεδριάσεων αναφέρονται με το id τους στο Προσωπικό (present, absent, absenceReasons,
+ * scheduleAutoReasons, leaveAutoIds, directorId), όπως στα προγράμματα: αλλαγή κωδικού ή ονόματος δεν τους επηρεάζει.
  */
 (() => {
   'use strict';
@@ -33,7 +34,7 @@
 
   const APP = 'school_calendar.html';
   // Όρια: πιάνουν λάθη εφαρμογών, όχι πραγματικά δεδομένα (ένα σχολικό έτος έχει έως 366 ημέρες).
-  const LIMITS = Object.freeze({html: 200000, subject: 20000, name: 300, code: 100, people: 300});
+  const LIMITS = Object.freeze({html: 200000, subject: 20000, name: 300, id: 200, people: 300});
   const ZOOM = Object.freeze({min: 70, max: 150, step: 10, fallback: 100});
   const REASONS = Object.freeze(['leave', 'leavePending', 'lesson', 'otherSchool', 'other']);
   const AUTO_REASONS = Object.freeze(['lesson', 'otherSchool']);
@@ -80,43 +81,47 @@
     if (!D.valid(key)) throw Error('Μη έγκυρη ημερομηνία ' + what + ' («' + String(key).slice(0, 20) + '»).');
     if (!D.inSchoolYear(key, year)) throw Error('Η ημερομηνία ' + formatDate(key) + ' (' + what + ') είναι έξω από το σχολικό έτος ' + year + '.');
   }
-  function codeList(value, label, when) {
+  // A reference to a person: the id of a person of Προσωπικό for the year (as in the programs).
+  function checkPerson(id, ids, when) {
+    if (!isText(id, LIMITS.id) || !id) throw Error('Μη έγκυρος εκπαιδευτικός στη συνεδρίαση της ' + when + '.');
+    if (!ids.has(id)) throw Error('Η συνεδρίαση της ' + when + ' αναφέρεται σε εκπαιδευτικό που δεν υπάρχει στο Προσωπικό του έτους. Βεβαιώσου ότι το school_calendar.html είναι η τελευταία έκδοση.');
+  }
+  function idList(value, label, when, ids) {
     if (value == null) return [];
     if (!Array.isArray(value) || value.length > LIMITS.people) throw Error('Μη έγκυρη λίστα «' + label + '» στη συνεδρίαση της ' + when + '.');
     const list = [];
-    for (const code of value) {
-      if (!isText(code, LIMITS.code) || !code.trim()) throw Error('Μη έγκυρος κωδικός εκπαιδευτικού στη λίστα «' + label + '» της ' + when + '.');
-      if (!list.includes(code)) list.push(code);
-    }
+    for (const id of value) { checkPerson(id, ids, when); if (!list.includes(id)) list.push(id); }
     return list;
   }
-  function reasonMap(value, allowed, label, when) {
+  function reasonMap(value, allowed, label, when, ids) {
     if (value == null) return {};
     if (!isObject(value)) throw Error('Μη έγκυρες ' + label + ' στη συνεδρίαση της ' + when + '.');
     const out = {};
-    for (const [code, reason] of Object.entries(value)) {
-      if (!isText(code, LIMITS.code) || !allowed.includes(reason)) throw Error('Μη έγκυρη αιτιολογία απουσίας στη συνεδρίαση της ' + when + '.');
-      out[code] = reason;
+    for (const [id, reason] of Object.entries(value)) {
+      checkPerson(id, ids, when);
+      if (!allowed.includes(reason)) throw Error('Μη έγκυρη αιτιολογία απουσίας στη συνεδρίαση της ' + when + '.');
+      out[id] = reason;
     }
     return out;
   }
-  function validateMeeting(meeting, key, ssd) {
+  function validateMeeting(meeting, key, ssd, ids) {
     const when = formatDate(key);
     if (!isObject(meeting)) throw Error('Μη έγκυρη συνεδρίαση στις ' + when + '.');
     if (!TIME.test(meeting.startTime || '') || !TIME.test(meeting.endTime || '')) throw Error('Μη έγκυρη ώρα στη συνεδρίαση της ' + when + ' (μορφή HH:MM).');
     if (!(meeting.startTime < meeting.endTime)) throw Error('Η ώρα λήξης της συνεδρίασης της ' + when + ' δεν είναι μετά την ώρα έναρξης.');
-    for (const field of ['subject', 'directorCode', 'directorName']) {
+    for (const field of ['subject', 'directorName']) {
       if (meeting[field] != null && !isText(meeting[field], field === 'subject' ? LIMITS.subject : LIMITS.name)) throw Error('Μη έγκυρο κείμενο στη συνεδρίαση της ' + when + '.');
     }
-    const present = codeList(meeting.present, 'Παρόντες', when), absent = codeList(meeting.absent, 'Απόντες', when);
-    if (present.some(code => absent.includes(code))) throw Error('Ένας εκπαιδευτικός είναι και στους Παρόντες και στους Απόντες στη συνεδρίαση της ' + when + '.');
+    if (meeting.directorId) checkPerson(meeting.directorId, ids, when);
+    const present = idList(meeting.present, 'Παρόντες', when, ids), absent = idList(meeting.absent, 'Απόντες', when, ids);
+    if (present.some(id => absent.includes(id))) throw Error('Ένας εκπαιδευτικός είναι και στους Παρόντες και στους Απόντες στη συνεδρίαση της ' + when + '.');
     const out = {
       startTime: meeting.startTime, endTime: meeting.endTime,
-      subject: meeting.subject || '', directorCode: meeting.directorCode || '', directorName: meeting.directorName || '',
+      subject: meeting.subject || '', directorId: meeting.directorId || '', directorName: meeting.directorName || '',
       present, absent,
-      absenceReasons: reasonMap(meeting.absenceReasons, REASONS, 'αιτιολογίες', when),
-      scheduleAutoReasons: reasonMap(meeting.scheduleAutoReasons, AUTO_REASONS, 'αυτόματες αιτιολογίες', when),
-      leaveAutoCodes: codeList(meeting.leaveAutoCodes, 'άδειες', when)
+      absenceReasons: reasonMap(meeting.absenceReasons, REASONS, 'αιτιολογίες', when, ids),
+      scheduleAutoReasons: reasonMap(meeting.scheduleAutoReasons, AUTO_REASONS, 'αυτόματες αιτιολογίες', when, ids),
+      leaveAutoIds: idList(meeting.leaveAutoIds, 'άδειες', when, ids)
     };
     if (ssd) {
       if (!Number.isSafeInteger(meeting.actNumber) || meeting.actNumber < 1) throw Error('Ο αριθμός πράξης της συνεδρίασης της ' + when + ' πρέπει να είναι θετικός ακέραιος.');
@@ -125,8 +130,9 @@
     return out;
   }
   // Τα δεδομένα του Ημερολογίου για ένα έτος. Απορρίπτει ό,τι θα χαλούσε τα δεδομένα· επιστρέφει καθαρό
-  // αντίγραφο (οι κενές σημειώσεις δεν κρατιούνται).
-  function validateCalendar(calendar, year) {
+  // αντίγραφο (οι κενές σημειώσεις δεν κρατιούνται). staff: το Προσωπικό του έτους, για τα id των συνεδριάσεων.
+  function validateCalendar(calendar, year, staff) {
+    const ids = new Set((Array.isArray(staff) ? staff : []).map(person => person?.id).filter(Boolean));
     if (!isObject(calendar)) throw Error('Μη έγκυρα δεδομένα Ημερολογίου. Βεβαιώσου ότι το school_calendar.html είναι η τελευταία έκδοση.');
     const out = {entries: {}, ssdMeetings: {}, pedagogicMeetings: {}};
     const entries = calendar.entries ?? {};
@@ -143,7 +149,7 @@
       if (!isObject(meetings)) throw Error('Μη έγκυρες συνεδριάσεις Ημερολογίου.');
       for (const [key, meeting] of Object.entries(meetings)) {
         checkDate(key, year, ssd ? 'συνεδρίασης ΣΣΔ' : 'παιδαγωγικής συνάντησης');
-        out[field][key] = validateMeeting(meeting, key, ssd);
+        out[field][key] = validateMeeting(meeting, key, ssd, ids);
       }
     }
     const acts = new Map();
@@ -156,22 +162,25 @@
   // Το school-calendar:save σε αντίγραφο του data: αντικαθιστά μόνο το calendarByYear[year].
   // Τα υπόλοιπα έτη και τα άγνωστα πεδία του έτους μένουν όπως είναι.
   function applySave(data, message) {
-    const year = data.school.year, calendar = validateCalendar(message.calendar, year), candidate = clone(data);
+    const year = data.school.year, staff = Array.isArray(data?.staffByYear?.[year]) ? data.staffByYear[year] : [];
+    const calendar = validateCalendar(message.calendar, year, staff), candidate = clone(data);
     if (!isObject(candidate.calendarByYear)) candidate.calendarByYear = {};
     const previous = isObject(candidate.calendarByYear[year]) ? candidate.calendarByYear[year] : {};
     candidate.calendarByYear[year] = {...previous, ...calendar};
     return candidate;
   }
-  // Οι κωδικοί που διαγράφηκαν από το Προσωπικό φεύγουν από τις συνεδριάσεις του έτους.
-  function removeStaffCodes(data, year, codes) {
-    const removed = new Set(codes || []);
+  // Οι εκπαιδευτικοί που διαγράφηκαν από το Προσωπικό (id) φεύγουν από τις συνεδριάσεις του έτους. Ο διευθυντής
+  // μιας συνεδρίασης που διαγράφηκε μένει μόνο με το όνομά του (directorName).
+  function removeStaff(data, year, ids) {
+    const removed = new Set(ids || []);
     const value = isObject(data?.calendarByYear) ? data.calendarByYear[year] : null;
     if (!removed.size || !isObject(value)) return data;
     for (const meetings of [value.ssdMeetings, value.pedagogicMeetings]) {
       for (const meeting of Object.values(isObject(meetings) ? meetings : {})) {
         if (!isObject(meeting)) continue;
-        for (const key of ['present', 'absent', 'leaveAutoCodes']) if (Array.isArray(meeting[key])) meeting[key] = meeting[key].filter(code => !removed.has(String(code)));
-        for (const key of ['absenceReasons', 'scheduleAutoReasons']) if (isObject(meeting[key])) for (const code of removed) delete meeting[key][code];
+        for (const key of ['present', 'absent', 'leaveAutoIds']) if (Array.isArray(meeting[key])) meeting[key] = meeting[key].filter(id => !removed.has(id));
+        for (const key of ['absenceReasons', 'scheduleAutoReasons']) if (isObject(meeting[key])) for (const id of removed) delete meeting[key][id];
+        if (removed.has(meeting.directorId)) meeting.directorId = '';
       }
     }
     return data;
@@ -229,6 +238,6 @@
   }
 
   window.SchoolHostCalendar = Object.freeze({
-    APP, LIMITS, ZOOM, REASONS, yearData, context, validateCalendar, applySave, zoom, withZoom, removeStaffCodes, install
+    APP, LIMITS, ZOOM, REASONS, yearData, context, validateCalendar, applySave, zoom, withZoom, removeStaff, install
   });
 })();

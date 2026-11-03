@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Σχολικό Ημερολόγιο v0.72</title>
+<title>Σχολικό Ημερολόγιο v0.73</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -212,7 +212,7 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v0.72</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v0.73</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="print" type="button" disabled>Εκτύπωση...</button>
@@ -297,16 +297,16 @@ const clearErrorOnInput = dialog => dialog.addEventListener('input', () => { con
 function normalizeMeetings(rows, ssd) {
   const out = {};
   const strings = list => Array.isArray(list) ? [...new Set(list.map(item => String(item ?? '')).filter(Boolean))] : [];
-  const reasons = (map, allowed) => isObject(map) ? Object.fromEntries(Object.entries(map).filter(([code, reason]) => code && allowed.has(reason))) : {};
+  const reasons = (map, allowed) => isObject(map) ? Object.fromEntries(Object.entries(map).filter(([id, reason]) => id && allowed.has(reason))) : {};
   for (const [key, value] of Object.entries(isObject(rows) ? rows : {})) {
     if (!D.valid(key) || !isObject(value)) continue;
     const meeting = {
       startTime: TIME.test(String(value.startTime || '')) ? value.startTime : DEFAULT_TIMES.start,
       endTime: TIME.test(String(value.endTime || '')) ? value.endTime : DEFAULT_TIMES.end,
-      subject: String(value.subject ?? ''), directorCode: String(value.directorCode ?? ''), directorName: String(value.directorName ?? ''),
+      subject: String(value.subject ?? ''), directorId: String(value.directorId ?? ''), directorName: String(value.directorName ?? ''),
       present: strings(value.present), absent: strings(value.absent),
       absenceReasons: reasons(value.absenceReasons, REASON_KEYS), scheduleAutoReasons: reasons(value.scheduleAutoReasons, AUTO_REASONS),
-      leaveAutoCodes: strings(value.leaveAutoCodes)
+      leaveAutoIds: strings(value.leaveAutoIds)
     };
     if (ssd) meeting.actNumber = Math.max(1, Math.trunc(Number(value.actNumber) || 1));
     out[key] = meeting;
@@ -639,83 +639,82 @@ function directorTitleFor(fullName) {
   return 'Διευθυντής/Διευθύντρια';
 }
 const nextActNumber = () => Math.max(0, ...Object.values(cal.ssdMeetings).map(meeting => Number(meeting.actNumber) || 0)) + 1;
-// The staff of the year with a code, in the order of Προσωπικό. Meetings refer to people by code.
+// The staff of the year, in the order of Προσωπικό. Meetings refer to people by their id in Προσωπικό.
 function meetingStaff() {
-  const byCode = new Map(), yearStart = `${startYear}-09-01`;
+  const byId = new Map(), yearStart = `${startYear}-09-01`;
   for (const person of T.sortStaff(context.staff || [])) {
-    const code = String(person.code || '').trim();
-    if (!code || byCode.has(code)) continue;
-    byCode.set(code, {
-      code, id: person.id, name: person.name || person.shortName || code, role: person.role,
+    if (!person?.id || byId.has(person.id)) continue;
+    byId.set(person.id, {
+      id: person.id, name: person.name || person.shortName || person.id || '?', role: person.role,
       startDate: D.valid(person.startDate) ? person.startDate : yearStart, endDate: D.valid(person.endDate) ? person.endDate : '',
       leaves: Array.isArray(person.leaves) ? person.leaves.filter(leave => leave && D.valid(leave.from) && D.valid(leave.to)) : []
     });
   }
-  return byCode;
+  return byId;
 }
 // Approved leave on the date → «Σε άδεια»; leave still in progress → «Αναμονή άδειας». People whose leave no
-// longer covers the date go back to the «Διαθέσιμοι». Returns the codes on leave (Map code → reason).
-function applyLeaveAttendance(key, people, lists, reasons, leaveAutoCodes, inService) {
+// longer covers the date go back to the «Διαθέσιμοι». Returns the people on leave (Map id → reason).
+function applyLeaveAttendance(key, people, lists, reasons, leaveAutoIds, inService) {
   const active = new Map();
   for (const person of people) {
     if (!inService(person)) continue;
     const covering = person.leaves.filter(leave => leave.from <= key && key <= leave.to);
-    if (covering.length) active.set(person.code, covering.some(leave => leave.approved === true) ? 'leave' : 'leavePending');
+    if (covering.length) active.set(person.id, covering.some(leave => leave.approved === true) ? 'leave' : 'leavePending');
   }
-  for (const code of [...leaveAutoCodes]) {
-    if (active.has(code)) continue;
-    if (lists.absent.includes(code) && LEAVE_REASONS.has(reasons[code])) {
-      lists.absent = lists.absent.filter(value => value !== code); delete reasons[code];
-      const person = people.find(item => item.code === code);
-      if (person && inService(person) && !lists.present.includes(code) && !lists.available.includes(code)) lists.available.push(code);
+  for (const id of [...leaveAutoIds]) {
+    if (active.has(id)) continue;
+    if (lists.absent.includes(id) && LEAVE_REASONS.has(reasons[id])) {
+      lists.absent = lists.absent.filter(value => value !== id); delete reasons[id];
+      const person = people.find(item => item.id === id);
+      if (person && inService(person) && !lists.present.includes(id) && !lists.available.includes(id)) lists.available.push(id);
     }
-    leaveAutoCodes.delete(code);
+    leaveAutoIds.delete(id);
   }
-  for (const [code, reason] of active) {
-    lists.available = lists.available.filter(value => value !== code);
-    lists.present = lists.present.filter(value => value !== code);
-    if (!lists.absent.includes(code)) lists.absent.push(code);
-    reasons[code] = reason; leaveAutoCodes.add(code);
+  for (const [id, reason] of active) {
+    lists.available = lists.available.filter(value => value !== id);
+    lists.present = lists.present.filter(value => value !== id);
+    if (!lists.absent.includes(id)) lists.absent.push(id);
+    reasons[id] = reason; leaveAutoIds.add(id);
   }
   return active;
 }
 async function openMeeting(kind, date) {
   const spec = MEETINGS[kind], ssd = kind === 'ssd', key = dateKey(date), stored = cal[spec.field][key] || null, isEditing = !!stored;
-  const meeting = stored ? clone(stored) : {...(ssd ? {actNumber: nextActNumber()} : {}), subject:'', directorCode:'', directorName:'', present:[], absent:[], absenceReasons:{}, scheduleAutoReasons:{}, leaveAutoCodes:[], startTime: DEFAULT_TIMES.start, endTime: DEFAULT_TIMES.end};
+  const meeting = stored ? clone(stored) : {...(ssd ? {actNumber: nextActNumber()} : {}), subject:'', directorId:'', directorName:'', present:[], absent:[], absenceReasons:{}, scheduleAutoReasons:{}, leaveAutoIds:[], startTime: DEFAULT_TIMES.start, endTime: DEFAULT_TIMES.end};
   // Present and Absent empty (new meeting, or nothing chosen yet): the program is checked at once.
   const checkAtOpen = !(meeting.present || []).length && !(meeting.absent || []).length;
   let pendingActRenumbering = null;
-  const staffByCode = meetingStaff(), people = [...staffByCode.values()], order = new Map(people.map((person, index) => [person.code, index]));
+  const staffById = meetingStaff(), people = [...staffById.values()], order = new Map(people.map((person, index) => [person.id, index]));
   const inService = person => !!person && person.startDate <= key && (!person.endDate || person.endDate >= key);
   const currentDirector = people.find(person => person.role === 'director');
-  if (!meeting.directorCode && currentDirector) { meeting.directorCode = currentDirector.code; meeting.directorName = currentDirector.name; }
-  const savedDirector = staffByCode.get(meeting.directorCode);
+  // A new meeting takes the director of Προσωπικό; a saved one keeps its own (only the name, if that person was removed).
+  if (!stored && currentDirector) { meeting.directorId = currentDirector.id; meeting.directorName = currentDirector.name; }
+  const savedDirector = staffById.get(meeting.directorId);
   const directorName = savedDirector?.name || meeting.directorName || currentDirector?.name || 'Δεν έχει οριστεί Διευθυντής/Διευθύντρια';
-  const directorCode = savedDirector?.code || meeting.directorCode || currentDirector?.code || '';
-  const present = [...new Set(meeting.present || [])].filter(code => staffByCode.has(code));
-  const absent = [...new Set(meeting.absent || [])].filter(code => staffByCode.has(code) && !present.includes(code));
-  const lists = {available: people.filter(inService).map(person => person.code).filter(code => !present.includes(code) && !absent.includes(code)), present, absent};
+  const directorId = savedDirector?.id || '';
+  const present = [...new Set(meeting.present || [])].filter(id => staffById.has(id));
+  const absent = [...new Set(meeting.absent || [])].filter(id => staffById.has(id) && !present.includes(id));
+  const lists = {available: people.filter(inService).map(person => person.id).filter(id => !present.includes(id) && !absent.includes(id)), present, absent};
   const reasons = {...(meeting.absenceReasons || {})};
-  for (const code of Object.keys(reasons)) if (!absent.includes(code)) delete reasons[code];
-  for (const code of absent) if (!REASON_KEYS.has(reasons[code])) reasons[code] = 'other';
-  const leaveAutoCodes = new Set(meeting.leaveAutoCodes || []);
-  const activeLeave = applyLeaveAttendance(key, people, lists, reasons, leaveAutoCodes, inService);
-  const autoReasons = new Map(Object.entries(meeting.scheduleAutoReasons || {}).filter(([code, reason]) => staffByCode.has(code) && AUTO_REASONS.has(reason)));
+  for (const id of Object.keys(reasons)) if (!absent.includes(id)) delete reasons[id];
+  for (const id of absent) if (!REASON_KEYS.has(reasons[id])) reasons[id] = 'other';
+  const leaveAutoIds = new Set(meeting.leaveAutoIds || []);
+  const activeLeave = applyLeaveAttendance(key, people, lists, reasons, leaveAutoIds, inService);
+  const autoReasons = new Map(Object.entries(meeting.scheduleAutoReasons || {}).filter(([id, reason]) => staffById.has(id) && AUTO_REASONS.has(reason)));
   let selection = {available: new Set(), present: new Set(), absent: new Set()};
   const anchors = {available: null, present: null, absent: null};
-  const displayName = code => staffByCode.get(code)?.name || code;
-  const missingCodes = (context.staff || []).filter(person => !String(person.code || '').trim()).length;
+  const displayName = id => staffById.get(id)?.name || id;
   const listTitle = {available:'Διαθέσιμοι', present:'Παρόντες', absent:'Απόντες'};
   const moves = {available:[['present','Παρόντες →'],['absent','Απόντες →']], present:[['available','← Διαθέσιμοι'],['absent','Απόντες →']], absent:[['available','← Διαθέσιμοι'],['present','← Παρόντες']]};
 
   const body = document.createElement('div'); body.className = 'ssd-body';
-  body.innerHTML = `<div class="ssd-meta"><div class="ssd-left-meta">${ssd ? `<div class="ssd-act"><strong>Αριθμός πράξης:</strong> <span data-role="act"></span></div>` : ''}<div class="ssd-director"><strong>${esc(directorTitleFor(directorName))}:</strong> <span>${esc(directorName)}</span></div></div><div class="ssd-date-time"><strong>Ημερομηνία:</strong><span>${esc(longDate(date))}</span><label for="ssdStartTime">Ώρα έναρξης:</label><input id="ssdStartTime" type="text" inputmode="numeric" autocomplete="off" maxlength="5" placeholder="HH:MM" value="${esc(meeting.startTime || DEFAULT_TIMES.start)}" aria-label="Ώρα έναρξης συνεδρίασης, 24ωρη μορφή"><label for="ssdEndTime">Ώρα λήξης:</label><input id="ssdEndTime" type="text" inputmode="numeric" autocomplete="off" maxlength="5" placeholder="HH:MM" value="${esc(meeting.endTime || DEFAULT_TIMES.end)}" aria-label="Ώρα λήξης συνεδρίασης, 24ωρη μορφή"></div></div><div class="ssd-error" data-role="serviceError" role="alert"></div><div class="ssd-subject"><label for="ssdSubject">${spec.subject}</label><textarea id="ssdSubject" rows="2">${esc(meeting.subject)}</textarea></div><div class="ssd-schedule"><button type="button" data-role="checkProgram">Έλεγχος από το πρόγραμμα</button><span class="ui-helper" data-role="status" aria-live="polite">${missingCodes ? `${missingCodes} εκπαιδευτικοί χωρίς κωδικό στο Προσωπικό δεν εμφανίζονται.` : ''}</span></div><div class="ssd-attendance">${Object.keys(listTitle).map(name => `<section class="ssd-list-panel"><h3 data-title="${name}">${listTitle[name]} (0)</h3><div class="ssd-teacher-list" data-list="${name}" role="listbox" aria-multiselectable="true" aria-label="${listTitle[name]}" tabindex="0"></div><div class="ssd-list-controls">${moves[name].map(([to, label]) => `<button type="button" class="ssd-move" data-from="${name}" data-to="${to}">${label}</button>`).join('')}</div></section>`).join('')}</div>`;
+  body.innerHTML = `<div class="ssd-meta"><div class="ssd-left-meta">${ssd ? `<div class="ssd-act"><strong>Αριθμός πράξης:</strong> <span data-role="act"></span></div>` : ''}<div class="ssd-director"><strong>${esc(directorTitleFor(directorName))}:</strong> <span>${esc(directorName)}</span></div></div><div class="ssd-date-time"><strong>Ημερομηνία:</strong><span>${esc(longDate(date))}</span><label for="ssdStartTime">Ώρα έναρξης:</label><input id="ssdStartTime" type="text" inputmode="numeric" autocomplete="off" maxlength="5" placeholder="HH:MM" value="${esc(meeting.startTime || DEFAULT_TIMES.start)}" aria-label="Ώρα έναρξης συνεδρίασης, 24ωρη μορφή"><label for="ssdEndTime">Ώρα λήξης:</label><input id="ssdEndTime" type="text" inputmode="numeric" autocomplete="off" maxlength="5" placeholder="HH:MM" value="${esc(meeting.endTime || DEFAULT_TIMES.end)}" aria-label="Ώρα λήξης συνεδρίασης, 24ωρη μορφή"></div></div><div class="ssd-error" data-role="serviceError" role="alert"></div><div class="ssd-subject"><label for="ssdSubject">${spec.subject}</label><textarea id="ssdSubject" rows="2">${esc(meeting.subject)}</textarea></div><div class="ssd-schedule"><button type="button" data-role="checkProgram">Έλεγχος από το πρόγραμμα</button><span class="ui-helper" data-role="status" aria-live="polite"></span></div><div class="ssd-attendance">${Object.keys(listTitle).map(name => `<section class="ssd-list-panel"><h3 data-title="${name}">${listTitle[name]} (0)</h3><div class="ssd-teacher-list" data-list="${name}" role="listbox" aria-multiselectable="true" aria-label="${listTitle[name]}" tabindex="0"></div><div class="ssd-list-controls">${moves[name].map(([to, label]) => `<button type="button" class="ssd-move" data-from="${name}" data-to="${to}">${label}</button>`).join('')}</div></section>`).join('')}</div>`;
   const q = selector => body.querySelector(selector);
   const listOf = name => q(`[data-list="${name}"]`);
   const startInput = q('#ssdStartTime'), endInput = q('#ssdEndTime');
   const status = (message, error = false) => { const element = q('[data-role="status"]'); element.textContent = message; element.classList.toggle('error', error); };
 
-  const serviceIssues = () => [...new Set([...lists.present, ...lists.absent])].map(code => staffByCode.get(code)).filter(person => person && !inService(person));
+  const serviceIssues = () => [...new Set([...lists.present, ...lists.absent])].map(id => staffById.get(id)).filter(person => person && !inService(person));
   const refreshServiceError = () => {
     const issues = serviceIssues();
     q('[data-role="serviceError"]').textContent = issues.length ? `Σφάλμα: ${issues.map(person => person.startDate > key ? `${person.name} (ανάληψη ${D.format(person.startDate)})` : `${person.name} (αποχώρηση ${D.format(person.endDate)})`).join(', ')} — δεν υπηρετεί στο σχολείο την ημερομηνία της συνεδρίασης. Μετακίνησέ τους εκτός των Παρόντων/Απόντων ή διόρθωσε τις ημερομηνίες στο Προσωπικό.` : '';
@@ -724,56 +723,56 @@ async function openMeeting(kind, date) {
   // Display order of a list: the order of Προσωπικό; the «Απόντες» grouped by reason.
   const displayOrder = name => {
     const sorted = [...lists[name]].sort((a, b) => (order.get(a) ?? 1e9) - (order.get(b) ?? 1e9) || a.localeCompare(b, 'el'));
-    return name === 'absent' ? REASONS.flatMap(([reason]) => sorted.filter(code => (reasons[code] || 'other') === reason)) : sorted;
+    return name === 'absent' ? REASONS.flatMap(([reason]) => sorted.filter(id => (reasons[id] || 'other') === reason)) : sorted;
   };
-  const moveCodes = (from, to, codes) => {
-    for (const code of codes) {
-      if (!lists[from].includes(code)) continue;
-      lists[from] = lists[from].filter(value => value !== code);
-      if (!lists[to].includes(code) && (to !== 'available' || inService(staffByCode.get(code)))) lists[to].push(code);
-      if (from === 'absent' && to !== 'absent') { delete reasons[code]; autoReasons.delete(code); }
-      if (to === 'absent' && from !== 'absent') { reasons[code] = 'other'; autoReasons.delete(code); }
-      selection[from].delete(code);
+  const moveIds = (from, to, ids) => {
+    for (const id of ids) {
+      if (!lists[from].includes(id)) continue;
+      lists[from] = lists[from].filter(value => value !== id);
+      if (!lists[to].includes(id) && (to !== 'available' || inService(staffById.get(id)))) lists[to].push(id);
+      if (from === 'absent' && to !== 'absent') { delete reasons[id]; autoReasons.delete(id); }
+      if (to === 'absent' && from !== 'absent') { reasons[id] = 'other'; autoReasons.delete(id); }
+      selection[from].delete(id);
     }
     selection[to] = new Set();
     renderLists(); refreshServiceError();
   };
   const renderLists = () => {
     for (const name of Object.keys(lists)) {
-      const container = listOf(name), scroll = container.scrollTop, codes = displayOrder(name);
-      q(`[data-title="${name}"]`).textContent = `${listTitle[name]} (${codes.length})`;
+      const container = listOf(name), scroll = container.scrollTop, ids = displayOrder(name);
+      q(`[data-title="${name}"]`).textContent = `${listTitle[name]} (${ids.length})`;
       container.replaceChildren();
       let lastReason = null;
-      codes.forEach((code, index) => {
-        const person = staffByCode.get(code); if (!person) return;
+      ids.forEach((id, index) => {
+        const person = staffById.get(id); if (!person) return;
         const item = document.createElement('button'); item.type = 'button'; item.tabIndex = -1;
-        item.className = 'ssd-teacher-item' + (person.role === 'director' ? ' director-teacher' : '') + (selection[name].has(code) ? ' selected' : '') + (name === 'absent' && (reasons[code] || 'other') === 'other' ? ' absence-alert' : '');
-        item.textContent = `${index + 1}. ${displayName(code)}`; item.title = displayName(code); item.dataset.code = code; item.draggable = true;
-        item.setAttribute('role', 'option'); item.setAttribute('aria-selected', String(selection[name].has(code)));
+        item.className = 'ssd-teacher-item' + (person.role === 'director' ? ' director-teacher' : '') + (selection[name].has(id) ? ' selected' : '') + (name === 'absent' && (reasons[id] || 'other') === 'other' ? ' absence-alert' : '');
+        item.textContent = `${index + 1}. ${displayName(id)}`; item.title = displayName(id); item.dataset.id = id; item.draggable = true;
+        item.setAttribute('role', 'option'); item.setAttribute('aria-selected', String(selection[name].has(id)));
         item.addEventListener('click', event => {
-          const next = Selection.click(codes, selection[name], anchors[name], code, event);
+          const next = Selection.click(ids, selection[name], anchors[name], id, event);
           selection[name] = next.selected; anchors[name] = next.anchor; renderLists(); container.focus();
         });
         item.addEventListener('dragstart', event => {
-          if (!selection[name].has(code)) { selection[name] = new Set([code]); anchors[name] = code; }
+          if (!selection[name].has(id)) { selection[name] = new Set([id]); anchors[name] = id; }
           event.dataTransfer.effectAllowed = 'move';
-          event.dataTransfer.setData('application/x-school-staff', JSON.stringify({from: name, codes: [...selection[name]]}));
+          event.dataTransfer.setData('application/x-school-staff', JSON.stringify({from: name, ids: [...selection[name]]}));
         });
         if (name !== 'absent') { container.append(item); return; }
-        const reason = reasons[code] || 'other';
+        const reason = reasons[id] || 'other';
         if (reason !== lastReason) {
           lastReason = reason;
           const heading = document.createElement('div'); heading.className = 'ssd-absence-group-title'; heading.setAttribute('role', 'presentation');
           heading.textContent = REASONS.find(([value]) => value === reason)[1]; container.append(heading);
         }
         const row = document.createElement('div'); row.className = 'ssd-absent-row';
-        const select = document.createElement('select'); select.setAttribute('aria-label', `Αιτιολογία απουσίας: ${displayName(code)}`);
+        const select = document.createElement('select'); select.setAttribute('aria-label', `Αιτιολογία απουσίας: ${displayName(id)}`);
         select.innerHTML = REASONS.map(([value, label]) => `<option value="${value}">${label}</option>`).join('');
         select.value = reason;
-        select.addEventListener('change', () => { reasons[code] = select.value; autoReasons.delete(code); if (!LEAVE_REASONS.has(select.value)) leaveAutoCodes.delete(code); renderLists(); });
+        select.addEventListener('change', () => { reasons[id] = select.value; autoReasons.delete(id); if (!LEAVE_REASONS.has(select.value)) leaveAutoIds.delete(id); renderLists(); });
         row.append(item, select); container.append(row);
       });
-      if (name !== 'available' && !codes.length) {
+      if (name !== 'available' && !ids.length) {
         const hint = document.createElement('div'); hint.className = 'ssd-empty-instruction'; hint.setAttribute('role', 'presentation');
         hint.textContent = 'Σύρε εδώ εκπαιδευτικούς ή πάτησε «Έλεγχος από το πρόγραμμα»: όσοι έχουν μάθημα ή δεν είναι διαθέσιμοι μπαίνουν στους Απόντες, οι υπόλοιποι στους Παρόντες.';
         container.append(hint);
@@ -785,11 +784,11 @@ async function openMeeting(kind, date) {
   for (const name of Object.keys(lists)) {
     const container = listOf(name);
     container.addEventListener('keydown', event => {
-      const codes = displayOrder(name);
-      if (Selection.isSelectAll(event)) { event.preventDefault(); selection[name] = new Set(codes); renderLists(); return; }
+      const ids = displayOrder(name);
+      if (Selection.isSelectAll(event)) { event.preventDefault(); selection[name] = new Set(ids); renderLists(); return; }
       if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
       event.preventDefault();
-      const next = Selection.step(codes, selection[name], anchors[name], event.key === 'ArrowUp' ? -1 : 1);
+      const next = Selection.step(ids, selection[name], anchors[name], event.key === 'ArrowUp' ? -1 : 1);
       selection[name] = next.selected; anchors[name] = next.anchor; renderLists();
       container.querySelector('.ssd-teacher-item.selected')?.scrollIntoView({block: 'nearest'});
     });
@@ -799,10 +798,10 @@ async function openMeeting(kind, date) {
       container.classList.remove('dragover');
       let payload; try { payload = JSON.parse(event.dataTransfer.getData('application/x-school-staff')); } catch { return; }
       event.preventDefault();
-      if (payload?.from && payload.from !== name && Object.hasOwn(lists, payload.from) && Array.isArray(payload.codes)) moveCodes(payload.from, name, payload.codes);
+      if (payload?.from && payload.from !== name && Object.hasOwn(lists, payload.from) && Array.isArray(payload.ids)) moveIds(payload.from, name, payload.ids);
     });
   }
-  body.querySelectorAll('.ssd-move').forEach(button => button.addEventListener('click', () => moveCodes(button.dataset.from, button.dataset.to, [...selection[button.dataset.from]])));
+  body.querySelectorAll('.ssd-move').forEach(button => button.addEventListener('click', () => moveIds(button.dataset.from, button.dataset.to, [...selection[button.dataset.from]])));
 
   // «Έλεγχος από το πρόγραμμα»: the programs of the period in force on the date (Σχολικά Προγράμματα).
   // An activity at the time of the meeting → «Σε μάθημα»; unavailable in FET → «Σε άλλο σχολείο»; every other
@@ -814,29 +813,28 @@ async function openMeeting(kind, date) {
     const busyAt = T.staffBusyAt(timetables, key, start, end);
     if (!busyAt.period) { status(`Δεν υπάρχει περίοδος στα Σχολικά Προγράμματα για τις ${D.format(key)}. Οι λίστες δεν άλλαξαν.`, !auto); return; }
     if (!busyAt.programs.length) { status(`Η περίοδος «${busyAt.period.name}» δεν έχει πρόγραμμα στα Σχολικά Προγράμματα. Οι λίστες δεν άλλαξαν.`, !auto); return; }
-    for (const [code, reason] of autoReasons) {
-      if (!lists.absent.includes(code) || reasons[code] !== reason) continue;
-      lists.absent = lists.absent.filter(value => value !== code); delete reasons[code];
-      if (!lists.present.includes(code) && !lists.available.includes(code) && inService(staffByCode.get(code))) lists.available.push(code);
+    for (const [id, reason] of autoReasons) {
+      if (!lists.absent.includes(id) || reasons[id] !== reason) continue;
+      lists.absent = lists.absent.filter(value => value !== id); delete reasons[id];
+      if (!lists.present.includes(id) && !lists.available.includes(id) && inService(staffById.get(id))) lists.available.push(id);
     }
     autoReasons.clear();
-    const codeOf = new Map(people.map(person => [person.id, person.code]));
     const found = new Map();
-    for (const id of busyAt.lesson) if (codeOf.has(id)) found.set(codeOf.get(id), 'lesson');
-    for (const id of busyAt.unavailable) if (codeOf.has(id) && !found.has(codeOf.get(id))) found.set(codeOf.get(id), 'otherSchool');
+    for (const id of busyAt.lesson) if (staffById.has(id)) found.set(id, 'lesson');
+    for (const id of busyAt.unavailable) if (staffById.has(id) && !found.has(id)) found.set(id, 'otherSchool');
     let lessons = 0, others = 0, moved = 0;
-    for (const [code, reason] of found) {
-      if (activeLeave.has(code) || !inService(staffByCode.get(code))) continue;
-      lists.available = lists.available.filter(value => value !== code);
-      lists.present = lists.present.filter(value => value !== code);
-      if (!lists.absent.includes(code)) lists.absent.push(code);
-      reasons[code] = reason; autoReasons.set(code, reason);
+    for (const [id, reason] of found) {
+      if (activeLeave.has(id) || !inService(staffById.get(id))) continue;
+      lists.available = lists.available.filter(value => value !== id);
+      lists.present = lists.present.filter(value => value !== id);
+      if (!lists.absent.includes(id)) lists.absent.push(id);
+      reasons[id] = reason; autoReasons.set(id, reason);
       if (reason === 'lesson') lessons++; else others++;
     }
-    for (const code of [...lists.available]) {
-      if (activeLeave.has(code)) continue;
-      lists.available = lists.available.filter(value => value !== code);
-      if (!lists.present.includes(code) && !lists.absent.includes(code)) { lists.present.push(code); moved++; }
+    for (const id of [...lists.available]) {
+      if (activeLeave.has(id)) continue;
+      lists.available = lists.available.filter(value => value !== id);
+      if (!lists.present.includes(id) && !lists.absent.includes(id)) { lists.present.push(id); moved++; }
     }
     selection = {available: new Set(), present: new Set(), absent: new Set()};
     renderLists(); refreshServiceError();
@@ -901,14 +899,14 @@ async function openMeeting(kind, date) {
       const other = Object.entries(meetings).find(([actKey, item]) => actKey !== key && item.actNumber === meeting.actNumber);
       if (other) throw Error(`Ο αριθμός πράξης ${meeting.actNumber} υπάρχει ήδη στη συνεδρίαση της ${D.format(other[0])}. Άλλαξε τον αριθμό ή πάτησε πάνω του και «Επαναρίθμηση πράξεων».`);
     }
-    const director = staffByCode.get(directorCode);
+    const director = staffById.get(directorId);
     meetings[key] = {
       ...(ssd ? {actNumber: meeting.actNumber} : {}), startTime, endTime, subject: q('#ssdSubject').value.trim(),
-      directorCode, directorName: director?.name || directorName,
+      directorId, directorName: director?.name || directorName,
       present: displayOrder('present'), absent: displayOrder('absent'),
-      absenceReasons: Object.fromEntries(lists.absent.filter(code => reasons[code]).map(code => [code, reasons[code]])),
-      scheduleAutoReasons: Object.fromEntries([...autoReasons].filter(([code]) => lists.absent.includes(code))),
-      leaveAutoCodes: [...leaveAutoCodes]
+      absenceReasons: Object.fromEntries(lists.absent.filter(id => reasons[id]).map(id => [id, reasons[id]])),
+      scheduleAutoReasons: Object.fromEntries([...autoReasons].filter(([id]) => lists.absent.includes(id))),
+      leaveAutoIds: [...leaveAutoIds]
     };
     return {meetings};
   };

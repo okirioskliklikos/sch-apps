@@ -8,7 +8,7 @@
   Σελίδα ελέγχου του _data.js, του _host_timetables.js και του _host_calendar.js, εκτός σουίτας: δεν μπαίνει
   στο Κεντρικό Μενού και δεν ακολουθεί τις συμβάσεις των υποεφαρμογών. Μπαίνει στον ίδιο φάκελο με τα τρία αρχεία
   και ανοίγει μόνη της.
-  Έκδοση αρχείου: 0.16
+  Έκδοση αρχείου: 0.17
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -543,16 +543,16 @@ function hostCalendarChecks() {
   const C = window.SchoolHostCalendar;
   if (!C) { record('fail', 'Λείπει το _host_calendar.js'); return; }
   const year = '2026-2027';
-  const meeting = extra => ({startTime: '13:20', endTime: '14:00', subject: 'Θέμα', directorCode: 'ΔΘ', directorName: 'Δ', present: ['Α1'], absent: ['Α2'], absenceReasons: {'Α2': 'leavePending'}, scheduleAutoReasons: {}, leaveAutoCodes: ['Α2'], ...extra});
+  const meeting = extra => ({startTime: '13:20', endTime: '14:00', subject: 'Θέμα', directorId: 's3', directorName: 'Δ', present: ['s1'], absent: ['s2'], absenceReasons: {'s2': 'leavePending'}, scheduleAutoReasons: {}, leaveAutoIds: ['s2'], ...extra});
   const base = {format: 'school-shared-data', formatVersion: 1, school: {name: 'Σχολείο', year},
-    staffByYear: {[year]: [{id: 's1', code: 'Α1'}, {id: 's2', code: 'Α2'}]},
+    staffByYear: {[year]: [{id: 's1', code: 'Α1'}, {id: 's2', code: 'Α2'}, {id: 's3', code: 'ΔΘ', role: 'director'}]},
     calendarByYear: {'2025-2026': {entries: {'2026-01-10': {personal: 'παλιό', school: ''}}, ssdMeetings: {}, pedagogicMeetings: {}}}};
   const calendar = {entries: {'2026-11-10': {personal: '<b>σημ.</b>', school: ''}, '2026-11-11': {personal: '', school: ''}},
     ssdMeetings: {'2026-11-12': meeting({actNumber: 1}), '2026-12-01': meeting({actNumber: 2})}, pedagogicMeetings: {'2026-11-20': meeting()}};
   const saved = C.applySave(base, {calendar});
   equal('Αποθήκευση: γράφει μόνο το calendarByYear του έτους, τα άλλα έτη μένουν', [Object.keys(saved.calendarByYear).sort(), saved.calendarByYear['2025-2026'].entries['2026-01-10'].personal], [['2025-2026', year], 'παλιό']);
   equal('Οι κενές σημειώσεις δεν κρατιούνται', Object.keys(saved.calendarByYear[year].entries), ['2026-11-10']);
-  equal('Ο λόγος «Αναμονή άδειας» γίνεται δεκτός', saved.calendarByYear[year].pedagogicMeetings['2026-11-20'].absenceReasons['Α2'], 'leavePending');
+  equal('Ο λόγος «Αναμονή άδειας» γίνεται δεκτός', saved.calendarByYear[year].pedagogicMeetings['2026-11-20'].absenceReasons['s2'], 'leavePending');
   check('Το αρχικό data δεν αλλάζει', !base.calendarByYear[year]);
   const rejects = (label, value, text) => { try { C.applySave(base, {calendar: value}); record('fail', label, 'έγινε δεκτό'); } catch (error) { check(label, error.message.includes(text), error.message); } };
   rejects('Ημερομηνία έξω από το έτος: απορρίπτεται', {entries: {'2027-09-01': {personal: 'x', school: ''}}}, 'έξω από το σχολικό έτος');
@@ -561,14 +561,20 @@ function hostCalendarChecks() {
   rejects('Λήξη πριν από την έναρξη: απορρίπτεται', {pedagogicMeetings: {'2026-11-12': meeting({startTime: '14:00', endTime: '13:20'})}}, 'ώρα λήξης');
   rejects('Διπλός αριθμός πράξης στο έτος: απορρίπτεται', {ssdMeetings: {'2026-11-12': meeting({actNumber: 3}), '2026-12-01': meeting({actNumber: 3})}}, 'υπάρχει στις 12/11/2026 και στις 01/12/2026');
   rejects('ΣΣΔ χωρίς αριθμό πράξης: απορρίπτεται', {ssdMeetings: {'2026-11-12': meeting({})}}, 'αριθμός πράξης');
-  rejects('Άγνωστη αιτιολογία απουσίας: απορρίπτεται', {pedagogicMeetings: {'2026-11-12': meeting({absenceReasons: {'Α2': 'xyz'}})}}, 'αιτιολογία');
-  rejects('Εκπαιδευτικός και στους Παρόντες και στους Απόντες: απορρίπτεται', {pedagogicMeetings: {'2026-11-12': meeting({present: ['Α2']})}}, 'και στους Παρόντες');
-  const removed = C.removeStaffCodes(clone(saved), year, ['Α2']);
+  rejects('Άγνωστη αιτιολογία απουσίας: απορρίπτεται', {pedagogicMeetings: {'2026-11-12': meeting({absenceReasons: {'s2': 'xyz'}})}}, 'αιτιολογία');
+  rejects('Εκπαιδευτικός και στους Παρόντες και στους Απόντες: απορρίπτεται', {pedagogicMeetings: {'2026-11-12': meeting({present: ['s2']})}}, 'και στους Παρόντες');
+  rejects('Αναφορά με κωδικό αντί για id: απορρίπτεται', {pedagogicMeetings: {'2026-11-12': meeting({present: ['Α1']})}}, 'δεν υπάρχει στο Προσωπικό');
+  rejects('Άγνωστο id σε αιτιολογία: απορρίπτεται', {pedagogicMeetings: {'2026-11-12': meeting({absenceReasons: {'s2': 'other', 'x9': 'other'}})}}, 'δεν υπάρχει στο Προσωπικό');
+  rejects('Άγνωστος διευθυντής: απορρίπτεται', {pedagogicMeetings: {'2026-11-12': meeting({directorId: 'x9'})}}, 'δεν υπάρχει στο Προσωπικό');
+  const renamed = clone(saved); renamed.staffByYear[year][0].code = 'Α1Β';
+  check('Αλλαγή κωδικού στο Προσωπικό: οι συνεδριάσεις μένουν έγκυρες (αναφορά με id)', (() => { try { C.applySave(renamed, {calendar: renamed.calendarByYear[year]}); return true; } catch { return false; } })());
+  const removed = C.removeStaff(clone(saved), year, ['s2', 's3']);
   const after = removed.calendarByYear[year].ssdMeetings['2026-11-12'];
-  check('Διαγραφή εκπαιδευτικού από το Προσωπικό: ο κωδικός φεύγει από τις συνεδριάσεις του έτους', !after.absent.includes('Α2') && !after.absenceReasons['Α2'] && !after.leaveAutoCodes.includes('Α2') && after.present.includes('Α1'));
+  check('Διαγραφή εκπαιδευτικού από το Προσωπικό: το id φεύγει από τις συνεδριάσεις του έτους', !after.absent.includes('s2') && !after.absenceReasons['s2'] && !after.leaveAutoIds.includes('s2') && after.present.includes('s1'));
+  equal('Διαγραφή του διευθυντή: μένει μόνο το όνομα', [after.directorId, after.directorName], ['', 'Δ']);
   equal('Ζουμ: προεπιλογή 100, ισχύει για όλα τα έτη (calendarSettings)', [C.zoom(base), C.zoom(C.withZoom(base, 120)), C.withZoom(base, 120).calendarSettings.zoom, C.zoom({calendarSettings: {zoom: 500}})], [100, 120, 120, 100]);
   const context = C.context(C.withZoom(saved, 90), 7);
-  equal('Context: έτος, Προσωπικό, Ημερολόγιο του έτους, ζουμ', [context.revision, context.year, context.staff.length, Object.keys(context.calendar.ssdMeetings).length, context.zoom], [7, year, 2, 2, 90]);
+  equal('Context: έτος, Προσωπικό, Ημερολόγιο του έτους, ζουμ', [context.revision, context.year, context.staff.length, Object.keys(context.calendar.ssdMeetings).length, context.zoom], [7, year, 3, 2, 90]);
 }
 
 // ---- Host (_host_timetables.js) ----
