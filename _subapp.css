@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινή διάταξη υποεφαρμογών
- * Έκδοση αρχείου: 0.34
+ * Έκδοση αρχείου: 0.35
  * Όνομα κατά την εγκατάσταση: _subapp.css
  */
 
@@ -381,7 +381,9 @@ button.subapp-add-button,button.subapp-remove-button{
 .subapp-list{border:1px solid #d0d6db;border-radius:7px;padding:4px;background:var(--school-ui-surface)}
 .subapp-list-item{
   display:block;width:100%;text-align:left;margin:0;border-color:transparent;background:transparent;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:3px 8px;font-size:inherit;line-height:1.2
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:3px 8px;line-height:1.2;
+  /* 1px smaller than the text around the list, in every application. */
+  font-size:calc(1em - 1px)
 }
 /* List row with its own remove button («×»), shown on hover or keyboard focus.
    Use a non-button element with .subapp-list-item .subapp-list-item-removable, holding a button.subapp-list-item-remove. */
