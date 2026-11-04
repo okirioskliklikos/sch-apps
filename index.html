@@ -367,7 +367,7 @@ body.session-locked #app-shell { visibility:hidden; pointer-events:none; }
     <div class="sidebar-head">
       <div class="brand">
         <span class="brand-name">Εφαρμογές σχολείου</span>
-        <span class="sidebar-version" aria-label="Έκδοση 0.97">v0.97</span>
+        <span class="sidebar-version" aria-label="Έκδοση 0.98">v0.98</span>
       </div>
     </div>
     <div id="sidebar-school" class="sidebar-school" hidden><span id="nav-school-name" class="sidebar-school-name"></span><span id="nav-school-year" class="sidebar-school-year"></span></div>
@@ -416,6 +416,7 @@ body.session-locked #app-shell { visibility:hidden; pointer-events:none; }
 <script src="_host_calendar.js"></script>
 <script src="_host_classes.js"></script>
 <script src="_host_students.js"></script>
+<script src="_host_migrate.js"></script>
 <script id="shared-data-codec">
 globalThis.SchoolDataCodec = (() => {
   const iterations = 310000, encoder = new TextEncoder(), decoder = new TextDecoder();
@@ -481,6 +482,9 @@ globalThis.SchoolDataCodec = (() => {
   let editingData = false;
   let rememberedHandle = null;
   let fileLoadGeneration = 0;
+  // A file in the old format of τμήματα is converted when it opens (_host_migrate.js). The conversion is in
+  // sharedData only, until a save writes it (saveNewData); until then writeViews does not write the file alone.
+  let migrationUnsaved = false;
   // The last selection of the program applications (lastViewByYear in .data) and the zoom of the Σχολικό
   // Ημερολόγιο (calendarSettings) are not a change of data: they are kept in sharedData and written with the
   // next save, or when the application is left (writeViews).
@@ -771,7 +775,7 @@ globalThis.SchoolDataCodec = (() => {
     closeSharedData();
   }
   function closeSharedData() {
-    viewsChanged = viewsWritten = 0;
+    viewsChanged = viewsWritten = 0; migrationUnsaved = false;
     schoolRevision++;
     fileLoadGeneration++;
     void rememberFile(null);
@@ -814,6 +818,7 @@ globalThis.SchoolDataCodec = (() => {
       await viewWrite;
       const views = viewsChanged;
       const name = await writeData(data, password, filename, existingHandle);
+      migrationUnsaved = false;
       // The written file has the selections of sharedData when it was saved from it.
       if (sharedData && JSON.stringify([data.lastViewByYear || null, data.calendarSettings || null]) === JSON.stringify([sharedData.lastViewByYear || null, sharedData.calendarSettings || null])) viewsWritten = views;
       return name;
@@ -823,7 +828,7 @@ globalThis.SchoolDataCodec = (() => {
   // given (no question to the user) and never at the same time as another save. A failure is ignored: the
   // selections stay in sharedData and go with the next save.
   function writeViews() {
-    if (!sharedData || viewsChanged === viewsWritten || !rememberedHandle || dataWrites || staffSaving) return viewWrite;
+    if (!sharedData || viewsChanged === viewsWritten || !rememberedHandle || dataWrites || staffSaving || migrationUnsaved) return viewWrite;
     const data = sharedData, views = viewsChanged, handle = rememberedHandle, password = sessionPassword;
     viewWrite = (async () => {
       try {
@@ -903,6 +908,29 @@ globalThis.SchoolDataCodec = (() => {
     finally { $('create-data-button').disabled = false; }
   });
   let pendingFile = null;
+  // Files in the old format of τμήματα (τμήματα by name, homeroom in Προσωπικό) are converted when they open by the
+  // temporary _host_migrate.js; without it they do not open. → {data, report|null}.
+  function convertOpened(data) {
+    if (!Classes || !Classes.needsMigration(data)) return {data, report:null};
+    if (!window.SchoolHostMigrate) throw Error('Το αρχείο είναι στην παλιά μορφή τμημάτων και χρειάζεται πρώτα μετατροπή. Άνοιξέ το μία φορά με έκδοση του Κεντρικού Μενού που κάνει τη μετατροπή (με το αρχείο _host_migrate.js στον φάκελο των εφαρμογών) και αποθήκευσέ το.');
+    return window.SchoolHostMigrate.migrate(data);
+  }
+  // After a conversion: what changed, with «Αποθήκευση τώρα» (writes the file at once) or «Αργότερα» (the next save
+  // of the Index or of any application writes it).
+  async function announceMigration(report) {
+    if (!report || !window.SchoolHostMigrate) return;
+    const data = sharedData;
+    const content = [...window.SchoolHostMigrate.summary(report), 'Η μετατροπή γράφεται στο αρχείο με την «Αποθήκευση τώρα», ή αργότερα με την επόμενη αποθήκευση (εδώ ή σε οποιαδήποτε εφαρμογή). Μέχρι τότε το αρχείο στον δίσκο μένει στην παλιά μορφή.'];
+    await schoolChoiceDialog({title:'Μετατροπή του κοινού αρχείου', content, actions:[
+      {label:'Αργότερα', value:false},
+      {label:'Αποθήκευση τώρα', accept:true, run: async () => {
+        if (sharedData !== data || !migrationUnsaved) return true;
+        const filename = await saveNewData(sharedData, sessionPassword, sharedFilename, rememberedHandle);
+        showSharedData(sharedData, filename, sessionPassword !== '', sessionPassword);
+        return true;
+      }}
+    ]});
+  }
   async function loadDataFile(file, handle = null) {
     const generation = ++fileLoadGeneration;
     $('load-error').textContent = '';
@@ -911,10 +939,11 @@ globalThis.SchoolDataCodec = (() => {
       let box; try { box = JSON.parse(await file.text()); } catch { throw Error('Το αρχείο δεν έχει έγκυρη μορφή δεδομένων.'); }
       if (generation !== fileLoadGeneration) return;
       if (!SchoolDataCodec.inspect(box)) {
-        const data = await SchoolDataCodec.decode(box, '');
+        const opened = convertOpened(await SchoolDataCodec.decode(box, ''));
         if (generation !== fileLoadGeneration) return;
-        showSharedData(data, file.name, false);
-        await rememberFile(handle); return;
+        showSharedData(opened.data, file.name, false); migrationUnsaved = !!opened.report;
+        await rememberFile(handle);
+        await announceMigration(opened.report); return;
       }
       pendingFile = {box, name:file.name, handle, generation};
       $('unlock-password').value = ''; $('unlock-error').textContent = '';
@@ -959,10 +988,11 @@ globalThis.SchoolDataCodec = (() => {
     event.preventDefault(); if (!pendingFile) return;
     const pending = pendingFile; $('unlock-submit').disabled = true; $('unlock-error').textContent = '';
     try {
-      const data = await SchoolDataCodec.decode(pending.box, $('unlock-password').value);
+      const opened = convertOpened(await SchoolDataCodec.decode(pending.box, $('unlock-password').value));
       if (pendingFile !== pending || pending.generation !== fileLoadGeneration || $('unlock-panel').hidden) return;
-      showSharedData(data, pending.name, true, $('unlock-password').value); setUnlockPanel(false);
+      showSharedData(opened.data, pending.name, true, $('unlock-password').value); setUnlockPanel(false); migrationUnsaved = !!opened.report;
       await rememberFile(pending.handle);
+      await announceMigration(opened.report);
     } catch (error) { if (pendingFile === pending) { $('unlock-error').textContent = error.message; $('unlock-password').value = ''; $('unlock-password').focus(); } }
     finally { $('unlock-submit').disabled = false; }
   });
@@ -1158,6 +1188,8 @@ const StaffStorage = (() => {
        typeof person.id !== 'string' || !person.id.trim() || person.id.length > 1000 ||
        typeof person.code !== 'string' || person.code.length > 1000) throw Error('Μη έγκυρη ταυτότητα ή κωδικός εκπαιδευτικού.');
    if (ids.has(person.id)) throw Error('Βρέθηκαν διπλές ταυτότητες προσωπικού.');
+   // The homeroom of a class is kept in Τμήματα (homeroomStaffId), not in Προσωπικό.
+   if (Object.prototype.hasOwnProperty.call(person, 'homeroomClass')) throw Error('Ο υπεύθυνος τμήματος ορίζεται πλέον στα «Τμήματα», όχι στο Προσωπικό. Βεβαιώσου ότι το school_staff.html είναι η τελευταία έκδοση.');
    ids.add(person.id);
   }
   return structuredClone(rows);
@@ -1173,8 +1205,9 @@ const StaffStorage = (() => {
   function personnelContext() {
     const year = sharedData.school.year;
     const byYear = sharedData.staffByYear && typeof sharedData.staffByYear === 'object' ? sharedData.staffByYear : {};
-    // timetableUsage: in which programs each person appears (for the delete dialog of Προσωπικό).
-    return {revision:schoolRevision, school:{...sharedData.school}, staff:Array.isArray(byYear[year]) ? byYear[year] : [], staffByYear:byYear, ...meetingsOf(year), timetableUsage:Timetables ? Timetables.staffUsage(sharedData, year) : {}, limits:{staff:HOST_LIMITS.staff, warnRatio:HOST_LIMITS.warnRatio}};
+    // timetableUsage: in which programs each person appears (for the delete dialog of Προσωπικό); classes: the Τμήματα of
+    // the year (the list of Προσωπικό shows the class of each homeroom teacher).
+    return {revision:schoolRevision, school:{...sharedData.school}, staff:Array.isArray(byYear[year]) ? byYear[year] : [], staffByYear:byYear, classes:Classes ? Classes.yearClasses(sharedData, year) : [], ...meetingsOf(year), timetableUsage:Timetables ? Timetables.staffUsage(sharedData, year) : {}, limits:{staff:HOST_LIMITS.staff, warnRatio:HOST_LIMITS.warnRatio}};
   }
   let staffFetHandle=null,staffFetKey='',staffFetRead=null;
   function staffFetStore(mode,value,key){return new Promise((resolve,reject)=>{
@@ -1332,6 +1365,9 @@ const StaffStorage = (() => {
       const retainedIds = new Set(staff.map(p=>p.id)), removedIds = previous.map(p=>p?.id).filter(id => id && !retainedIds.has(id));
       if (Calendar) Calendar.removeStaff(candidate, message.year, removedIds);
       else if (candidate.calendarByYear && removedIds.length) throw Error(missingCalendar);
+      // The homeroom of a removed teacher (homeroomStaffId of Τμήματα) is cleared in this same save.
+      if (Classes) Classes.removeStaff(candidate, message.year, removedIds);
+      else if (candidate.classesByYear && removedIds.length) throw Error(missingClasses);
       staffSaving = true; ownsSave = true;
       const filename = await saveNewData(candidate, sessionPassword, sharedFilename, rememberedHandle);
       showSharedData(candidate, filename, sessionPassword !== '', sessionPassword);

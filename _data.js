@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων
- * Έκδοση αρχείου: 0.15
+ * Έκδοση αρχείου: 0.16
  * Όνομα κατά την εγκατάσταση: _data.js
  *
  * Φορτώνεται από όσες υποεφαρμογές διαβάζουν ή γράφουν CSV, FET, ημερομηνίες ή προγράμματα, μετά
@@ -18,7 +18,7 @@
  *                           εμφάνιση μαθητών, συγκρούσεις, ώρες ανά εκπαιδευτικό, διαθεσιμότητα,
  *                           αντικαταστάσεις, Εισαγωγή Ολοημέρου στο ωρολόγιο, εισαγωγείς ανά είδος
  *                           (από FET και από το CSV του Ολοήμερου Designer), εξαγωγή CSV του Ολοημέρου
- *                           για το FET, δάσκαλοι και σειρά του Προσωπικού, κανονική γραφή τμημάτων,
+ *                           για το FET, μαθητές των κελιών του Ολοημέρου από ονόματα, δάσκαλοι και σειρά του Προσωπικού, κανονική γραφή τμημάτων,
  *                           απασχόληση εκπαιδευτικών σε ημερομηνία και ώρα (συνεδριάσεις)
  *   window.SchoolStudents   μαθητές (studentsByYear): ανάγνωση του CSV μαθητών του myschool, ίδιος μαθητής,
  *                           τάξη και επόμενο τμήμα, κατάσταση ΑΔΥΜ, ταξινόμηση
@@ -1206,6 +1206,67 @@
     };
   }
 
+  // Οι μαθητές των κελιών του Ολοημέρου από ονόματα (κοινό στην εισαγωγή CSV και στη μετατροπή των παλιών
+  // σχεδίων του .data, που κρατούσαν δικά τους Τμήματα του Designer).
+  //   resolver: SchoolClasses.resolver (ή τα Τμήματα του έτους)· saved: οι Συνενώσεις των στοιχείων σχεδίασης,
+  //   στη μορφή v4 ({id, name, grades, classes:[όνομα…], subsets:[{name, class}], otherStudents}) ή v1–v3
+  //   ({id, name, departments:[όνομα…]}: τα ονόματα των Τμημάτων του Designer που περιείχε).
+  // → {unions, single(name), cell(name)}:
+  //   unions: οι Συνενώσεις στη νέα μορφή ({id, name, grades, classIds, subsets:[{name, classId}], otherStudents}).
+  //     Μια αποθηκευμένη Συνένωση με όνομα μίας τάξης ή ενός τμήματος (π.χ. η παλιά «Β'») δεν χρειάζεται πια και
+  //     δεν μπαίνει· μια v1–v3 αναλύεται με το όνομά της, και αν αυτό δεν είναι τάξεις ή τμήματα (π.χ.
+  //     «Συνένωση Α»), με τα Τμήματα του Designer που περιείχε. Η λίστα μεγαλώνει με όσες δημιουργεί το cell.
+  //   single(name): μία τάξη («Β'») ή ένα τμήμα → {type:'grade', grade} ή {type:'class', id}· αλλιώς null.
+  //   cell(name): τα στοιχεία ενός κελιού: μία τάξη ή ένα τμήμα· μια Συνένωση με το όνομά της· ονόματα με «+»
+  //     από τέτοια στοιχεία → περισσότερα στοιχεία· οτιδήποτε άλλο («Α'-Στ'», «Ε1-Γαλ», «Ομάδα Χ») → νέα
+  //     Συνένωση με αυτό το όνομα, με τις τάξεις και τα τμήματα που αναγνωρίζονται, και το υπόλοιπο στο otherStudents.
+  function oloimeroCells(resolver, saved) {
+    const classes = classResolver(resolver);
+    const single = value => {
+      const name = String(value ?? '');
+      if (name.includes('+')) return null;
+      const parts = studentsParts(name, classes);
+      if (parts.grades.length === 1 && !parts.classIds.length && !parts.subsets.length && !parts.other.length && !/[-–—]/.test(gradeKey(name))) return {type: 'grade', grade: parts.grades[0]};
+      if (parts.classIds.length === 1 && !parts.grades.length && !parts.subsets.length && !parts.other.length) return {type: 'class', id: parts.classIds[0]};
+      return null;
+    };
+    const unionFromParts = (base, parts) => ({id: base.id || uid(), name: base.name, grades: parts.grades, classIds: parts.classIds, subsets: parts.subsets, otherStudents: parts.other});
+    const unions = [];
+    for (const item of (Array.isArray(saved) ? saved : []).filter(isObject)) {
+      const name = String(item.name ?? '').normalize('NFC').trim();
+      if (!name || single(name)) continue;
+      let parts;
+      if (!('grades' in item) && !('classes' in item)) {
+        parts = studentsParts(name, classes);
+        if (!parts.grades.length && !parts.classIds.length && !parts.subsets.length) parts = studentsParts((item.departments || []).map(String), classes);
+      } else {
+        parts = {grades: validGrades(item.grades), classIds: [], subsets: [], other: [...(item.otherStudents || []).map(String).filter(Boolean)]};
+        for (const className of item.classes || []) { const id = classes.resolve(className); if (id) parts.classIds.push(id); else parts.other.push(String(className)); }
+        for (const subset of (item.subsets || []).filter(isObject)) parts.subsets.push({name: String(subset.name ?? ''), classId: (subset.class && classes.resolve(subset.class)) || subsetParent(subset.name, classes)});
+        parts.classIds = unique(parts.classIds); parts.other = unique(parts.other);
+      }
+      unions.push(unionFromParts({id: item.id, name}, parts));
+    }
+    const findUnion = name => unions.find(item => compareKey(item.name) === compareKey(name));
+    const cell = value => {
+      const name = String(value || '').normalize('NFC').trim();
+      if (!name) return [];
+      const item = single(name);
+      if (item) return [item];
+      const union = findUnion(name);
+      if (union) return [{type: 'union', id: union.id}];
+      const pieces = name.split('+').map(part => part.trim()).filter(Boolean);
+      if (pieces.length > 1) {
+        const items = pieces.map(part => { const found = findUnion(part); return found ? {type: 'union', id: found.id} : single(part); });
+        if (items.every(Boolean)) return items;
+      }
+      const created = unionFromParts({name}, studentsParts(name, classes));
+      unions.push(created);
+      return [{type: 'union', id: created.id}];
+    };
+    return {unions, single, cell};
+  }
+
   // Ανάλυση της εισαγωγής ενός CSV του Ολοήμερου Designer (πρώτη φάση· δεν αλλάζει τίποτα).
   //   input: {csvText, csvName, staff, classes, classLimit, teachingHours}. classes: τα Τμήματα του έτους, μαζί
   //   με όσα δεν έχουν αποθηκευτεί ακόμη· classLimit: το όριο πλήθους τμημάτων.
@@ -1259,52 +1320,8 @@
 
     // Μαθητές: Τάξεις, Τμήματα και Συνενώσεις.
     const resolver = classResolver(input.classes, {limit: input.classLimit});
-    // Ένα όνομα που είναι μία τάξη ή ένα τμήμα → το στοιχείο του κελιού· αλλιώς null.
-    const single = name => {
-      if (String(name).includes('+')) return null;
-      const parts = studentsParts(name, resolver);
-      if (parts.grades.length === 1 && !parts.classIds.length && !parts.subsets.length && !parts.other.length && !/[-–—]/.test(gradeKey(name))) return {type: 'grade', grade: parts.grades[0]};
-      if (parts.classIds.length === 1 && !parts.grades.length && !parts.subsets.length && !parts.other.length) return {type: 'class', id: parts.classIds[0]};
-      return null;
-    };
-    const unionFromParts = (base, parts) => ({id: base.id || uid(), name: base.name, grades: parts.grades, classIds: parts.classIds, subsets: parts.subsets, otherStudents: parts.other});
-    // Οι Συνενώσεις των στοιχείων σχεδίασης. Μια Συνένωση με όνομα μίας τάξης ή ενός τμήματος (π.χ. η παλιά
-    // «Β'») δεν χρειάζεται πια: γίνεται Τάξη ή Τμήμα του κελιού.
-    const unions = [];
-    for (const saved of meta?.unions || []) {
-      if (single(saved.name)) continue;
-      let parts;
-      if (saved.departments) {
-        // v1–v3: η Συνένωση αναλύεται με το όνομά της· αν το όνομα δεν είναι τάξεις ή τμήματα (π.χ.
-        // «Συνένωση Α»), με τα Τμήματα του Designer που περιείχε.
-        parts = studentsParts(saved.name, resolver);
-        if (!parts.grades.length && !parts.classIds.length && !parts.subsets.length) parts = studentsParts(saved.departments, resolver);
-      } else {
-        parts = {grades: saved.grades, classIds: [], subsets: [], other: [...saved.otherStudents]};
-        for (const name of saved.classes) { const id = resolver.resolve(name); if (id) parts.classIds.push(id); else parts.other.push(name); }
-        for (const subset of saved.subsets) parts.subsets.push({name: subset.name, classId: (subset.class && resolver.resolve(subset.class)) || subsetParent(subset.name, resolver)});
-        parts.classIds = unique(parts.classIds); parts.other = unique(parts.other);
-      }
-      unions.push(unionFromParts(saved, parts));
-    }
-    const findUnion = name => unions.find(item => compareKey(item.name) === compareKey(name));
-    const resolveCell = value => {
-      const name = String(value || '').normalize('NFC').trim();
-      if (!name) return [];
-      const item = single(name);
-      if (item) return [item];
-      const union = findUnion(name);
-      if (union) return [{type: 'union', id: union.id}];
-      const pieces = name.split('+').map(part => part.trim()).filter(Boolean);
-      if (pieces.length > 1) {
-        const items = pieces.map(part => { const found = findUnion(part); return found ? {type: 'union', id: found.id} : single(part); });
-        if (items.every(Boolean)) return items;
-      }
-      const created = unionFromParts({name}, studentsParts(name, resolver));
-      unions.push(created);
-      return [{type: 'union', id: created.id}];
-    };
-    for (const item of placed) item.students = resolveCell(item.row.studentsSets);
+    const {unions, cell} = oloimeroCells(resolver, meta?.unions);
+    for (const item of placed) item.students = cell(item.row.studentsSets);
     if (resolver.overLimit.length) return stop('Η εισαγωγή θα δημιουργούσε τα τμήματα ' + resolver.overLimit.join(', ') + ', πάνω από το όριο των ' + input.classLimit + ' τμημάτων του σχολικού έτους. Αφαίρεσε τμήματα που δεν χρειάζονται στα «Τμήματα» ή διόρθωσε το CSV.');
     for (const item of placed) item.expanded = oloimeroStudents(item.students, {unions}, resolver);
     const usedUnions = new Set(placed.flatMap(item => item.students.filter(part => part.type === 'union').map(part => part.id)));
@@ -1808,7 +1825,7 @@
     conflicts, studentsClash, staffHours, unavailableTimes, availability, staffBusyAt, replaceStaff,
     analyzeOloimeroReplace, applyOloimeroReplace,
     OLOIMERO_CATEGORIES, OLOIMERO_MAX_SLOTS, oloimeroHours, oloimeroTeacherColor, oloimeroStudents,
-    oloimeroRowsFromCsv, oloimeroRowsFromProgram, oloimeroCsvFromProgram, analyzeOloimeroImport, buildOloimeroProgram,
+    oloimeroRowsFromCsv, oloimeroRowsFromProgram, oloimeroCsvFromProgram, oloimeroCells, analyzeOloimeroImport, buildOloimeroProgram,
     analyzeFetImport, buildFetProgram
   });
   window.SchoolStudents = Object.freeze({

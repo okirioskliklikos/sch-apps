@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Προγράμματα στο Κεντρικό Μενού (host)
- * Έκδοση αρχείου: 0.11
+ * Έκδοση αρχείου: 0.12
  * Όνομα κατά την εγκατάσταση: _host_timetables.js
  *
  * Κώδικας μόνο του host για τα προγράμματα (timetablesByYear). Το φορτώνει το index.html μετά το
@@ -31,6 +31,10 @@
  *   install(bridge)                         σύνδεση με το index (πρωτόκολλο school-timetables:* και αιτήματα
  *                                           αρχείων)
  * Ο κατάλογος ειδών και οι εισαγωγείς τους διαβάζονται από το SchoolTimetable.kinds του _data.js.
+ * Τα προγράμματα είναι στη μορφή formatVersion:2: οι δραστηριότητες αναφέρονται στα τμήματα του
+ * classesByYear[year] με το id τους (classes), τα ονόματα μαθητών των αρχείων που δεν είναι τμήματα είναι στο
+ * otherStudents, και τα σχέδια του Ολοήμερου Designer έχουν source.version:2. Τα νέα τμήματα μιας εισαγωγής
+ * (newClasses του school-timetables:save) τα προσθέτει το _host_classes.js (addClasses), που φορτώνεται μετά.
  */
 (() => {
   'use strict';
@@ -83,6 +87,11 @@
   }
   const staffOf = (data, year) => Array.isArray(data?.staffByYear?.[year]) ? data.staffByYear[year] : [];
   const hoursOf = (data, year) => isObject(data?.teachingHoursByYear) ? data.teachingHoursByYear[year] || null : null;
+  // Τα Τμήματα του έτους (classesByYear[year].classes) και το όριό τους. Το _host_classes.js φορτώνεται μετά από
+  // αυτό το αρχείο, γι' αυτό διαβάζεται τη στιγμή της κλήσης.
+  const hostClasses = () => window.SchoolHostClasses || null;
+  const classesOf = (data, year) => { const value = isObject(data?.classesByYear) ? data.classesByYear[year] : null; return Array.isArray(value?.classes) ? value.classes.filter(isObject) : []; };
+  const classLimit = () => hostClasses()?.LIMITS?.classes || 50;
   // Όνομα προγράμματος για μηνύματα: «όνομα» (είδος), ή «είδος» όταν δεν έχει όνομα.
   const programName = program => program?.name ? quoted(program.name) + ' (' + kindLabel(program.kind) + ')' : quoted(kindLabel(program?.kind));
 
@@ -114,7 +123,7 @@
     for (const program of timetables.programs) if (known(program?.kind) && program.periodId == null) draftCounts[program.kind]++;
     return clone({
       revision, school: {...data.school}, year,
-      staff: staffOf(data, year), teachingHours: hoursOf(data, year),
+      staff: staffOf(data, year), teachingHours: hoursOf(data, year), classes: classesOf(data, year),
       periods: timetables.periods,
       programs: timetables.programs.filter(program => known(program?.kind) && (program.periodId != null || drafts.has(program.kind))),
       draftCounts,
@@ -122,7 +131,7 @@
       programCount: timetables.programs.length,
       // The last design or period this application showed ('' when there is none).
       lastView: viewKey(app) ? lastView(data, year, viewKey(app)) : '',
-      limits: {programs: LIMITS.programs, periods: LIMITS.periods, activities: LIMITS.activities, warnRatio: WARN_RATIO}
+      limits: {programs: LIMITS.programs, periods: LIMITS.periods, activities: LIMITS.activities, classes: classLimit(), warnRatio: WARN_RATIO}
     });
   }
 
@@ -165,7 +174,10 @@
     });
   }
 
-  // Validators του source, ανά type. Άγνωστο type γίνεται δεκτό (έχει ήδη ελεγχθεί ως JSON).
+  // Οι τάξεις στη γραφή των δεδομένων (Τάξεις των κελιών και των Συνενώσεων του Ολοήμερου Designer).
+  const GRADES = Object.freeze(['Α', 'Β', 'Γ', 'Δ', 'Ε', 'Στ']);
+  // Validators του source, ανά type: validator(source, ctx), ctx: {classIds}. Άγνωστο type γίνεται δεκτό (έχει ήδη
+  // ελεγχθεί ως JSON).
   const SOURCE_VALIDATORS = {
     fet(source) {
       const fail = what => { throw Error('τα στοιχεία FET δεν είναι έγκυρα (' + what + ').'); };
@@ -183,29 +195,49 @@
       if (source.modifiedAfterImport != null && !(isObject(source.modifiedAfterImport) && (source.modifiedAfterImport.replacements == null || Array.isArray(source.modifiedAfterImport.replacements)))) fail('modifiedAfterImport');
       if (source.oloimero != null && !isObject(source.oloimero)) fail('oloimero');
     },
-    // Σχέδιο του Ολοήμερου Designer (βλέπε «Σχέδια του Ολοήμερου Designer» στο _data.js).
-    'oloimero-designer'(source) {
+    // Σχέδιο του Ολοήμερου Designer (βλέπε «Σχέδια του Ολοήμερου Designer» στο _data.js), source.version:2: χωρίς
+    // δικά του Τμήματα (departments)· τα κελιά αναφέρονται σε Τάξη, Τμήμα (id των Τμημάτων) ή Συνένωση.
+    'oloimero-designer'(source, ctx) {
       const fail = what => { throw Error('τα στοιχεία του Ολοήμερου Designer δεν είναι έγκυρα (' + what + ').'); };
-      const slots = T.OLOIMERO_MAX_SLOTS;
-      const students = value => Array.isArray(value) && value.length <= 50 && value.every(item => isObject(item) && (item.type === 'department' || item.type === 'union') && isText(item.id, 200));
+      const slots = T.OLOIMERO_MAX_SLOTS, classIds = ctx.classIds;
+      const knownClass = id => isText(id, 200) && !!id && (!classIds || classIds.has(id));
+      const grades = value => Array.isArray(value) && value.length <= GRADES.length && value.every(grade => GRADES.includes(grade));
+      if (source.version !== 2) fail('version');
+      if (source.departments !== undefined) fail('departments');
+      const unionIds = new Set();
+      if (source.unions != null) {
+        if (!Array.isArray(source.unions) || source.unions.length > 500) fail('unions');
+        for (const union of source.unions) {
+          if (!isObject(union) || !isText(union.id, 200) || !union.id || unionIds.has(union.id) || !isText(union.name, 300) || !union.name.trim()) fail('unions');
+          unionIds.add(union.id);
+          if (union.grades != null && !grades(union.grades)) fail('unions');
+          if (union.classIds != null && !(Array.isArray(union.classIds) && union.classIds.length <= 100 && union.classIds.every(knownClass))) fail('unions: τμήμα που δεν υπάρχει στα «Τμήματα»');
+          if (union.subsets != null && !(Array.isArray(union.subsets) && union.subsets.length <= 100 && union.subsets.every(item => isObject(item) && isText(item.name, 300) && item.name.trim() && (item.classId == null || item.classId === '' || knownClass(item.classId))))) fail('unions');
+          if (union.otherStudents != null && !textList(union.otherStudents)) fail('unions');
+        }
+      }
+      const cell = item => isObject(item) && (item.type === 'grade' ? GRADES.includes(item.grade) : item.type === 'class' ? knownClass(item.id) : item.type === 'union' && unionIds.has(item.id));
+      const students = value => Array.isArray(value) && value.length <= 50 && value.every(cell);
       const place = item => isObject(item) && isText(item.hourId, 200) && integer(item.day, 1, 5) && integer(item.slot, 0, slots - 1) && students(item.students);
       const named = (value, max) => Array.isArray(value) && value.length <= max && value.every(item => isObject(item) && isText(item.id, 200) && isText(item.name, 300));
       for (const key of ['csvName', 'importedAt']) if (source[key] != null && !isText(source[key])) fail(key);
       if (source.design != null && !(isObject(source.design) && Array.isArray(source.design.hours) && source.design.hours.length <= 60 && source.design.hours.every(item => isObject(item) && isText(item.hourId, 200) && integer(item.count, 0, slots) && typeof item.exceptionsEnabled === 'boolean' && Array.isArray(item.dayCounts) && item.dayCounts.length === 5 && item.dayCounts.every(value => integer(value, 0, slots))))) fail('design');
       if (source.teachers != null && !(Array.isArray(source.teachers) && source.teachers.length <= 200 && source.teachers.every(item => isObject(item) && isText(item.name, 300) && (item.staffId == null || isText(item.staffId, 1000)) && (item.color == null || /^#[0-9a-f]{6}$/i.test(String(item.color))) && (item.availableHours == null || integer(item.availableHours, 0, 99))))) fail('teachers');
-      for (const key of ['subjects', 'departments']) if (source[key] != null && !named(source[key], 500)) fail(key);
-      if (source.unions != null && !(named(source.unions, 500) && source.unions.every(item => Array.isArray(item.departmentIds) && item.departmentIds.length <= 100 && item.departmentIds.every(id => isText(id, 200))))) fail('unions');
+      if (source.subjects != null && !named(source.subjects, 500)) fail('subjects');
+      // Τα κρυφά Τμήματα μπορεί να έχουν id τμήματος που αφαιρέθηκε· αγνοούνται.
+      if (source.hidden != null && !(isObject(source.hidden) && (source.hidden.grades == null || grades(source.hidden.grades)) && (source.hidden.classes == null || (Array.isArray(source.hidden.classes) && source.hidden.classes.length <= 100 && source.hidden.classes.every(id => isText(id, 200)))))) fail('hidden');
       if (source.styles != null && !isObject(source.styles)) fail('styles');
       if (source.placements != null && !(isObject(source.placements) && Object.values(source.placements).every(place))) fail('placements');
       if (source.pending != null && !(Array.isArray(source.pending) && source.pending.length <= LIMITS.activities && source.pending.every(item => place(item) && (item.staffId == null || isText(item.staffId, 1000)) && (item.name == null || isText(item.name, 300)) && (item.subjectId == null || isText(item.subjectId, 200))))) fail('pending');
     }
   };
 
-  // Πλήρης έλεγχος ενός προγράμματος. options: {staffIds:Set, periodIds:Set}.
-  function validateProgram(program, {staffIds, periodIds}) {
+  // Πλήρης έλεγχος ενός προγράμματος. options: {staffIds:Set, periodIds:Set, classIds:Set} (classIds: τα id των
+  // Τμημάτων του έτους, μαζί με τα νέα της ίδιας αποθήκευσης).
+  function validateProgram(program, {staffIds, periodIds, classIds}) {
     if (!isObject(program) || !isText(program.id, 200) || !program.id.trim()) throw Error('Ένα πρόγραμμα δεν έχει έγκυρη ταυτότητα.');
     const label = 'Το πρόγραμμα ' + programName(program);
-    if (program.formatVersion !== 1) throw Error(label + ' έχει άγνωστη μορφή. Βεβαιώσου ότι το index.html είναι η τελευταία έκδοση.');
+    if (program.formatVersion !== 2) throw Error(label + ' έχει ' + (program.formatVersion === 1 ? 'την παλιά μορφή τμημάτων' : 'άγνωστη μορφή') + '. Βεβαιώσου ότι το index.html και η εφαρμογή του προγράμματος είναι η τελευταία έκδοση.');
     if (!known(program.kind)) throw Error('Ένα πρόγραμμα έχει άγνωστο είδος ' + quoted(String(program.kind)) + '.');
     if (program.periodId != null && (!isText(program.periodId, 200) || !periodIds.has(program.periodId))) throw Error(label + ' ανήκει σε περίοδο που δεν υπάρχει.');
     if (program.name != null && !isText(program.name, 300)) throw Error(label + ' έχει μη έγκυρο όνομα.');
@@ -222,7 +254,8 @@
       if (!Array.isArray(activity.staff) || activity.staff.length > LIMITS.people || !activity.staff.every(id => isText(id, 1000))) throw Error(where + ': μη έγκυρη λίστα εκπαιδευτικών.');
       const unknown = activity.staff.find(id => !staffIds.has(id));
       if (unknown != null) throw Error(where + ': εκπαιδευτικός που δεν υπάρχει στο Προσωπικό του σχολικού έτους.');
-      for (const key of ['unmatched', 'classes', 'subsets']) if (activity[key] != null && !textList(activity[key])) throw Error(where + ': μη έγκυρη λίστα (' + key + ').');
+      for (const key of ['unmatched', 'classes', 'subsets', 'otherStudents']) if (activity[key] != null && !textList(activity[key])) throw Error(where + ': μη έγκυρη λίστα (' + key + ').');
+      if (classIds && (activity.classes || []).some(id => !classIds.has(id))) throw Error(where + ': τμήμα που δεν υπάρχει στα «Τμήματα» του σχολικού έτους.');
       if (activity.room != null && !isText(activity.room)) throw Error(where + ': μη έγκυρη αίθουσα.');
       if (!Array.isArray(activity.times) || activity.times.length > LIMITS.times) throw Error(where + ': μη έγκυρες ώρες.');
       for (const time of activity.times) {
@@ -235,13 +268,14 @@
       if (!isObject(program.source)) throw Error(label + ': μη έγκυρα στοιχεία πηγής.');
       const validator = SOURCE_VALIDATORS[program.source.type];
       if (validator) {
-        try { validator(program.source); } catch (error) { throw Error(label + ': ' + error.message); }
+        try { validator(program.source, {classIds}); } catch (error) { throw Error(label + ': ' + error.message); }
       }
     }
   }
 
   // ---- Αποθήκευση ----
-  // Εφαρμογή ενός school-timetables:save ({ops, periods}) για την εφαρμογή app σε αντίγραφο του data.
+  // Εφαρμογή ενός school-timetables:save ({ops, periods, newClasses}) για την εφαρμογή app σε αντίγραφο του data.
+  // newClasses: τα νέα τμήματα των εισαγωγών (analysis.newClasses), που προστίθενται στα Τμήματα του έτους.
   // Επιστρέφει το νέο data· πετά λάθος χωρίς να αλλάξει τίποτα. Τα ops εφαρμόζονται όλα μαζί ή κανένα.
   function applySave(data, message, app) {
     const year = data.school.year, rights = permissions(app);
@@ -254,6 +288,9 @@
       checkJson(message.periods, 'Οι περίοδοι');
       validatePeriods(message.periods, year);
     }
+    const addsClasses = Array.isArray(message.newClasses) && message.newClasses.length > 0;
+    if (message.newClasses != null) checkJson(message.newClasses, 'Τα νέα τμήματα');
+    if (addsClasses && !ops.length) throw Error('Τα νέα τμήματα μιας εισαγωγής αποθηκεύονται μόνο μαζί με το πρόγραμμά τους.');
     if (!ops.length && !changesPeriods) throw Error('Δεν υπάρχουν αλλαγές για αποθήκευση.');
     if (!rights.kinds.length && !rights.assign.length) throw Error('Η εφαρμογή δεν έχει δικαίωμα να αλλάξει προγράμματα.');
 
@@ -360,9 +397,15 @@
     }
     if (result.size > LIMITS.programs) throw Error('Το σχολικό έτος θα είχε ' + result.size + ' προγράμματα (μαζί με τα προσχέδια), πάνω από το όριο των ' + LIMITS.programs + '. Η αποθήκευση δεν έγινε. Διάγραψε προσχέδια που δεν χρειάζονται και ξαναδοκίμασε.');
 
+    // Νέα τμήματα των εισαγωγών: στα Τμήματα του έτους, με τους ελέγχους του _host_classes.js.
+    if (addsClasses) {
+      if (!hostClasses()) throw Error('Λείπει το αρχείο _host_classes.js από τον φάκελο των εφαρμογών. Βεβαιώσου ότι το index.html και τα κοινά αρχεία είναι η τελευταία έκδοση.');
+      hostClasses().addClasses(candidate, year, message.newClasses, app);
+    } else if (message.newClasses != null && !Array.isArray(message.newClasses)) throw Error('Μη έγκυρη λίστα νέων τμημάτων. Βεβαιώσου ότι το ' + app + ' είναι η τελευταία έκδοση.');
     // Πλήρης έλεγχος μόνο στα προγράμματα που αλλάζουν.
     const staffIds = new Set(staffOf(candidate, year).map(person => person.id));
-    for (const program of puts) validateProgram(program, {staffIds, periodIds});
+    const classIds = new Set(classesOf(candidate, year).map(item => item.id));
+    for (const program of puts) validateProgram(program, {staffIds, periodIds, classIds});
 
     // Η σειρά των προγραμμάτων μένει ίδια· τα νέα μπαίνουν στο τέλος.
     const programs = [...current.programs.filter(program => !isObject(program) || typeof program.id !== 'string' || result.has(program.id)).map(program => isObject(program) && typeof program.id === 'string' ? result.get(program.id) : program),

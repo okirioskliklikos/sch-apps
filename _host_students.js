@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Μαθητές στο Κεντρικό Μενού (host)
- * Έκδοση αρχείου: 0.01
+ * Έκδοση αρχείου: 0.02
  * Όνομα κατά την εγκατάσταση: _host_students.js
  *
  * Κώδικας μόνο του host για τους μαθητές (studentsByYear). Το φορτώνει το index.html μετά το _data.js και το
@@ -10,10 +10,11 @@
  *   APP                                     το αρχείο της εφαρμογής (school_students.html)
  *   LIMITS                                  όρια πλήθους ({students, warnRatio})
  *   yearStudents(data, year)                οι μαθητές ενός έτους ([{id, …}])
- *   previousYears(data, year)               τα παλαιότερα έτη με μαθητές: [{year, classes:[{id, name}], students}],
- *                                           νεότερο πρώτο
+ *   previousYears(data, year)               τα παλαιότερα έτη με μαθητές: [{year, classes:[τμήμα…], students}],
+ *                                           νεότερο πρώτο (τα τμήματα με grade/number, για την προαγωγή)
  *   context(data, revision)                 το school-students:context
- *   validateStudents(students, classIds)    έλεγχος της λίστας ενός έτους· επιστρέφει καθαρό αντίγραφο (πετά λάθος)
+ *   validateStudents(students, classIds)    έλεγχος της λίστας ενός έτους· classIds: τα id των τμημάτων Γενικής
+ *                                           Παιδείας· επιστρέφει καθαρό αντίγραφο (πετά λάθος)
  *   applySave(data, message)                εφαρμογή ενός school-students:save σε αντίγραφο του data
  *   csvFile(year, message, rememberedFile)  το CSV μαθητών της εισαγωγής (school-students:file)
  *   install(bridge)                         σύνδεση με το index (πρωτόκολλο school-students:*)
@@ -21,18 +22,19 @@
  * Στο .data:
  *   studentsByYear[year] = {students:[{id, registryNumber, lastName, firstName, fatherName, classId, adymDate}]}
  *   Αντικείμενο και όχι σκέτη λίστα, όπως το classesByYear. Το classId είναι το id ενός τμήματος του
- *   classesByYear[year]. Το adymDate είναι 'YYYY-MM-DD' ή ''· η κατάσταση του ΑΔΥΜ υπολογίζεται
+ *   classesByYear[year], πάντα τμήματος Γενικής Παιδείας (με grade και number). Το adymDate είναι
+ *   'YYYY-MM-DD' ή ''· η κατάσταση του ΑΔΥΜ υπολογίζεται
  *   (SchoolStudents.adymStatus) και δεν αποθηκεύεται. Τα άγνωστα πεδία (του έτους και κάθε μαθητή) διατηρούνται.
  *   Ένας μαθητής κρατά το ίδιο id σε όλα τα σχολικά έτη. Οι άλλες εφαρμογές αναφέρονται σε αυτόν με studentId.
  *   Ο Αριθμός Μητρώου δεν είναι μοναδικός και δεν ελέγχεται εδώ για διπλές τιμές.
- * Η αποθήκευση μπορεί να φέρει και νέα τμήματα (newClasses), π.χ. από την εισαγωγή CSV ή από παλαιότερο έτος:
- * προστίθενται στο classesByYear[year] στην ίδια αποθήκευση, με τους ελέγχους του _host_classes.js. Η εφαρμογή
- * δεν αλλάζει ούτε αφαιρεί τμήματα.
+ * Η αποθήκευση μπορεί να φέρει και νέα τμήματα Γενικής Παιδείας (newClasses, στη μορφή του SchoolClasses.resolver),
+ * π.χ. από την εισαγωγή CSV ή από παλαιότερο έτος: προστίθενται στο classesByYear[year] στην ίδια αποθήκευση,
+ * με τους ελέγχους του _host_classes.js (addClasses). Η εφαρμογή δεν αλλάζει ούτε αφαιρεί τμήματα.
  */
 (() => {
   'use strict';
-  const T = window.SchoolTimetable, D = window.SchoolDate, Classes = window.SchoolHostClasses;
-  if (!T || !D || !Classes) throw Error('Το _host_students.js χρειάζεται το _data.js και το _host_classes.js, φορτωμένα πριν από αυτό. Βεβαιώσου ότι το index.html είναι η τελευταία έκδοση.');
+  const D = window.SchoolDate, C = window.SchoolClasses, Classes = window.SchoolHostClasses;
+  if (!D || !C || !Classes) throw Error('Το _host_students.js χρειάζεται το _data.js και το _host_classes.js, φορτωμένα πριν από αυτό. Βεβαιώσου ότι το index.html είναι η τελευταία έκδοση.');
 
   const APP = 'school_students.html';
   // Όριο πλήθους: πιάνει λάθη εφαρμογών, όχι πραγματικά δεδομένα. Πάνω από το όριο η αποθήκευση απορρίπτεται·
@@ -54,7 +56,7 @@
     const byYear = isObject(data?.studentsByYear) ? data.studentsByYear : {};
     return Object.keys(byYear)
       .filter(other => /^\d{4}-\d{4}$/.test(other) && startYear(other) < startYear(year))
-      .map(other => ({year: other, classes: Classes.yearClasses(data, other).map(item => ({id: item.id, name: item.name})), students: yearStudents(data, other)}))
+      .map(other => ({year: other, classes: C.sort(Classes.yearClasses(data, other)), students: yearStudents(data, other)}))
       .filter(item => item.students.length)
       .sort((a, b) => startYear(b.year) - startYear(a.year));
   }
@@ -73,7 +75,8 @@
 
   // ---- Έλεγχοι ----
   // Η λίστα μαθητών ενός έτους. Απορρίπτει ό,τι θα χαλούσε τα δεδομένα· επιστρέφει καθαρό αντίγραφο με τα
-  // άγνωστα πεδία κάθε μαθητή. classIds: τα id των τμημάτων του έτους (μαζί με τα νέα της αποθήκευσης).
+  // άγνωστα πεδία κάθε μαθητή. classIds: τα id των τμημάτων Γενικής Παιδείας του έτους (μαζί με τα νέα της
+  // αποθήκευσης)· ένας μαθητής δεν μπαίνει σε άλλο τμήμα (π.χ. «Τμήμα Ένταξης»).
   function validateStudents(students, classIds) {
     const newer = ' Βεβαιώσου ότι το school_students.html είναι η τελευταία έκδοση.';
     if (!Array.isArray(students)) throw Error('Μη έγκυρη λίστα μαθητών.' + newer);
@@ -89,7 +92,7 @@
       if (!text(item.lastName, MAX_TEXT) || !item.lastName.trim() || !text(item.firstName, MAX_TEXT) || !item.firstName.trim()) throw Error('Το επώνυμο και το όνομα του μαθητή είναι υποχρεωτικά (έως ' + MAX_TEXT + ' χαρακτήρες).');
       if (!text(item.registryNumber, MAX_REGISTRY)) throw Error('Μη έγκυρος Αριθμός Μητρώου του/της «' + who.trim() + '».');
       if (item.fatherName !== undefined && !text(item.fatherName, MAX_TEXT)) throw Error('Μη έγκυρο όνομα πατέρα του/της «' + who.trim() + '».');
-      if (typeof item.classId !== 'string' || !classIds.has(item.classId)) throw Error('Ο/Η «' + who.trim() + '» δεν έχει τμήμα της λίστας «Τμήματα» του σχολικού έτους.' + newer);
+      if (typeof item.classId !== 'string' || !classIds.has(item.classId)) throw Error('Ο/Η «' + who.trim() + '» δεν έχει τμήμα Γενικής Παιδείας της λίστας «Τμήματα» του σχολικού έτους.' + newer);
       if (item.adymDate !== undefined && item.adymDate !== '' && !D.valid(item.adymDate)) throw Error('Μη έγκυρη ημερομηνία ΑΔΥΜ του/της «' + who.trim() + '».');
       out.push(clone(item));
     }
@@ -99,17 +102,8 @@
   // νέα τμήματα (newClasses) στο classesByYear[year]. Τα άλλα έτη και τα άγνωστα πεδία του έτους μένουν.
   function applySave(data, message) {
     const year = data.school.year, candidate = clone(data);
-    const existing = Classes.yearClasses(data, year), added = message?.newClasses ?? [];
-    if (!Array.isArray(added)) throw Error('Μη έγκυρη λίστα νέων τμημάτων. Βεβαιώσου ότι το school_students.html είναι η τελευταία έκδοση.');
-    const known = new Set(existing.map(item => item.id));
-    if (added.some(item => !isObject(item) || known.has(item.id))) throw Error('Οι Μαθητές μπορούν μόνο να προσθέσουν τμήματα, όχι να αλλάξουν υπάρχοντα. Βεβαιώσου ότι το school_students.html είναι η τελευταία έκδοση.');
-    const classes = added.length ? Classes.validateClasses([...existing, ...added]) : existing;
-    const students = validateStudents(message?.students, new Set(classes.map(item => item.id)));
-    if (added.length) {
-      if (!isObject(candidate.classesByYear)) candidate.classesByYear = {};
-      const previous = isObject(candidate.classesByYear[year]) ? candidate.classesByYear[year] : {};
-      candidate.classesByYear[year] = {...previous, classes};
-    }
+    const classes = Classes.addClasses(candidate, year, message?.newClasses, APP);
+    const students = validateStudents(message?.students, new Set(classes.filter(C.isGeneral).map(item => item.id)));
     if (!isObject(candidate.studentsByYear)) candidate.studentsByYear = {};
     const previous = isObject(candidate.studentsByYear[year]) ? candidate.studentsByYear[year] : {};
     candidate.studentsByYear[year] = {...previous, students};
