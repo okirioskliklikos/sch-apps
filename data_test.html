@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Έλεγχος _data.js, _host_timetables.js και _host_calendar.js</title>
+<title>Έλεγχος _data.js και των _host_*.js</title>
 <!--
-  Σελίδα ελέγχου του _data.js, του _host_timetables.js και του _host_calendar.js, εκτός σουίτας: δεν μπαίνει
-  στο Κεντρικό Μενού και δεν ακολουθεί τις συμβάσεις των υποεφαρμογών. Μπαίνει στον ίδιο φάκελο με τα τρία αρχεία
-  και ανοίγει μόνη της.
-  Έκδοση αρχείου: 0.17
+  Σελίδα ελέγχου του _data.js, του _host_timetables.js, του _host_calendar.js και του _host_classes.js, εκτός
+  σουίτας: δεν μπαίνει στο Κεντρικό Μενού και δεν ακολουθεί τις συμβάσεις των υποεφαρμογών. Μπαίνει στον ίδιο
+  φάκελο με αυτά τα αρχεία και ανοίγει μόνη της.
+  Έκδοση αρχείου: 0.18
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -34,8 +34,8 @@ button{font:inherit;padding:6px 14px;border-radius:8px;border:1px solid #94a3b8;
 </head>
 <body>
 <main>
-<h1>Έλεγχος του _data.js, του _host_timetables.js και του _host_calendar.js</h1>
-<p>Η σελίδα ελέγχει τις κοινές λειτουργίες του <code>_data.js</code> και τις καθαρές συναρτήσεις του <code>_host_timetables.js</code> και του <code>_host_calendar.js</code> με τα αρχεία δοκιμής του <code>timetables_plan.md</code>. Δεν αλλάζει κανένα αρχείο.</p>
+<h1>Έλεγχος του _data.js και των _host_*.js</h1>
+<p>Η σελίδα ελέγχει τις κοινές λειτουργίες του <code>_data.js</code> και τις καθαρές συναρτήσεις του <code>_host_timetables.js</code>, του <code>_host_calendar.js</code> και του <code>_host_classes.js</code> με τα αρχεία δοκιμής του <code>timetables_plan.md</code>. Δεν αλλάζει κανένα αρχείο.</p>
 <div class="drop" id="drop">
   <p><strong>Αρχεία δοκιμής:</strong> σύρε τα εδώ ή <input type="file" id="files" multiple accept=".fet,.csv,.data"></p>
   <div class="files" id="fileList"></div>
@@ -47,6 +47,7 @@ button{font:inherit;padding:6px 14px;border-radius:8px;border:1px solid #94a3b8;
 <script src="_data.js"></script>
 <script src="_host_timetables.js"></script>
 <script src="_host_calendar.js"></script>
+<script src="_host_classes.js"></script>
 <script>
 (() => {
 'use strict';
@@ -577,6 +578,48 @@ function hostCalendarChecks() {
   equal('Context: έτος, Προσωπικό, Ημερολόγιο του έτους, ζουμ', [context.revision, context.year, context.staff.length, Object.keys(context.calendar.ssdMeetings).length, context.zoom], [7, year, 3, 2, 90]);
 }
 
+// ---- Host (_host_classes.js) ----
+function hostClassesChecks() {
+  start('8. Host: Τμήματα');
+  const K = window.SchoolHostClasses;
+  if (!K) { record('fail', 'Λείπει το _host_classes.js'); return; }
+  const year = '2026-2027';
+  const base = {format: 'school-shared-data', formatVersion: 1, school: {name: 'Σχολείο', year},
+    staffByYear: {[year]: [{id: 's1', code: 'Α1', name: 'ΔΑΣΚΑΛΑ', serviceType: 'classroom', homeroomClass: 'Α1'}]},
+    classesByYear: {'2024-2025': {classes: [{id: 'o1', name: 'Α1'}]}, '2025-2026': {classes: [{id: 'p1', name: 'Α1'}, {id: 'p2', name: 'Β1'}], note: 'x'}, '2027-2028': {classes: [{id: 'n1', name: 'Γ1'}]}}};
+  const saved = K.applySave(base, {classes: [{id: 'c1', name: 'Α1'}, {id: 'c2', name: 'Στ1', extra: 7}]});
+  equal('Αποθήκευση: γράφει μόνο το έτος, τα άλλα έτη μένουν', [Object.keys(saved.classesByYear).sort(), saved.classesByYear['2025-2026'].note, saved.classesByYear[year].classes.map(c => c.name)], [['2024-2025', '2025-2026', year, '2027-2028'], 'x', ['Α1', 'Στ1']]);
+  equal('Τα άγνωστα πεδία του τμήματος διατηρούνται', saved.classesByYear[year].classes[1].extra, 7);
+  check('Το αρχικό data δεν αλλάζει', !base.classesByYear[year]);
+  const kept = K.applySave({...clone(saved), classesByYear: {...clone(saved).classesByYear, [year]: {classes: [], future: 1}}}, {classes: [{id: 'c1', name: 'Α1'}]});
+  equal('Τα άγνωστα πεδία του έτους διατηρούνται', kept.classesByYear[year].future, 1);
+  const rejects = (label, classes, text) => { try { K.applySave(base, {classes}); record('fail', label, 'έγινε δεκτό'); } catch (error) { check(label, error.message.includes(text), error.message); } };
+  rejects('«ΣΤ1» (όχι κανονική γραφή): απορρίπτεται', [{id: 'c1', name: 'ΣΤ1'}], 'κανονική γραφή');
+  rejects('Τάξη («Α\'») αντί για τμήμα: απορρίπτεται', [{id: 'c1', name: "Α'"}], 'δεν είναι τμήμα');
+  rejects('Κενό όνομα: απορρίπτεται', [{id: 'c1', name: ' '}], 'υποχρεωτικό');
+  rejects('Διπλό όνομα: απορρίπτεται', [{id: 'c1', name: 'Α1'}, {id: 'c2', name: 'Α1'}], 'δύο φορές');
+  rejects('Διπλή ταυτότητα: απορρίπτεται', [{id: 'c1', name: 'Α1'}, {id: 'c1', name: 'Α2'}], 'διπλές ταυτότητες');
+  rejects('Χωρίς ταυτότητα: απορρίπτεται', [{name: 'Α1'}], 'ταυτότητα');
+  rejects('Όχι λίστα: απορρίπτεται', {}, 'λίστα');
+  const many = Array.from({length: K.LIMITS.classes + 1}, (_, i) => ({id: 'm' + i, name: 'Α' + (i + 1)}));
+  rejects('Πάνω από το όριο των ' + K.LIMITS.classes + ' τμημάτων: απορρίπτεται', many, 'πάνω από το όριο');
+  check('Στο όριο: γίνεται δεκτό', (() => { try { K.applySave(base, {classes: many.slice(0, K.LIMITS.classes)}); return true; } catch { return false; } })());
+  equal('Παλαιότερα έτη: μόνο τα προηγούμενα, το νεότερο πρώτο', K.previousYears(base, year), [{year: '2025-2026', classes: ['Α1', 'Β1']}, {year: '2024-2025', classes: ['Α1']}]);
+  const context = K.context(saved, 5);
+  equal('Context: έτος, τμήματα, Προσωπικό, παλαιότερα έτη, όρια', [context.revision, context.year, context.classes.length, context.staff.length, context.previousYears.length, context.limits], [5, year, 2, 1, 2, {classes: K.LIMITS.classes, warnRatio: K.LIMITS.warnRatio}]);
+  const programs = {periods: [{id: 'p', name: 'Α περίοδος', from: '2026-09-11', to: ''}], programs: [
+    {id: 'x', kind: 'school', periodId: 'p', name: '', activities: [{classes: ['Α1', 'Β1']}, {classes: ['Α1']}, {classes: ['ΣΤ1']}]},
+    {id: 'y', kind: 'oloimero', periodId: null, name: 'Σχέδιο', activities: [{classes: ['Α1']}, {classes: ['Ε1-Γαλ']}]}]};
+  const usage = K.classUsage({...base, timetablesByYear: {[year]: programs}}, year);
+  equal('Χρήση στα προγράμματα: προγράμματα και δραστηριότητες ανά τμήμα', [usage['Α1'].length, usage['Α1'][0].activities, usage['Α1'][0].periodName, usage['Α1'][1].periodId, usage['Β1'].length], [2, 2, 'Α περίοδος', null, 1]);
+  check('Χρήση: το «ΣΤ1» μετρά ως «Στ1»· ό,τι δεν είναι τμήμα δεν μετρά', usage['Στ1']?.length === 1 && !usage['ΣΤ1'] && !usage['Ε1-Γαλ']);
+  if (texts.data) {
+    const data = JSON.parse(texts.data).payload, real = K.classUsage(data, data.school.year);
+    const names = Object.keys(real).sort();
+    check('.data δοκιμής: τα 12 τμήματα εμφανίζονται στα προγράμματα, το «Στ1» με αυτή τη γραφή', names.length === 12 && names.includes('Στ1') && !names.includes('ΣΤ1'), names.join(', '));
+  } else skip('.data δοκιμής: χρήση των τμημάτων', 'Λείπει το .data δοκιμής.');
+}
+
 // ---- Host (_host_timetables.js) ----
 const FET_APP = 'fet_timetable_editor.html', OLO_APP = 'oloimero_designer.html', STAFF_APP = 'school_staff.html';
 const clone = value => structuredClone(value);
@@ -974,6 +1017,7 @@ function run() {
   attempt('Απασχόληση σε ημερομηνία και ώρα', () => busyAtChecks(v2Program));
   attempt('Host', hostChecks);
   attempt('Host: Σχολικό Ημερολόγιο', hostCalendarChecks);
+  attempt('Host: Τμήματα', hostClassesChecks);
 
   const summary = document.createElement('div');
   summary.className = 'summary ' + (totals.fail ? 'fail' : 'ok');

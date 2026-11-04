@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Προγράμματα στο Κεντρικό Μενού (host)
- * Έκδοση αρχείου: 0.9
+ * Έκδοση αρχείου: 0.10
  * Όνομα κατά την εγκατάσταση: _host_timetables.js
  *
  * Κώδικας μόνο του host για τα προγράμματα (timetablesByYear). Το φορτώνει το index.html μετά το
@@ -21,6 +21,8 @@
  *                                           αρχείο FET για Μαθήματα και Τμήματα, εξαγωγή CSV για το FET
  *   droppedImportFile(year, kind, importer, file, handle)   αρχείο που αφέθηκε πάνω σε εφαρμογή· γίνεται
  *                                           το τελευταίο αρχείο του εισαγωγέα
+ *   rememberedFile(action, spec)            το κοινό μέρος κάθε αρχείου που θυμάται το host (last / read /
+ *                                           choose)· το χρησιμοποιεί και το _host_classes.js, μέσω του index
  *   viewKey(app)                            το κλειδί της εφαρμογής στο lastViewByYear (το είδος της), ή null
  *   lastView(data, year, key)               η τελευταία επιλογή μιας εφαρμογής (π.χ. 'period:…' ή 'draft:…')
  *   withView(data, year, key, view)         αντίγραφο του data με νέα τελευταία επιλογή
@@ -642,6 +644,6 @@
   window.SchoolHostTimetables = Object.freeze({
     PROGRAMS_APP, LIMITS, WARN_RATIO, permissions, yearData, context,
     validatePeriods, validateProgram, applySave, viewKey, lastView, withView,
-    staffUsage, applyStaffRemovals, importFile, oloimeroFile, droppedImportFile, install
+    staffUsage, applyStaffRemovals, importFile, oloimeroFile, droppedImportFile, rememberedFile, install
   });
 })();

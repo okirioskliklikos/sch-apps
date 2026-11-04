@@ -367,7 +367,7 @@ body.session-locked #app-shell { visibility:hidden; pointer-events:none; }
     <div class="sidebar-head">
       <div class="brand">
         <span class="brand-name">Εφαρμογές σχολείου</span>
-        <span class="sidebar-version" aria-label="Έκδοση 0.95">v0.95</span>
+        <span class="sidebar-version" aria-label="Έκδοση 0.96">v0.96</span>
       </div>
     </div>
     <div id="sidebar-school" class="sidebar-school" hidden><span id="nav-school-name" class="sidebar-school-name"></span><span id="nav-school-year" class="sidebar-school-year"></span></div>
@@ -375,6 +375,7 @@ body.session-locked #app-shell { visibility:hidden; pointer-events:none; }
     <nav class="nav-list" aria-label="Επιλογή εφαρμογής">
       <button id="home-nav" class="nav-app active" type="button" aria-current="page"><span class="app-mark" style="--app-mark-bg:var(--school-app-home)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7"/><path d="M5 9v12h14V9M9 21v-8h6v8"/></svg></span><span class="nav-name">Κεντρικό Μενού</span></button>
       <button id="staff-nav" class="nav-app" type="button" disabled aria-disabled="true" data-app="school_staff.html" data-title="Προσωπικό"><span class="app-mark" style="--app-mark-bg:var(--school-app-staff)"><span>ΠΡ</span></span><span class="nav-name">Προσωπικό</span></button>
+      <button id="classes-nav" class="nav-app" type="button" disabled aria-disabled="true" data-app="school_classes.html" data-title="Τμήματα"><span class="app-mark" style="--app-mark-bg:var(--school-app-classes)"><span>ΤΜ</span></span><span class="nav-name">Τμήματα</span></button>
       <button id="hours-nav" class="nav-app" type="button" disabled aria-disabled="true" data-app="teaching_hours.html" data-title="Ώρες Διδασκαλίας"><span class="app-mark" style="--app-mark-bg:var(--school-app-hours)"><span>ΩΔ</span></span><span class="nav-name">Ώρες Διδασκαλίας</span></button>
       <button id="oloimero-nav" class="nav-app" type="button" disabled aria-disabled="true" data-app="oloimero_designer.html" data-title="Ολοήμερο Designer"><span class="app-mark" style="--app-mark-bg:var(--school-app-oloimero)"><span>ΟΛ</span></span><span class="nav-name">Ολοήμερο Designer</span></button>
       <button id="programs-nav" class="nav-app" type="button" disabled aria-disabled="true" data-app="timetables.html" data-title="Σχολικά Προγράμματα"><span class="app-mark" style="--app-mark-bg:var(--school-app-timetables)"><span>ΣΠ</span></span><span class="nav-name">Σχολικά Προγράμματα</span></button>
@@ -412,6 +413,7 @@ body.session-locked #app-shell { visibility:hidden; pointer-events:none; }
 <script src="_data.js"></script>
 <script src="_host_timetables.js"></script>
 <script src="_host_calendar.js"></script>
+<script src="_host_classes.js"></script>
 <script id="shared-data-codec">
 globalThis.SchoolDataCodec = (() => {
   const iterations = 310000, encoder = new TextEncoder(), decoder = new TextDecoder();
@@ -487,6 +489,9 @@ globalThis.SchoolDataCodec = (() => {
   // Σχολικό Ημερολόγιο (calendarByYear): validation and the school-calendar:* protocol live in _host_calendar.js.
   const Calendar = window.SchoolHostCalendar || null;
   const missingCalendar = 'Λείπει το αρχείο _data.js ή _host_calendar.js από τον φάκελο των εφαρμογών. Βεβαιώσου ότι το index.html και τα κοινά αρχεία είναι η τελευταία έκδοση.';
+  // Τμήματα (classesByYear): validation and the school-classes:* protocol live in _host_classes.js.
+  const Classes = window.SchoolHostClasses || null;
+  const missingClasses = 'Λείπει το αρχείο _data.js ή _host_classes.js από τον φάκελο των εφαρμογών. Βεβαιώσου ότι το index.html και τα κοινά αρχεία είναι η τελευταία έκδοση.';
 
   const $ = id => document.getElementById(id);
   const passwordToggles = [...document.querySelectorAll('.password-toggle')];
@@ -1622,11 +1627,34 @@ const StaffStorage = (() => {
     zoom: rememberCalendarZoom
   });
 
+  // Τμήματα (classesByYear): menu, unsaved changes, data and the FET file of school-classes:*.
+  // Validation and replies are in _host_classes.js; the Index only stores. The remembered file uses the shared
+  // file code of _host_timetables.js.
+  if (Classes) Classes.install({
+    frame,
+    acceptOrigin: event => staffLocalFile || event.origin === location.origin,
+    targetOrigin: staffTargetOrigin,
+    state: () => ({data:sharedData, revision:schoolRevision, app:currentAppFile, locked:sessionLocked, busy:staffSaving}),
+    save: async candidate => {
+      staffSaving = true;
+      try {
+        const filename = await saveNewData(candidate, sessionPassword, sharedFilename, rememberedHandle);
+        showSharedData(candidate, filename, sessionPassword !== '', sessionPassword);
+        staffDirty = false;
+      } finally { staffSaving = false; }
+    },
+    activity: recordActivity,
+    menu: () => { if (!sessionLocked) revealSidebarFromApp(); },
+    dirty: value => { staffDirty = value; },
+    rememberedFile: Timetables ? Timetables.rememberedFile : null
+  });
+
   window.addEventListener('beforeunload', event => { if (staffDirty || staffSaving || dropBusy) { event.preventDefault(); event.returnValue = ''; } });
 
   openHome();
   if (!Timetables) $('load-error').textContent = missingTimetables;
   else if (!Calendar) $('load-error').textContent = missingCalendar;
+  else if (!Classes) $('load-error').textContent = missingClasses;
   void restoreRememberedFile();
 })();
 </script>

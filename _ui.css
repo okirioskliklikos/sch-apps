@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινό περιβάλλον χρήστη
- * Έκδοση αρχείου: 0.24
+ * Έκδοση αρχείου: 0.25
  * Όνομα κατά την εγκατάσταση: _ui.css
  */
 
@@ -52,6 +52,7 @@
   --school-app-default:linear-gradient(145deg,#8387c4,#6b6fae);
   --school-app-home:linear-gradient(145deg,#6484a0,#526c83);
   --school-app-staff:linear-gradient(145deg,#599bbd,#497f9b);
+  --school-app-classes:linear-gradient(145deg,#4fa98a,#3a8068);
   --school-app-hours:linear-gradient(145deg,#7a96c2,#647b9f);
   --school-app-docs:linear-gradient(145deg,#6b95bc,#587a9a);
   --school-app-fet:linear-gradient(145deg,#4a9b99,#337773);

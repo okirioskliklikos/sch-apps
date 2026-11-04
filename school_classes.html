@@ -1,0 +1,458 @@
+<!doctype html><html lang="el" class="subapp-page"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Τμήματα v0.01</title><link rel="stylesheet" href="_ui.css">
+<link rel="stylesheet" href="_subapp.css">
+<style>
+/* Τμήματα: layout of the list and the details. Shared appearance: _ui.css and _subapp.css. */
+/* --cl-* : colours whose meaning exists only in this list (newly added classes). */
+:root{--app-mark-bg:var(--school-app-classes);--cl-added-text:#2467c8}
+.classes-manager{display:grid;grid-template-columns:minmax(260px,.65fr) minmax(360px,1.35fr);grid-template-rows:minmax(0,1fr);gap:24px;flex:1;min-height:0}
+.classes-list-pane{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden}
+.classes-list-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:9px;flex:none}
+.classes-list-heading h3{margin:0;line-height:1.25}
+.classes-list{flex:1;overflow-y:auto;overflow-x:hidden;min-height:0;scrollbar-gutter:stable;overscroll-behavior:contain}
+/* List row: the class, and on the right its homeroom teacher from Προσωπικό. */
+.classes-list-item{display:flex;align-items:baseline;gap:10px}
+.classes-list-name{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.classes-list-homeroom{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:12px;font-weight:400;font-style:normal;color:var(--school-ui-muted)}
+.classes-list-item.selected .classes-list-homeroom{color:var(--school-ui-label-text)}
+.classes-list-item.added{color:var(--cl-added-text);font-style:italic}
+.classes-list-item.updated{font-style:italic}
+.classes-list-item.invalid .classes-list-name{color:var(--school-ui-error)}
+.classes-limit-warning{flex:none;margin-top:8px}
+.classes-import-empty{height:auto;min-height:100%}
+.classes-details{container-type:inline-size;padding-right:2px}
+.classes-name-value{min-width:0}
+.classes-info{margin:14px 0 0;line-height:1.55}
+.classes-info ul{margin:4px 0 0;padding-left:20px}
+@container (min-width:620px){
+  .classes-fields>.field{display:grid;grid-template-columns:215px minmax(0,1fr);align-items:center;gap:0 18px;margin:0!important;padding:12px 16px}
+  .classes-fields .field>label{padding-right:12px;grid-column:1;grid-row:1}
+  .classes-fields .classes-name-value{display:contents}
+  .classes-fields .classes-name-value>input{grid-column:2;grid-row:1}
+  .classes-fields .classes-name-value>p{grid-column:2}
+}
+/* FET import dialog: the groups of each FET Year, with a checkbox each. */
+.classes-import-tools{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 0}
+.classes-import-groups{display:grid;grid-template-columns:auto minmax(0,1fr);gap:0;max-height:min(48vh,420px);overflow:auto;margin-top:12px;border:1px solid var(--school-ui-border);border-radius:8px}
+.classes-import-year{display:contents}
+.classes-import-year-name{display:flex;align-items:center;padding:9px 14px;font-weight:650;background:var(--school-ui-label-bg);color:var(--school-ui-label-text);border-bottom:1px solid var(--school-ui-row-border)}
+.classes-import-year-list{display:flex;flex-wrap:wrap;gap:6px 18px;padding:9px 14px;border-bottom:1px solid var(--school-ui-row-border)}
+.classes-import-year:last-child>*{border-bottom:0}
+.classes-import-year label{display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:400}
+.classes-import-year label:has(input:disabled){cursor:default;color:var(--school-ui-disabled-text)}
+.classes-import-year input{margin:0;accent-color:var(--school-ui-focus)}
+.classes-import-note{font-size:12px;color:var(--school-ui-muted)}
+@media(max-width:650px){
+  .classes-manager{grid-template-columns:1fr;grid-template-rows:auto auto;gap:12px;min-height:0;--subapp-stacked:1}
+  .classes-list-pane{max-height:calc(100dvh - var(--subapp-header-height,110px) - 32px);overflow:visible}
+  .classes-list{min-height:220px}
+}
+</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" aria-label="Τμήματα — άνοιγμα κεντρικού μενού" title="Άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΤΜ</span></span><span class="brand-text"><span>Τμήματα</span><span class="small version">v0.01</span></span></button></h1></div><button id="saveClasses" class="save-main" type="button" disabled>Αποθήκευση</button><button id="cancelClasses" type="button" disabled>Αναίρεση Όλων</button><div class="header-right"><span id="classesSchoolYear" class="school-year-indicator" hidden><span>Σχολικό έτος:</span> <span id="classesSchoolYearValue"></span></span></div></header><main id="classes-root" class="page-main"><p class="connection subapp-connection">Άνοιξε τη σελίδα «Τμήματα» μέσα από το Κεντρικό Μενού, αφού ανοίξεις το αρχείο πληροφοριών του σχολείου.</p></main><script src="_ui.js"></script>
+<script src="_data.js"></script>
+<script>
+(() => {
+'use strict';
+// Τμήματα Γενικής Παιδείας του σχολικού έτους (classesByYear[year].classes = [{id, name}]).
+// Το name είναι πάντα στην κανονική γραφή τμήματος («Στ1»). Η λίστα ταξινομείται αυτόματα κατά τάξη και αριθμό.
+// Τα προγράμματα κρατούν τα τμήματα με το όνομα: μια μετονομασία ή αφαίρεση εδώ δεν περνά σε αυτά, γι' αυτό η
+// εφαρμογή προειδοποιεί με τη χρήση κάθε ονόματος στα προγράμματα (classUsage του context).
+const T = SchoolTimetable, Selection = schoolListSelection;
+const $ = id => document.getElementById(id), root = $('classes-root');
+const GRADES = ['Α', 'Β', 'Γ', 'Δ', 'Ε', 'Στ'];
+const collator = new Intl.Collator('el', {sensitivity: 'base', numeric: true});
+
+let context = null, schoolYear = '', dirty = false, saving = false, editing = false;
+let saved = [], draft = [], selectedId = '', anchorId = '';
+const selectedIds = new Set();
+// Temporary markers of the list (not saved): id → 'added' | 'updated'.
+const markers = new Map();
+let lastDetailFocus = false;
+
+// ---- Model ----
+const spelling = value => T.classSpelling(String(value ?? '').trim());
+// Sort key: grade, then number; a name that is not a class goes to the end.
+function sortKey(name) {
+  const match = /^(Στ|[ΑΒΓΔΕ])(\d+)$/.exec(spelling(name));
+  return match ? GRADES.indexOf(match[1]) * 10000 + Number(match[2]) : Infinity;
+}
+function sortedDraft() {
+  return draft.map((item, index) => ({item, index})).sort((a, b) => {
+    const ka = sortKey(a.item.name), kb = sortKey(b.item.name);
+    if (ka !== kb) return ka < kb ? -1 : 1;
+    return collator.compare(String(a.item.name).trim(), String(b.item.name).trim()) || a.index - b.index;
+  }).map(entry => entry.item);
+}
+const byId = id => draft.find(item => item.id === id) || null;
+const savedById = id => saved.find(item => item.id === id) || null;
+// The problem that prevents saving a class, or ''.
+function nameError(item) {
+  const text = String(item?.name ?? '').trim();
+  if (!text) return 'Το όνομα τμήματος είναι υποχρεωτικό.';
+  const name = spelling(text);
+  if (!name) return `Το «${text}» δεν είναι τμήμα. Γράψε την τάξη και τον αριθμό, π.χ. «Α1», «Στ2».`;
+  if (draft.some(other => other !== item && spelling(other.name) === name)) return `Το τμήμα «${name}» υπάρχει ήδη στη λίστα.`;
+  return '';
+}
+const usageOf = name => (context?.classUsage || {})[name] || [];
+const usageText = list => list.map(item => `${item.kindLabel} – ${item.periodId ? 'περίοδος «' + (item.periodName || 'χωρίς όνομα') + '»' : 'προσχέδιο «' + (item.name || 'χωρίς όνομα') + '»'}`).join(', ');
+const programsWord = count => count === 1 ? '1 πρόγραμμα' : count + ' προγράμματα';
+// Saved class whose name changed (or that is removed) while programs use the saved name.
+function renameWarning(item) {
+  const before = savedById(item.id);
+  if (!before) return '';
+  const list = usageOf(before.name);
+  if (!list.length || spelling(item.name) === before.name) return '';
+  return `Το «${before.name}» εμφανίζεται σε ${programsWord(list.length)} (${usageText(list)}). Τα προγράμματα κρατούν το όνομα «${before.name}» και δεν αλλάζουν με τη μετονομασία.`;
+}
+// The homeroom teacher of a class in Προσωπικό (Δάσκαλος or Ειδικότητα with that homeroom class), or null.
+function homeroomOf(name) {
+  const key = spelling(name);
+  if (!key) return null;
+  return (context?.staff || []).find(person => ['classroom', 'specialty'].includes(person?.serviceType) && spelling(person.homeroomClass) === key) || null;
+}
+const personLabel = person => String(person?.name || '').trim() || String(person?.shortName || '').trim() || String(person?.code || '').trim() || 'χωρίς όνομα';
+const limit = () => Number.isInteger(context?.limits?.classes) ? context.limits.classes : 50;
+const warnAt = () => Math.ceil(limit() * (Number(context?.limits?.warnRatio) || 0.9));
+const cleanRecord = item => { const {...record} = item; record.name = spelling(record.name) || String(record.name ?? '').trim(); return record; };
+
+// ---- State ----
+function refreshSaveButtons() { for (const id of ['saveClasses', 'cancelClasses']) $(id).disabled = saving || !dirty; }
+function setDirty(value) { dirty = value; $('saveClasses').classList.toggle('dirty', value); schoolHost.post({type: 'school-classes:dirty', dirty: value}); refreshSaveButtons(); }
+function markChanged(item, kind = 'updated') { if (markers.get(item.id) !== 'added') markers.set(item.id, kind); setDirty(true); }
+function setBusy(value) { saving = value; root.classList.toggle('busy', value); root.setAttribute('aria-busy', String(value)); const button = $('importClassesFet'); if (button) button.disabled = value; refreshSaveButtons(); }
+function setSummary(message, error = false) { const summary = $('classesSummary'); if (!summary) return; summary.textContent = message; summary.classList.toggle('error', error); }
+function select(id, ids = [id]) { selectedId = id || ''; anchorId = selectedId; selectedIds.clear(); for (const item of ids) if (item) selectedIds.add(item); }
+
+schoolHost.on('school-classes:context', message => {
+  if (dirty || saving) return;
+  context = message.context; schoolYear = context.school.year;
+  saved = structuredClone(Array.isArray(context.classes) ? context.classes : []);
+  draft = structuredClone(saved); markers.clear();
+  const first = sortedDraft()[0];
+  select(first?.id || '');
+  openManager();
+});
+
+// ---- Layout ----
+function openManager() {
+  $('classesSchoolYearValue').textContent = schoolYear; $('classesSchoolYear').hidden = !schoolYear;
+  root.innerHTML = `<div class="classes-manager"><section class="classes-list-pane subapp-list-pane"><div class="classes-list-heading subapp-list-heading"><h3 id="classesTitle">Τμήματα (0)</h3><div class="subapp-transfer-actions" role="group" aria-label="Εισαγωγή τμημάτων"><button id="importClassesFet" type="button" title="Εισαγωγή τμημάτων από FET" aria-label="Εισαγωγή τμημάτων από FET">${schoolIcon('import')}</button></div></div><div id="classesList" class="classes-list subapp-list" tabindex="0" role="listbox" aria-multiselectable="true" aria-label="Λίστα τμημάτων"></div><div class="subapp-list-actions"><button id="addClass" class="subapp-add-button" type="button">+ Προσθήκη</button><button id="removeClass" class="subapp-remove-button" type="button">Αφαίρεση</button></div><p id="classesLimitWarning" class="classes-limit-warning ui-validation-warning" role="status" hidden></p><div id="classesSummary" class="subapp-notice" aria-live="polite">Η λίστα ταξινομείται αυτόματα κατά τάξη και αριθμό. Μπορείς να επιλέξεις πολλά με Ctrl/Cmd+κλικ ή εύρος με Shift+κλικ.</div></section><section id="classDetails" class="classes-details subapp-side-pane"></section></div>`;
+  $('classDetails').addEventListener('focusin', event => { if (event.target.id === 'className') lastDetailFocus = true; else if (event.target.matches('input,select,button')) lastDetailFocus = false; });
+  $('importClassesFet').onclick = importFromFet;
+  $('addClass').onclick = addClass;
+  $('removeClass').onclick = removeSelected;
+  $('saveClasses').onclick = save;
+  $('cancelClasses').onclick = undoAll;
+  $('classesList').onpointerdown = event => { if (event.target === $('classesList')) $('classesList').focus(); };
+  $('classesList').onkeydown = event => {
+    if (!Selection.isSelectAll(event) || !draft.length || saving) return;
+    event.preventDefault(); event.stopPropagation();
+    const order = sortedDraft().map(item => item.id), focused = document.activeElement?.dataset?.id;
+    selectedIds.clear(); order.forEach(id => selectedIds.add(id));
+    if (!selectedId) selectedId = order[0]; anchorId = selectedId;
+    const list = $('classesList'), scroll = list.scrollTop;
+    renderList();
+    (focused ? list.querySelector(`[data-id="${CSS.escape(focused)}"]`) : list)?.focus({preventScroll: true});
+    list.scrollTop = scroll;
+  };
+  refreshSaveButtons();
+  render();
+}
+
+function render() { renderList(); renderDetails(); }
+
+function renderList() {
+  const list = $('classesList'), order = sortedDraft(), ids = order.map(item => item.id);
+  $('classesTitle').textContent = `Τμήματα (${draft.length})`;
+  refreshListButtons();
+  list.innerHTML = '';
+  if (!draft.length) {
+    list.removeAttribute('role');
+    const years = context.previousYears || [];
+    list.innerHTML = `<div class="classes-import-empty subapp-empty subapp-empty-stack"><p>Δεν έχουν καταχωριστεί τμήματα.</p>${years.length ? `<label for="classesImportYear">Εισαγωγή από παλαιότερο σχολικό έτος</label><select id="classesImportYear">${years.map(item => `<option value="${schoolEscape(item.year)}">${schoolEscape(item.year)} (${item.classes.length} ${item.classes.length === 1 ? 'τμήμα' : 'τμήματα'})</option>`).join('')}</select><button id="classesImportYearButton" type="button" class="primary">Εισαγωγή τμημάτων</button>` : ''}<span class="helper ui-helper">Πάτησε «+ Προσθήκη» ή φέρε τα τμήματα από ένα αρχείο FET με το κουμπί εισαγωγής πάνω από τη λίστα.</span></div>`;
+    if (years.length) $('classesImportYearButton').onclick = importFromYear;
+    return;
+  }
+  list.setAttribute('role', 'listbox');
+  for (const item of order) {
+    const row = document.createElement('button'), selected = selectedIds.has(item.id), marker = markers.get(item.id);
+    row.type = 'button'; row.dataset.id = item.id;
+    row.className = 'classes-list-item subapp-list-item' + (selected ? ' selected' : '') + (marker ? ' ' + marker : '') + (nameError(item) ? ' invalid' : '');
+    row.setAttribute('role', 'option'); row.setAttribute('aria-selected', String(selected));
+    row.tabIndex = item.id === selectedId ? 0 : -1;
+    const name = document.createElement('span'); name.className = 'classes-list-name';
+    name.textContent = String(item.name).trim() || '(χωρίς όνομα)';
+    row.append(name);
+    const teacher = homeroomOf(item.name);
+    if (teacher) { const side = document.createElement('span'); side.className = 'classes-list-homeroom'; side.textContent = personLabel(teacher); row.append(side); }
+    row.title = name.textContent + (teacher ? ' — υπεύθυνος/η ' + personLabel(teacher) : '');
+    row.onclick = event => {
+      const next = Selection.click(ids, selectedIds, anchorId, item.id, event);
+      selectedId = item.id; selectedIds.clear(); next.selected.forEach(id => selectedIds.add(id)); anchorId = next.anchor;
+      render(); $('classesList').querySelector(`[data-id="${CSS.escape(item.id)}"]`)?.focus();
+    };
+    row.onkeydown = event => {
+      if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+      event.preventDefault();
+      const next = Selection.step(ids, new Set([item.id]), item.id, event.key === 'ArrowUp' ? -1 : 1).anchor;
+      select(next); render(); $('classesList').querySelector(`[data-id="${CSS.escape(next)}"]`)?.focus();
+    };
+    list.append(row);
+  }
+}
+
+// The buttons under the list, without redrawing it (so the focus stays where it is).
+function refreshListButtons() {
+  if (!$('removeClass')) return;
+  $('removeClass').textContent = selectedIds.size > 1 ? `Αφαίρεση (${selectedIds.size})` : 'Αφαίρεση';
+  $('removeClass').disabled = !selectedIds.size || saving;
+  refreshLimit();
+}
+function refreshLimit() {
+  const count = draft.length, max = limit(), warning = $('classesLimitWarning');
+  $('addClass').disabled = count >= max || saving;
+  warning.hidden = count < warnAt();
+  warning.textContent = count > max ? `Τα Τμήματα είναι ${count}, πάνω από το όριο των ${max} ανά σχολικό έτος. Η αποθήκευση δεν θα γίνει· αφαίρεσε όσα δεν χρειάζονται.`
+    : count === max ? `Τα Τμήματα είναι ${count}, όσο το όριο των ${max} ανά σχολικό έτος. Δεν μπορούν να προστεθούν άλλα.`
+    : `Τα Τμήματα είναι ${count}· το όριο είναι ${max} ανά σχολικό έτος.`;
+}
+
+function renderDetails() {
+  const detail = $('classDetails'), item = byId(selectedId);
+  if (!item) { detail.innerHTML = '<div class="subapp-empty">Πρόσθεσε ένα τμήμα για να καταχωρίσεις τα στοιχεία του.</div>'; return; }
+  detail.innerHTML = `<div class="subapp-pane-heading"><h3>Στοιχεία τμήματος</h3><button id="toggleClassEdit" class="ui-toggle" type="button" aria-pressed="${editing}" aria-controls="classFields">Επεξεργασία</button></div><fieldset id="classFields" class="classes-fields ui-fields subapp-record-fields" aria-label="Στοιχεία τμήματος" ${editing ? '' : 'disabled'}><div class="field ui-field"><label for="className">Όνομα</label><div class="classes-name-value"><input id="className" type="text" maxlength="20" required aria-required="true" placeholder="π.χ. Α1" aria-describedby="classNameError classNameWarning" value="${schoolEscape(item.name)}"><p id="classNameError" class="ui-validation-error" role="alert" hidden></p><p id="classNameWarning" class="ui-validation-warning" role="status" hidden></p></div></div></fieldset><div id="classInfo" class="classes-info ui-helper"></div><p class="helper ui-helper">${editing ? 'Γράψε την τάξη και τον αριθμό (π.χ. «Α1», «Στ2»). Τα στοιχεία αποθηκεύονται στο κοινό αρχείο .data με την «Αποθήκευση».' : 'Πάτησε «Επεξεργασία» για να αλλάξεις τα στοιχεία του τμήματος.'}</p>`;
+  const input = $('className');
+  input.oninput = () => { item.name = input.value; markChanged(item); refreshField(); renderList(); };
+  // On leaving the field (or Enter) a recognized class takes its canonical spelling («στ1» → «Στ1»).
+  input.onchange = () => {
+    const name = spelling(input.value);
+    if (name && name !== item.name) { item.name = name; input.value = name; markChanged(item); renderList(); }
+    refreshField();
+    $('classesList').querySelector(`[data-id="${CSS.escape(item.id)}"]`)?.scrollIntoView({block: 'nearest'});
+  };
+  $('toggleClassEdit').onclick = () => { editing = !editing; renderDetails(); if (editing) $('className').focus(); };
+  refreshField();
+}
+
+// Error, warning and information of the selected class: they change while the user types.
+function refreshField() {
+  const item = byId(selectedId), input = $('className');
+  if (!item || !input) return;
+  const error = nameError(item), warning = error ? '' : renameWarning(item);
+  $('classNameError').textContent = error; $('classNameError').hidden = !error;
+  input.setAttribute('aria-invalid', String(!!error));
+  $('classNameWarning').textContent = warning; $('classNameWarning').hidden = !warning;
+  const info = $('classInfo'), name = spelling(item.name), teacher = homeroomOf(name), list = name ? usageOf(name) : [];
+  info.replaceChildren();
+  if (!name) return;
+  const line = document.createElement('p'); line.style.margin = '0';
+  line.textContent = teacher ? `Υπεύθυνος/η στο Προσωπικό: ${personLabel(teacher)}.` : 'Δεν έχει οριστεί υπεύθυνος για αυτό το τμήμα στο Προσωπικό.';
+  info.append(line);
+  if (list.length) {
+    const title = document.createElement('p'); title.style.margin = '8px 0 0'; title.textContent = `Εμφανίζεται σε ${programsWord(list.length)} του σχολικού έτους:`;
+    const ul = document.createElement('ul');
+    for (const use of list) { const li = document.createElement('li'); li.textContent = `${usageText([use])}: ${use.activities} ${use.activities === 1 ? 'δραστηριότητα' : 'δραστηριότητες'}`; ul.append(li); }
+    info.append(title, ul);
+  }
+}
+
+// ---- Actions ----
+function addClass() {
+  if (saving || draft.length >= limit()) return;
+  const item = {id: crypto.randomUUID(), name: ''};
+  draft.push(item); markers.set(item.id, 'added'); setDirty(true);
+  select(item.id); editing = true; render();
+  $('classesList').querySelector(`[data-id="${CSS.escape(item.id)}"]`)?.scrollIntoView({block: 'nearest'});
+  $('className').focus();
+}
+
+async function removeSelected() {
+  if (saving || !selectedIds.size) return;
+  const removing = draft.filter(item => selectedIds.has(item.id));
+  // Saved classes whose name the programs use: the programs keep the name, so ask first.
+  const used = removing.map(item => savedById(item.id)).filter(Boolean).filter(item => usageOf(item.name).length);
+  if (used.length) {
+    const names = used.map(item => `«${item.name}» (${programsWord(usageOf(item.name).length)})`).join(', ');
+    const many = used.length > 1;
+    if (!(await schoolConfirm(`${many ? 'Τα τμήματα' : 'Το τμήμα'} ${names} ${many ? 'εμφανίζονται' : 'εμφανίζεται'} σε προγράμματα του σχολικού έτους.\n\nΗ αφαίρεση δεν αλλάζει τα προγράμματα: κρατούν το όνομα του τμήματος.\n\nΝα αφαιρεθ${many ? 'ούν' : 'εί'};`, {title: 'Αφαίρεση τμημάτων', accept: 'Αφαίρεση'}))) return;
+  }
+  const order = sortedDraft().map(item => item.id), first = Math.min(...removing.map(item => order.indexOf(item.id)));
+  draft = draft.filter(item => !selectedIds.has(item.id));
+  for (const item of removing) markers.delete(item.id);
+  const rest = order.filter(id => !selectedIds.has(id));
+  select(rest[Math.min(first, rest.length - 1)] || '');
+  setDirty(true); render();
+  setSummary(`Αφαιρέθηκ${removing.length === 1 ? 'ε 1 τμήμα' : 'αν ' + removing.length + ' τμήματα'}. Πάτησε «Αποθήκευση».`);
+}
+
+function importFromYear() {
+  if (saving || draft.length) return;
+  const year = $('classesImportYear').value, source = (context.previousYears || []).find(item => item.year === year);
+  if (!source) return;
+  const names = [...new Set(source.classes.map(spelling).filter(Boolean))];
+  if (names.length > limit()) { setSummary(`Το ${year} έχει ${names.length} τμήματα, πάνω από το όριο των ${limit()} ανά σχολικό έτος. Η εισαγωγή δεν έγινε.`, true); return; }
+  draft = names.map(name => ({id: crypto.randomUUID(), name}));
+  markers.clear(); for (const item of draft) markers.set(item.id, 'added');
+  setDirty(true); select(sortedDraft()[0]?.id || ''); render();
+  setSummary(`Εισήχθησαν ${names.length} τμήματα από το ${year}. Πάτησε «Αποθήκευση» για να διατηρηθούν στο νέο έτος.`);
+}
+
+// ---- Εισαγωγή από FET ----
+const fetCall = action => schoolHost.request('school-classes:fet', {action});
+// The Groups of each Year of the Students_List, each once (the first Year where it appears).
+// → [{year, groups:[{raw, name}]}]· name: the canonical spelling, or '' when the group is not a class.
+function fetGroups(text, fileName) {
+  const doc = SchoolFet.parse(text, {require: ['Students_List'], message: `Το «${fileName}» δεν είναι έγκυρο αρχείο FET με λίστα μαθητών.`});
+  const value = (node, tag) => SchoolFet.text(node, tag).trim(), seen = new Set(), years = [];
+  for (const year of SchoolFet.children(SchoolFet.child(doc.documentElement, 'Students_List'), 'Year')) {
+    const groups = [];
+    for (const group of SchoolFet.children(year, 'Group')) {
+      const raw = value(group, 'Name'), name = spelling(raw), key = name || raw;
+      if (!raw || seen.has(key)) continue;
+      seen.add(key); groups.push({raw, name});
+    }
+    if (groups.length) years.push({year: value(year, 'Name') || 'Χωρίς όνομα τάξης', groups});
+  }
+  if (!years.length) throw Error(`Το «${fileName}» δεν έχει τμήματα (Groups) στη λίστα μαθητών.`);
+  return years;
+}
+
+async function importFromFet() {
+  if (saving) return;
+  let last = null;
+  try { last = await fetCall('last'); } catch (error) { setSummary(error.message, true); return; }
+  const load = async action => {
+    const file = await fetCall(action);
+    if (!file) throw Error('Δεν υπάρχει τελευταίο αρχείο FET. Πάτησε «Επιλογή άλλου αρχείου FET από τον δίσκο…».');
+    return {name: file.name, years: fetGroups(file.text, file.name)};
+  };
+  const file = await schoolChoiceDialog({
+    title: 'Εισαγωγή τμημάτων από FET',
+    content: ['Επίλεξε το FET από το οποίο θα διαβαστούν τα τμήματα (Groups της λίστας μαθητών). Στο επόμενο βήμα διαλέγεις ποια θα εισαχθούν.'],
+    choices: [
+      {label: last ? 'Τελευταίο αρχείο FET: ' + last.name : 'Δεν υπάρχει τελευταίο αρχείο FET', disabled: !last, run: () => load('read')},
+      {label: 'Επιλογή άλλου αρχείου FET από τον δίσκο…', run: () => load('choose')}
+    ]
+  });
+  if (!file) return;
+  const names = await chooseGroups(file);
+  if (!names?.length) return;
+  const added = names.map(name => ({id: crypto.randomUUID(), name}));
+  draft.push(...added); for (const item of added) markers.set(item.id, 'added');
+  setDirty(true);
+  const first = sortedDraft().find(item => markers.get(item.id) === 'added' && added.includes(item));
+  select(first.id); render();
+  $('classesList').querySelector(`[data-id="${CSS.escape(first.id)}"]`)?.scrollIntoView({block: 'nearest'});
+  setSummary(`Εισαγωγή από «${file.name}»: προστέθηκ${added.length === 1 ? 'ε 1 τμήμα' : 'αν ' + added.length + ' τμήματα'} (${names.join(', ')}). Πάτησε «Αποθήκευση».`);
+}
+
+// The checkboxes of the groups: classes already in the list and groups that are not classes stay disabled.
+// → the chosen names (canonical spelling) or null.
+function chooseGroups(file) {
+  const existing = new Set(draft.map(item => spelling(item.name)).filter(Boolean)), boxes = [];
+  const pane = document.createElement('div');
+  const tools = document.createElement('div'); tools.className = 'classes-import-tools';
+  const all = document.createElement('button'); all.type = 'button'; all.textContent = 'Επιλογή όλων';
+  const none = document.createElement('button'); none.type = 'button'; none.textContent = 'Καμία';
+  tools.append(all, none);
+  const groups = document.createElement('div'); groups.className = 'classes-import-groups';
+  let skipped = 0;
+  for (const year of file.years) {
+    const set = document.createElement('div'); set.className = 'classes-import-year';
+    const legend = document.createElement('span'); legend.className = 'classes-import-year-name'; legend.textContent = year.year;
+    legend.id = 'classes-import-year-' + groups.childElementCount;
+    const items = document.createElement('div'); items.className = 'classes-import-year-list';
+    items.setAttribute('role', 'group'); items.setAttribute('aria-labelledby', legend.id);
+    for (const group of year.groups) {
+      const label = document.createElement('label'), box = document.createElement('input');
+      box.type = 'checkbox'; box.value = group.name;
+      const exists = !!group.name && existing.has(group.name);
+      box.disabled = !group.name || exists; box.checked = !box.disabled;
+      if (box.disabled) skipped++;
+      const text = group.name && group.raw !== group.name ? `${group.raw} → ${group.name}` : group.raw;
+      label.append(box, document.createTextNode(text + (exists ? ' (υπάρχει)' : !group.name ? ' (δεν είναι τμήμα)' : '')));
+      if (!group.name) label.title = 'Τμήμα είναι μόνο τάξη και αριθμός, π.χ. «Α1», «Στ2».';
+      items.append(label); boxes.push(box);
+    }
+    set.append(legend, items); groups.append(set);
+  }
+  pane.append(tools, groups);
+  const note = document.createElement('p'); note.className = 'classes-import-note';
+  note.textContent = skipped ? 'Όσα υπάρχουν ήδη στη λίστα και όσα δεν είναι τμήματα (π.χ. τάξεις) δεν εισάγονται.' : 'Τα τμήματα προστίθενται στη λίστα και κρατιούνται με την «Αποθήκευση».';
+  pane.append(note);
+  const chosen = () => boxes.filter(box => box.checked && !box.disabled).map(box => box.value);
+  let accept = null, controls = null;
+  const refresh = () => { const count = chosen().length; if (accept) accept.textContent = count ? `Εισαγωγή (${count})` : 'Εισαγωγή'; controls?.refresh(); };
+  const toggleAll = on => { for (const box of boxes) if (!box.disabled) box.checked = on; refresh(); };
+  all.onclick = () => toggleAll(true); none.onclick = () => toggleAll(false);
+  groups.addEventListener('change', refresh);
+  return schoolChoiceDialog({
+    title: 'Τμήματα από το FET',
+    content: [`Αρχείο: ${file.name}. Επίλεξε τα τμήματα που θα εισαχθούν.`, pane],
+    actions: [
+      {label: 'Ακύρωση'},
+      {label: 'Εισαγωγή', accept: true, get disabled() { return !chosen().length; }, run: () => {
+        const names = chosen();
+        if (draft.length + names.length > limit()) throw Error(`Μετά την εισαγωγή τα Τμήματα θα ήταν ${draft.length + names.length}, πάνω από το όριο των ${limit()} ανά σχολικό έτος. Επίλεξε λιγότερα.`);
+        return names;
+      }}
+    ],
+    ready: dialogControls => { controls = dialogControls; accept = dialogControls.dialog.querySelector('.school-confirm-actions .confirm-accept'); refresh(); }
+  });
+}
+
+// ---- Αποθήκευση και Αναίρεση Όλων ----
+async function save() {
+  if (saving || !dirty) return;
+  const invalid = sortedDraft().find(item => nameError(item));
+  if (invalid) {
+    select(invalid.id); editing = true; render();
+    $('classesList').querySelector(`[data-id="${CSS.escape(invalid.id)}"]`)?.scrollIntoView({block: 'nearest'});
+    $('className').focus();
+    setSummary('Διόρθωσε το όνομα του τμήματος πριν από την αποθήκευση: ' + nameError(invalid), true);
+    return;
+  }
+  if (draft.length > limit()) { setSummary(`Τα Τμήματα είναι ${draft.length}, πάνω από το όριο των ${limit()} ανά σχολικό έτος. Αφαίρεσε όσα δεν χρειάζονται.`, true); return; }
+  const classes = sortedDraft().map(cleanRecord);
+  const focusName = lastDetailFocus;
+  setBusy(true); setSummary('Αποθήκευση στο κοινό αρχείο…');
+  try {
+    context = await schoolHost.request('school-classes:save', {revision: context.revision, year: schoolYear, classes}, {timeoutMessage: 'Δεν επιβεβαιώθηκε η αποθήκευση. Οι αλλαγές σου παραμένουν στη σελίδα.'});
+    saved = structuredClone(Array.isArray(context.classes) ? context.classes : []);
+    // The records keep their place: update them in place, so the selection and the details stay.
+    const fresh = new Map(saved.map(item => [item.id, item]));
+    draft = draft.map(item => { const value = fresh.get(item.id); if (!value) return item; for (const key of Object.keys(item)) delete item[key]; return Object.assign(item, structuredClone(value)); });
+    markers.clear();
+    const list = $('classesList'), scroll = list.scrollTop;
+    setDirty(false);
+    renderList(); refreshField();
+    const input = $('className');
+    if (input && byId(selectedId) && input.value !== byId(selectedId).name) input.value = byId(selectedId).name;
+    list.scrollTop = scroll;
+    setSummary('Τα τμήματα αποθηκεύτηκαν στο κοινό αρχείο .data.');
+    if (focusName && input && !input.disabled) input.focus({preventScroll: true});
+  } catch (error) { setSummary(error.message, true); }
+  finally { setBusy(false); refreshListButtons(); }
+}
+
+async function undoAll() {
+  if (saving || !dirty) return;
+  if (!(await schoolConfirm('Να απορριφθούν οι αλλαγές των τμημάτων που δεν αποθηκεύτηκαν;', {title: 'Μη αποθηκευμένες αλλαγές', accept: 'Απόρριψη αλλαγών'}))) return;
+  const keepIds = new Set(selectedIds), currentId = selectedId, focusName = lastDetailFocus;
+  const list = $('classesList'), scroll = list.scrollTop, details = $('classDetails'), detailScroll = details.scrollTop;
+  // Restore the saved records without losing the selection; a class that existed only in the changes goes away.
+  const existing = new Map(draft.map(item => [item.id, item]));
+  draft = saved.map(value => { const item = existing.get(value.id); if (!item) return structuredClone(value); for (const key of Object.keys(item)) delete item[key]; return Object.assign(item, structuredClone(value)); });
+  markers.clear(); setDirty(false);
+  const order = sortedDraft().map(item => item.id);
+  if (byId(currentId)) select(currentId, [...keepIds].filter(id => byId(id)));
+  else select(order[0] || '');
+  render();
+  list.scrollTop = scroll; details.scrollTop = detailScroll;
+  if (selectedId !== currentId && selectedId) list.querySelector(`[data-id="${CSS.escape(selectedId)}"]`)?.scrollIntoView({block: 'nearest'});
+  if (selectedId === currentId && focusName) { const input = $('className'); if (input && !input.disabled) input.focus({preventScroll: true}); }
+  setSummary('Οι μη αποθηκευμένες αλλαγές απορρίφθηκαν.');
+}
+
+schoolHost.post({type: 'school-classes:ready'});
+})();
+</script></body></html>
