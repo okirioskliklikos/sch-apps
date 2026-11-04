@@ -1,10 +1,11 @@
-<!doctype html><html lang="el" class="subapp-page"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Τμήματα v0.01</title><link rel="stylesheet" href="_ui.css">
+<!doctype html><html lang="el" class="subapp-page"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Τμήματα v0.02</title><link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
 /* Τμήματα: layout of the list and the details. Shared appearance: _ui.css and _subapp.css. */
 /* --cl-* : colours whose meaning exists only in this list (newly added classes). */
 :root{--app-mark-bg:var(--school-app-classes);--cl-added-text:#2467c8}
-.classes-manager{display:grid;grid-template-columns:minmax(260px,.65fr) minmax(360px,1.35fr);grid-template-rows:minmax(0,1fr);gap:24px;flex:1;min-height:0}
+/* The list is 240–380px wide (30% of the page in between); the rest goes to the details. */
+.classes-manager{display:grid;grid-template-columns:clamp(240px,30%,380px) minmax(0,1fr);grid-template-rows:minmax(0,1fr);gap:24px;flex:1;min-height:0}
 .classes-list-pane{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden}
 .classes-list-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:9px;flex:none}
 .classes-list-heading h3{margin:0;line-height:1.25}
@@ -46,7 +47,7 @@
   .classes-list-pane{max-height:calc(100dvh - var(--subapp-header-height,110px) - 32px);overflow:visible}
   .classes-list{min-height:220px}
 }
-</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" aria-label="Τμήματα — άνοιγμα κεντρικού μενού" title="Άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΤΜ</span></span><span class="brand-text"><span>Τμήματα</span><span class="small version">v0.01</span></span></button></h1></div><button id="saveClasses" class="save-main" type="button" disabled>Αποθήκευση</button><button id="cancelClasses" type="button" disabled>Αναίρεση Όλων</button><div class="header-right"><span id="classesSchoolYear" class="school-year-indicator" hidden><span>Σχολικό έτος:</span> <span id="classesSchoolYearValue"></span></span></div></header><main id="classes-root" class="page-main"><p class="connection subapp-connection">Άνοιξε τη σελίδα «Τμήματα» μέσα από το Κεντρικό Μενού, αφού ανοίξεις το αρχείο πληροφοριών του σχολείου.</p></main><script src="_ui.js"></script>
+</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" aria-label="Τμήματα — άνοιγμα κεντρικού μενού" title="Άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΤΜ</span></span><span class="brand-text"><span>Τμήματα</span><span class="small version">v0.02</span></span></button></h1></div><button id="saveClasses" class="save-main" type="button" disabled>Αποθήκευση</button><button id="cancelClasses" type="button" disabled>Αναίρεση Όλων</button><div class="header-right"><span id="classesSchoolYear" class="school-year-indicator" hidden><span>Σχολικό έτος:</span> <span id="classesSchoolYearValue"></span></span></div></header><main id="classes-root" class="page-main"><p class="connection subapp-connection">Άνοιξε τη σελίδα «Τμήματα» μέσα από το Κεντρικό Μενού, αφού ανοίξεις το αρχείο πληροφοριών του σχολείου.</p></main><script src="_ui.js"></script>
 <script src="_data.js"></script>
 <script>
 (() => {
