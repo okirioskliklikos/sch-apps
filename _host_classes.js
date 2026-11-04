@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Τμήματα στο Κεντρικό Μενού (host)
- * Έκδοση αρχείου: 0.01
+ * Έκδοση αρχείου: 0.02
  * Όνομα κατά την εγκατάσταση: _host_classes.js
  *
  * Κώδικας μόνο του host για τα Τμήματα Γενικής Παιδείας (classesByYear). Το φορτώνει το index.html μετά το
@@ -12,10 +12,12 @@
  *   yearClasses(data, year)                 τα τμήματα ενός έτους ([{id, name, …}])
  *   previousYears(data, year)               τα παλαιότερα έτη με τμήματα: [{year, classes:[όνομα…]}], νεότερο πρώτο
  *   classUsage(data, year)                  σε ποια προγράμματα του έτους εμφανίζεται κάθε τμήμα (με το όνομα)
+ *   studentCounts(data, year)               πόσοι μαθητές του έτους (studentsByYear) είναι σε κάθε τμήμα (με το id)
  *   context(data, revision)                 το school-classes:context
  *   validateClasses(classes)                έλεγχος της λίστας ενός έτους· επιστρέφει καθαρό αντίγραφο (πετά λάθος)
  *   fetFile(year, message, rememberedFile)  το αρχείο FET της εισαγωγής (school-classes:fet)
- *   applySave(data, message)                εφαρμογή ενός school-classes:save σε αντίγραφο του data
+ *   applySave(data, message)                εφαρμογή ενός school-classes:save σε αντίγραφο του data· απορρίπτει
+ *                                           την αφαίρεση τμήματος που έχει μαθητές
  *   install(bridge)                         σύνδεση με το index (πρωτόκολλο school-classes:*)
  *
  * Στο .data:
@@ -26,6 +28,8 @@
  * Τα προγράμματα κρατούν τα τμήματα με το όνομά τους, όχι με το id: μια μετονομασία ή αφαίρεση τμήματος εδώ
  * δεν αλλάζει τα προγράμματα. Γι' αυτό το context λέει σε ποια προγράμματα εμφανίζεται κάθε όνομα (classUsage),
  * ώστε η εφαρμογή να προειδοποιεί.
+ * Οι μαθητές (studentsByYear, _host_students.js) κρατούν το id του τμήματος: η μετονομασία περνά σε αυτούς, ενώ
+ * ένα τμήμα με μαθητές δεν αφαιρείται (πρώτα μεταφέρονται οι μαθητές του από την εφαρμογή «Μαθητές»).
  */
 (() => {
   'use strict';
@@ -78,6 +82,15 @@
     return usage;
   }
 
+  // Πόσοι μαθητές του έτους είναι σε κάθε τμήμα: {[id τμήματος]: πλήθος}.
+  function studentCounts(data, year) {
+    const value = isObject(data?.studentsByYear) ? data.studentsByYear[year] : null, counts = {};
+    for (const student of Array.isArray(value?.students) ? value.students : []) {
+      if (isObject(student) && typeof student.classId === 'string') counts[student.classId] = (counts[student.classId] || 0) + 1;
+    }
+    return counts;
+  }
+
   // school-classes:context: τα τμήματα του έτους, το Προσωπικό (για τον υπεύθυνο κάθε τμήματος), τα
   // παλαιότερα έτη, η χρήση στα προγράμματα και τα όρια.
   function context(data, revision) {
@@ -88,6 +101,7 @@
       staff: Array.isArray(data?.staffByYear?.[year]) ? data.staffByYear[year] : [],
       previousYears: previousYears(data, year),
       classUsage: classUsage(data, year),
+      studentCounts: studentCounts(data, year),
       limits: {classes: LIMITS.classes, warnRatio: LIMITS.warnRatio}
     });
   }
@@ -117,6 +131,10 @@
   // και τα άγνωστα πεδία του έτους μένουν όπως είναι.
   function applySave(data, message) {
     const year = data.school.year, classes = validateClasses(message?.classes), candidate = clone(data);
+    // A class with students cannot be removed: the students would be left without a class.
+    const kept = new Set(classes.map(item => item.id)), counts = studentCounts(data, year);
+    const lost = yearClasses(data, year).filter(item => !kept.has(item.id) && counts[item.id]);
+    if (lost.length) throw Error(lost.map(item => quoted(item.name) + ' (' + counts[item.id] + (counts[item.id] === 1 ? ' μαθητής' : ' μαθητές') + ')').join(', ') + (lost.length === 1 ? ': το τμήμα έχει' : ': τα τμήματα έχουν') + ' μαθητές και δεν αφαιρείται. Μετάφερε πρώτα τους μαθητές σε άλλο τμήμα από τους «Μαθητές».');
     if (!isObject(candidate.classesByYear)) candidate.classesByYear = {};
     const previous = isObject(candidate.classesByYear[year]) ? candidate.classesByYear[year] : {};
     candidate.classesByYear[year] = {...previous, classes};
@@ -193,6 +211,6 @@
   }
 
   window.SchoolHostClasses = Object.freeze({
-    APP, LIMITS, yearClasses, previousYears, classUsage, context, validateClasses, applySave, fetFile, install
+    APP, LIMITS, yearClasses, previousYears, classUsage, studentCounts, context, validateClasses, applySave, fetFile, install
   });
 })();

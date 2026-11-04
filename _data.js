@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων
- * Έκδοση αρχείου: 0.13
+ * Έκδοση αρχείου: 0.14
  * Όνομα κατά την εγκατάσταση: _data.js
  *
  * Φορτώνεται από όσες υποεφαρμογές διαβάζουν ή γράφουν CSV, FET, ημερομηνίες ή προγράμματα, μετά
@@ -17,6 +17,8 @@
  *                           (από FET και από το CSV του Ολοήμερου Designer), εξαγωγή CSV του Ολοημέρου
  *                           για το FET, δάσκαλοι και σειρά του Προσωπικού, κανονική γραφή τμημάτων,
  *                           απασχόληση εκπαιδευτικών σε ημερομηνία και ώρα (συνεδριάσεις)
+ *   window.SchoolStudents   μαθητές (studentsByYear): ανάγνωση του CSV μαθητών του myschool, ίδιος μαθητής,
+ *                           τάξη και επόμενο τμήμα, κατάσταση ΑΔΥΜ, ταξινόμηση
  */
 (() => {
   'use strict';
@@ -1429,6 +1431,122 @@
     });
   }
 
+
+  // ---- Μαθητές (studentsByYear) ----
+  // Ο Αριθμός Μητρώου δεν είναι ταυτότητα: σπάνια δύο μαθητές έχουν τον ίδιο. Ταυτότητα είναι μόνο το id.
+  // Στις εισαγωγές, ίδιος μαθητής είναι αυτός με ίδιο Αριθμό Μητρώου ΚΑΙ ίδιο επώνυμο και όνομα (χωρίς τόνους,
+  // κενά και διάκριση πεζών–κεφαλαίων).
+  const studentKey = student => [String(student?.registryNumber ?? '').trim(), compareKey(student?.lastName), compareKey(student?.firstName)].join('\u0001');
+  const sameStudent = (a, b) => studentKey(a) === studentKey(b);
+  const nameCollator = new Intl.Collator('el', {sensitivity: 'base', numeric: true});
+  // Ταξινόμηση μαθητών: επώνυμο, όνομα, όνομα πατέρα, Αριθμός Μητρώου.
+  function compareStudents(a, b) {
+    for (const key of ['lastName', 'firstName', 'fatherName', 'registryNumber']) {
+      const order = nameCollator.compare(String(a?.[key] ?? '').trim(), String(b?.[key] ?? '').trim());
+      if (order) return order;
+    }
+    return 0;
+  }
+  // Η τάξη ενός τμήματος: «Στ2» → {grade:'Στ', label:"Στ'", index:5, number:2}· ό,τι δεν είναι τμήμα → null.
+  function classGrade(name) {
+    const parts = classParts(name);
+    return parts ? {grade: parts.grade === 'ΣΤ' ? 'Στ' : parts.grade, label: GRADE_LABELS[parts.grade], index: GRADES.indexOf(parts.grade), number: parts.number} : null;
+  }
+  // Οι τάξεις των τμημάτων, με τη σειρά τους: [{grade:'Στ', label:"Στ'", classes:['Στ1', …]}]· τα ονόματα στην
+  // κανονική γραφή. Μόνο τάξεις που έχουν τμήματα.
+  function studentGrades(classNames) {
+    return schoolGrades((classNames || []).map(classSpelling).filter(Boolean)).map(item => ({grade: item.grade === 'ΣΤ' ? 'Στ' : item.grade, label: GRADE_LABELS[item.grade], classes: item.classes}));
+  }
+  // Το τμήμα της επόμενης χρονιάς, με τον ίδιο αριθμό: «Β2» → «Γ2», «Ε1» → «Στ1». Η Στ' δεν έχει επόμενο → ''.
+  function promotedClass(name) {
+    const parts = classParts(name), index = parts ? GRADES.indexOf(parts.grade) : -1;
+    if (index < 0 || index >= GRADES.length - 1) return '';
+    return classSpelling(GRADES[index + 1] + parts.number);
+  }
+  // ΑΔΥΜ: συμπληρώνεται στην Α' και στη Δ'. Η ημερομηνία πρέπει να είναι από την έναρξη της σχολικής χρονιάς
+  // στην οποία ο μαθητής ήταν στην Α' (για Α', Β', Γ') ή στη Δ' (για Δ', Ε', Στ'). Για το 2026-2027: Α', Δ' από
+  // 01/09/2026· Β', Ε' από 01/09/2025· Γ', Στ' από 01/09/2024. Τμήμα ή έτος που δεν αναγνωρίζεται → ''.
+  function adymRequiredFrom(className, year) {
+    const parts = classParts(className), range = schoolYearRange(year);
+    if (!parts || !range) return '';
+    const index = GRADES.indexOf(parts.grade), back = index < 3 ? index : index - 3;
+    return (Number(range.from.slice(0, 4)) - back) + '-09-01';
+  }
+  // Κατάσταση ΑΔΥΜ (υπολογίζεται, δεν αποθηκεύεται): χωρίς ημερομηνία → 'pending' («Εκκρεμεί»)· ημερομηνία
+  // πριν από την adymRequiredFrom → 'expired' («Έληξε»)· αλλιώς 'valid' («Σε ισχύ»).
+  function adymStatus(date, className, year) {
+    const requiredFrom = adymRequiredFrom(className, year);
+    if (!isoValid(date)) return {status: 'pending', label: 'Εκκρεμεί', requiredFrom};
+    if (requiredFrom && date < requiredFrom) return {status: 'expired', label: 'Έληξε', requiredFrom};
+    return {status: 'valid', label: 'Σε ισχύ', requiredFrom};
+  }
+
+  // CSV μαθητών του myschool («Γενικά στοιχεία μαθητών»), με «;»: γραμμές στοιχείων σχολείου, «Σχολικό έτος;
+  // 2026-2027», και ανά τμήμα: «Τμήμα: ;;;Α1», «Τάξη Εγγραφής: …», επικεφαλίδα «Α/Α;Αριθμός μητρώου;Επώνυμο
+  // μαθητή;Όνομα μαθητή;Όνομα πατέρα» και μία γραμμή ανά μαθητή. Οι στήλες βρίσκονται από την επικεφαλίδα.
+  // Το κείμενο πρέπει να έχει ήδη αποκωδικοποιηθεί (το αρχείο του myschool είναι Windows-1253).
+  // → {ok, errors, warnings, info, year, classes:[{raw, name, students:[{registryNumber, lastName, firstName,
+  //    fatherName}]}], count}· name: η κανονική γραφή («ΣΤ1» → «Στ1»).
+  function parseStudentsCsv(text) {
+    const errors = [], warnings = [], info = [], classes = [];
+    const rows = parse(text, {delimiter: 'auto'});
+    const clean = value => String(value ?? '').replace(/\s+/g, ' ').trim();
+    let year = '', columns = null, current = null, count = 0;
+    const seen = new Map();
+    rows.forEach((row, index) => {
+      const line = index + 1, cells = row.map(clean), first = compareKey(cells[0]);
+      const yearAt = cells.findIndex(cell => compareKey(cell) === 'ΣΧΟΛΙΚΟΕΤΟΣ');
+      if (yearAt >= 0) { year = cells.slice(yearAt + 1).find(cell => /^\d{4}-\d{4}$/.test(cell)) || year; return; }
+      if (first.startsWith('ΤΜΗΜΑ')) {
+        const raw = cells.slice(1).find(Boolean) || clean(cells[0].replace(/^[^:]*:/, ''));
+        const name = classSpelling(raw);
+        current = {raw, name, students: []};
+        if (!name) errors.push(`Το «${raw || '(κενό)'}» στη γραμμή ${line} δεν είναι τμήμα (τάξη και αριθμός, π.χ. «Α1», «Στ2»).`);
+        else {
+          const same = classes.find(item => item.name === name);
+          if (same) current = same; else classes.push(current);
+        }
+        return;
+      }
+      if (cells.some(cell => compareKey(cell) === 'ΑΡΙΘΜΟΣΜΗΤΡΩΟΥ')) {
+        const find = test => cells.findIndex(cell => test(compareKey(cell)));
+        columns = {
+          registry: find(key => key === 'ΑΡΙΘΜΟΣΜΗΤΡΩΟΥ'),
+          last: find(key => key.startsWith('ΕΠΩΝΥΜΟ')),
+          first: find(key => key.startsWith('ΟΝΟΜΑ') && !key.includes('ΠΑΤΕΡΑ') && !key.includes('ΜΗΤΕΡΑ')),
+          father: find(key => key.includes('ΠΑΤΕΡΑ'))
+        };
+        if (columns.last < 0 || columns.first < 0) { errors.push(`Η επικεφαλίδα στη γραμμή ${line} δεν έχει στήλες «Επώνυμο μαθητή» και «Όνομα μαθητή».`); columns = null; }
+        return;
+      }
+      if (!columns || !/^\d+$/.test(cells[0])) return;
+      if (!current) { errors.push(`Η γραμμή ${line} έχει μαθητή πριν από τη γραμμή «Τμήμα:».`); return; }
+      if (!current.name) return;
+      const student = {
+        registryNumber: columns.registry >= 0 ? clean(cells[columns.registry]) : '',
+        lastName: clean(cells[columns.last]), firstName: clean(cells[columns.first]),
+        fatherName: columns.father >= 0 ? clean(cells[columns.father]) : ''
+      };
+      if (!student.lastName || !student.firstName || !student.registryNumber) {
+        warnings.push(`Η γραμμή ${line} (${current.name}) δεν έχει Αριθμό Μητρώου, επώνυμο ή όνομα και δεν εισάγεται.`);
+        return;
+      }
+      const key = studentKey(student), before = seen.get(key);
+      if (before) { warnings.push(`Ο/Η ${student.lastName} ${student.firstName} (Α.Μ. ${student.registryNumber}) εμφανίζεται δύο φορές (${before} και ${current.name}). Εισάγεται μία φορά, στο ${before}.`); return; }
+      seen.set(key, current.name);
+      current.students.push(student); count++;
+    });
+    for (const item of classes) if (!item.students.length) info.push(`Το τμήμα ${item.name} δεν έχει μαθητές στο αρχείο.`);
+    const registry = new Map();
+    for (const item of classes) for (const student of item.students) {
+      const list = registry.get(student.registryNumber) || [];
+      list.push(`${student.lastName} ${student.firstName} (${item.name})`); registry.set(student.registryNumber, list);
+    }
+    for (const [number, list] of registry) if (list.length > 1) warnings.push(`Ο Αριθμός Μητρώου ${number} υπάρχει σε περισσότερους από έναν μαθητές: ${list.join(', ')}.`);
+    if (!errors.length && !count) errors.push('Δεν βρέθηκαν μαθητές στο αρχείο. Βεβαιώσου ότι είναι το CSV «Γενικά στοιχεία μαθητών» του myschool, με γραμμές «Τμήμα:» και επικεφαλίδα «Αριθμός μητρώου».');
+    return {ok: !errors.length, errors, warnings, info, year, classes, count};
+  }
+
   window.SchoolCsv = Object.freeze({parse, quote, detectDelimiter, staffCsvRead, staffCsvUpdate, staffCsvSuggest});
   window.SchoolFet = Object.freeze({parse: parseFet, child, children, text});
   window.SchoolText = Object.freeze({withoutTones, weekdayIndex});
@@ -1444,5 +1562,9 @@
     OLOIMERO_CATEGORIES, OLOIMERO_MAX_SLOTS, oloimeroHours, oloimeroTeacherColor, oloimeroStudents,
     oloimeroRowsFromCsv, oloimeroRowsFromProgram, oloimeroCsvFromProgram, analyzeOloimeroImport, buildOloimeroProgram,
     analyzeFetImport, buildFetProgram
+  });
+  window.SchoolStudents = Object.freeze({
+    parseCsv: parseStudentsCsv, studentKey, sameStudent, compare: compareStudents,
+    classGrade, grades: studentGrades, promotedClass, adymRequiredFrom, adymStatus
   });
 })();

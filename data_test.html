@@ -5,10 +5,11 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Έλεγχος _data.js και των _host_*.js</title>
 <!--
-  Σελίδα ελέγχου του _data.js, του _host_timetables.js, του _host_calendar.js και του _host_classes.js, εκτός
+  Σελίδα ελέγχου του _data.js, του _host_timetables.js, του _host_calendar.js, του _host_classes.js και του
+  _host_students.js, εκτός
   σουίτας: δεν μπαίνει στο Κεντρικό Μενού και δεν ακολουθεί τις συμβάσεις των υποεφαρμογών. Μπαίνει στον ίδιο
   φάκελο με αυτά τα αρχεία και ανοίγει μόνη της.
-  Έκδοση αρχείου: 0.18
+  Έκδοση αρχείου: 0.19
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -35,7 +36,7 @@ button{font:inherit;padding:6px 14px;border-radius:8px;border:1px solid #94a3b8;
 <body>
 <main>
 <h1>Έλεγχος του _data.js και των _host_*.js</h1>
-<p>Η σελίδα ελέγχει τις κοινές λειτουργίες του <code>_data.js</code> και τις καθαρές συναρτήσεις του <code>_host_timetables.js</code>, του <code>_host_calendar.js</code> και του <code>_host_classes.js</code> με τα αρχεία δοκιμής του <code>timetables_plan.md</code>. Δεν αλλάζει κανένα αρχείο.</p>
+<p>Η σελίδα ελέγχει τις κοινές λειτουργίες του <code>_data.js</code> και τις καθαρές συναρτήσεις του <code>_host_timetables.js</code>, του <code>_host_calendar.js</code>, του <code>_host_classes.js</code> και του <code>_host_students.js</code> με τα αρχεία δοκιμής του <code>timetables_plan.md</code>. Δεν αλλάζει κανένα αρχείο.</p>
 <div class="drop" id="drop">
   <p><strong>Αρχεία δοκιμής:</strong> σύρε τα εδώ ή <input type="file" id="files" multiple accept=".fet,.csv,.data"></p>
   <div class="files" id="fileList"></div>
@@ -48,6 +49,7 @@ button{font:inherit;padding:6px 14px;border-radius:8px;border:1px solid #94a3b8;
 <script src="_host_timetables.js"></script>
 <script src="_host_calendar.js"></script>
 <script src="_host_classes.js"></script>
+<script src="_host_students.js"></script>
 <script>
 (() => {
 'use strict';
@@ -58,8 +60,15 @@ const FILES = {
   oldDesign: 'oloimero_designer_porfiriada.csv',
   v2Fet: 'porfiriada_2026-2027v2.fet',
   v2Csv: 'porfiriada_2026-2027v2_timetable.csv',
-  v2Design: 'oloimero_designer_porfiriada_v2.csv'
+  v2Design: 'oloimero_designer_porfiriada_v2.csv',
+  // CSV «Γενικά στοιχεία μαθητών» του myschool, σε Windows-1253 (με κενό ή «_» μετά το «Μαθητές»).
+  students: 'Μαθητές 2026-2027.csv'
 };
+// The CSV of myschool is Windows-1253: UTF-8 when valid, otherwise Windows-1253 (as the encoding:'auto' of the host).
+async function decodedText(file) {
+  const bytes = await file.arrayBuffer();
+  try { return new TextDecoder('utf-8', {fatal: true}).decode(bytes); } catch { return new TextDecoder('windows-1253').decode(bytes); }
+}
 // Προαιρετικό: ένα κοινό αρχείο .data χωρίς κωδικό, με Προσωπικό και Ώρες Διδασκαλίας (για τους ελέγχους του host).
 const DATA_LABEL = 'κοινό αρχείο .data χωρίς κωδικό (προαιρετικό, για τον host)';
 const texts = {};
@@ -80,6 +89,7 @@ function showFiles() {
 async function addFiles(list) {
   for (const file of list) {
     if (/\.data$/i.test(file.name)) { texts.data = await file.text(); dataName = file.name; continue; }
+    if (/Μαθητές[ _]2026-2027\.csv$/i.test(file.name)) { texts.students = await decodedText(file); continue; }
     const key = Object.keys(FILES).sort((a, b) => FILES[b].length - FILES[a].length).find(k => file.name === FILES[k] || file.name.endsWith('-' + FILES[k]) || file.name.endsWith('_' + FILES[k]));
     if (key) texts[key] = await file.text();
   }
@@ -620,6 +630,79 @@ function hostClassesChecks() {
   } else skip('.data δοκιμής: χρήση των τμημάτων', 'Λείπει το .data δοκιμής.');
 }
 
+// ---- Μαθητές (_data.js: SchoolStudents) ----
+function studentsChecks() {
+  start('9. Μαθητές: CSV του myschool, ΑΔΥΜ, επόμενο τμήμα');
+  const S = window.SchoolStudents;
+  if (!S) { record('fail', 'Λείπει το SchoolStudents από το _data.js'); return; }
+  const year = '2026-2027';
+  if (texts.students) {
+    const parsed = S.parseCsv(texts.students);
+    equal('CSV δοκιμής: 204 μαθητές σε 12 τμήματα, σχολικό έτος, χωρίς λάθη και προειδοποιήσεις', [parsed.ok, parsed.count, parsed.classes.length, parsed.year, parsed.errors.length, parsed.warnings.length], [true, 204, 12, year, 0, 0]);
+    equal('CSV δοκιμής: τμήματα και πλήθος, το «ΣΤ1» γράφεται «Στ1»', parsed.classes.map(c => c.name + ':' + c.students.length).join(' '), 'Α1:14 Α2:15 Β1:14 Β2:15 Γ1:18 Γ2:18 Δ1:17 Δ2:15 Ε1:21 Ε2:20 Στ1:18 Στ2:19');
+    equal('CSV δοκιμής: πρώτος μαθητής του Α1 (Α.Μ., επώνυμο, όνομα, πατέρας)', parsed.classes[0].students[0], {registryNumber: '275', lastName: 'ΑΓΡΑΦΙΩΤΗΣ', firstName: 'ΑΝΤΩΝΙΟΣ - ΣΤΥΛΙΑΝΟΣ', fatherName: 'ΦΩΤΙΟΣ'});
+    check('CSV δοκιμής: κενό όνομα πατέρα γίνεται δεκτό', parsed.classes.some(c => c.students.some(st => st.fatherName === '')));
+  } else skip('CSV μαθητών δοκιμής', 'Λείπει το «Μαθητές 2026-2027.csv».');
+  const csv = rows => rows.join('\r\n');
+  const head = 'Α/Α;Αριθμός μητρώου;Επώνυμο μαθητή;Όνομα μαθητή;Όνομα πατέρα;';
+  const twice = S.parseCsv(csv([';;;;Σχολικό έτος;2025-2026', 'Τμήμα: ;;;Β1;;', head, '1;10;ΠΑΠΑΣ;ΝΙΚΟΣ;ΓΙΩΡΓΟΣ;', '2;11;ΑΛΦΑ;ΜΑΡΙΑ;;', 'Τμήμα: ;;;Β2;;', head, '1;10;Παπάς;Νίκος;Γιώργος;', '2;11;ΒΗΤΑ;ΕΛΕΝΗ;;']));
+  check('Ίδιος μαθητής δύο φορές (με άλλη γραφή): εισάγεται μία φορά, με προειδοποίηση', twice.ok && twice.count === 3 && twice.warnings.some(w => w.includes('δύο φορές')), twice.warnings.join('\n'));
+  check('Ίδιος Α.Μ. σε διαφορετικούς μαθητές: προειδοποίηση, όχι λάθος', twice.ok && twice.warnings.some(w => w.includes('Αριθμός Μητρώου 11')), twice.warnings.join('\n'));
+  equal('Σχολικό έτος του αρχείου', twice.year, '2025-2026');
+  const bad = S.parseCsv(csv(['Τμήμα: ;;;Ε1-Γαλ;;', head, '1;10;Χ;Υ;;']));
+  check('«Τμήμα» που δεν είναι τμήμα: λάθος', !bad.ok && bad.errors.some(e => e.includes('δεν είναι τμήμα')), bad.errors.join('\n'));
+  const empty = S.parseCsv('α;β;γ\r\n1;2;3');
+  check('Αρχείο χωρίς μαθητές: λάθος', !empty.ok && empty.errors.some(e => e.includes('Δεν βρέθηκαν μαθητές')), empty.errors.join('\n'));
+  const noNumber = S.parseCsv(csv(['Τμήμα: ;;;Α1;;', head, '1;;ΧΩΡΙΣ;ΑΜ;;', '2;5;ΜΕ;ΑΜ;;']));
+  check('Γραμμή χωρίς Α.Μ.: δεν εισάγεται, με προειδοποίηση', noNumber.ok && noNumber.count === 1 && noNumber.warnings.length === 1, noNumber.warnings.join('\n'));
+  check('Ίδιος μαθητής: Α.Μ. και όνομα, χωρίς τόνους και διάκριση πεζών–κεφαλαίων', S.sameStudent({registryNumber: '270', lastName: 'Αντωνιάδης', firstName: 'Ιωάννης'}, {registryNumber: ' 270', lastName: 'ΑΝΤΩΝΙΑΔΗΣ', firstName: 'ιωαννης'}));
+  check('Ίδιος Α.Μ. με άλλο όνομα: άλλος μαθητής', !S.sameStudent({registryNumber: '270', lastName: 'Α', firstName: 'Β'}, {registryNumber: '270', lastName: 'Α', firstName: 'Γ'}));
+  equal('Επόμενο τμήμα: Β2 → Γ2, Ε1 → Στ1, η Στ\' δεν έχει, ό,τι δεν είναι τμήμα → κενό', ['Β2', 'Ε1', 'Στ2', 'ΣΤ1', 'Ε1-Γαλ'].map(S.promotedClass), ['Γ2', 'Στ1', '', '', '']);
+  const status = (date, name) => S.adymStatus(date, name, year).status;
+  equal('ΑΔΥΜ Α\', Δ\': από 01/09/2026', [status('2026-09-01', 'Α1'), status('2026-08-31', 'Α1'), status('2026-10-02', 'Δ2'), status('2025-09-10', 'Δ2')], ['valid', 'expired', 'valid', 'expired']);
+  equal('ΑΔΥΜ Β\', Ε\': από 01/09/2025· Γ\', Στ\': από 01/09/2024', [status('2025-09-01', 'Β1'), status('2025-08-31', 'Ε1'), status('2024-09-01', 'Γ2'), status('2024-06-30', 'Στ1')], ['valid', 'expired', 'valid', 'expired']);
+  equal('ΑΔΥΜ χωρίς ημερομηνία: Εκκρεμεί', [S.adymStatus('', 'Γ1', year).label, S.adymStatus('2026-09-01', 'Α1', year).label, S.adymStatus('2020-01-01', 'Α1', year).label], ['Εκκρεμεί', 'Σε ισχύ', 'Έληξε']);
+  equal('Τάξεις των τμημάτων, με τη σειρά', S.grades(['Στ1', 'Α2', 'ΣΤ2', 'Α1', 'Ε1-Γαλ']), [{grade: 'Α', label: "Α'", classes: ['Α1', 'Α2']}, {grade: 'Στ', label: "Στ'", classes: ['Στ1', 'Στ2']}]);
+}
+
+// ---- Host (_host_students.js) ----
+function hostStudentsChecks() {
+  start('10. Host: Μαθητές');
+  const H = window.SchoolHostStudents, K = window.SchoolHostClasses;
+  if (!H) { record('fail', 'Λείπει το _host_students.js'); return; }
+  const year = '2026-2027';
+  const student = (id, classId, extra = {}) => ({id, registryNumber: '1' + id, lastName: 'ΕΠΩΝΥΜΟ ' + id, firstName: 'ΟΝΟΜΑ', fatherName: '', classId, adymDate: '', ...extra});
+  const base = {format: 'school-shared-data', formatVersion: 1, school: {name: 'Σχολείο', year},
+    classesByYear: {'2025-2026': {classes: [{id: 'p1', name: 'Α1'}, {id: 'p6', name: 'Στ1'}]}, [year]: {classes: [{id: 'c1', name: 'Β1'}]}},
+    studentsByYear: {'2025-2026': {students: [student('a', 'p1'), student('b', 'p6')], note: 'x'}}};
+  const saved = H.applySave(base, {students: [student('a', 'c1', {adymDate: '2026-09-15', extra: 3}), student('n', 'c9')], newClasses: [{id: 'c9', name: 'Γ2'}]});
+  equal('Αποθήκευση: μαθητές του έτους και νέο τμήμα στα Τμήματα, τα άλλα έτη μένουν', [saved.studentsByYear[year].students.length, saved.classesByYear[year].classes.map(c => c.name), saved.studentsByYear['2025-2026'].note], [2, ['Β1', 'Γ2'], 'x']);
+  equal('Τα άγνωστα πεδία του μαθητή διατηρούνται', saved.studentsByYear[year].students[0].extra, 3);
+  check('Το αρχικό data δεν αλλάζει', !base.studentsByYear[year] && base.classesByYear[year].classes.length === 1);
+  check('Ίδιος Αριθμός Μητρώου σε δύο μαθητές: γίνεται δεκτό', (() => { try { H.applySave(base, {students: [student('a', 'c1', {registryNumber: '7'}), student('b', 'c1', {registryNumber: '7'})]}); return true; } catch { return false; } })());
+  const rejects = (label, message, text) => { try { H.applySave(base, message); record('fail', label, 'έγινε δεκτό'); } catch (error) { check(label, error.message.includes(text), error.message); } };
+  rejects('Τμήμα που δεν υπάρχει: απορρίπτεται', {students: [student('a', 'x')]}, 'δεν έχει τμήμα');
+  rejects('Νέο τμήμα με id υπάρχοντος: απορρίπτεται', {students: [], newClasses: [{id: 'c1', name: 'Γ1'}]}, 'μόνο να προσθέσουν');
+  rejects('Νέο τμήμα με όνομα που υπάρχει: απορρίπτεται', {students: [], newClasses: [{id: 'c2', name: 'Β1'}]}, 'δύο φορές');
+  rejects('Νέο τμήμα όχι στην κανονική γραφή: απορρίπτεται', {students: [], newClasses: [{id: 'c2', name: 'ΣΤ1'}]}, 'κανονική γραφή');
+  rejects('Χωρίς επώνυμο: απορρίπτεται', {students: [student('a', 'c1', {lastName: ' '})]}, 'υποχρεωτικά');
+  rejects('Μη έγκυρη ημερομηνία ΑΔΥΜ: απορρίπτεται', {students: [student('a', 'c1', {adymDate: '2026-02-30'})]}, 'ΑΔΥΜ');
+  rejects('Διπλή ταυτότητα: απορρίπτεται', {students: [student('a', 'c1'), student('a', 'c1')]}, 'διπλές ταυτότητες');
+  rejects('Όχι λίστα: απορρίπτεται', {students: {}}, 'λίστα');
+  const many = Array.from({length: H.LIMITS.students + 1}, (_, i) => student('m' + i, 'c1'));
+  rejects('Πάνω από το όριο των ' + H.LIMITS.students + ' μαθητών: απορρίπτεται', {students: many}, 'πάνω από το όριο');
+  const context = H.context(saved, 4);
+  equal('Context: έτος, μαθητές, τμήματα, παλαιότερα έτη με τα τμήματά τους, όρια', [context.revision, context.students.length, context.classes.length, context.previousYears.map(y => y.year + ':' + y.students.length + ':' + y.classes.length), context.limits.students], [4, 2, 2, ['2025-2026:2:2'], H.LIMITS.students]);
+  if (K) {
+    equal('Τμήματα: πλήθος μαθητών ανά τμήμα (με το id)', K.studentCounts(saved, year), {c1: 1, c9: 1});
+    let message = '';
+    try { K.applySave(saved, {classes: [{id: 'c1', name: 'Β1'}]}); } catch (error) { message = error.message; }
+    check('Τμήματα: αφαίρεση τμήματος με μαθητές απορρίπτεται', message.includes('«Γ2» (1 μαθητής)') && message.includes('δεν αφαιρείται'), message || 'έγινε δεκτό');
+    check('Τμήματα: μετονομασία τμήματος με μαθητές γίνεται δεκτή', (() => { try { K.applySave(saved, {classes: [{id: 'c1', name: 'Β2'}, {id: 'c9', name: 'Γ2'}]}); return true; } catch { return false; } })());
+    equal('Τμήματα: το context έχει το πλήθος μαθητών', K.context(saved, 1).studentCounts, {c1: 1, c9: 1});
+  }
+}
+
 // ---- Host (_host_timetables.js) ----
 const FET_APP = 'fet_timetable_editor.html', OLO_APP = 'oloimero_designer.html', STAFF_APP = 'school_staff.html';
 const clone = value => structuredClone(value);
@@ -1018,6 +1101,8 @@ function run() {
   attempt('Host', hostChecks);
   attempt('Host: Σχολικό Ημερολόγιο', hostCalendarChecks);
   attempt('Host: Τμήματα', hostClassesChecks);
+  attempt('Μαθητές', studentsChecks);
+  attempt('Host: Μαθητές', hostStudentsChecks);
 
   const summary = document.createElement('div');
   summary.className = 'summary ' + (totals.fail ? 'fail' : 'ok');

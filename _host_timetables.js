@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Προγράμματα στο Κεντρικό Μενού (host)
- * Έκδοση αρχείου: 0.10
+ * Έκδοση αρχείου: 0.11
  * Όνομα κατά την εγκατάσταση: _host_timetables.js
  *
  * Κώδικας μόνο του host για τα προγράμματα (timetablesByYear). Το φορτώνει το index.html μετά το
@@ -22,7 +22,9 @@
  *   droppedImportFile(year, kind, importer, file, handle)   αρχείο που αφέθηκε πάνω σε εφαρμογή· γίνεται
  *                                           το τελευταίο αρχείο του εισαγωγέα
  *   rememberedFile(action, spec)            το κοινό μέρος κάθε αρχείου που θυμάται το host (last / read /
- *                                           choose)· το χρησιμοποιεί και το _host_classes.js, μέσω του index
+ *                                           choose)· το χρησιμοποιούν και το _host_classes.js και το
+ *                                           _host_students.js, μέσω του index. Με spec.encoding:'auto' το
+ *                                           κείμενο διαβάζεται ως UTF-8 και, αν δεν είναι, ως Windows-1253
  *   viewKey(app)                            το κλειδί της εφαρμογής στο lastViewByYear (το είδος της), ή null
  *   lastView(data, year, key)               η τελευταία επιλογή μιας εφαρμογής (π.χ. 'period:…' ή 'draft:…')
  *   withView(data, year, key, view)         αντίγραφο του data με νέα τελευταία επιλογή
@@ -465,12 +467,20 @@
       };
     });
   }
-  async function readHandle(handle) {
+  // The text of a file. encoding 'auto': UTF-8 when the bytes are valid UTF-8, otherwise Windows-1253 (the Greek
+  // code page in which e.g. the CSV exports of myschool are saved). Without it: UTF-8, as file.text().
+  async function fileText(file, encoding) {
+    if (encoding !== 'auto') return file.text();
+    const bytes = await file.arrayBuffer();
+    try { return new TextDecoder('utf-8', {fatal: true}).decode(bytes); }
+    catch { return new TextDecoder('windows-1253').decode(bytes); }
+  }
+  async function readHandle(handle, encoding) {
     let file;
     try { file = await handle.getFile(); }
     catch (error) { if (error?.name === 'NotFoundError') throw Error('Το αρχείο ' + quoted(handle.name) + ' δεν βρέθηκε. Επίλεξέ το ξανά από τη νέα του θέση.'); throw error; }
     if (file.size > IMPORT_MAX_BYTES) throw Error('Το αρχείο ' + quoted(file.name) + ' είναι υπερβολικά μεγάλο.');
-    return {name: file.name, text: await file.text()};
+    return {name: file.name, text: await fileText(file, encoding)};
   }
   const rememberedHandle = async key => {
     try { const handle = await referenceStore('get', key); return handle && typeof handle.getFile === 'function' ? handle : null; } catch { return null; }
@@ -488,7 +498,8 @@
   }
   // The common part of every remembered file: last / read / choose.
   //   spec: {key (IndexedDB key), pickerId (≤ 32 characters, a limit of Chrome), description, accept,
-  //          startIn: async () => handle of a related file, for the folder of the picker when there is no last file}
+  //          startIn: async () => handle of a related file, for the folder of the picker when there is no last file,
+  //          encoding: 'auto' to accept Windows-1253 as well as UTF-8 (see fileText)}
   async function rememberedFile(action, spec) {
     if (action === 'last') { const handle = await rememberedHandle(spec.key); return handle ? {name: handle.name} : null; }
     if (action === 'read') {
@@ -499,11 +510,11 @@
         try { permission = await handle.requestPermission({mode: 'read'}); } catch { permission = 'denied'; }
       }
       if (permission !== 'granted') throw Error('Δεν δόθηκε άδεια ανάγνωσης του ' + quoted(handle.name) + '. Πάτησε «Επιλογή άλλου…» και επίλεξέ το ξανά.');
-      return readHandle(handle);
+      return readHandle(handle, spec.encoding);
     }
     const startIn = await rememberedHandle(spec.key) || (spec.startIn ? await spec.startIn().catch(() => null) : null);
     const handles = await picker('open', {id: spec.pickerId.slice(0, 32), multiple: false, types: [{description: spec.description, accept: spec.accept}]}, startIn);
-    const result = await readHandle(handles[0]);
+    const result = await readHandle(handles[0], spec.encoding);
     await referenceStore('put', spec.key, handles[0]).catch(() => {});
     return result;
   }

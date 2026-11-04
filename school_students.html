@@ -1,0 +1,687 @@
+<!doctype html><html lang="el" class="subapp-page"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Μαθητές v0.01</title><link rel="stylesheet" href="_ui.css">
+<link rel="stylesheet" href="_subapp.css">
+<style>
+/* Μαθητές: layout of the list and the details. Shared appearance: _ui.css and _subapp.css. */
+/* --st-* : colours whose meaning exists only in this list (newly added students). */
+:root{--app-mark-bg:var(--school-app-students);--st-added-text:#2467c8}
+.students-manager{display:grid;grid-template-columns:clamp(260px,34%,420px) minmax(0,1fr);grid-template-rows:minmax(0,1fr);gap:24px;flex:1;min-height:0}
+.students-list-pane{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden}
+.students-list-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:9px;flex:none}
+.students-list-heading h3{margin:0;line-height:1.25}
+.students-filter{display:flex;flex:none;margin-bottom:9px}
+.students-filter select{flex:1;min-width:0}
+.students-list{flex:1;overflow-y:auto;overflow-x:hidden;min-height:0;scrollbar-gutter:stable;overscroll-behavior:contain}
+/* List row: the student, and on the right the class (in a grade) and the registry number. */
+.students-list-item{display:flex;align-items:baseline;gap:10px}
+.students-list-name{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.students-list-side{flex:0 0 auto;font-size:12px;font-weight:400;font-style:normal;color:var(--school-ui-muted);white-space:nowrap}
+.students-list-item.selected .students-list-side{color:var(--school-ui-label-text)}
+.students-list-item.added{color:var(--st-added-text);font-style:italic}
+.students-list-item.updated{font-style:italic}
+.students-list-item.invalid .students-list-name{color:var(--school-ui-error)}
+.students-limit-warning{flex:none;margin-top:8px}
+.students-empty{height:auto;min-height:100%}
+.students-empty .students-empty-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+.students-details{container-type:inline-size;padding-right:2px}
+.students-value{min-width:0}
+.students-adym{display:grid;grid-template-columns:minmax(0,1fr) 110px;gap:8px;align-items:center}
+.students-adym input{min-width:0;width:100%}
+.students-adym .ui-status-button{width:100%}
+.students-adym-note{grid-column:1 / -1;margin:0}
+@container (min-width:620px){
+  .students-fields>.field{display:grid;grid-template-columns:215px minmax(0,1fr);align-items:center;gap:0 18px;margin:0!important;padding:12px 16px}
+  .students-fields .field>label{padding-right:12px;grid-column:1;grid-row:1}
+  .students-fields .students-value{display:contents}
+  .students-fields .students-value>:is(input,select,.students-adym){grid-column:2;grid-row:1}
+  .students-fields .students-value>p{grid-column:2}
+}
+/* Import dialogs. */
+.students-import-pane{display:grid;gap:10px;margin-top:4px}
+.students-import-pane p{margin:0}
+.students-import-pane ul{margin:0;padding-left:20px}
+.students-import-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.students-import-row label{display:grid;gap:4px;font-size:13px;font-weight:600}
+.students-import-list{display:grid;gap:2px;max-height:min(40vh,340px);overflow:auto;padding:6px 10px;border:1px solid var(--school-ui-border);border-radius:8px}
+.students-import-list label{display:flex;align-items:baseline;gap:8px;cursor:pointer;font-weight:400}
+.students-import-list input{margin:0;accent-color:var(--school-ui-focus)}
+.students-import-list .students-list-side{margin-left:auto}
+.students-import-tools{display:flex;flex-wrap:wrap;gap:8px}
+.students-import-note{font-size:12px;color:var(--school-ui-muted)}
+@media(max-width:650px){
+  .students-manager{grid-template-columns:1fr;grid-template-rows:auto auto;gap:12px;min-height:0;--subapp-stacked:1}
+  .students-list-pane{max-height:calc(100dvh - var(--subapp-header-height,110px) - 32px);overflow:visible}
+  .students-list{min-height:220px}
+}
+</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" aria-label="Μαθητές — άνοιγμα κεντρικού μενού" title="Άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΜΘ</span></span><span class="brand-text"><span>Μαθητές</span><span class="small version">v0.01</span></span></button></h1></div><button id="saveStudents" class="save-main" type="button" disabled>Αποθήκευση</button><button id="cancelStudents" type="button" disabled>Αναίρεση Όλων</button><div class="header-right"><span id="studentsSchoolYear" class="school-year-indicator" hidden><span>Σχολικό έτος:</span> <span id="studentsSchoolYearValue"></span></span></div></header><main id="students-root" class="page-main"><p class="connection subapp-connection">Άνοιξε τη σελίδα «Μαθητές» μέσα από το Κεντρικό Μενού, αφού ανοίξεις το αρχείο πληροφοριών του σχολείου.</p></main><script src="_ui.js"></script>
+<script src="_data.js"></script>
+<script>
+(() => {
+'use strict';
+// Μαθητές του σχολικού έτους (studentsByYear[year].students = [{id, registryNumber, lastName, firstName,
+// fatherName, classId, adymDate}]). Το classId είναι το id ενός τμήματος των «Τμημάτων». Ο Αριθμός Μητρώου δεν
+// είναι μοναδικός· ταυτότητα είναι μόνο το id, που μένει ίδιο σε όλα τα έτη (studentId στις άλλες εφαρμογές).
+// Ίδιος μαθητής στις εισαγωγές: ίδιος Αριθμός Μητρώου, επώνυμο και όνομα (SchoolStudents.sameStudent).
+// Η λίστα δείχνει κάθε φορά ένα τμήμα ή μία τάξη. Η κατάσταση του ΑΔΥΜ υπολογίζεται (SchoolStudents.adymStatus).
+// Νέα τμήματα (από τις εισαγωγές) στέλνονται στο host με την αποθήκευση (newClasses).
+const S = SchoolStudents, T = SchoolTimetable, Selection = schoolListSelection;
+const $ = id => document.getElementById(id), root = $('students-root');
+
+let context = null, schoolYear = '', dirty = false, saving = false, editing = false;
+let saved = [], draft = [], savedClasses = [], newClasses = [], filter = '';
+let selectedId = '', anchorId = '';
+const selectedIds = new Set();
+// Temporary markers of the list (not saved): id → 'added' | 'updated'.
+const markers = new Map();
+// ΑΔΥΜ text that is not a valid date yet: id → text (the record keeps only a valid date or '').
+const dateTexts = new Map();
+let lastDetailFocus = '';
+
+// ---- Model ----
+const clean = value => String(value ?? '').replace(/\s+/g, ' ').trim();
+const spelling = value => T.classSpelling(clean(value));
+const classes = () => [...savedClasses, ...newClasses];
+const classSortKey = name => { const grade = S.classGrade(name); return grade ? grade.index * 10000 + grade.number : Infinity; };
+const sortedClasses = () => classes().slice().sort((a, b) => classSortKey(a.name) - classSortKey(b.name));
+const classById = id => classes().find(item => item.id === id) || null;
+const classByName = name => classes().find(item => item.name === name) || null;
+const className = student => classById(student?.classId)?.name || '';
+const byId = id => draft.find(item => item.id === id) || null;
+const savedById = id => saved.find(item => item.id === id) || null;
+const fullName = student => [clean(student?.lastName), clean(student?.firstName)].filter(Boolean).join(' ');
+const nameLabel = student => fullName(student) || '(χωρίς όνομα)';
+const studentsWord = count => count === 1 ? '1 μαθητής' : count + ' μαθητές';
+const studentsWordAcc = count => count === 1 ? '1 μαθητή' : count + ' μαθητές';
+const limit = () => Number.isInteger(context?.limits?.students) ? context.limits.students : 1000;
+const classLimit = () => Number.isInteger(context?.limits?.classes) ? context.limits.classes : 50;
+const warnAt = () => Math.ceil(limit() * (Number(context?.limits?.warnRatio) || 0.9));
+
+// Filter: 'class:<id>' or 'grade:<Α|Β|…|Στ>'.
+function filterOptions() {
+  return S.grades(classes().map(item => item.name)).map(grade => ({grade, classes: grade.classes.map(name => classByName(name)).filter(Boolean)}));
+}
+function validFilter(value) {
+  const [kind, key] = String(value).split(/:(.*)/s);
+  if (kind === 'class') return !!classById(key);
+  if (kind === 'grade') return filterOptions().some(item => item.grade.grade === key);
+  return false;
+}
+function defaultFilter() { const first = sortedClasses()[0]; return first ? 'class:' + first.id : ''; }
+function inFilter(student, value = filter) {
+  const [kind, key] = String(value).split(/:(.*)/s);
+  if (kind === 'class') return student.classId === key;
+  if (kind === 'grade') return S.classGrade(className(student))?.grade === key;
+  return false;
+}
+// The class where «+ Προσθήκη» puts a new student: the class shown, or the first class of the grade shown.
+function targetClassId() {
+  const [kind, key] = String(filter).split(/:(.*)/s);
+  if (kind === 'class') return classById(key)?.id || '';
+  if (kind === 'grade') return filterOptions().find(item => item.grade.grade === key)?.classes[0]?.id || '';
+  return '';
+}
+const filterLabel = (value = filter) => {
+  const [kind, key] = String(value).split(/:(.*)/s);
+  if (kind === 'class') return 'το ' + (classById(key)?.name || '');
+  const grade = filterOptions().find(item => item.grade.grade === key)?.grade;
+  return grade ? 'την ' + grade.label + ' τάξη' : '';
+};
+const shown = () => draft.filter(student => inFilter(student)).sort(S.compare);
+
+// Problems that prevent saving: {field: message}.
+function studentErrors(student) {
+  const errors = {};
+  if (!clean(student.registryNumber)) errors.registryNumber = 'Ο Αριθμός Μητρώου είναι υποχρεωτικός.';
+  else if (clean(student.registryNumber).length > 30) errors.registryNumber = 'Ο Αριθμός Μητρώου έχει έως 30 χαρακτήρες.';
+  if (!clean(student.lastName)) errors.lastName = 'Το επώνυμο είναι υποχρεωτικό.';
+  if (!clean(student.firstName)) errors.firstName = 'Το όνομα είναι υποχρεωτικό.';
+  if (!classById(student.classId)) errors.classId = 'Επίλεξε τμήμα.';
+  if (dateTexts.has(student.id)) errors.adymDate = 'Γράψε την ημερομηνία ως ηη/μμ/εεεε, π.χ. 15/09/2026.';
+  return errors;
+}
+const hasErrors = student => Object.keys(studentErrors(student)).length > 0;
+// The same registry number in other students of the year: a warning only (it can happen).
+function registryWarning(student) {
+  const number = clean(student.registryNumber);
+  if (!number) return '';
+  const others = draft.filter(other => other !== student && clean(other.registryNumber) === number);
+  if (!others.length) return '';
+  return `Ο Αριθμός Μητρώου ${number} υπάρχει και σε: ${others.map(other => `${nameLabel(other)} (${className(other) || 'χωρίς τμήμα'})`).join(', ')}.`;
+}
+function cleanRecord(student) {
+  const {...record} = student;
+  for (const key of ['registryNumber', 'lastName', 'firstName', 'fatherName']) record[key] = clean(record[key]);
+  record.adymDate = SchoolDate.valid(record.adymDate) ? record.adymDate : '';
+  return record;
+}
+
+// ---- State ----
+function refreshSaveButtons() { for (const id of ['saveStudents', 'cancelStudents']) $(id).disabled = saving || !dirty; }
+function setDirty(value) { dirty = value; $('saveStudents').classList.toggle('dirty', value); schoolHost.post({type: 'school-students:dirty', dirty: value}); refreshSaveButtons(); }
+function markChanged(student, kind = 'updated') { if (markers.get(student.id) !== 'added') markers.set(student.id, kind); setDirty(true); }
+function setBusy(value) { saving = value; root.classList.toggle('busy', value); root.setAttribute('aria-busy', String(value)); const button = $('importStudents'); if (button) button.disabled = value; refreshSaveButtons(); }
+function setSummary(message, error = false) { const summary = $('studentsSummary'); if (!summary) return; summary.textContent = message; summary.classList.toggle('error', error); }
+function select(id, ids = [id]) { selectedId = id || ''; anchorId = selectedId; selectedIds.clear(); for (const item of ids) if (item) selectedIds.add(item); }
+const rowOf = id => $('studentsList')?.querySelector(`[data-id="${CSS.escape(id)}"]`);
+
+schoolHost.on('school-students:context', message => {
+  if (dirty || saving) return;
+  context = message.context; schoolYear = context.school.year;
+  saved = structuredClone(Array.isArray(context.students) ? context.students : []);
+  savedClasses = structuredClone(Array.isArray(context.classes) ? context.classes : []);
+  draft = structuredClone(saved); newClasses = []; markers.clear(); dateTexts.clear();
+  if (!validFilter(filter)) filter = defaultFilter();
+  select(shown()[0]?.id || '');
+  openManager();
+});
+
+// ---- Layout ----
+function openManager() {
+  $('studentsSchoolYearValue').textContent = schoolYear; $('studentsSchoolYear').hidden = !schoolYear;
+  root.innerHTML = `<div class="students-manager"><section class="students-list-pane subapp-list-pane"><div class="students-list-heading subapp-list-heading"><h3 id="studentsTitle">Μαθητές (0)</h3><div class="subapp-transfer-actions" role="group" aria-label="Εισαγωγή μαθητών"><button id="importStudents" type="button" title="Εισαγωγή μαθητών από CSV ή από παλαιότερο σχολικό έτος" aria-label="Εισαγωγή μαθητών">${schoolIcon('import')}</button></div></div><div class="students-filter"><select id="studentsFilter" aria-label="Τμήμα ή τάξη της λίστας"></select></div><div id="studentsList" class="students-list subapp-list" tabindex="0" role="listbox" aria-multiselectable="true" aria-label="Λίστα μαθητών"></div><div class="subapp-list-actions"><button id="addStudent" class="subapp-add-button" type="button">+ Προσθήκη</button><button id="removeStudent" class="subapp-remove-button" type="button">Αφαίρεση</button></div><p id="studentsLimitWarning" class="students-limit-warning ui-validation-warning" role="status" hidden></p><div id="studentsSummary" class="subapp-notice" aria-live="polite">Διάλεξε τμήμα ή τάξη πάνω από τη λίστα. Μπορείς να επιλέξεις πολλούς με Ctrl/Cmd+κλικ ή εύρος με Shift+κλικ.</div></section><section id="studentDetails" class="students-details subapp-side-pane"></section></div>`;
+  $('studentDetails').addEventListener('focusin', event => { lastDetailFocus = event.target.matches('input,select') ? event.target.id : ''; });
+  $('importStudents').onclick = chooseImport;
+  $('addStudent').onclick = addStudent;
+  $('removeStudent').onclick = removeSelected;
+  $('saveStudents').onclick = save;
+  $('cancelStudents').onclick = undoAll;
+  $('studentsFilter').onchange = event => { filter = event.target.value; select(shown()[0]?.id || ''); render(); };
+  $('studentsList').onpointerdown = event => { if (event.target === $('studentsList')) $('studentsList').focus(); };
+  $('studentsList').onkeydown = event => {
+    const order = shown().map(item => item.id);
+    if (!Selection.isSelectAll(event) || !order.length || saving) return;
+    event.preventDefault(); event.stopPropagation();
+    const focused = document.activeElement?.dataset?.id;
+    selectedIds.clear(); order.forEach(id => selectedIds.add(id));
+    if (!selectedId) selectedId = order[0]; anchorId = selectedId;
+    const list = $('studentsList'), scroll = list.scrollTop;
+    renderList();
+    (focused ? rowOf(focused) : list)?.focus({preventScroll: true});
+    list.scrollTop = scroll;
+  };
+  refreshSaveButtons();
+  render();
+}
+
+function render() { renderFilter(); renderList(); renderDetails(); }
+
+function renderFilter() {
+  const field = $('studentsFilter'), options = filterOptions();
+  field.replaceChildren();
+  field.disabled = !options.length;
+  if (!options.length) { field.append(new Option('Δεν υπάρχουν τμήματα', '')); return; }
+  const count = predicate => draft.filter(predicate).length;
+  const grades = document.createElement('optgroup'); grades.label = 'Τάξεις';
+  const sections = document.createElement('optgroup'); sections.label = 'Τμήματα';
+  for (const {grade, classes: list} of options) {
+    grades.append(new Option(`${grade.label} τάξη (${count(student => S.classGrade(className(student))?.grade === grade.grade)})`, 'grade:' + grade.grade));
+    for (const item of list) sections.append(new Option(`${item.name} (${count(student => student.classId === item.id)})`, 'class:' + item.id));
+  }
+  field.append(sections, grades);
+  field.value = filter;
+}
+
+function renderList() {
+  const list = $('studentsList'), order = shown(), ids = order.map(item => item.id), grade = filter.startsWith('grade:');
+  $('studentsTitle').textContent = `Μαθητές (${draft.length})`;
+  refreshListButtons();
+  list.innerHTML = '';
+  if (!order.length) {
+    list.removeAttribute('role');
+    const years = context.previousYears || [];
+    const message = !classes().length ? 'Δεν υπάρχουν τμήματα και μαθητές για το σχολικό έτος.' : !draft.length ? 'Δεν έχουν καταχωριστεί μαθητές.' : `Δεν υπάρχουν μαθητές στ${filterLabel()}.`;
+    const help = !draft.length ? 'Φέρε τους μαθητές από το CSV του myschool ή από παλαιότερο σχολικό έτος. Τα τμήματα που λείπουν δημιουργούνται μαζί με την εισαγωγή.' : 'Πάτησε «+ Προσθήκη» ή φέρε μαθητές με το κουμπί εισαγωγής πάνω από τη λίστα.';
+    list.innerHTML = `<div class="students-empty subapp-empty subapp-empty-stack"><p>${schoolEscape(message)}</p>${!draft.length ? `<div class="students-empty-actions"><button id="studentsEmptyCsv" type="button" class="primary">Εισαγωγή από CSV…</button>${years.length ? '<button id="studentsEmptyYear" type="button" class="primary">Εισαγωγή από παλαιότερο έτος…</button>' : ''}</div>` : ''}<span class="helper ui-helper">${schoolEscape(help)}</span></div>`;
+    if ($('studentsEmptyCsv')) $('studentsEmptyCsv').onclick = importFromCsv;
+    if ($('studentsEmptyYear')) $('studentsEmptyYear').onclick = importAllFromYear;
+    return;
+  }
+  list.setAttribute('role', 'listbox');
+  for (const student of order) {
+    const row = document.createElement('button'), selected = selectedIds.has(student.id), marker = markers.get(student.id);
+    row.type = 'button'; row.dataset.id = student.id;
+    row.className = 'students-list-item subapp-list-item' + (selected ? ' selected' : '') + (marker ? ' ' + marker : '') + (hasErrors(student) ? ' invalid' : '');
+    row.setAttribute('role', 'option'); row.setAttribute('aria-selected', String(selected));
+    row.tabIndex = student.id === selectedId ? 0 : -1;
+    const name = document.createElement('span'); name.className = 'students-list-name'; name.textContent = nameLabel(student);
+    const side = document.createElement('span'); side.className = 'students-list-side';
+    const number = clean(student.registryNumber);
+    side.textContent = [grade ? className(student) : '', number ? 'Α.Μ. ' + number : ''].filter(Boolean).join(' · ');
+    row.append(name, side);
+    row.title = nameLabel(student) + (clean(student.fatherName) ? ' του ' + clean(student.fatherName) : '') + (number ? ' — Α.Μ. ' + number : '');
+    row.onclick = event => {
+      const next = Selection.click(ids, selectedIds, anchorId, student.id, event);
+      selectedId = student.id; selectedIds.clear(); next.selected.forEach(id => selectedIds.add(id)); anchorId = next.anchor;
+      renderList(); renderDetails(); rowOf(student.id)?.focus();
+    };
+    row.onkeydown = event => {
+      if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+      event.preventDefault();
+      const next = Selection.step(ids, new Set([student.id]), student.id, event.key === 'ArrowUp' ? -1 : 1).anchor;
+      select(next); renderList(); renderDetails(); rowOf(next)?.focus();
+    };
+    list.append(row);
+  }
+}
+
+// The buttons under the list, without redrawing it (so the focus stays where it is).
+function refreshListButtons() {
+  if (!$('removeStudent')) return;
+  const count = [...selectedIds].filter(id => byId(id)).length;
+  $('removeStudent').textContent = count > 1 ? `Αφαίρεση (${count})` : 'Αφαίρεση';
+  $('removeStudent').disabled = !count || saving;
+  const target = targetClassId();
+  $('addStudent').disabled = saving || !target || draft.length >= limit();
+  $('addStudent').title = target ? 'Νέος μαθητής στο ' + (classById(target)?.name || '') : 'Χρειάζεται πρώτα ένα τμήμα (από τα «Τμήματα» ή από μια εισαγωγή).';
+  const total = draft.length, max = limit(), warning = $('studentsLimitWarning');
+  warning.hidden = total < warnAt();
+  warning.textContent = total > max ? `Οι Μαθητές είναι ${total}, πάνω από το όριο των ${max} ανά σχολικό έτος. Η αποθήκευση δεν θα γίνει· αφαίρεσε όσους δεν χρειάζονται.`
+    : total === max ? `Οι Μαθητές είναι ${total}, όσο το όριο των ${max} ανά σχολικό έτος. Δεν μπορούν να προστεθούν άλλοι.`
+    : `Οι Μαθητές είναι ${total}· το όριο είναι ${max} ανά σχολικό έτος.`;
+}
+
+function renderDetails() {
+  const detail = $('studentDetails'), student = byId(selectedId);
+  if (!student || !inFilter(student)) { detail.innerHTML = '<div class="subapp-empty">Επίλεξε έναν μαθητή από τη λίστα για να δεις τα στοιχεία του.</div>'; return; }
+  const value = key => schoolEscape(student[key] ?? '');
+  const field = (id, label, key, extra = '') => `<div class="field ui-field"><label for="${id}">${label}</label><div class="students-value"><input id="${id}" type="text" data-key="${key}" ${extra} aria-describedby="${id}Error${key === 'registryNumber' ? ' ' + id + 'Warning' : ''}" value="${value(key)}"><p id="${id}Error" class="ui-validation-error" role="alert" hidden></p>${key === 'registryNumber' ? `<p id="${id}Warning" class="ui-validation-warning" role="status" hidden></p>` : ''}</div></div>`;
+  const options = sortedClasses().map(item => `<option value="${schoolEscape(item.id)}" ${item.id === student.classId ? 'selected' : ''}>${schoolEscape(item.name)}</option>`).join('');
+  const dateText = dateTexts.has(student.id) ? dateTexts.get(student.id) : SchoolDate.format(student.adymDate);
+  detail.innerHTML = `<div class="subapp-pane-heading"><h3>Στοιχεία μαθητή</h3><button id="toggleStudentEdit" class="ui-toggle" type="button" aria-pressed="${editing}" aria-controls="studentFields">Επεξεργασία</button></div><fieldset id="studentFields" class="students-fields ui-fields subapp-record-fields" aria-label="Στοιχεία μαθητή" ${editing ? '' : 'disabled'}>${field('stRegistry', 'Αριθμός Μητρώου', 'registryNumber', 'maxlength="30" inputmode="numeric" required aria-required="true"')}${field('stLastName', 'Επώνυμο', 'lastName', 'maxlength="100" required aria-required="true"')}${field('stFirstName', 'Όνομα', 'firstName', 'maxlength="100" required aria-required="true"')}${field('stFatherName', 'Όνομα Πατέρα', 'fatherName', 'maxlength="100"')}<div class="field ui-field"><label for="stClass">Τμήμα</label><div class="students-value"><select id="stClass" aria-describedby="stClassError">${classById(student.classId) ? '' : '<option value="" selected>— Επίλεξε τμήμα —</option>'}${options}</select><p id="stClassError" class="ui-validation-error" role="alert" hidden></p></div></div><div class="field ui-field"><label for="stAdym">ΑΔΥΜ</label><div class="students-value"><div class="students-adym"><input id="stAdym" type="text" inputmode="numeric" placeholder="ηη/μμ/εεεε" maxlength="10" aria-describedby="stAdymError stAdymNote" value="${schoolEscape(dateText)}"><span id="stAdymStatus" class="ui-status-button" role="status"></span><p id="stAdymNote" class="students-adym-note ui-helper"></p></div><p id="stAdymError" class="ui-validation-error" role="alert" hidden></p></div></div></fieldset><p class="helper ui-helper">${editing ? 'Τα στοιχεία αποθηκεύονται στο κοινό αρχείο .data με την «Αποθήκευση».' : 'Πάτησε «Επεξεργασία» για να αλλάξεις τα στοιχεία του μαθητή.'}</p>`;
+  for (const input of detail.querySelectorAll('input[data-key]')) {
+    input.oninput = () => { student[input.dataset.key] = input.value; markChanged(student); refreshFields(); refreshRow(student); };
+    input.onchange = () => { const text = clean(input.value); if (text !== input.value) { input.value = text; student[input.dataset.key] = text; } refreshFields(); renderList(); rowOf(student.id)?.scrollIntoView({block: 'nearest'}); };
+  }
+  $('stClass').onchange = event => moveTo(student, event.target.value);
+  const adym = $('stAdym');
+  adym.oninput = () => {
+    const text = adym.value.trim(), iso = SchoolDate.parse(text);
+    if (!text) { dateTexts.delete(student.id); student.adymDate = ''; }
+    else if (iso) { dateTexts.delete(student.id); student.adymDate = iso; }
+    else dateTexts.set(student.id, adym.value);
+    markChanged(student); refreshFields(); refreshRow(student);
+  };
+  adym.onchange = () => { if (!dateTexts.has(student.id)) adym.value = SchoolDate.format(student.adymDate); };
+  $('toggleStudentEdit').onclick = () => { editing = !editing; renderDetails(); if (editing) $('stRegistry').focus(); };
+  refreshFields();
+}
+
+// Errors, warning and ΑΔΥΜ status of the selected student: they change while the user types.
+function refreshFields() {
+  const student = byId(selectedId);
+  if (!student || !$('stRegistry')) return;
+  const errors = studentErrors(student);
+  for (const [id, key] of [['stRegistry', 'registryNumber'], ['stLastName', 'lastName'], ['stFirstName', 'firstName'], ['stClass', 'classId'], ['stAdym', 'adymDate']]) {
+    const message = errors[key] || '', box = $(id + 'Error');
+    box.textContent = message; box.hidden = !message; $(id).setAttribute('aria-invalid', String(!!message));
+  }
+  const warning = registryWarning(student);
+  $('stRegistryWarning').textContent = warning; $('stRegistryWarning').hidden = !warning;
+  const status = S.adymStatus(student.adymDate, className(student), schoolYear), badge = $('stAdymStatus');
+  badge.textContent = status.status === 'valid' ? '✓ ' + status.label : '! ' + status.label;
+  badge.classList.toggle('is-approved', status.status === 'valid');
+  badge.classList.toggle('is-alert', status.status !== 'valid');
+  badge.title = 'Κατάσταση ΑΔΥΜ: ' + status.label;
+  $('stAdymNote').textContent = status.requiredFrom ? `Για ${S.classGrade(className(student))?.label || ''} τάξη ισχύει ΑΔΥΜ με ημερομηνία από ${SchoolDate.format(status.requiredFrom)} και μετά.` : '';
+}
+// One row of the list, without redrawing it (so the focus stays in the field).
+function refreshRow(student) {
+  const row = rowOf(student.id);
+  if (!row) return;
+  row.classList.toggle('invalid', hasErrors(student));
+  const marker = markers.get(student.id);
+  row.classList.toggle('added', marker === 'added'); row.classList.toggle('updated', marker === 'updated');
+  row.querySelector('.students-list-name').textContent = nameLabel(student);
+}
+
+// A new class for a student: when it leaves the list shown, the next student is selected.
+function moveTo(student, classId) {
+  if (!classById(classId) || student.classId === classId) return;
+  const order = shown().map(item => item.id), index = order.indexOf(student.id);
+  student.classId = classId; markChanged(student);
+  if (inFilter(student)) { renderFilter(); renderList(); refreshFields(); return; }
+  const rest = order.filter(id => id !== student.id);
+  select(rest[Math.min(index, rest.length - 1)] || '');
+  render();
+  (selectedId ? rowOf(selectedId) : $('studentsList'))?.focus();
+  setSummary(`Ο/Η ${nameLabel(student)} μεταφέρθηκε στο ${className(student)}. Πάτησε «Αποθήκευση».`);
+}
+
+// ---- Actions ----
+function addStudent() {
+  const classId = targetClassId();
+  if (saving || !classId || draft.length >= limit()) return;
+  const student = {id: crypto.randomUUID(), registryNumber: '', lastName: '', firstName: '', fatherName: '', classId, adymDate: ''};
+  draft.push(student); markers.set(student.id, 'added'); setDirty(true);
+  select(student.id); editing = true; render();
+  rowOf(student.id)?.scrollIntoView({block: 'nearest'});
+  $('stRegistry').focus();
+  setSummary(`Νέος μαθητής στο ${classById(classId).name}.`);
+}
+
+function removeSelected() {
+  if (saving || !selectedIds.size) return;
+  const removing = draft.filter(student => selectedIds.has(student.id));
+  if (!removing.length) return;
+  const order = shown().map(item => item.id), first = Math.min(...removing.map(student => order.indexOf(student.id)).filter(index => index >= 0));
+  draft = draft.filter(student => !selectedIds.has(student.id));
+  for (const student of removing) { markers.delete(student.id); dateTexts.delete(student.id); }
+  const rest = order.filter(id => !selectedIds.has(id));
+  select(rest[Math.min(first, rest.length - 1)] || '');
+  setDirty(true); render();
+  setSummary(`Αφαιρέθηκ${removing.length === 1 ? 'ε 1 μαθητής' : 'αν ' + removing.length + ' μαθητές'}. Πάτησε «Αποθήκευση».`);
+}
+
+// ---- Εισαγωγές ----
+function chooseImport() {
+  if (saving) return;
+  const years = context.previousYears || [];
+  return schoolChoiceDialog({
+    title: 'Εισαγωγή μαθητών',
+    content: ['Από πού θα έρθουν οι μαθητές; Τα τμήματα που λείπουν δημιουργούνται στα «Τμήματα» μαζί με την «Αποθήκευση».'],
+    choices: [
+      {label: 'Από το CSV μαθητών του myschool…', value: 'csv'},
+      {label: years.length ? 'Όλοι από παλαιότερο σχολικό έτος (στην επόμενη τάξη)…' : 'Όλοι από παλαιότερο σχολικό έτος — δεν υπάρχουν μαθητές σε παλαιότερο έτος', value: 'year', disabled: !years.length},
+      {label: years.length ? 'Μεμονωμένα από παλαιότερο σχολικό έτος…' : 'Μεμονωμένα από παλαιότερο σχολικό έτος — δεν υπάρχουν μαθητές σε παλαιότερο έτος', value: 'one', disabled: !years.length}
+    ]
+  }).then(choice => {
+    if (choice === 'csv') return importFromCsv();
+    if (choice === 'year') return importAllFromYear();
+    if (choice === 'one') return importOneFromYear();
+  });
+}
+
+const para = (text, className = '') => { const p = document.createElement('p'); p.textContent = text; if (className) p.className = className; return p; };
+const bullets = items => { const ul = document.createElement('ul'); for (const text of items) { const li = document.createElement('li'); li.textContent = text; ul.append(li); } return ul; };
+const exists = student => draft.some(other => other.id === student.id || S.sameStudent(other, student));
+// The most recent record of the same student in an older year (to keep its id and ΑΔΥΜ), or null.
+function earlierRecord(student) {
+  for (const year of context.previousYears || []) {
+    const found = year.students.find(other => S.sameStudent(other, student));
+    if (found) return found;
+  }
+  return null;
+}
+// The class with this name, or a new one (counted in created): → id.
+function classFor(name, created) {
+  const found = classByName(name) || created.find(item => item.name === name);
+  if (found) return found.id;
+  const item = {id: crypto.randomUUID(), name};
+  created.push(item);
+  return item.id;
+}
+function checkLimits(addedStudents, createdClasses) {
+  if (draft.length + addedStudents > limit()) throw Error(`Μετά την εισαγωγή οι Μαθητές θα ήταν ${draft.length + addedStudents}, πάνω από το όριο των ${limit()} ανά σχολικό έτος.`);
+  if (classes().length + createdClasses > classLimit()) throw Error(`Μετά την εισαγωγή τα Τμήματα θα ήταν ${classes().length + createdClasses}, πάνω από το όριο των ${classLimit()} ανά σχολικό έτος.`);
+}
+// Puts the result of an import in the page: new classes, new students, changes. Selects the first new one.
+function applyImport({created, added, changed, message}) {
+  newClasses.push(...created);
+  draft.push(...added);
+  for (const student of added) markers.set(student.id, 'added');
+  for (const student of changed) markChanged(student);
+  setDirty(true);
+  const first = added[0] || changed[0];
+  if (first && !inFilter(first)) filter = 'class:' + first.classId;
+  if (!validFilter(filter)) filter = defaultFilter();
+  const firstShown = shown().find(student => added.includes(student) || changed.includes(student));
+  select(firstShown?.id || shown()[0]?.id || '');
+  render();
+  if (selectedId) rowOf(selectedId)?.scrollIntoView({block: 'nearest'});
+  setSummary(message);
+}
+
+// CSV of myschool: missing classes are created; students already in the list (same registry number and name)
+// get the class and the spelling of the file, keeping their ΑΔΥΜ; the others are added (with the id and the ΑΔΥΜ
+// of an older year, when the same student is there). Students that are not in the file stay as they are.
+const fileCall = action => schoolHost.request('school-students:file', {action});
+async function importFromCsv() {
+  if (saving) return;
+  let last = null;
+  try { last = await fileCall('last'); } catch (error) { setSummary(error.message, true); return; }
+  const load = async action => {
+    const file = await fileCall(action);
+    if (!file) throw Error('Δεν υπάρχει τελευταίο αρχείο CSV. Πάτησε «Επιλογή άλλου αρχείου CSV από τον δίσκο…».');
+    return {name: file.name, result: S.parseCsv(file.text)};
+  };
+  const file = await schoolChoiceDialog({
+    title: 'Εισαγωγή μαθητών από CSV',
+    content: ['Επίλεξε το CSV «Γενικά στοιχεία μαθητών» του myschool. Στο επόμενο βήμα βλέπεις τι θα αλλάξει πριν από την εισαγωγή.'],
+    choices: [
+      {label: last ? 'Τελευταίο αρχείο CSV: ' + last.name : 'Δεν υπάρχει τελευταίο αρχείο CSV', disabled: !last, run: () => load('read')},
+      {label: 'Επιλογή άλλου αρχείου CSV από τον δίσκο…', run: () => load('choose')}
+    ]
+  });
+  if (!file) return;
+  const parsed = file.result, created = [], added = [], updates = [], warnings = [...parsed.warnings];
+  if (parsed.ok) {
+    if (parsed.year && parsed.year !== schoolYear) warnings.unshift(`Το αρχείο είναι για το σχολικό έτος ${parsed.year}, ενώ το τρέχον είναι ${schoolYear}.`);
+    for (const group of parsed.classes) {
+      if (!group.students.length) continue;
+      const classId = classFor(group.name, created);
+      for (const row of group.students) {
+        const current = draft.find(student => S.sameStudent(student, row));
+        if (current) { updates.push({student: current, row, classId}); continue; }
+        const sameNumber = draft.filter(student => clean(student.registryNumber) === row.registryNumber);
+        if (sameNumber.length) warnings.push(`Ο Αριθμός Μητρώου ${row.registryNumber} του/της ${row.lastName} ${row.firstName} (${group.name}) υπάρχει ήδη σε: ${sameNumber.map(student => nameLabel(student)).join(', ')}. Με διαφορετικό όνομα εισάγεται ως άλλος μαθητής· αν είναι ο ίδιος, αφαίρεσε τον έναν από τους δύο.`);
+        const earlier = earlierRecord(row);
+        added.push({...(earlier ? structuredClone(earlier) : {}), id: earlier?.id || crypto.randomUUID(), ...row, classId, adymDate: SchoolDate.valid(earlier?.adymDate) ? earlier.adymDate : ''});
+      }
+    }
+  }
+  const changed = updates.filter(({student, row, classId}) => student.classId !== classId || ['lastName', 'firstName', 'fatherName', 'registryNumber'].some(key => clean(student[key]) !== row[key]));
+  const moved = changed.filter(({student, classId}) => student.classId !== classId);
+  const matched = new Set(updates.map(item => item.student.id));
+  const missing = draft.filter(student => !matched.has(student.id)).length;
+  const pane = document.createElement('div'); pane.className = 'students-import-pane';
+  pane.append(para(`Αρχείο: ${file.name}${parsed.year ? ' · σχολικό έτος ' + parsed.year : ''} · ${studentsWord(parsed.count)} σε ${parsed.classes.length} τμήματα.`));
+  for (const text of parsed.errors) pane.append(para(text, 'ui-validation-error'));
+  if (parsed.ok) {
+    const lines = [`Νέοι μαθητές: ${added.length}${added.some(item => earlierRecord(item)) ? ` (από αυτούς ${added.filter(item => earlierRecord(item)).length} βρέθηκαν σε παλαιότερο έτος και κρατούν το ΑΔΥΜ τους)` : ''}.`,
+      `Υπάρχουν ήδη: ${updates.length}${changed.length ? `, από τους οποίους ενημερώνονται ${changed.length}${moved.length ? ` (${moved.length} αλλάζουν τμήμα)` : ''}` : ', χωρίς αλλαγές'}. Το ΑΔΥΜ τους δεν αλλάζει.`];
+    if (created.length) lines.push(`Νέα τμήματα: ${created.map(item => item.name).join(', ')}.`);
+    if (missing) lines.push(`${studentsWord(missing)} της λίστας δεν ${missing === 1 ? 'υπάρχει' : 'υπάρχουν'} στο αρχείο και ${missing === 1 ? 'μένει' : 'μένουν'} όπως ${missing === 1 ? 'είναι' : 'είναι'}.`);
+    pane.append(bullets(lines));
+    for (const text of warnings) pane.append(para(text, 'ui-validation-warning'));
+    for (const text of parsed.info) pane.append(para(text, 'students-import-note'));
+  }
+  const accepted = await schoolChoiceDialog({
+    title: 'Μαθητές από το CSV',
+    content: [pane],
+    actions: [
+      {label: 'Ακύρωση'},
+      {label: 'Εισαγωγή', accept: true, disabled: !parsed.ok || !(added.length || changed.length), run: () => { checkLimits(added.length, created.length); return true; }}
+    ]
+  });
+  if (!accepted) return;
+  for (const {student, row, classId} of changed) Object.assign(student, row, {classId});
+  applyImport({created, added, changed: changed.map(item => item.student), message: `Εισαγωγή από «${file.name}»: ${added.length} νέοι, ${changed.length} ενημερώθηκαν${created.length ? `, νέα τμήματα ${created.map(item => item.name).join(', ')}` : ''}. Πάτησε «Αποθήκευση».`});
+}
+
+// All students of an older year, one grade up with the same class number (Β2 → Γ2); the Στ' does not come over.
+// Missing classes are created. Students already in the list are skipped. They keep their id and ΑΔΥΜ.
+function planFromYear(source) {
+  const created = [], added = [];
+  let sixth = 0, present = 0, unknown = 0;
+  const perClass = new Map();
+  for (const record of source.students) {
+    const from = source.classes.find(item => item.id === record.classId)?.name || '';
+    const grade = S.classGrade(from);
+    if (!grade) { unknown++; continue; }
+    const target = S.promotedClass(from);
+    if (!target) { sixth++; continue; }
+    if (exists(record)) { present++; continue; }
+    added.push({...structuredClone(record), classId: classFor(target, created)});
+    perClass.set(target, (perClass.get(target) || 0) + 1);
+  }
+  return {created, added, sixth, present, unknown, perClass};
+}
+async function importAllFromYear() {
+  if (saving) return;
+  const years = context.previousYears || [];
+  if (!years.length) return;
+  const pane = document.createElement('div'); pane.className = 'students-import-pane';
+  const label = document.createElement('label'); label.className = 'school-choice-field'; label.textContent = 'Σχολικό έτος';
+  const field = document.createElement('select');
+  for (const item of years) field.append(new Option(`${item.year} (${studentsWord(item.students.length)})`, item.year));
+  label.append(field);
+  const summary = document.createElement('div'); summary.className = 'students-import-pane';
+  pane.append(label, summary);
+  let plan = null, controls = null;
+  const refresh = () => {
+    const source = years.find(item => item.year === field.value);
+    plan = planFromYear(source);
+    const order = [...plan.perClass.keys()].sort((a, b) => classSortKey(a) - classSortKey(b));
+    summary.replaceChildren();
+    const lines = [plan.added.length ? `Εισάγονται ${studentsWordAcc(plan.added.length)}: ${order.map(name => `${name} ${plan.perClass.get(name)}`).join(', ')}.` : 'Δεν υπάρχουν μαθητές για εισαγωγή.'];
+    if (plan.created.length) lines.push(`Νέα τμήματα: ${plan.created.map(item => item.name).sort((a, b) => classSortKey(a) - classSortKey(b)).join(', ')}.`);
+    if (plan.sixth) lines.push(`${studentsWord(plan.sixth)} της Στ' δεν εισάγ${plan.sixth === 1 ? 'εται' : 'ονται'}.`);
+    if (plan.present) lines.push(`${studentsWord(plan.present)} υπάρχ${plan.present === 1 ? 'ει' : 'ουν'} ήδη στο ${schoolYear} και παραλείπ${plan.present === 1 ? 'εται' : 'ονται'}.`);
+    if (plan.unknown) lines.push(`${studentsWord(plan.unknown)} χωρίς τμήμα στο ${source.year} δεν εισάγ${plan.unknown === 1 ? 'εται' : 'ονται'}.`);
+    summary.append(bullets(lines), para('Κάθε μαθητής πηγαίνει στην επόμενη τάξη με τον ίδιο αριθμό τμήματος (π.χ. Β2 → Γ2) και κρατά το ΑΔΥΜ του.', 'students-import-note'));
+    controls?.refresh();
+  };
+  field.onchange = refresh;
+  refresh();
+  const accepted = await schoolChoiceDialog({
+    title: 'Όλοι οι μαθητές από παλαιότερο έτος',
+    content: [pane],
+    actions: [
+      {label: 'Ακύρωση'},
+      {label: 'Εισαγωγή', accept: true, get disabled() { return !plan?.added.length; }, run: () => { checkLimits(plan.added.length, plan.created.length); return true; }}
+    ],
+    ready: dialogControls => { controls = dialogControls; }
+  });
+  if (!accepted) return;
+  applyImport({created: plan.created, added: plan.added, changed: [], message: `Εισήχθησαν ${studentsWord(plan.added.length)} από το ${field.value}${plan.created.length ? `, με νέα τμήματα ${plan.created.map(item => item.name).join(', ')}` : ''}. Πάτησε «Αποθήκευση».`});
+}
+
+// Chosen students of one class of an older year, into a class of this year that the user picks (no default).
+async function importOneFromYear() {
+  if (saving) return;
+  const years = context.previousYears || [];
+  if (!years.length) return;
+  if (!classes().length) { setSummary('Δεν υπάρχουν τμήματα στο τρέχον έτος. Πρόσθεσέ τα στα «Τμήματα» ή κάνε πρώτα μια μαζική εισαγωγή.', true); return; }
+  const pane = document.createElement('div'); pane.className = 'students-import-pane';
+  const row = document.createElement('div'); row.className = 'students-import-row';
+  const labelled = (text, control) => { const label = document.createElement('label'); label.append(document.createTextNode(text), control); return label; };
+  const yearField = document.createElement('select'), fromField = document.createElement('select'), toField = document.createElement('select');
+  for (const item of years) yearField.append(new Option(item.year, item.year));
+  toField.append(new Option('— Επίλεξε τμήμα —', ''));
+  for (const item of sortedClasses()) toField.append(new Option(item.name, item.id));
+  row.append(labelled('Σχολικό έτος', yearField), labelled('Τμήμα εκείνου του έτους', fromField), labelled(`Τμήμα στο ${schoolYear}`, toField));
+  const tools = document.createElement('div'); tools.className = 'students-import-tools';
+  const all = document.createElement('button'); all.type = 'button'; all.textContent = 'Επιλογή όλων';
+  const none = document.createElement('button'); none.type = 'button'; none.textContent = 'Καμία';
+  tools.append(all, none);
+  const list = document.createElement('div'); list.className = 'students-import-list';
+  const note = para('', 'students-import-note');
+  pane.append(row, tools, list, note);
+  let boxes = [], accept = null, controls = null;
+  const source = () => years.find(item => item.year === yearField.value);
+  const chosen = () => boxes.filter(box => box.checked).map(box => box.student);
+  const refresh = () => { const count = chosen().length; if (accept) accept.textContent = count ? `Εισαγωγή (${count})` : 'Εισαγωγή'; controls?.refresh(); };
+  const fillStudents = () => {
+    const year = source(), from = fromField.value;
+    const candidates = year.students.filter(student => student.classId === from && !exists(student)).sort(S.compare);
+    const present = year.students.filter(student => student.classId === from).length - candidates.length;
+    list.replaceChildren(); boxes = [];
+    for (const student of candidates) {
+      const label = document.createElement('label'), box = document.createElement('input');
+      box.type = 'checkbox'; box.student = student;
+      const side = document.createElement('span'); side.className = 'students-list-side'; side.textContent = clean(student.registryNumber) ? 'Α.Μ. ' + clean(student.registryNumber) : '';
+      label.append(box, document.createTextNode(nameLabel(student) + (clean(student.fatherName) ? ' του ' + clean(student.fatherName) : '')), side);
+      list.append(label); boxes.push(box);
+    }
+    if (!candidates.length) list.append(para('Όλοι οι μαθητές αυτού του τμήματος υπάρχουν ήδη στο τρέχον έτος.', 'students-import-note'));
+    note.textContent = present ? `${studentsWord(present)} του τμήματος υπάρχ${present === 1 ? 'ει' : 'ουν'} ήδη στο ${schoolYear} και δεν φαίν${present === 1 ? 'εται' : 'ονται'}.` : '';
+    refresh();
+  };
+  const fillClasses = () => {
+    const year = source();
+    fromField.replaceChildren();
+    const used = year.classes.filter(item => year.students.some(student => student.classId === item.id)).sort((a, b) => classSortKey(a.name) - classSortKey(b.name));
+    for (const item of used) fromField.append(new Option(`${item.name} (${year.students.filter(student => student.classId === item.id).length})`, item.id));
+    fillStudents();
+  };
+  yearField.onchange = fillClasses; fromField.onchange = fillStudents; toField.onchange = refresh;
+  list.addEventListener('change', refresh);
+  all.onclick = () => { for (const box of boxes) box.checked = true; refresh(); };
+  none.onclick = () => { for (const box of boxes) box.checked = false; refresh(); };
+  fillClasses();
+  const picked = await schoolChoiceDialog({
+    title: 'Μαθητές από παλαιότερο έτος',
+    content: ['Διάλεξε το έτος και το τμήμα από όπου έρχονται, τους μαθητές και το τμήμα όπου θα μπουν φέτος.', pane],
+    actions: [
+      {label: 'Ακύρωση'},
+      {label: 'Εισαγωγή', accept: true, get disabled() { return !chosen().length || !toField.value; }, run: () => { checkLimits(chosen().length, 0); return {students: chosen(), classId: toField.value}; }}
+    ],
+    ready: dialogControls => { controls = dialogControls; accept = dialogControls.dialog.querySelector('.school-confirm-actions .confirm-accept'); refresh(); }
+  });
+  if (!picked) return;
+  const added = picked.students.map(student => ({...structuredClone(student), classId: picked.classId}));
+  applyImport({created: [], added, changed: [], message: `Εισήχθησαν ${studentsWord(added.length)} από το ${yearField.value} στο ${classById(picked.classId).name}. Πάτησε «Αποθήκευση».`});
+}
+
+// ---- Αποθήκευση και Αναίρεση Όλων ----
+const fieldOf = {registryNumber: 'stRegistry', lastName: 'stLastName', firstName: 'stFirstName', classId: 'stClass', adymDate: 'stAdym'};
+async function save() {
+  if (saving || !dirty) return;
+  const invalid = draft.slice().sort((a, b) => classSortKey(className(a)) - classSortKey(className(b)) || S.compare(a, b)).find(hasErrors);
+  if (invalid) {
+    if (!inFilter(invalid)) filter = classById(invalid.classId) ? 'class:' + invalid.classId : filter;
+    select(invalid.id); editing = true; render();
+    rowOf(invalid.id)?.scrollIntoView({block: 'nearest'});
+    const [key, message] = Object.entries(studentErrors(invalid))[0];
+    $(fieldOf[key])?.focus();
+    setSummary(`Διόρθωσε τα στοιχεία του/της ${nameLabel(invalid)} πριν από την αποθήκευση: ${message}`, true);
+    return;
+  }
+  if (draft.length > limit()) { setSummary(`Οι Μαθητές είναι ${draft.length}, πάνω από το όριο των ${limit()} ανά σχολικό έτος. Αφαίρεσε όσους δεν χρειάζονται.`, true); return; }
+  const students = draft.slice().sort(S.compare).map(cleanRecord);
+  const focusId = lastDetailFocus;
+  setBusy(true); setSummary('Αποθήκευση στο κοινό αρχείο…');
+  try {
+    context = await schoolHost.request('school-students:save', {revision: context.revision, year: schoolYear, students, newClasses}, {timeoutMessage: 'Δεν επιβεβαιώθηκε η αποθήκευση. Οι αλλαγές σου παραμένουν στη σελίδα.'});
+    saved = structuredClone(Array.isArray(context.students) ? context.students : []);
+    savedClasses = structuredClone(Array.isArray(context.classes) ? context.classes : []); newClasses = [];
+    // The records keep their place: update them in place, so the selection and the details stay.
+    const fresh = new Map(saved.map(item => [item.id, item]));
+    draft = draft.map(item => { const value = fresh.get(item.id); if (!value) return item; for (const key of Object.keys(item)) delete item[key]; return Object.assign(item, structuredClone(value)); });
+    markers.clear();
+    const list = $('studentsList'), scroll = list.scrollTop;
+    setDirty(false);
+    if (!validFilter(filter)) filter = defaultFilter();
+    renderFilter(); renderList(); refreshFields();
+    for (const input of $('studentDetails').querySelectorAll('input[data-key]')) { const student = byId(selectedId); if (student && input.value !== String(student[input.dataset.key] ?? '')) input.value = student[input.dataset.key] ?? ''; }
+    list.scrollTop = scroll;
+    setSummary('Οι μαθητές αποθηκεύτηκαν στο κοινό αρχείο .data.');
+    const field = focusId ? $(focusId) : null;
+    if (field && !field.disabled) field.focus({preventScroll: true});
+  } catch (error) { setSummary(error.message, true); }
+  finally { setBusy(false); refreshListButtons(); }
+}
+
+async function undoAll() {
+  if (saving || !dirty) return;
+  if (!(await schoolConfirm('Να απορριφθούν οι αλλαγές των μαθητών που δεν αποθηκεύτηκαν;', {title: 'Μη αποθηκευμένες αλλαγές', accept: 'Απόρριψη αλλαγών'}))) return;
+  const keepIds = new Set(selectedIds), currentId = selectedId, focusId = lastDetailFocus;
+  const list = $('studentsList'), scroll = list.scrollTop, details = $('studentDetails'), detailScroll = details.scrollTop;
+  // Restore the saved records without losing the selection; a student that existed only in the changes goes away.
+  const existing = new Map(draft.map(item => [item.id, item]));
+  draft = saved.map(value => { const item = existing.get(value.id); if (!item) return structuredClone(value); for (const key of Object.keys(item)) delete item[key]; return Object.assign(item, structuredClone(value)); });
+  newClasses = []; markers.clear(); dateTexts.clear(); setDirty(false);
+  const current = byId(currentId);
+  if (!validFilter(filter)) filter = defaultFilter();
+  if (current && !inFilter(current) && classById(current.classId)) filter = 'class:' + current.classId;
+  if (current) select(currentId, [...keepIds].filter(id => byId(id) && inFilter(byId(id))));
+  else select(shown()[0]?.id || '');
+  render();
+  list.scrollTop = scroll; details.scrollTop = detailScroll;
+  if (selectedId !== currentId && selectedId) rowOf(selectedId)?.scrollIntoView({block: 'nearest'});
+  if (selectedId === currentId && focusId) { const field = $(focusId); if (field && !field.disabled) field.focus({preventScroll: true}); }
+  setSummary('Οι μη αποθηκευμένες αλλαγές απορρίφθηκαν.');
+}
+
+schoolHost.post({type: 'school-students:ready'});
+})();
+</script></body></html>

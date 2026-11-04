@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινό περιβάλλον χρήστη
- * Έκδοση αρχείου: 0.25
+ * Έκδοση αρχείου: 0.26
  * Όνομα κατά την εγκατάσταση: _ui.css
  */
 
@@ -52,6 +52,7 @@
   --school-app-default:linear-gradient(145deg,#8387c4,#6b6fae);
   --school-app-home:linear-gradient(145deg,#6484a0,#526c83);
   --school-app-staff:linear-gradient(145deg,#599bbd,#497f9b);
+  --school-app-students:linear-gradient(145deg,#c27f9b,#9c5d77);
   --school-app-classes:linear-gradient(145deg,#4fa98a,#3a8068);
   --school-app-hours:linear-gradient(145deg,#7a96c2,#647b9f);
   --school-app-docs:linear-gradient(145deg,#6b95bc,#587a9a);
@@ -99,15 +100,20 @@ button:is(.subapp-add-button,.primary){
 }
 button:is(.subapp-add-button,.primary):hover:not(:disabled){background:#d8e8ff;border-color:#709bd3}
 button:is(.subapp-remove-button,.danger){color:#a12626}
-/* Reusable compact status button: amber for pending, green for approved.
-   A disabled button matches the disabled input fields, regardless of its status. */
-button.ui-status-button{
+/* Reusable compact status button: amber for pending, green for approved, red (.is-alert) for something
+   missing or expired. A disabled button matches the disabled input fields, regardless of its status.
+   span.ui-status-button: the same look for a status that is only shown (computed, not changed by a click);
+   it keeps its colours inside a disabled fieldset. */
+:is(button,span).ui-status-button{
   min-width:0;height:var(--school-ui-control-height);padding:0 5px;
   border:1px solid #e6b779;border-radius:7px;
   background:#fff0d9;color:#9a4d00;font-size:12px;font-weight:400;
   white-space:nowrap;cursor:pointer
 }
-button.ui-status-button.is-approved{border-color:#a5d4b3;background:#e7f5ec;color:#176534}
+span.ui-status-button{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;cursor:default}
+:is(button,span).ui-status-button.is-approved{border-color:#a5d4b3;background:#e7f5ec;color:#176534}
+:is(button,span).ui-status-button.is-alert{border-color:#f0aaa3;background:#fdecea;color:var(--school-ui-error)}
+button.ui-status-button.is-alert:not(:disabled):hover{background:#fdecea}
 button.ui-status-button:not(:disabled):hover{background:#fff0d9;filter:brightness(.96)}
 button.ui-status-button.is-approved:not(:disabled):hover{background:#e7f5ec}
 button.ui-status-button:disabled{
