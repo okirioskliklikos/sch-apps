@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>FET Timetable Editor v1.02</title>
+<title>FET Timetable Editor v1.03</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -145,7 +145,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="FET Timetable Editor — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>FT</span></span><span class="brand-text"><span>FET Timetable Editor</span><span class="small version">v1.02</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="FET Timetable Editor — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>FT</span></span><span class="brand-text"><span>FET Timetable Editor</span><span class="small version">v1.03</span></span></button></h1></div>
   <select id="period" aria-label="Περίοδος" disabled hidden></select>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <span class="sep" aria-hidden="true"></span>
@@ -188,8 +188,10 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
   'use strict';
   // The timetable of a period comes from the shared file (school-timetables:*), through schoolHost (_ui.js).
   // Hours, classes, homeroom teachers, conflicts, availability and the Εισαγωγή Ολοημέρου: SchoolTimetable (_data.js).
+  // Τμήματα: those of «Τμήματα» (classes of school-timetables:context, SchoolClasses). Activities refer to them by
+  // id, and the page always shows the name from «Τμήματα».
   // Every change happens in the page; «Αποθήκευση» writes the program of the period (put), all or nothing.
-  const T = SchoolTimetable, D = SchoolDate, esc = schoolEscape, $ = id => document.getElementById(id);
+  const T = SchoolTimetable, C = SchoolClasses, D = SchoolDate, esc = schoolEscape, $ = id => document.getElementById(id);
   const post = schoolHost.post;
   const quoted = value => '«' + value + '»';
   const clone = value => structuredClone(value);
@@ -289,19 +291,30 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     return cache;
   }
   const invalidate = () => { cache = null; };
-  function homeroomKey(className) {
+  // The homeroom teacher of a τμήμα (id) within the program («Υπεύθυνος τμήματος μέσα σε πρόγραμμα»): the
+  // homeroomStaffId of «Τμήματα» if it appears in the program; otherwise, for a τμήμα Γενικής Παιδείας, the teacher
+  // whose short name starts with «[Α1]». Used by the title, the filters, the cards and the print of τμήματα.
+  function homeroomKey(classId) {
     const ix = index();
-    if (!ix.homeroom.has(className)) {
-      const found = program ? T.homeroomTeacher(program, className, context.staff) : null;
-      ix.homeroom.set(className, found?.id ? keyOfId(found.id) : found?.name ? keyOfName(found.name) : '');
+    if (!ix.homeroom.has(classId)) {
+      const found = program && classId ? T.homeroomTeacher(program, classId, {classes: context.classes, staff: context.staff}) : null;
+      ix.homeroom.set(classId, found?.id ? keyOfId(found.id) : found?.name ? keyOfName(found.name) : '');
     }
-    return ix.homeroom.get(className);
+    return ix.homeroom.get(classId);
   }
-  const classesList = () => T.homeroomClasses(context?.staff).sort(byText);
+  // Τμήματα: all those of «Τμήματα», in the order of SchoolClasses.sort; the keys are their ids.
+  const yearClasses = () => context?.classes || [];
+  const classesList = () => C.sort(yearClasses()).map(item => item.id).filter(Boolean);
+  const className = id => C.nameOf(yearClasses(), id) || '?';
+  // The homeroom teacher of «Τμήματα» (homeroomStaffId), shown on the right of the list of τμήματα.
+  const classHomeroomText = id => {
+    const staffId = C.byId(yearClasses()).get(id)?.homeroomStaffId;
+    const person = staffId ? staffById.get(staffId) : null;
+    return person ? person.name || person.shortName || '' : '';
+  };
   const teachersList = () => sortTeachers(unique(index().list.flatMap(item => item.keys)));
-  // The students of an activity: the original spelling of FET where it exists; otherwise (e.g. activities of an
-  // Εισαγωγή Ολοημέρου) the shared text of SchoolTimetable.
-  const studentsLabel = activity => program?.source?.activities?.[activity.id]?.students || T.studentsText(activity, {staff: context?.staff});
+  // The students of an activity: the shared text of SchoolTimetable, with the names of «Τμήματα».
+  const studentsLabel = activity => T.studentsText(activity, {classes: yearClasses()});
 
   // Programs of the period that count in the hours: this timetable and the other kinds of the period.
   const countedPrograms = () => [program, ...(context?.programs || []).filter(item => item.periodId === periodId && item.kind !== 'school' && T.countsInHours(item.kind))].filter(Boolean);
@@ -401,12 +414,12 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
   }
   const conflictText = conflict => [
     conflict.teachers.length ? 'εκπαιδευτικός: ' + conflict.teachers.map(shortOf).join(', ') : '',
-    conflict.classes.length ? 'τμήμα: ' + conflict.classes.join(', ') : ''
+    conflict.classes.length ? 'τμήμα: ' + conflict.classes.map(className).join(', ') : ''
   ].filter(Boolean).join(' · ');
   // What the user sees of an activity at some times: subject, teachers, students, room, day and hours.
   const seen = (activity, times) => JSON.stringify([
     activity.subject || '', [...(activity.staff || [])].sort(), [...(activity.unmatched || [])].sort(),
-    [...(activity.classes || [])].sort(), [...(activity.subsets || [])].sort(), activity.room || '',
+    [...(activity.classes || [])].sort(), [...(activity.subsets || [])].sort(), [...(activity.otherStudents || [])].sort(), activity.room || '',
     times.map(({day, start, end}) => day + ' ' + start + '-' + end).sort()
   ]);
   const sameAsSeen = results => {
@@ -562,8 +575,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     for (const name of all) {
       let main, side = '', meta = '';
       if (view === 'classes') {
-        const home = homeroomKey(name);
-        main = name; meta = home ? fullOf(home) || shortOf(home) : '';
+        main = className(name); meta = classHomeroomText(name);
         if (!matches(main) && !matches(meta)) continue;
       } else {
         main = shortOf(name); meta = isUnmatched(name) ? 'χωρίς αντιστοίχιση' : fullOf(name);
@@ -580,7 +592,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
       button.onclick = () => { selected[view] = name; render(); };
       items.push(button);
     }
-    list.replaceChildren(...(items.length ? items : [el('p', 'ft-entity-empty', all.length ? 'Δεν βρέθηκε κάτι με αυτή την αναζήτηση.' : view === 'classes' ? 'Δεν υπάρχουν τμήματα με υπεύθυνο στο Προσωπικό.' : 'Το ωρολόγιο δεν έχει εκπαιδευτικούς.')]));
+    list.replaceChildren(...(items.length ? items : [el('p', 'ft-entity-empty', all.length ? 'Δεν βρέθηκε κάτι με αυτή την αναζήτηση.' : view === 'classes' ? 'Δεν υπάρχουν τμήματα στα «Τμήματα» του σχολικού έτους.' : 'Το ωρολόγιο δεν έχει εκπαιδευτικούς.')]));
   }
   // Controls of the workspace keep their values between renders.
   // Εμφάνιση in the class view: at least one of Μάθημα / Εκπαιδευτικοί is always shown (default: both).
@@ -599,7 +611,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     readControls();
     const current = selected[view];
     const title = view === 'classes'
-      ? 'Τμήμα: ' + (current || '—') + (homeroomKey(current) ? ' — ' + (fullOf(homeroomKey(current)) || shortOf(homeroomKey(current))) : '')
+      ? 'Τμήμα: ' + (current ? className(current) : '—') + (homeroomKey(current) ? ' — ' + (fullOf(homeroomKey(current)) || shortOf(homeroomKey(current))) : '')
       : 'Εκπαιδευτικός: ' + (current ? shortOf(current) + (fullOf(current) ? ' — ' + fullOf(current) : '') : '—');
     work.innerHTML = `<div class="ft-toolbar">
         <h2 class="ft-title">${esc(title)}</h2>
@@ -933,7 +945,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
   function updateEffects(before, after) {
     const conflictKey = item => [item.type, item.who, item.day, item.start, ...[item.a.subject || '', item.b.subject || ''].sort()].join('|');
     const had = new Set(T.conflicts(before).map(conflictKey));
-    const whoText = item => item.type === 'class' ? 'τμήμα ' + item.who : (item.type === 'staff' ? shortOf(keyOfId(item.who)) : item.who);
+    const whoText = item => item.type === 'class' ? 'τμήμα ' + className(item.who) : (item.type === 'staff' ? shortOf(keyOfId(item.who)) : item.who);
     const conflicts = unique(T.conflicts(after).filter(item => !had.has(conflictKey(item)))
       .map(item => whoText(item) + ': ' + dayLabel(item.day) + ' ' + item.start + ' — ' + (item.a.subject || '—') + ' / ' + (item.b.subject || '—')));
     const offTimes = prog => {
@@ -1020,7 +1032,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
       actions: [{label: 'Ακύρωση'}, {label: 'Συνέχεια', accept: true, run: () => {
         const design = oloimeroOf(select.value);
         if (!design) throw Error('Επίλεξε σχέδιο.');
-        const analysis = T.analyzeOloimeroReplace(program, design, {staff: context.staff, teachingHours: context.teachingHours, designName: oloimeroName(design)});
+        const analysis = T.analyzeOloimeroReplace(program, design, {staff: context.staff, classes: yearClasses(), teachingHours: context.teachingHours, designName: oloimeroName(design)});
         if (!analysis.ok) throw Error(analysis.errors[0]);
         return {design, analysis};
       }}]
@@ -1144,22 +1156,22 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
   }
   function printClasses() {
     const date = dateField();
-    const classes = checkColumn('Τμήματα', classesList().map(name => ({value: name, label: name, checked: true})), [{label: 'Όλα', test: () => true}, {label: 'Κανένα', test: () => false}]);
+    const classes = checkColumn('Τμήματα', classesList().map(id => ({value: id, label: className(id), checked: true})), [{label: 'Όλα', test: () => true}, {label: 'Κανένα', test: () => false}]);
     const hourColumn = checkColumn('Ώρες', teachingHours().map(hour => ({value: String(hour.index), label: hour.name, checked: isMorning(hour)})), hourPresets());
     const columns = el('div', 'ft-print-columns'); columns.append(classes.box, hourColumn.box);
     void schoolChoiceDialog({
       title: 'Εκτύπωση τμημάτων', className: 'ft-print-dialog',
       content: ['Επίλεξε τα τμήματα και τις ώρες. Δεν εκτυπώνονται οι ώρες του υπεύθυνου δασκάλου του τμήματος.', date.field, columns],
       actions: [{label: 'Ακύρωση'}, {label: 'Εκτύπωση', accept: true, run: () => {
-        const effective = date.value(), names = classes.values(), selectedHours = hourColumn.values().map(Number).map(i => hours[i]);
-        if (!names.length) throw Error('Επίλεξε τουλάχιστον ένα τμήμα.');
+        const effective = date.value(), ids = classes.values(), selectedHours = hourColumn.values().map(Number).map(i => hours[i]);
+        if (!ids.length) throw Error('Επίλεξε τουλάχιστον ένα τμήμα.');
         if (!selectedHours.length) throw Error('Επίλεξε τουλάχιστον μία ώρα.');
-        const blocks = names.map(name => {
-          const home = homeroomKey(name);
-          const table = printTable(selectedHours, (day, hour) => activitiesAt(item => (item.activity.classes || []).includes(name), day, hour)
+        const blocks = ids.map(id => {
+          const home = homeroomKey(id);
+          const table = printTable(selectedHours, (day, hour) => activitiesAt(item => (item.activity.classes || []).includes(id), day, hour)
             .filter(item => !home || !item.keys.includes(home))
             .map(item => '<div class="activity">' + (item.activity.subject ? '<div class="subject">' + esc(item.activity.subject) + '</div>' : '') + '<div>' + esc(item.keys.map(shortOf).join(', ')) + '</div></div>').join(''));
-          return '<section class="block">' + blockHead(name, home ? fullOf(home) || shortOf(home) : '', effective) + table + '</section>';
+          return '<section class="block">' + blockHead(className(id), home ? fullOf(home) || shortOf(home) : '', effective) + table + '</section>';
         });
         const css = `h1{font-size:18pt}.subtitle,.date{font-size:9.5pt}th,td{padding:4px;font-size:9.5pt;line-height:1.15}thead th{font-size:12pt}.hour{width:24mm;font-size:10.5pt}tbody th,tbody td{height:10mm}.subject{font-size:11pt}`;
         return openPrintWindow(printDocument('Εκτύπωση τμημάτων', css, pagesOf(blocks, selectedHours.length <= 10)));

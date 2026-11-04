@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Σχολικά Προγράμματα v0.15</title>
+<title>Σχολικά Προγράμματα v0.16</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -106,7 +106,7 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΣΠ</span></span><span class="brand-text"><span>Σχολικά Προγράμματα</span><span class="small version">v0.15</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΣΠ</span></span><span class="brand-text"><span>Σχολικά Προγράμματα</span><span class="small version">v0.16</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <div class="header-right"><span id="schoolYear" class="school-year-indicator" hidden><span>Σχολικό έτος:</span> <span id="schoolYearValue"></span></span></div>
@@ -119,12 +119,13 @@
   'use strict';
   // Messages, requests and their time limits: schoolHost in _ui.js. Dates, kinds, import and replacements:
   // SchoolDate and SchoolTimetable in _data.js. Everything changes in the page and is saved together with
-  // «Αποθήκευση», as one school-timetables:save (periods + put/delete), all or nothing.
+  // «Αποθήκευση», as one school-timetables:save (periods + put/delete, and the new τμήματα of the imports),
+  // all or nothing. Activities refer to τμήματα by id (classes of school-timetables:context).
   const T = SchoolTimetable, D = SchoolDate, esc = schoolEscape, $ = id => document.getElementById(id);
   const root = $('root'), post = schoolHost.post;
   const DRAFT_WARNING_LIMIT = 5;
   // Count limits of the host (school-timetables:context): above them a save is refused; from warnRatio on, a warning.
-  const limits = () => ({programs: 200, periods: 15, warnRatio: 0.9, ...(context.limits || {})});
+  const limits = () => ({programs: 200, periods: 15, classes: 50, warnRatio: 0.9, ...(context.limits || {})});
   const nearLimit = (count, limit) => count >= Math.ceil(limit * limits().warnRatio);
   // Programs of the year after «Αποθήκευση»: every program of the file (drafts of all applications included),
   // with the period programs as this page holds them, plus the drafts it will create.
@@ -143,6 +144,9 @@
   let dirty = false, busy = false, selectedId = null;
   let fieldErrors = {};    // {periodId: {name|from|to: {text, message}}}: field text that is not valid yet
   let introShown = false;
+  // Τμήματα that the imports of the page will create (analysis.newClasses, with final ids), not saved yet.
+  // They go to school-timetables:save (newClasses) only while a program that is saved still uses them.
+  let newClasses = [];
 
   // ---- Dates ----
   const addDays = (iso, days) => {
@@ -178,6 +182,13 @@
     };
   }
   const activitiesText = count => count === 1 ? '1 δραστηριότητα' : count + ' δραστηριότητες';
+  // Τμήματα of the year (from «Τμήματα»), together with those the imports of the page will create.
+  const yearClasses = () => [...(context.classes || []), ...newClasses];
+  // The new τμήματα still used by a program of the page: only these are sent with «Αποθήκευση».
+  function usedNewClasses() {
+    const used = new Set(draft.programs.flatMap(program => (program.activities || []).flatMap(activity => [...(activity.classes || []), ...(activity.subsets || [])])));
+    return newClasses.filter(item => used.has(item.id));
+  }
 
   // ---- State ----
   function mark(value = true) { dirty = value; post({type: 'school-programs:dirty', dirty}); buttons(); }
@@ -209,6 +220,7 @@
     context = value;
     saved = clone({periods: value.periods || [], programs: (value.programs || []).filter(program => program.periodId != null)});
     draft = clone(saved);
+    newClasses = [];
     fieldErrors = {};
     if (!periodById(selectedId)) selectedId = draft.periods[0]?.id || null;
     mark(false);
@@ -513,6 +525,7 @@
     });
     if (!importer || !periodById(period.id)) return;
     const replacing = programOf(period.id, kind);
+    let created = [];   // analysis.newClasses of the analysis that was built
     const last = {};
     try { for (const file of importer.files) last[file.key] = await fileRequest('last', kind, importer.id, file.key); }
     catch (error) { notice(error.message, true); return; }
@@ -523,15 +536,23 @@
         key: file.key, label: file.label, last: last[file.key]?.name || '',
         read: () => fileRequest('read', kind, importer.id, file.key), choose: () => fileRequest('choose', kind, importer.id, file.key)
       })),
-      analyze: loaded => importer.analyze(loaded, {staff: context.staff, teachingHours: context.teachingHours, replacing}),
-      build: (analysis, options) => importer.build(analysis, {unmatched: options.unmatched, kind, periodId: period.id, name: ''})
+      // classes: the τμήματα of the year and those of earlier imports of the page that are not saved yet, so
+      // that a τμήμα missing from «Τμήματα» is created once; classLimit: the limit of the host.
+      analyze: loaded => importer.analyze(loaded, {staff: context.staff, classes: yearClasses(), classLimit: limits().classes, teachingHours: context.teachingHours, replacing}),
+      build: (analysis, options) => {
+        created = analysis.newClasses || [];
+        return importer.build(analysis, {unmatched: options.unmatched, kind, periodId: period.id, name: ''});
+      }
     });
     if (!program || !periodById(period.id)) return;
     const current = programOf(period.id, kind);
     if (current && !await replaceExisting(current, period)) return;
     draft.programs.push(program);
+    const known = new Set(yearClasses().map(item => item.id));
+    newClasses.push(...clone(created).filter(item => !known.has(item.id)));
     mark(); renderList(); renderDrafts(); renderPane();
-    notice('Εισήχθη το πρόγραμμα ' + quoted(label) + ' της περιόδου ' + quoted(period.name) + ' (' + activitiesText(program.activities.length) + '). Πάτησε «Αποθήκευση».');
+    const createdText = created.length ? ' Με την αποθήκευση θα δημιουργηθούν στα «Τμήματα» τα τμήματα: ' + created.map(item => item.name).join(', ') + '.' : '';
+    notice('Εισήχθη το πρόγραμμα ' + quoted(label) + ' της περιόδου ' + quoted(period.name) + ' (' + activitiesText(program.activities.length) + ').' + createdText + ' Πάτησε «Αποθήκευση».');
 
   }
   async function deleteProgram(period, kind) {
@@ -676,11 +697,13 @@
     return ops;
   }
   // After «Αποθήκευση»: the file must hold exactly what the page asked for.
-  function verifySaved(result, periods, expectedDraftCounts) {
+  function verifySaved(result, periods, expectedDraftCounts, added) {
     const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     const expected = draft.programs.filter(program => program.periodId != null);
     const got = new Map((result.programs || []).filter(program => program.periodId != null).map(program => [program.id, program]));
+    const classIds = new Set((result.classes || []).map(item => item?.id));
     const ok = same(result.periods, periods) && got.size === expected.length && expected.every(program => same(got.get(program.id), program)) &&
+      added.every(item => classIds.has(item.id)) &&
       kindKeys.every(kind => (Number(result.draftCounts?.[kind]) || 0) === expectedDraftCounts[kind]);
     if (!ok) throw Error('Η αποθήκευση ολοκληρώθηκε, αλλά τα δεδομένα του αρχείου δεν είναι ίδια με αυτά της σελίδας. Έλεγξε τις περιόδους και τα προγράμματα που φαίνονται τώρα. Βεβαιώσου ότι το index.html είναι η τελευταία έκδοση.');
   }
@@ -695,15 +718,18 @@
     const periodIds = new Set(draft.periods.map(period => period.id));
     if (draft.programs.some(program => program.periodId != null && !periodIds.has(program.periodId))) { notice('Βρέθηκε πρόγραμμα σε περίοδο που δεν υπάρχει. Πάτησε «Αναίρεση Όλων».', true); return; }
     for (const period of draft.periods) period.name = period.name.trim();
-    const periods = clone(draft.periods), ops = saveOps();
+    const periods = clone(draft.periods), ops = saveOps(), added = clone(usedNewClasses());
     const expectedDraftCounts = Object.fromEntries(kindKeys.map(kind => [kind, (Number(context.draftCounts?.[kind]) || 0) + draft.programs.filter(program => program.kind === kind && program.periodId == null).length]));
     setBusy(true);
     let result = null;
     try {
-      result = await schoolHost.request('school-timetables:save', {revision: context.revision, year: context.year, ops, periods});
-      verifySaved(result, periods, expectedDraftCounts);
+      // The new τμήματα of the imports go only together with programs (the host refuses them otherwise).
+      const request = {revision: context.revision, year: context.year, ops, periods};
+      if (added.length) request.newClasses = added;
+      result = await schoolHost.request('school-timetables:save', request);
+      verifySaved(result, periods, expectedDraftCounts, added);
       receive(result);
-      notice('Οι περίοδοι και τα προγράμματα αποθηκεύτηκαν στο κοινό αρχείο .data.');
+      notice('Οι περίοδοι και τα προγράμματα αποθηκεύτηκαν στο κοινό αρχείο .data.' + (added.length ? ' Δημιουργήθηκαν στα «Τμήματα» τα τμήματα: ' + added.map(item => item.name).join(', ') + '.' : ''));
     } catch (error) {
       if (result) receive(result);
       notice(error.message, true);
