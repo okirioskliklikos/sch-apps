@@ -1,4 +1,4 @@
-<!doctype html><html lang="el" class="subapp-page"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Μαθητές v0.03</title><link rel="stylesheet" href="_ui.css">
+<!doctype html><html lang="el" class="subapp-page"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Μαθητές v0.04</title><link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
 /* Μαθητές: layout of the list and the details. Shared appearance: _ui.css and _subapp.css. */
@@ -52,7 +52,7 @@
   .students-list-pane{max-height:calc(100dvh - var(--subapp-header-height,110px) - 32px);overflow:visible}
   .students-list{min-height:220px}
 }
-</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" aria-label="Μαθητές — άνοιγμα κεντρικού μενού" title="Άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΜΘ</span></span><span class="brand-text"><span>Μαθητές</span><span class="small version">v0.03</span></span></button></h1></div><button id="saveStudents" class="save-main" type="button" disabled>Αποθήκευση</button><button id="cancelStudents" type="button" disabled>Αναίρεση Όλων</button><div class="header-right"><span id="studentsSchoolYear" class="school-year-indicator" hidden><span>Σχολικό έτος:</span> <span id="studentsSchoolYearValue"></span></span></div></header><main id="students-root" class="page-main"><p class="connection subapp-connection">Άνοιξε τη σελίδα «Μαθητές» μέσα από το Κεντρικό Μενού, αφού ανοίξεις το αρχείο πληροφοριών του σχολείου.</p></main><script src="_ui.js"></script>
+</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" aria-label="Μαθητές — άνοιγμα κεντρικού μενού" title="Άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΜΘ</span></span><span class="brand-text"><span>Μαθητές</span><span class="small version">v0.04</span></span></button></h1></div><button id="saveStudents" class="save-main" type="button" disabled>Αποθήκευση</button><button id="cancelStudents" type="button" disabled>Αναίρεση Όλων</button><div class="header-right"><span id="studentsSchoolYear" class="school-year-indicator" hidden><span>Σχολικό έτος:</span> <span id="studentsSchoolYearValue"></span></span></div></header><main id="students-root" class="page-main"><p class="connection subapp-connection">Άνοιξε τη σελίδα «Μαθητές» μέσα από το Κεντρικό Μενού, αφού ανοίξεις το αρχείο πληροφοριών του σχολείου.</p></main><script src="_ui.js"></script>
 <script src="_data.js"></script>
 <script>
 (() => {
@@ -62,8 +62,11 @@
 // είναι μοναδικός· ταυτότητα είναι μόνο το id, που μένει ίδιο σε όλα τα έτη (studentId στις άλλες εφαρμογές).
 // Ίδιος μαθητής στις εισαγωγές: ίδιος Αριθμός Μητρώου, επώνυμο και όνομα (SchoolStudents.sameStudent).
 // Η λίστα δείχνει κάθε φορά ένα τμήμα ή μία τάξη. Η κατάσταση του ΑΔΥΜ υπολογίζεται (SchoolStudents.adymStatus).
-// Νέα τμήματα (από τις εισαγωγές) στέλνονται στο host με την αποθήκευση (newClasses).
-const S = SchoolStudents, T = SchoolTimetable, Selection = schoolListSelection;
+// Οι μαθητές μπαίνουν μόνο σε τμήματα Γενικής Παιδείας (με grade και number, SchoolClasses του _data.js). Οι τάξεις,
+// η προαγωγή και το ΑΔΥΜ υπολογίζονται από την εγγραφή του τμήματος. Οι εισαγωγές βρίσκουν ή δημιουργούν τα τμήματα με
+// το SchoolClasses.resolver, πάνω στα αποθηκευμένα και στα νέα τμήματα της σελίδας· στο host στέλνονται με την
+// αποθήκευση (newClasses) μόνο τα νέα τμήματα που έχουν ακόμη μαθητές, και η «Αναίρεση Όλων» τα σβήνει.
+const S = SchoolStudents, C = SchoolClasses, Selection = schoolListSelection;
 const $ = id => document.getElementById(id), root = $('students-root');
 
 let context = null, schoolYear = '', dirty = false, saving = false, editing = false;
@@ -78,13 +81,14 @@ let lastDetailFocus = '';
 
 // ---- Model ----
 const clean = value => String(value ?? '').replace(/\s+/g, ' ').trim();
-const spelling = value => T.classSpelling(clean(value));
+// All the classes of the year (saved and new ones of the page); the students go only in Γενικής Παιδείας ones.
 const classes = () => [...savedClasses, ...newClasses];
-const classSortKey = name => { const grade = S.classGrade(name); return grade ? grade.index * 10000 + grade.number : Infinity; };
-const sortedClasses = () => classes().slice().sort((a, b) => classSortKey(a.name) - classSortKey(b.name));
-const classById = id => classes().find(item => item.id === id) || null;
-const classByName = name => classes().find(item => item.name === name) || null;
+const sortedClasses = () => C.sort(classes()).filter(C.isGeneral);
+const classById = id => classes().find(item => item.id === id && C.isGeneral(item)) || null;
 const className = student => classById(student?.classId)?.name || '';
+const classOf = student => classById(student?.classId);
+// Order of a student's class in the list of classes (for sorting); a student without a class goes to the end.
+const classOrder = student => { const index = sortedClasses().findIndex(item => item.id === student?.classId); return index < 0 ? Infinity : index; };
 const byId = id => draft.find(item => item.id === id) || null;
 const savedById = id => saved.find(item => item.id === id) || null;
 const fullName = student => [clean(student?.lastName), clean(student?.firstName)].filter(Boolean).join(' ');
@@ -97,7 +101,7 @@ const warnAt = () => Math.ceil(limit() * (Number(context?.limits?.warnRatio) || 
 
 // Filter: 'class:<id>' or 'grade:<Α|Β|…|Στ>'.
 function filterOptions() {
-  return S.grades(classes().map(item => item.name)).map(grade => ({grade, classes: grade.classes.map(name => classByName(name)).filter(Boolean)}));
+  return C.grades(classes()).map(grade => ({grade, classes: grade.classes}));
 }
 function validFilter(value) {
   const [kind, key] = String(value).split(/:(.*)/s);
@@ -109,7 +113,7 @@ function defaultFilter() { const first = sortedClasses()[0]; return first ? 'cla
 function inFilter(student, value = filter) {
   const [kind, key] = String(value).split(/:(.*)/s);
   if (kind === 'class') return student.classId === key;
-  if (kind === 'grade') return S.classGrade(className(student))?.grade === key;
+  if (kind === 'grade') return S.classGrade(classOf(student))?.grade === key;
   return false;
 }
 // The class where «+ Προσθήκη» puts a new student: the class shown, or the first class of the grade shown.
@@ -213,7 +217,7 @@ function renderFilter() {
   const grades = document.createElement('optgroup'); grades.label = 'Τάξεις';
   const sections = document.createElement('optgroup'); sections.label = 'Τμήματα';
   for (const {grade, classes: list} of options) {
-    grades.append(new Option(`${grade.label} τάξη (${count(student => S.classGrade(className(student))?.grade === grade.grade)})`, 'grade:' + grade.grade));
+    grades.append(new Option(`${grade.label} τάξη (${count(student => S.classGrade(classOf(student))?.grade === grade.grade)})`, 'grade:' + grade.grade));
     for (const item of list) sections.append(new Option(`${item.name} (${count(student => student.classId === item.id)})`, 'class:' + item.id));
   }
   field.append(sections, grades);
@@ -317,12 +321,12 @@ function refreshFields() {
   }
   const warning = registryWarning(student);
   $('stRegistryWarning').textContent = warning; $('stRegistryWarning').hidden = !warning;
-  const status = S.adymStatus(student.adymDate, className(student), schoolYear), badge = $('stAdymStatus');
+  const status = S.adymStatus(student.adymDate, classOf(student), schoolYear), badge = $('stAdymStatus');
   badge.textContent = status.status === 'valid' ? '✓ ' + status.label : '! ' + status.label;
   badge.classList.toggle('is-approved', status.status === 'valid');
   badge.classList.toggle('is-alert', status.status !== 'valid');
   badge.title = 'Κατάσταση ΑΔΥΜ: ' + status.label;
-  $('stAdymNote').textContent = status.requiredFrom ? `Για ${S.classGrade(className(student))?.label || ''} τάξη ισχύει ΑΔΥΜ με ημερομηνία από ${SchoolDate.format(status.requiredFrom)} και μετά.` : '';
+  $('stAdymNote').textContent = status.requiredFrom ? `Για ${S.classGrade(classOf(student))?.label || ''} τάξη ισχύει ΑΔΥΜ με ημερομηνία από ${SchoolDate.format(status.requiredFrom)} και μετά.` : '';
 }
 // One row of the list, without redrawing it (so the focus stays in the field).
 function refreshRow(student) {
@@ -402,17 +406,12 @@ function earlierRecord(student) {
   }
   return null;
 }
-// The class with this name, or a new one (counted in created): → id.
-function classFor(name, created) {
-  const found = classByName(name) || created.find(item => item.name === name);
-  if (found) return found.id;
-  const item = {id: crypto.randomUUID(), name};
-  created.push(item);
-  return item.id;
-}
-function checkLimits(addedStudents, createdClasses) {
+// The classes of an import: those of the page (saved and new ones not saved yet); a missing Γενικής Παιδείας class
+// is created (resolver.newClasses), within the limit of classes of the year (resolver.overLimit).
+const classResolver = () => C.resolver(classes(), {limit: classLimit()});
+const overLimitText = list => `Τα Τμήματα θα ξεπερνούσαν το όριο των ${classLimit()} ανά σχολικό έτος, και δεν δημιουργούνται τα τμήματα ${list.join(', ')}. Αφαίρεσε όσα τμήματα δεν χρειάζονται στα «Τμήματα».`;
+function checkLimits(addedStudents) {
   if (draft.length + addedStudents > limit()) throw Error(`Μετά την εισαγωγή οι Μαθητές θα ήταν ${draft.length + addedStudents}, πάνω από το όριο των ${limit()} ανά σχολικό έτος.`);
-  if (classes().length + createdClasses > classLimit()) throw Error(`Μετά την εισαγωγή τα Τμήματα θα ήταν ${classes().length + createdClasses}, πάνω από το όριο των ${classLimit()} ανά σχολικό έτος.`);
 }
 // Puts the result of an import in the page: new classes, new students, changes. Selects the first new one.
 function applyImport({created, added, changed, message}) {
@@ -453,12 +452,16 @@ async function importFromCsv() {
     ]
   });
   if (!file) return;
-  const parsed = file.result, created = [], added = [], updates = [], warnings = [...parsed.warnings];
+  const parsed = file.result, resolver = classResolver(), added = [], updates = [], warnings = [...parsed.warnings], errors = [...parsed.errors];
+  // A class of the file that is not a Γενικής Παιδείας class (only those have students) is an error: the import
+  // does not happen until the CSV is corrected.
+  if (errors.length) errors.push('Οι μαθητές μπαίνουν μόνο σε τμήματα Γενικής Παιδείας (τάξη και αριθμός, π.χ. «Α1»). Διόρθωσε το CSV και ξαναδοκίμασε την εισαγωγή.');
   if (parsed.ok) {
     if (parsed.year && parsed.year !== schoolYear) warnings.unshift(`Το αρχείο είναι για το σχολικό έτος ${parsed.year}, ενώ το τρέχον είναι ${schoolYear}.`);
     for (const group of parsed.classes) {
       if (!group.students.length) continue;
-      const classId = classFor(group.name, created);
+      const classId = resolver.resolve(group.name);
+      if (!classId) continue;
       for (const row of group.students) {
         const current = draft.find(student => S.sameStudent(student, row));
         if (current) { updates.push({student: current, row, classId}); continue; }
@@ -469,14 +472,16 @@ async function importFromCsv() {
       }
     }
   }
+  const created = resolver.newClasses;
+  if (resolver.overLimit.length) errors.push(overLimitText(resolver.overLimit));
   const changed = updates.filter(({student, row, classId}) => student.classId !== classId || ['lastName', 'firstName', 'fatherName', 'registryNumber'].some(key => clean(student[key]) !== row[key]));
   const moved = changed.filter(({student, classId}) => student.classId !== classId);
   const matched = new Set(updates.map(item => item.student.id));
   const missing = draft.filter(student => !matched.has(student.id)).length;
   const pane = document.createElement('div'); pane.className = 'students-import-pane';
   pane.append(para(`Αρχείο: ${file.name}${parsed.year ? ' · σχολικό έτος ' + parsed.year : ''} · ${studentsWord(parsed.count)} σε ${parsed.classes.length} τμήματα.`));
-  for (const text of parsed.errors) pane.append(para(text, 'ui-validation-error'));
-  if (parsed.ok) {
+  for (const text of errors) pane.append(para(text, 'ui-validation-error'));
+  if (!errors.length) {
     const lines = [`Νέοι μαθητές: ${added.length}${added.some(item => earlierRecord(item)) ? ` (από αυτούς ${added.filter(item => earlierRecord(item)).length} βρέθηκαν σε παλαιότερο έτος και κρατούν το ΑΔΥΜ τους)` : ''}.`,
       `Υπάρχουν ήδη: ${updates.length}${changed.length ? `, από τους οποίους ενημερώνονται ${changed.length}${moved.length ? ` (${moved.length} αλλάζουν τμήμα)` : ''}` : ', χωρίς αλλαγές'}. Το ΑΔΥΜ τους δεν αλλάζει.`];
     if (created.length) lines.push(`Νέα τμήματα: ${created.map(item => item.name).join(', ')}.`);
@@ -490,7 +495,7 @@ async function importFromCsv() {
     content: [pane],
     actions: [
       {label: 'Ακύρωση'},
-      {label: 'Εισαγωγή', accept: true, disabled: !parsed.ok || !(added.length || changed.length), run: () => { checkLimits(added.length, created.length); return true; }}
+      {label: 'Εισαγωγή', accept: true, disabled: !!errors.length || !(added.length || changed.length), run: () => { checkLimits(added.length); return true; }}
     ]
   });
   if (!accepted) return;
@@ -501,20 +506,23 @@ async function importFromCsv() {
 // All students of an older year, one grade up with the same class number (Β2 → Γ2); the Στ' does not come over.
 // Missing classes are created. Students already in the list are skipped. They keep their id and ΑΔΥΜ.
 function planFromYear(source) {
-  const created = [], added = [];
-  let sixth = 0, present = 0, unknown = 0;
+  const resolver = classResolver(), added = [];
+  let sixth = 0, present = 0, unknown = 0, blocked = 0;
   const perClass = new Map();
   for (const record of source.students) {
-    const from = source.classes.find(item => item.id === record.classId)?.name || '';
-    const grade = S.classGrade(from);
-    if (!grade) { unknown++; continue; }
+    const from = source.classes.find(item => item.id === record.classId);
+    if (!S.classGrade(from)) { unknown++; continue; }
     const target = S.promotedClass(from);
     if (!target) { sixth++; continue; }
     if (exists(record)) { present++; continue; }
-    added.push({...structuredClone(record), classId: classFor(target, created)});
-    perClass.set(target, (perClass.get(target) || 0) + 1);
+    const classId = resolver.resolve(target);
+    if (!classId) { blocked++; continue; }
+    added.push({...structuredClone(record), classId});
+    perClass.set(classId, (perClass.get(classId) || 0) + 1);
   }
-  return {created, added, sixth, present, unknown, perClass};
+  // The classes of the summary, in the order of the classes (with the new ones).
+  const order = C.sort(resolver.classes).filter(item => perClass.has(item.id));
+  return {created: resolver.newClasses, overLimit: resolver.overLimit, added, sixth, present, unknown, blocked, perClass, order};
 }
 async function importAllFromYear() {
   if (saving) return;
@@ -531,13 +539,13 @@ async function importAllFromYear() {
   const refresh = () => {
     const source = years.find(item => item.year === field.value);
     plan = planFromYear(source);
-    const order = [...plan.perClass.keys()].sort((a, b) => classSortKey(a) - classSortKey(b));
     summary.replaceChildren();
-    const lines = [plan.added.length ? `Εισάγονται ${studentsWordAcc(plan.added.length)}: ${order.map(name => `${name} ${plan.perClass.get(name)}`).join(', ')}.` : 'Δεν υπάρχουν μαθητές για εισαγωγή.'];
-    if (plan.created.length) lines.push(`Νέα τμήματα: ${plan.created.map(item => item.name).sort((a, b) => classSortKey(a) - classSortKey(b)).join(', ')}.`);
+    const lines = [plan.added.length ? `Εισάγονται ${studentsWordAcc(plan.added.length)}: ${plan.order.map(item => `${item.name} ${plan.perClass.get(item.id)}`).join(', ')}.` : 'Δεν υπάρχουν μαθητές για εισαγωγή.'];
+    if (plan.created.length) lines.push(`Νέα τμήματα: ${C.sort(plan.created).map(item => item.name).join(', ')}.`);
     if (plan.sixth) lines.push(`${studentsWord(plan.sixth)} της Στ' δεν εισάγ${plan.sixth === 1 ? 'εται' : 'ονται'}.`);
     if (plan.present) lines.push(`${studentsWord(plan.present)} υπάρχ${plan.present === 1 ? 'ει' : 'ουν'} ήδη στο ${schoolYear} και παραλείπ${plan.present === 1 ? 'εται' : 'ονται'}.`);
     if (plan.unknown) lines.push(`${studentsWord(plan.unknown)} χωρίς τμήμα στο ${source.year} δεν εισάγ${plan.unknown === 1 ? 'εται' : 'ονται'}.`);
+    if (plan.overLimit.length) summary.append(para(overLimitText(plan.overLimit) + ` (${studentsWord(plan.blocked)} δεν θα έμπαιν${plan.blocked === 1 ? 'ε' : 'αν'} σε τμήμα.)`, 'ui-validation-error'));
     summary.append(bullets(lines), para('Κάθε μαθητής πηγαίνει στην επόμενη τάξη με τον ίδιο αριθμό τμήματος (π.χ. Β2 → Γ2) και κρατά το ΑΔΥΜ του.', 'students-import-note'));
     controls?.refresh();
   };
@@ -548,7 +556,7 @@ async function importAllFromYear() {
     content: [pane],
     actions: [
       {label: 'Ακύρωση'},
-      {label: 'Εισαγωγή', accept: true, get disabled() { return !plan?.added.length; }, run: () => { checkLimits(plan.added.length, plan.created.length); return true; }}
+      {label: 'Εισαγωγή', accept: true, get disabled() { return !plan?.added.length || !!plan.overLimit.length; }, run: () => { checkLimits(plan.added.length); return true; }}
     ],
     ready: dialogControls => { controls = dialogControls; }
   });
@@ -600,7 +608,7 @@ async function importOneFromYear() {
   const fillClasses = () => {
     const year = source();
     fromField.replaceChildren();
-    const used = year.classes.filter(item => year.students.some(student => student.classId === item.id)).sort((a, b) => classSortKey(a.name) - classSortKey(b.name));
+    const used = C.sort(year.classes).filter(item => year.students.some(student => student.classId === item.id));
     for (const item of used) fromField.append(new Option(`${item.name} (${year.students.filter(student => student.classId === item.id).length})`, item.id));
     fillStudents();
   };
@@ -614,7 +622,7 @@ async function importOneFromYear() {
     content: ['Διάλεξε το έτος και το τμήμα από όπου έρχονται, τους μαθητές και το τμήμα όπου θα μπουν φέτος.', pane],
     actions: [
       {label: 'Ακύρωση'},
-      {label: 'Εισαγωγή', accept: true, get disabled() { return !chosen().length || !toField.value; }, run: () => { checkLimits(chosen().length, 0); return {students: chosen(), classId: toField.value}; }}
+      {label: 'Εισαγωγή', accept: true, get disabled() { return !chosen().length || !toField.value; }, run: () => { checkLimits(chosen().length); return {students: chosen(), classId: toField.value}; }}
     ],
     ready: dialogControls => { controls = dialogControls; accept = dialogControls.dialog.querySelector('.school-confirm-actions .confirm-accept'); refresh(); }
   });
@@ -627,7 +635,7 @@ async function importOneFromYear() {
 const fieldOf = {registryNumber: 'stRegistry', lastName: 'stLastName', firstName: 'stFirstName', classId: 'stClass', adymDate: 'stAdym'};
 async function save() {
   if (saving || !dirty) return;
-  const invalid = draft.slice().sort((a, b) => classSortKey(className(a)) - classSortKey(className(b)) || S.compare(a, b)).find(hasErrors);
+  const invalid = draft.slice().sort((a, b) => classOrder(a) - classOrder(b) || S.compare(a, b)).find(hasErrors);
   if (invalid) {
     if (!inFilter(invalid)) filter = classById(invalid.classId) ? 'class:' + invalid.classId : filter;
     select(invalid.id); editing = true; render();
@@ -639,10 +647,13 @@ async function save() {
   }
   if (draft.length > limit()) { setSummary(`Οι Μαθητές είναι ${draft.length}, πάνω από το όριο των ${limit()} ανά σχολικό έτος. Αφαίρεσε όσους δεν χρειάζονται.`, true); return; }
   const students = draft.slice().sort(S.compare).map(cleanRecord);
+  // Only the new classes that still have students go to the host (an import whose students were removed or moved
+  // leaves its new classes unused).
+  const usedClasses = newClasses.filter(item => draft.some(student => student.classId === item.id));
   const focusId = lastDetailFocus;
   setBusy(true); setSummary('Αποθήκευση στο κοινό αρχείο…');
   try {
-    context = await schoolHost.request('school-students:save', {revision: context.revision, year: schoolYear, students, newClasses}, {timeoutMessage: 'Δεν επιβεβαιώθηκε η αποθήκευση. Οι αλλαγές σου παραμένουν στη σελίδα.'});
+    context = await schoolHost.request('school-students:save', {revision: context.revision, year: schoolYear, students, newClasses: usedClasses}, {timeoutMessage: 'Δεν επιβεβαιώθηκε η αποθήκευση. Οι αλλαγές σου παραμένουν στη σελίδα.'});
     saved = structuredClone(Array.isArray(context.students) ? context.students : []);
     savedClasses = structuredClone(Array.isArray(context.classes) ? context.classes : []); newClasses = [];
     // The records keep their place: update them in place, so the selection and the details stay.

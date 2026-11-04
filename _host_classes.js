@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Τμήματα στο Κεντρικό Μενού (host)
- * Έκδοση αρχείου: 0.03
+ * Έκδοση αρχείου: 0.04
  * Όνομα κατά την εγκατάσταση: _host_classes.js
  *
  * Κώδικας μόνο του host για τα Τμήματα (classesByYear). Το φορτώνει το index.html μετά το _data.js και πριν
@@ -18,7 +18,9 @@
  *   applySave(data, message)                εφαρμογή ενός school-classes:save σε αντίγραφο του data
  *   addClasses(candidate, year, added, app) νέα τμήματα των εισαγωγών (newClasses) στο classesByYear[year] του
  *                                           candidate, για το school-timetables:save και το school-students:save
- *   removeStaff(data, year, removedIds)     σβήνει τον υπεύθυνο (homeroomStaffId) που διαγράφεται από το Προσωπικό
+ *   removeStaff(data, year, removedIds)     στην αποθήκευση του Προσωπικού: σβήνει τον υπεύθυνο (homeroomStaffId) που
+ *                                           διαγράφεται, και σε τμήμα Γενικής Παιδείας τον υπεύθυνο που δεν είναι
+ *                                           πια Δάσκαλος ή Ειδικότητα
  *   needsMigration(data)                    true όταν το αρχείο είναι στην παλιά μορφή τμημάτων (βλέπε κάτω)
  *   fetFile(year, message, rememberedFile)  το αρχείο FET της εισαγωγής (school-classes:fet)
  *   install(bridge)                         σύνδεση με το index (πρωτόκολλο school-classes:*)
@@ -243,14 +245,26 @@
     return classes;
   }
 
-  // Διαγραφή εκπαιδευτικών από το Προσωπικό (στο data, που είναι ήδη αντίγραφο): σβήνει το homeroomStaffId
-  // τους από τα τμήματα του έτους. → πόσα τμήματα άλλαξαν.
+  // Αποθήκευση του Προσωπικού (στο data, που είναι ήδη αντίγραφο με το νέο Προσωπικό): σβήνει το homeroomStaffId
+  //   - των εκπαιδευτικών που διαγράφονται (removedIds), σε όλα τα τμήματα του έτους,
+  //   - σε τμήμα Γενικής Παιδείας, του υπευθύνου που δεν είναι πια Δάσκαλος ή Ειδικότητα (αλλαγή του Είδους
+  //     υπηρεσίας στο Προσωπικό). Στα άλλα τμήματα (π.χ. «Τμήμα Ένταξης») ο υπεύθυνος μένει.
+  // → πόσα τμήματα άλλαξαν.
   function removeStaff(data, year, removedIds) {
     const removed = new Set(removedIds || []), classes = yearClasses(data, year);
-    if (!removed.size || !classes.length) return 0;
+    if (!classes.length) return 0;
+    const people = new Map(staffOf(data, year).filter(person => typeof person.id === 'string').map(person => [person.id, person]));
+    const loses = item => {
+      const id = item.homeroomStaffId;
+      if (typeof id !== 'string' || !id) return false;
+      if (removed.has(id)) return true;
+      const person = people.get(id);
+      return C.isGeneral(item) && !!person && !HOMEROOM_SERVICES.includes(person.serviceType);
+    };
+    if (!classes.some(loses)) return 0;
     let changed = 0;
     data.classesByYear[year] = {...data.classesByYear[year], classes: data.classesByYear[year].classes.map(item => {
-      if (!isObject(item) || !removed.has(item.homeroomStaffId)) return item;
+      if (!isObject(item) || !loses(item)) return item;
       changed++;
       return {...item, homeroomStaffId: ''};
     })};

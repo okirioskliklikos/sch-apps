@@ -12,7 +12,7 @@
   Τα προγράμματα είναι στη νέα μορφή τμημάτων (formatVersion:2, τμήματα με id). Τα τμήματα των ελέγχων
   φτιάχνονται από τους υπευθύνους του Προσωπικού (classesFromStaff). Η μετατροπή των αρχείων της παλιάς μορφής
   (_host_migrate.js) ελέγχεται στην ενότητα 11, και με το .data δοκιμής· φεύγει μαζί με το _host_migrate.js.
-  Έκδοση αρχείου: 0.21
+  Έκδοση αρχείου: 0.22
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -779,6 +779,13 @@ function hostClassesChecks() {
   const removed = clone(saved);
   equal('removeStaff: σβήνει μόνο τον υπεύθυνο που διαγράφεται', [K.removeStaff(removed, year, ['s1']), removed.classesByYear[year].classes.map(c => c.homeroomStaffId)], [1, ['', '', 's3']]);
   equal('removeStaff χωρίς Τμήματα: τίποτα', K.removeStaff(clone(base), '2030-2031', ['s1']), 0);
+  // Αλλαγή του Είδους υπηρεσίας στο Προσωπικό (στην ίδια αποθήκευση): τμήμα Γενικής Παιδείας χωρίς υπεύθυνο.
+  const service = (changes, ids = []) => { const data = clone(saved); data.staffByYear[year] = data.staffByYear[year].map(p => changes[p.id] ? {...p, serviceType: changes[p.id]} : p);
+    data.classesByYear[year].classes[1].homeroomStaffId = 's2'; const count = K.removeStaff(data, year, ids); return [count, data.classesByYear[year].classes.map(c => c.homeroomStaffId)]; };
+  equal('removeStaff: ο υπεύθυνος τμήματος Γενικής Παιδείας που δεν είναι πια Δάσκαλος ή Ειδικότητα φεύγει', service({s1: 'oloimero'}), [1, ['', 's2', 's3']]);
+  equal('removeStaff: ο υπεύθυνος άλλου τμήματος («Τμήμα Ένταξης») μένει, ό,τι κι αν είναι', service({s3: 'other'}), [0, ['s1', 's2', 's3']]);
+  equal('removeStaff: Δάσκαλος ή Ειδικότητα μένει υπεύθυνος', service({s1: 'specialty', s2: 'classroom'}), [0, ['s1', 's2', 's3']]);
+  equal('removeStaff: διαγραφή και αλλαγή είδους μαζί', service({s2: 'zep'}, ['s1']), [2, ['', '', 's3']]);
 
   // Νέα τμήματα των εισαγωγών (addClasses).
   const target = clone(saved);
