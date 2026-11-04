@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων
- * Έκδοση αρχείου: 0.14
+ * Έκδοση αρχείου: 0.15
  * Όνομα κατά την εγκατάσταση: _data.js
  *
  * Φορτώνεται από όσες υποεφαρμογές διαβάζουν ή γράφουν CSV, FET, ημερομηνίες ή προγράμματα, μετά
@@ -11,6 +11,9 @@
  *   window.SchoolFet        ανάγνωση αρχείων FET (XML)
  *   window.SchoolText       κανονικοποίηση ελληνικού κειμένου, ονόματα ημερών
  *   window.SchoolDate       ημερομηνίες: dd/mm/yyyy για τον χρήστη, 'YYYY-MM-DD' για την αποθήκευση
+ *   window.SchoolClasses    τμήματα (classesByYear): είδος, κλειδί («Α1»), ταξινόμηση, τάξεις, μετονομασία,
+ *                           αντιστοίχιση ονομάτων των αρχείων σε τμήματα (με αυτόματη δημιουργία τμημάτων
+ *                           Γενικής Παιδείας)
  *   window.SchoolTimetable  προγράμματα (timetablesByYear): ώρες, περίοδοι, υπεύθυνοι τμημάτων,
  *                           εμφάνιση μαθητών, συγκρούσεις, ώρες ανά εκπαιδευτικό, διαθεσιμότητα,
  *                           αντικαταστάσεις, Εισαγωγή Ολοημέρου στο ωρολόγιο, εισαγωγείς ανά είδος
@@ -19,6 +22,8 @@
  *                           απασχόληση εκπαιδευτικών σε ημερομηνία και ώρα (συνεδριάσεις)
  *   window.SchoolStudents   μαθητές (studentsByYear): ανάγνωση του CSV μαθητών του myschool, ίδιος μαθητής,
  *                           τάξη και επόμενο τμήμα, κατάσταση ΑΔΥΜ, ταξινόμηση
+ * Τα προγράμματα είναι στη μορφή formatVersion:2: οι δραστηριότητες αναφέρονται στα τμήματα με το id τους
+ * (classes), και τα ονόματα μαθητών των αρχείων που δεν είναι τμήματα μπαίνουν στο otherStudents.
  */
 (() => {
   'use strict';
@@ -356,9 +361,142 @@
     return warnings;
   }
 
-  // ---- Τμήματα και μαθητές ----
-  // Τα τμήματα του σχολικού έτους: όσα έχουν υπεύθυνο στο Προσωπικό, με τη γραφή του Προσωπικού.
-  const homeroomClasses = staff => unique((staff || []).map(person => String(person.homeroomClass || '').trim()).filter(Boolean));
+  // =============================================================================================
+  // ---- Τμήματα (classesByYear) ----
+  // =============================================================================================
+  // Τμήμα Γενικής Παιδείας: {id, name, grade, number, homeroomStaffId}. grade: 'Α', 'Β', 'Γ', 'Δ', 'Ε' ή 'Στ'·
+  // number: θετικός ακέραιος. Ορίζονται στη δημιουργία και δεν αλλάζουν· μαζί είναι το κλειδί του τμήματος
+  // («Α1», «Στ1»), ανεξάρτητα από τη γραφή του name (π.χ. «Α-1»). Άλλο τμήμα (π.χ. «Τμήμα Ένταξης»):
+  // {id, name, homeroomStaffId}, χωρίς grade και number· το είδος το καθορίζει η ύπαρξη του grade.
+  // Τα δεδομένα αναφέρονται στα τμήματα με το id, και τα ονόματα για εμφάνιση παίρνονται από τα Τμήματα.
+
+  // Οι τάξεις με τη σειρά τους, στην εσωτερική γραφή (χωρίς τόνους, κεφαλαία: 'ΣΤ').
+  const GRADES = Object.freeze(['Α', 'Β', 'Γ', 'Δ', 'Ε', 'ΣΤ']);
+  const GRADE_LABELS = Object.freeze({Α: "Α'", Β: "Β'", Γ: "Γ'", Δ: "Δ'", Ε: "Ε'", ΣΤ: "Στ'"});
+  // Αποστρόφοι που γράφονται μετά το γράμμα της τάξης («Β'», «Β΄», «Β’»).
+  const gradeKey = value => compareKey(value).replace(/['΄’ʹ`´ʼ]/g, '');
+  // Η γραφή της τάξης στα δεδομένα: 'ΣΤ' → 'Στ'.
+  const gradeName = internal => internal === 'ΣΤ' ? 'Στ' : internal;
+  const gradeIndex = grade => GRADES.indexOf(gradeKey(grade));
+  // «Α1» → {grade:'Α', number:1}· «Στ2» → {grade:'ΣΤ', number:2}· αλλιώς null.
+  function classParts(name) {
+    const match = /^(ΣΤ|[ΑΒΓΔΕ])(\d+)$/.exec(compareKey(name));
+    return match && Number(match[2]) > 0 ? {grade: match[1], number: Number(match[2])} : null;
+  }
+  // Η κανονική γραφή ενός ονόματος τμήματος Γενικής Παιδείας: «ΣΤ1», «στ1», «Στ 1» → «Στ1»· «α2», «Ά2» → «Α2».
+  // Χωρίς τόνους, κενά και διάκριση πεζών–κεφαλαίων. Τιμή που δεν είναι γράμματα τάξης (Α–Στ) και αριθμός → ''.
+  function classSpelling(name) {
+    const parts = classParts(name);
+    return parts ? gradeName(parts.grade) + parts.number : '';
+  }
+
+  // Τμήμα Γενικής Παιδείας; (έχει έγκυρα grade και number)
+  function isGeneralClass(record) {
+    return isObject(record) && gradeIndex(record.grade) >= 0 && Number.isInteger(record.number) && record.number > 0;
+  }
+  // Το κλειδί ενός τμήματος Γενικής Παιδείας («Α1», «Στ1»)· για άλλο τμήμα → ''.
+  function classKey(record) {
+    return isGeneralClass(record) ? gradeName(GRADES[gradeIndex(record.grade)]) + record.number : '';
+  }
+  const classCollator = new Intl.Collator('el', {sensitivity: 'base', numeric: true});
+  // Ταξινόμηση: πρώτα τα τμήματα Γενικής Παιδείας κατά τάξη και αριθμό, μετά τα άλλα αλφαβητικά. Νέος πίνακας.
+  function sortClasses(classes) {
+    return [...(classes || [])].filter(isObject).sort((a, b) => {
+      const ga = isGeneralClass(a), gb = isGeneralClass(b);
+      if (ga !== gb) return ga ? -1 : 1;
+      if (ga) return gradeIndex(a.grade) - gradeIndex(b.grade) || a.number - b.number;
+      return classCollator.compare(String(a.name ?? ''), String(b.name ?? ''));
+    });
+  }
+  // Τα τμήματα ανά id (Map). Δέχεται και έτοιμο Map.
+  function classesById(classes) {
+    if (classes instanceof Map) return classes;
+    return new Map((classes || []).filter(item => isObject(item) && item.id).map(item => [item.id, item]));
+  }
+  // Το όνομα ενός τμήματος από τα Τμήματα, ή '' όταν δεν υπάρχει.
+  function classNameOf(classes, id) { return String(classesById(classes).get(id)?.name ?? ''); }
+  // Οι τάξεις με τα τμήματά τους (μόνο Γενικής Παιδείας), με τη σειρά τους:
+  //   [{grade:'Στ', label:"Στ'", index:5, classes:[τμήματα…]}]. Μόνο τάξεις που έχουν τμήματα.
+  function classGrades(classes) {
+    const result = [];
+    for (const record of sortClasses(classes).filter(isGeneralClass)) {
+      const internal = GRADES[gradeIndex(record.grade)];
+      let entry = result.find(item => item.index === GRADES.indexOf(internal));
+      if (!entry) result.push(entry = {grade: gradeName(internal), label: GRADE_LABELS[internal], index: GRADES.indexOf(internal), classes: []});
+      entry.classes.push(record);
+    }
+    return result;
+  }
+  // Μετονομασία: σε τμήμα Γενικής Παιδείας επιτρέπεται μόνο αλλαγή γραφής. Το όνομα, χωρίς σημεία στίξης και
+  // κενά (και χωρίς τόνους και διάκριση πεζών–κεφαλαίων), πρέπει να είναι το κλειδί του τμήματος: «Α-1», «Α'1»,
+  // «Α_1», «ΣΤ 1» γίνονται δεκτά· «Α11» για το Α1, «ΑΓ1», «Σ1» για το Στ1 όχι. → το μήνυμα λάθους, ή ''. Άλλο
+  // τμήμα, ή κενό όνομα (το κενό το ελέγχει η εφαρμογή) → ''.
+  const RENAME_ERROR = 'Η τάξη και ο αριθμός δεν αλλάζουν. Για νέο τμήμα χρησιμοποίησε «+ Προσθήκη».';
+  function classRenameError(record, name) {
+    if (!isGeneralClass(record)) return '';
+    const plain = compareKey(name).replace(/[^\p{L}\p{N}]/gu, '');
+    if (!plain) return '';
+    return plain === compareKey(classKey(record)) ? '' : RENAME_ERROR;
+  }
+
+  // Κοινή αντιστοίχιση ονομάτων των αρχείων (FET, CSV) σε τμήματα, για όλες τις εισαγωγές.
+  //   classes: τα τμήματα του έτους, μαζί με όσα δεν έχουν αποθηκευτεί ακόμη· options.limit: το όριο πλήθους
+  //   τμημάτων του έτους (προαιρετικό).
+  // → {resolve, find, grade, classes, newClasses, overLimit}:
+  //   resolve(name) → id ή null. Όνομα τμήματος Γενικής Παιδείας («ΣΤ1», «Α1») → το τμήμα με αυτό το κλειδί·
+  //     αν δεν υπάρχει, δημιουργείται (newClasses, με τελικό id), εκτός αν θα ξεπερνούσε το όριο (overLimit).
+  //     Κάθε άλλο όνομα → άλλο τμήμα με το ίδιο όνομα (χωρίς τόνους, κενά και διάκριση πεζών–κεφαλαίων)·
+  //     αν δεν βρεθεί, δεν δημιουργείται → null (ο εισαγωγέας το βάζει στο otherStudents).
+  //   find(name): όπως το resolve, χωρίς δημιουργία.
+  //   grade("Β'" ή 'Β') → τα id των τμημάτων Γενικής Παιδείας της τάξης, με τη σειρά τους.
+  //   classes: όλα τα τμήματα (υπάρχοντα και νέα)· overLimit: τμήματα που δεν δημιουργήθηκαν λόγω ορίου.
+  // Δέχεται και έτοιμο resolver, και τότε τον επιστρέφει όπως είναι.
+  function classResolver(classes, options = {}) {
+    if (classes && !Array.isArray(classes) && typeof classes.resolve === 'function') return classes;
+    const all = (classes || []).filter(item => isObject(item) && item.id);
+    const newClasses = [], overLimit = [];
+    const limit = Number.isInteger(options.limit) && options.limit > 0 ? options.limit : Infinity;
+    const byKey = new Map(), byName = new Map();
+    const index = record => {
+      if (isGeneralClass(record)) { const key = classKey(record); if (!byKey.has(key)) byKey.set(key, record); }
+      else { const key = compareKey(record.name); if (key && !byName.has(key)) byName.set(key, record); }
+    };
+    all.forEach(index);
+    const find = name => {
+      const spelled = classSpelling(name);
+      return (spelled ? byKey.get(spelled) : byName.get(compareKey(name)))?.id || null;
+    };
+    const resolve = name => {
+      const found = find(name);
+      if (found) return found;
+      const spelled = classSpelling(name);
+      if (!spelled) return null;
+      if (all.length >= limit) { if (!overLimit.includes(spelled)) overLimit.push(spelled); return null; }
+      const parts = classParts(spelled);
+      const record = {id: uid(), name: spelled, grade: gradeName(parts.grade), number: parts.number, homeroomStaffId: ''};
+      all.push(record); newClasses.push(record); index(record);
+      return record.id;
+    };
+    const grade = value => {
+      const internal = gradeKey(value);
+      return sortClasses(all).filter(record => isGeneralClass(record) && GRADES[gradeIndex(record.grade)] === internal).map(record => record.id);
+    };
+    return {resolve, find, grade, get classes() { return all; }, newClasses, overLimit};
+  }
+
+  // ---- Μαθητές μιας δραστηριότητας ----
+  // Οι δραστηριότητες κρατούν: classes (id τμημάτων), subsets (υποσύνολα: ονόματα ομάδων του FET, π.χ.
+  // «Ε1-Γαλ», και, με τον κανόνα των μεικτών δραστηριοτήτων, τα id των ολόκληρων τμημάτων), otherStudents
+  // (ονόματα μαθητών του αρχείου που δεν είναι τμήματα).
+  // Συνδυασμός: classes = ολόκληρα τμήματα και τα τμήματα των υποσυνόλων· όταν υπάρχουν υποσύνολα, μπαίνουν
+  // στα subsets και τα ολόκληρα τμήματα (και τα υποσύνολά τους, extra), ώστε ο έλεγχος συγκρούσεων να μη
+  // χάνει την επικάλυψη στο ολόκληρο τμήμα.
+  function combineStudents(whole, subsets, other, extra = () => []) {
+    const ids = unique(whole);
+    const result = {classes: unique([...ids, ...subsets.map(item => item.classId).filter(Boolean)]), subsets: [], otherStudents: unique(other)};
+    if (subsets.length) result.subsets = unique([...subsets.map(item => item.name), ...ids.flatMap(id => [id, ...extra(id)])]);
+    return result;
+  }
 
   // Ευρετήριο της ιεραρχίας των μαθητών του FET ([{name, groups:[{name, subgroups:[…]}]}]):
   // όνομα → {type:'year'|'group'|'subgroup', groups:[…], parent}.
@@ -376,157 +514,146 @@
     return {index, subgroupsOf};
   }
 
-  // «Students Sets» του FET (π.χ. «Β1+Δ'», «Ε1-Γαλ+Ε2-Γαλ», «Α'-Στ'») → {classes, subsets, unknown}.
-  //   Οι τάξεις αναπτύσσονται στα τμήματά τους και τα τμήματα παίρνουν τη γραφή του Προσωπικού
-  //   (π.χ. «ΣΤ1» → «Στ1»). Υποσύνολα (subgroups) μπαίνουν στα subsets. Όταν υπάρχουν υποσύνολα και
-  //   ολόκληρα τμήματα μαζί, για κάθε ολόκληρο τμήμα μπαίνουν στα subsets το όνομά του και τα υποσύνολά
-  //   του, ώστε ο έλεγχος συγκρούσεων να μη χάνει την επικάλυψη στο ολόκληρο τμήμα.
-  //   unknown: σύνολα που δεν υπάρχουν στην ιεραρχία (μένουν ως τμήματα με τη γραφή του αρχείου).
-  function expandStudents(value, hierarchy, classes) {
+  // «Students Sets» του FET (π.χ. «Β1+Δ'», «Ε1-Γαλ+Ε2-Γαλ», «Α'-Στ'») → {classes, subsets, otherStudents, unknown}.
+  //   Οι τάξεις (Years) αναπτύσσονται στα Groups τους με την ιεραρχία του FET, και κάθε Group αντιστοιχίζεται
+  //   σε τμήμα με το resolver (όσα τμήματα Γενικής Παιδείας λείπουν δημιουργούνται). Υποσύνολα (Subgroups)
+  //   μπαίνουν στα subsets ως κείμενο, με το τμήμα τους στα classes. Groups που δεν είναι τμήματα → otherStudents.
+  //   unknown: σύνολα που δεν υπάρχουν στην ιεραρχία (αντιστοιχίζονται κι αυτά με το resolver).
+  //   resolver: SchoolClasses.resolver, ή τα τμήματα του έτους.
+  function expandStudents(value, hierarchy, resolver) {
     const {index, subgroupsOf} = hierarchy instanceof Map ? {index: hierarchy, subgroupsOf: new Map()} : (hierarchy?.index ? hierarchy : studentsIndex(hierarchy));
-    const known = new Map((classes || []).map(name => [compareKey(name), name]));
-    const spell = name => known.get(compareKey(name)) || name;
+    const classes = classResolver(resolver);
     const parts = String(value ?? '').split('+').map(part => part.trim()).filter(Boolean);
-    const whole = [], subsets = [], unknown = [];
+    const whole = [], subsets = [], other = [], unknown = [], origin = new Map();
+    const remember = (id, name) => { if (id && !origin.has(id)) origin.set(id, name); };
+    const add = name => { const id = classes.resolve(name); if (id) { whole.push(id); remember(id, name); } else other.push(name); };
     for (const part of parts) {
       const entry = index.get(part);
-      if (!entry) { unknown.push(part); whole.push(spell(part)); }
-      else if (entry.type === 'subgroup') subsets.push({class: spell(entry.parent), subset: part});
-      else whole.push(...entry.groups.map(spell));
+      if (!entry) { unknown.push(part); add(part); }
+      else if (entry.type === 'subgroup') { const id = classes.resolve(entry.parent); remember(id, entry.parent); subsets.push({name: part, classId: id}); }
+      else entry.groups.forEach(add);
     }
-    const result = {classes: unique([...whole, ...subsets.map(item => item.class)]), subsets: [], unknown};
-    if (subsets.length) {
-      result.subsets = unique([...subsets.map(item => item.subset), ...unique(whole).flatMap(name => {
-        const original = [...subgroupsOf.keys()].find(key => compareKey(key) === compareKey(name));
-        return [name, ...(original ? subgroupsOf.get(original) : [])];
-      })]);
-    }
-    return result;
+    return {...combineStudents(whole, subsets, other, id => subgroupsOf.get(origin.get(id)) || []), unknown: unique(unknown)};
   }
 
-  // ---- Τάξεις και τμήματα του σχολείου ----
-  // Οι τάξεις με τη σειρά τους. Ένα τμήμα του Προσωπικού είναι γράμματα τάξης και αριθμός («Α1», «Στ2»).
-  const GRADES = Object.freeze(['Α', 'Β', 'Γ', 'Δ', 'Ε', 'ΣΤ']);
-  const GRADE_LABELS = Object.freeze({Α: "Α'", Β: "Β'", Γ: "Γ'", Δ: "Δ'", Ε: "Ε'", ΣΤ: "Στ'"});
-  // Αποστρόφοι που γράφονται μετά το γράμμα της τάξης («Β'», «Β΄», «Β’»).
-  const gradeKey = value => compareKey(value).replace(/['΄’ʹ`´ʼ]/g, '');
-  // «Α1» → {grade:'Α', number:1}· «Στ2» → {grade:'ΣΤ', number:2}· αλλιώς null.
-  function classParts(name) {
-    const match = /^(ΣΤ|[ΑΒΓΔΕ])(\d+)$/.exec(compareKey(name));
-    return match ? {grade: match[1], number: Number(match[2])} : null;
-  }
-  // Η κανονική γραφή ενός τμήματος: «ΣΤ1», «στ1», «Στ 1» → «Στ1»· «α2», «Ά2» → «Α2». Χωρίς τόνους, κενά και
-  // διάκριση πεζών–κεφαλαίων. Τιμή που δεν είναι γράμματα τάξης (Α–Στ) και αριθμός → ''.
-  function classSpelling(name) {
-    const parts = classParts(name);
-    return parts ? (parts.grade === 'ΣΤ' ? 'Στ' : parts.grade) + parts.number : '';
-  }
-  // Τα τμήματα του σχολείου ανά τάξη, με τη σειρά τους: [{grade, classes:[…]}]. Μόνο τάξεις που υπάρχουν.
-  function schoolGrades(classes) {
-    const byGrade = new Map();
-    for (const name of classes || []) {
-      const parts = classParts(name);
-      if (!parts) continue;
-      if (!byGrade.has(parts.grade)) byGrade.set(parts.grade, []);
-      byGrade.get(parts.grade).push({name, number: parts.number});
-    }
-    return GRADES.filter(grade => byGrade.has(grade)).map(grade => ({grade, classes: byGrade.get(grade).sort((a, b) => a.number - b.number).map(item => item.name)}));
+  // Το τμήμα ενός υποσυνόλου από το όνομά του («Ε1-Γαλ»: τμήμα, «-», όνομα) → id ή null. Για τμήμα Γενικής
+  // Παιδείας με το κλειδί (ώστε να ισχύει και μετά από μετονομασία, π.χ. «Ε-1»), για άλλο τμήμα με το όνομα.
+  function subsetParent(name, classes) {
+    const key = compareKey(name);
+    const general = /^((?:ΣΤ|[ΑΒΓΔΕ])\d+)[-–_](.+)$/.exec(key);
+    if (general) { const id = classes.resolve(general[1]); if (id) return id; }
+    const others = classes.classes.filter(record => !isGeneralClass(record)).map(record => ({id: record.id, key: compareKey(record.name)})).filter(item => item.key).sort((a, b) => b.key.length - a.key.length);
+    return others.find(item => key.length > item.key.length + 1 && key.startsWith(item.key) && /[-–_]/.test(key[item.key.length]))?.id || null;
   }
 
-  // Ονόματα ομάδων μαθητών (π.χ. του Ολοήμερου Designer: «Α1», «Β'», «Α'-Στ'», «Ε1-Γαλ», ή «Β1+Δ'») →
-  // {classes, subsets, unknown}, με τους κανόνες της εισαγωγής από FET, χωρίς ιεραρχία του FET:
-  //   τμήμα με υπεύθυνο → classes· τάξη («Β'») → τα τμήματά της· εύρος τάξεων («Α'-Στ'») → τα τμήματα
-  //   των τάξεων· υποσύνολο («Ε1-Γαλ»: τμήμα, «-», όνομα) → subsets, με το τμήμα του στα classes·
-  //   οτιδήποτε άλλο → unknown, και μένει στα classes με τη γραφή του.
-  //   Με υποσύνολα και ολόκληρα τμήματα μαζί, τα ολόκληρα τμήματα μπαίνουν και στα subsets.
-  function studentsFromNames(value, classes) {
+  // Ονόματα ομάδων μαθητών χωρίς ιεραρχία του FET (π.χ. του Ολοήμερου Designer: «Α1», «Β'», «Α'-Στ'», «Ε1-Γαλ»,
+  // ή «Β1+Δ'») → τα μέρη τους: {grades:['Α', …'Στ'], classIds:[…], subsets:[{name, classId}], other:[…]}.
+  //   τάξη («Β'») → grades· εύρος τάξεων («Α'-Στ'») → οι τάξεις του· τμήμα → classIds (με το resolver)·
+  //   υποσύνολο («Ε1-Γαλ») → subsets, με το τμήμα του· οτιδήποτε άλλο → other.
+  function studentsParts(value, resolver) {
+    const classes = classResolver(resolver);
     const parts = (Array.isArray(value) ? value : String(value ?? '').split('+')).map(part => String(part).trim()).filter(Boolean);
-    const known = new Map((classes || []).map(name => [compareKey(name), name]));
-    const grades = schoolGrades(classes), gradeOrder = grades.map(item => item.grade);
-    const gradeClasses = grade => grades.find(item => item.grade === grade)?.classes || [];
-    const byLength = [...known.keys()].sort((a, b) => b.length - a.length);
-    const whole = [], subsets = [], unknown = [];
+    const out = {grades: [], classIds: [], subsets: [], other: []};
     for (const part of parts) {
-      const key = compareKey(part), plain = gradeKey(part);
-      if (known.has(key)) { whole.push(known.get(key)); continue; }
+      const plain = gradeKey(part);
       const grade = /^(ΣΤ|[ΑΒΓΔΕ])$/.exec(plain);
-      if (grade && gradeOrder.includes(grade[1])) { whole.push(...gradeClasses(grade[1])); continue; }
+      if (grade) { out.grades.push(gradeName(grade[1])); continue; }
       const range = /^(ΣΤ|[ΑΒΓΔΕ])[-–—](ΣΤ|[ΑΒΓΔΕ])$/.exec(plain);
-      if (range && gradeOrder.includes(range[1]) && gradeOrder.includes(range[2])) {
+      if (range) {
         const from = GRADES.indexOf(range[1]), to = GRADES.indexOf(range[2]);
-        whole.push(...gradeOrder.filter(item => GRADES.indexOf(item) >= Math.min(from, to) && GRADES.indexOf(item) <= Math.max(from, to)).flatMap(gradeClasses));
+        for (let i = Math.min(from, to); i <= Math.max(from, to); i++) out.grades.push(gradeName(GRADES[i]));
         continue;
       }
-      const parent = byLength.find(name => key.length > name.length + 1 && key.startsWith(name) && /[-–_]/.test(key[name.length]));
-      if (parent) { subsets.push({class: known.get(parent), subset: part}); continue; }
-      unknown.push(part); whole.push(part);
+      const id = classes.resolve(part);
+      if (id) { out.classIds.push(id); continue; }
+      const parent = subsetParent(part, classes);
+      if (parent) { out.subsets.push({name: part, classId: parent}); continue; }
+      out.other.push(part);
     }
-    const result = {classes: unique([...whole, ...subsets.map(item => item.class)]), subsets: [], unknown: unique(unknown)};
-    if (subsets.length) result.subsets = unique([...subsets.map(item => item.subset), ...unique(whole)]);
-    return result;
+    out.grades = unique(out.grades); out.classIds = unique(out.classIds); out.other = unique(out.other);
+    out.subsets = out.subsets.filter((item, index) => out.subsets.findIndex(other => other.name === item.name) === index);
+    return out;
+  }
+  // Τα τμήματα μιας τάξης → id· τάξη χωρίς τμήματα → το όνομά της στο other.
+  const expandGrade = (classes, grade, whole, other) => {
+    const ids = classes.grade(grade);
+    if (ids.length) whole.push(...ids); else other.push(GRADE_LABELS[gradeKey(grade)] || String(grade));
+  };
+
+  // Ονόματα ομάδων μαθητών χωρίς ιεραρχία (βλέπε studentsParts) → {classes, subsets, otherStudents}: οι τάξεις
+  // αναπτύσσονται στα τμήματα που υπάρχουν (τάξη χωρίς τμήματα → otherStudents), με τους κανόνες των
+  // μεικτών δραστηριοτήτων. resolver: SchoolClasses.resolver, ή τα τμήματα του έτους.
+  function studentsFromNames(value, resolver) {
+    const classes = classResolver(resolver), parts = studentsParts(value, classes);
+    const whole = [...parts.classIds], other = [...parts.other];
+    parts.grades.forEach(grade => expandGrade(classes, grade, whole, other));
+    return combineStudents(whole, parts.subsets, other);
   }
 
   // ---- Εμφάνιση μαθητών ----
   // Το κείμενο που δείχνουν όλες οι εφαρμογές για τους μαθητές μιας δραστηριότητας. Υπολογίζεται από τα
-  // classes / subsets και τα τμήματα του Προσωπικού (ctx: {staff} ή {classes}) και δεν αποθηκεύεται.
+  // classes / subsets / otherStudents και τα Τμήματα (ctx.classes) και δεν αποθηκεύεται. Τα ονόματα από τα Τμήματα.
   //   ένα τμήμα ή ένα υποσύνολο → όπως είναι («Α1», «Ε1-Γαλ»)·
   //   ολόκληρη τάξη → «Β'» (τάξη με ένα μόνο τμήμα → το τμήμα)· μερική τάξη → τα τμήματα («Β1»)·
   //   τρεις ή περισσότερες συνεχόμενες ολόκληρες τάξεις → εύρος («Α'-Γ'», «Α'-Στ'»)· δύο, ή μη
-  //   συνεχόμενες, χωριστά («Α', Β'»)· μετά τα υποσύνολα, και στο τέλος άλλα ονόματα όπως είναι.
-  //   Διαχωριστικό «, ».
-  // Τα υποσύνολα που προστέθηκαν μόνο για τον έλεγχο συγκρούσεων (το όνομα ενός ολόκληρου τμήματος και
-  // τα υποσύνολά του) δεν εμφανίζονται.
+  //   συνεχόμενες, χωριστά («Α', Β'»)· μετά τα άλλα τμήματα (αλφαβητικά), τα υποσύνολα, και στο τέλος τα
+  //   otherStudents όπως είναι. Ένα id που δεν υπάρχει στα Τμήματα γράφεται «?». Διαχωριστικό «, ».
+  // Τα υποσύνολα που προστέθηκαν μόνο για τον έλεγχο συγκρούσεων (το id ενός ολόκληρου τμήματος και τα
+  // υποσύνολά του, που αναγνωρίζονται με το κλειδί του τμήματος) δεν εμφανίζονται.
   function studentsText(activity, ctx = {}) {
-    const classes = unique((activity?.classes || []).map(name => String(name).trim()).filter(Boolean));
-    const subsets = unique((activity?.subsets || []).map(name => String(name).trim()).filter(Boolean));
-    if (!classes.length && !subsets.length) return '';
-    const school = ctx.classes || homeroomClasses(ctx.staff);
-    const spelled = new Map(school.map(name => [compareKey(name), name]));
-    const subsetKeys = new Set(subsets.map(compareKey));
-    const mixed = subsets.length > 0;
+    const clean = list => unique((list || []).map(item => String(item ?? '').trim()).filter(Boolean));
+    const ids = clean(activity?.classes), subsets = clean(activity?.subsets), other = clean(activity?.otherStudents);
+    if (!ids.length && !subsets.length && !other.length) return '';
+    const school = (ctx.classes || []).filter(isObject), byId = classesById(school);
+    const subsetSet = new Set(subsets), mixed = subsets.length > 0;
     // Ολόκληρα τμήματα: χωρίς υποσύνολα όλα· με υποσύνολα, όσα υπάρχουν και στα subsets.
-    const whole = new Set(), unknown = [];
-    for (const name of classes) {
-      const key = compareKey(name);
-      if (mixed && !subsetKeys.has(key)) continue;
-      if (spelled.has(key) && classParts(name)) whole.add(spelled.get(key));
-      else unknown.push(name);
+    const whole = new Set();
+    let missing = false;
+    for (const id of ids) {
+      if (mixed && !subsetSet.has(id)) continue;
+      if (byId.has(id)) whole.add(id); else missing = true;
     }
-    const grades = schoolGrades(school), tokens = [];
-    for (const {grade, classes: list} of grades) {
-      const present = list.filter(name => whole.has(name));
+    const grades = classGrades(school), tokens = [];
+    for (const {classes: list, index} of grades) {
+      const present = list.filter(record => whole.has(record.id));
       if (!present.length) continue;
-      if (present.length === list.length) tokens.push({grade, full: true, label: list.length === 1 ? list[0] : GRADE_LABELS[grade]});
-      else present.forEach(name => tokens.push({grade, full: false, label: name}));
+      if (present.length === list.length) tokens.push({index, full: true, label: list.length === 1 ? list[0].name : GRADE_LABELS[GRADES[index]]});
+      else present.forEach(record => tokens.push({index, full: false, label: record.name}));
     }
     // Εύρος: τρεις ή περισσότερες ολόκληρες τάξεις, συνεχόμενες στις τάξεις του σχολείου.
-    const order = grades.map(item => item.grade), pieces = [];
+    const order = grades.map(item => item.index), pieces = [];
     for (let i = 0; i < tokens.length;) {
       let j = i;
-      while (tokens[i].full && j + 1 < tokens.length && tokens[j + 1].full && order.indexOf(tokens[j + 1].grade) === order.indexOf(tokens[j].grade) + 1) j++;
-      if (tokens[i].full && j - i >= 2) { pieces.push(GRADE_LABELS[tokens[i].grade] + '-' + GRADE_LABELS[tokens[j].grade]); i = j + 1; }
+      while (tokens[i].full && j + 1 < tokens.length && tokens[j + 1].full && order.indexOf(tokens[j + 1].index) === order.indexOf(tokens[j].index) + 1) j++;
+      if (tokens[i].full && j - i >= 2) { pieces.push(GRADE_LABELS[GRADES[tokens[i].index]] + '-' + GRADE_LABELS[GRADES[tokens[j].index]]); i = j + 1; }
       else { pieces.push(tokens[i].label); i++; }
     }
-    const wholeKeys = [...whole].map(compareKey);
+    const others = sortClasses(school.filter(record => !isGeneralClass(record) && whole.has(record.id))).map(record => String(record.name ?? ''));
+    const prefixes = [...whole].map(id => byId.get(id)).map(record => compareKey(isGeneralClass(record) ? classKey(record) : record.name)).filter(Boolean);
     const shownSubsets = subsets.filter(name => {
+      if (byId.has(name) || ids.includes(name)) return false;
       const key = compareKey(name);
-      return !classes.some(item => compareKey(item) === key) && !wholeKeys.some(prefix => key.startsWith(prefix) && key.length > prefix.length && /[-–_]/.test(key[prefix.length]));
+      return !prefixes.some(prefix => key.length > prefix.length && key.startsWith(prefix) && /[-–_]/.test(key[prefix.length]));
     });
-    return [...pieces, ...shownSubsets, ...unknown].join(', ');
+    return [...pieces, ...others, ...(missing ? ['?'] : []), ...shownSubsets, ...other].join(', ');
   }
 
   // ---- Υπεύθυνος τμήματος μέσα σε πρόγραμμα ----
+  //   classId: το id του τμήματος· ctx: {classes, staff}.
   // → {id} για εκπαιδευτικό του Προσωπικού, {name} για όνομα χωρίς αντιστοίχιση, ή null.
-  //   1. ο υπεύθυνος του τμήματος στο Προσωπικό, αν εμφανίζεται στο πρόγραμμα,
-  //   2. αλλιώς ο εκπαιδευτικός του προγράμματος που το σύντομο όνομά του ξεκινά με «[τμήμα]».
-  function homeroomTeacher(program, className, staff) {
-    const key = compareKey(className), activities = program?.activities || [];
+  //   1. ο υπεύθυνος του τμήματος (homeroomStaffId), αν εμφανίζεται στο πρόγραμμα,
+  //   2. αλλιώς, μόνο για τμήμα Γενικής Παιδείας, ο εκπαιδευτικός του προγράμματος που το σύντομο όνομά του
+  //      (ή το αρχικό όνομα, για όσους δεν αντιστοιχίστηκαν) ξεκινά με «[κλειδί]», π.χ. «[Α1] - …», χωρίς
+  //      διάκριση πεζών–κεφαλαίων και τόνων («[ΣΤ1]» για το Στ1).
+  function homeroomTeacher(program, classId, ctx = {}) {
+    const record = classesById(ctx.classes || []).get(classId);
+    if (!record) return null;
+    const activities = program?.activities || [];
     const ids = new Set(activities.flatMap(activity => activity.staff || []));
-    const people = staff || [];
-    const official = people.find(person => compareKey(person.homeroomClass) === key && ids.has(person.id));
-    if (official) return {id: official.id};
-    const prefix = compareKey('[' + className + ']');
-    const byName = people.find(person => ids.has(person.id) && compareKey(person.shortName).startsWith(prefix));
+    if (record.homeroomStaffId && ids.has(record.homeroomStaffId)) return {id: record.homeroomStaffId};
+    if (!isGeneralClass(record)) return null;
+    const prefix = compareKey('[' + classKey(record) + ']');
+    const byName = (ctx.staff || []).find(person => ids.has(person.id) && compareKey(person.shortName).startsWith(prefix));
     if (byName) return {id: byName.id};
     const name = unique(activities.flatMap(activity => activity.unmatched || [])).find(item => compareKey(item).startsWith(prefix));
     return name ? {name} : null;
@@ -534,15 +661,17 @@
 
   // ---- Συγκρούσεις ----
   const timesOverlap = (a, b) => a.day === b.day && a.start < b.end && b.start < a.end;
-  // Συγκρούονται στους μαθητές; Κοινό τμήμα, εκτός αν και οι δύο έχουν υποσύνολα χωρίς κοινό στοιχείο.
+  // Συγκρούονται στους μαθητές; Κοινό τμήμα (id), εκτός αν και οι δύο έχουν υποσύνολα χωρίς κοινό στοιχείο.
+  // → τα id των κοινών τμημάτων. Τα otherStudents δεν συγκρίνονται.
   function studentsClash(a, b) {
-    const common = (a.classes || []).filter(name => (b.classes || []).includes(name));
+    const common = (a.classes || []).filter(id => (b.classes || []).includes(id));
     if (!common.length) return [];
     if (a.subsets?.length && b.subsets?.length && !a.subsets.some(item => b.subsets.includes(item))) return [];
     return common;
   }
   // Συγκρούσεις μέσα σε ένα πρόγραμμα, ή σε πολλά μαζί (programs: πίνακας).
-  // → [{type:'staff'|'unmatched'|'class', who, day, start, end, a, b}], όπου a, b οι δραστηριότητες.
+  // → [{type:'staff'|'unmatched'|'class', who, day, start, end, a, b}], όπου a, b οι δραστηριότητες και who
+  //   το id του εκπαιδευτικού (staff), το όνομα χωρίς αντιστοίχιση (unmatched) ή το id του τμήματος (class).
   function conflicts(programs) {
     const list = Array.isArray(programs) ? programs : [programs];
     const slots = [];
@@ -554,7 +683,7 @@
       const base = {day: x.time.day, start: x.time.start > y.time.start ? x.time.start : y.time.start, end: x.time.end < y.time.end ? x.time.end : y.time.end, a: x.activity, b: y.activity};
       for (const id of (x.activity.staff || []).filter(id => (y.activity.staff || []).includes(id))) result.push({type: 'staff', who: id, ...base});
       for (const name of (x.activity.unmatched || []).filter(name => (y.activity.unmatched || []).includes(name))) result.push({type: 'unmatched', who: name, ...base});
-      for (const name of studentsClash(x.activity, y.activity)) result.push({type: 'class', who: name, ...base});
+      for (const id of studentsClash(x.activity, y.activity)) result.push({type: 'class', who: id, ...base});
     }
     return result;
   }
@@ -723,14 +852,16 @@
   // «Ίδια» δραστηριότητα: ίδιο μάθημα, εκπαιδευτικοί, μαθητές, ημέρα και ώρες. Η αίθουσα δεν συγκρίνεται (το
   // σχέδιο δεν έχει αίθουσες). Οι μαθητές συγκρίνονται με τα τμήματα και το κείμενο του studentsText, όχι με τα
   // σκέτα subsets: η εισαγωγή από FET βάζει στα subsets και τα υποσύνολα των ολόκληρων τμημάτων, το σχέδιο όχι.
-  const sameKey = (activity, staff) => JSON.stringify([
+  // Τα τμήματα συγκρίνονται με το id τους.
+  const sameKey = (activity, classes) => JSON.stringify([
     String(activity.subject || '').trim(), [...(activity.staff || [])].sort(), [...(activity.unmatched || [])].sort(),
-    [...(activity.classes || [])].sort(), studentsText(activity, {staff}),
+    [...(activity.classes || [])].sort(), studentsText(activity, {classes}),
     (activity.times || []).map(time => time.day + ' ' + time.start + '-' + time.end).sort()
   ]);
 
   // Ανάλυση (δεν αλλάζει τίποτα).
-  //   program: το ωρολόγιο· design: το σχέδιο του .data· options: {staff, teachingHours, designName}.
+  //   program: το ωρολόγιο· design: το σχέδιο του .data· options: {staff, classes, teachingHours, designName}
+  //   (classes: τα Τμήματα του έτους).
   // → {ok, errors, warnings, info, unmatchedTeachers, kept:[id…], removed:[id…], added:[δραστηριότητες],
   //    unchanged, counts:{kept, removed, added}, designName}. kept: οι ίδιες, που μένουν· removed: του
   //    ωρολογίου που αφαιρούνται· added: του σχεδίου που μπαίνουν. Με λάθη η εισαγωγή δεν γίνεται:
@@ -746,13 +877,13 @@
     let hours;
     try { hours = oloimeroHours(options.teachingHours); } catch (error) { return stop(error.message); }
     if (!hours.length) return stop('Δεν έχουν οριστεί ώρες Πρωινής Ζώνης, Γεύματος, Ολοήμερου ή Διευρυμένου στις «Ώρες Διδασκαλίας».');
-    const staff = options.staff || [], staffById = new Map(staff.map(person => [person.id, person]));
+    const staff = options.staff || [], staffById = new Map(staff.map(person => [person.id, person])), classes = options.classes || [];
     // Μια ώρα είναι «ώρα Ολοημέρου» όταν χωρά ολόκληρη σε μια ώρα Ολοημέρου των Ωρών Διδασκαλίας.
     const inside = time => hours.some(hour => hour.start <= time.start && time.end <= hour.end);
     const touches = time => hours.some(hour => time.start < hour.end && hour.start < time.end);
     const describe = activity => {
       const people = [...(activity.staff || []).map(id => staffById.get(id)?.shortName || '?'), ...(activity.unmatched || [])].join(', ');
-      const parts = [studentsText(activity, {staff}), people].filter(Boolean);
+      const parts = [studentsText(activity, {classes}), people].filter(Boolean);
       return quoted(activity.subject || '—') + (parts.length ? ' (' + parts.join(' · ') + ')' : '');
     };
     const more = (count, one, many) => count > 0 ? ' Το ίδιο ισχύει για ' + count + ' ακόμη ' + (count === 1 ? one : many) + '.' : '';
@@ -782,7 +913,7 @@
       if ((activity.staff || []).some(id => !staffById.has(id))) { unknownStaff.push(activity); continue; }
       incoming.push({
         id: uid(), subject: String(activity.subject || ''), staff: unique(activity.staff || []), unmatched: unique(activity.unmatched || []),
-        classes: [...(activity.classes || [])], subsets: [...(activity.subsets || [])], room: String(activity.room || ''),
+        classes: [...(activity.classes || [])], subsets: [...(activity.subsets || [])], otherStudents: [...(activity.otherStudents || [])], room: String(activity.room || ''),
         times: [...times].sort(byTime).map(({day, start, end}) => ({day, start, end}))
       });
     }
@@ -798,12 +929,12 @@
     // Σύγκριση μία προς μία: κάθε δραστηριότητα του σχεδίου κρατά μία ίδια του ωρολογίου, αν υπάρχει.
     const waiting = new Map();
     for (const activity of current) {
-      const key = sameKey(activity, staff);
+      const key = sameKey(activity, classes);
       if (!waiting.has(key)) waiting.set(key, []);
       waiting.get(key).push(activity.id);
     }
     for (const activity of incoming) {
-      const match = waiting.get(sameKey(activity, staff));
+      const match = waiting.get(sameKey(activity, classes));
       if (match?.length) result.kept.push(match.shift());
       else result.added.push(activity);
     }
@@ -853,19 +984,25 @@
   // =============================================================================================
   // Το πρόγραμμα έχει τις κοινές δραστηριότητες (μία ανά πλήρες κελί: εκπαιδευτικός, μάθημα, μαθητές, ώρα).
   // Το source κρατά ό,τι χρειάζεται ο Designer για να ξαναδείξει τον ίδιο πίνακα:
-  //   version: 1, csvName, importedAt (όταν προήλθε από εισαγωγή),
+  //   version: 2, csvName, importedAt (όταν προήλθε από εισαγωγή),
   //   design:   {hours:[{hourId, count, exceptionsEnabled, dayCounts:[Δε, Τρ, Τε, Πε, Πα]}]}: πόσα κελιά έχει
   //             κάθε ώρα (Πρωινή Ζώνη, Γεύμα, Ολοήμερο, Διευρυμένο) ανά ημέρα,
   //   teachers: [{staffId|null, name, color, availableHours}]: οι εκπαιδευτικοί της αριστερής μπάρας
   //             (name: το σύντομο όνομα· για όσους δεν αντιστοιχίστηκαν, το όνομα του αρχείου),
-  //   subjects / departments: [{id, name}], unions: [{id, name, departmentIds}],
-  //   styles:   {teacher, subject, department, union}: {fontSize, bold, italic},
-  //   placements: {[activityId]: {hourId, day (1–5), slot, students:[{type:'department'|'union', id}]}}:
-  //             η θέση κάθε δραστηριότητας στον πίνακα και τα τμήματα/συνενώσεις του κελιού,
+  //   subjects: [{id, name}],
+  //   unions:   [{id, name, grades:['Α'…'Στ'], classIds:[id…], subsets:[{name, classId}], otherStudents:[…]}]:
+  //             οι Συνενώσεις του χρήστη. Οι Τάξεις και τα Τμήματα της μπάρας δεν αποθηκεύονται: έρχονται
+  //             από τα Τμήματα του έτους, και μια τάξη (και μια Συνένωση με τάξεις) έχει πάντα τα τμήματα
+  //             που υπάρχουν τώρα,
+  //   hidden:   {grades:['Α'…], classes:[id…]}: Τάξεις και Τμήματα που δεν φαίνονται στη μπάρα,
+  //   styles:   {teacher, subject, department (Τάξεις και Τμήματα), union}: {fontSize, bold, italic},
+  //   placements: {[activityId]: {hourId, day (1–5), slot, students:[{type:'grade', grade} | {type:'class', id} |
+  //             {type:'union', id}]}}: η θέση κάθε δραστηριότητας στον πίνακα και οι μαθητές του κελιού,
   //   pending:  [{hourId, day, slot, staffId|null, name, subjectId|null, students}]: τα ελλιπή κελιά (δεν
   //             είναι δραστηριότητες, δεν μετρούν και δεν βγαίνουν στο CSV).
   // Οι εκπαιδευτικοί και το μάθημα κάθε δραστηριότητας διαβάζονται από τη δραστηριότητα (staff, unmatched,
-  // subject), όχι από το source, ώστε να ισχύουν οι αλλαγές του host σε διαγραφή εκπαιδευτικού.
+  // subject), όχι από το source, ώστε να ισχύουν οι αλλαγές του host σε διαγραφή εκπαιδευτικού. Τα classes /
+  // subsets / otherStudents της δραστηριότητας είναι οι μαθητές του κελιού, αναπτυγμένοι στην αποθήκευση.
   const OLOIMERO_CATEGORIES = Object.freeze(['early', 'meal', 'afternoon', 'extended']);
   const OLOIMERO_MAX_SLOTS = 20;
   const OLOIMERO_COLORS = Object.freeze({general: '#fff2a8', other: '#bfe3ff'});
@@ -881,26 +1018,49 @@
   // Οι ώρες των Ωρών Διδασκαλίας που έχει ο πίνακας του Designer (Πρωινή Ζώνη, Γεύμα, Ολοήμερο, Διευρυμένο).
   const oloimeroHours = teachingHours => timedHours(teachingHours).filter(item => OLOIMERO_CATEGORIES.includes(item.category));
   const oloimeroZone = category => category === 'early' ? 'morning' : category === 'extended' ? 'extended' : 'day';
+  // Η γραφή ενός τμήματος στα αρχεία (CSV για το FET): το κλειδί για τμήμα Γενικής Παιδείας («Α1», όχι «Α-1»),
+  // το όνομα για άλλο τμήμα.
+  const classFileName = record => record ? (classKey(record) || String(record.name ?? '')) : '';
+  const validGrades = list => unique((Array.isArray(list) ? list : []).map(gradeKey).filter(grade => GRADES.includes(grade)).map(gradeName));
 
-  // Τμήματα και συνενώσεις ενός κελιού → {text, classes, subsets, unknown}. text: τα ονόματα ενωμένα με «+»,
-  // όπως τα γράφει η στήλη «Students Sets» του CSV για το FET.
-  //   Μια συνένωση αναλύεται με το όνομά της, όπως θα το διαβάσει το FET (π.χ. «Α'-Στ'», «Β1+Δ'»)· αν το
-  //   όνομα δεν είναι τμήματα, τάξεις ή υποσύνολα (π.χ. «Συνένωση Α»), αναλύεται στα τμήματά της.
-  //   lists: {departments, unions} (του source)· classes: τα τμήματα του σχολείου (homeroomClasses).
+  // Οι μαθητές ενός κελιού → {text, classes, subsets, otherStudents}. text: τα ονόματα ενωμένα με «+», όπως τα
+  // γράφει η στήλη «Students Sets» του CSV για το FET (τάξη «Β'», τμήμα Γενικής Παιδείας με το κλειδί, άλλο
+  // τμήμα με το όνομά του, Συνένωση με το όνομά της).
+  //   items: [{type:'grade', grade} | {type:'class', id} | {type:'union', id}]· lists: {unions} (του source)·
+  //   classes: τα Τμήματα του έτους (ή SchoolClasses.resolver). Μια τάξη αναπτύσσεται στα τμήματα που υπάρχουν·
+  //   τάξη χωρίς τμήματα → το όνομά της στο otherStudents.
   function oloimeroStudents(items, lists, classes) {
-    const departments = new Map((lists?.departments || []).map(item => [item.id, item])), unions = new Map((lists?.unions || []).map(item => [item.id, item]));
-    const records = (items || []).map(item => item?.type === 'union' ? {item, record: unions.get(item.id)} : {item, record: departments.get(item?.id)}).filter(entry => entry.record?.name);
-    const names = records.flatMap(({item, record}) => {
-      if (item.type !== 'union' || !studentsFromNames(record.name, classes).unknown.length) return [record.name];
-      return (record.departmentIds || []).map(id => departments.get(id)?.name).filter(Boolean);
-    });
-    return {text: records.map(entry => entry.record.name).join('+'), ...studentsFromNames(names, classes)};
+    const resolver = classResolver(classes), byId = classesById(resolver.classes);
+    const unions = new Map((lists?.unions || []).filter(isObject).map(item => [item.id, item]));
+    const texts = [], whole = [], subsets = [], other = [];
+    for (const item of items || []) {
+      if (item?.type === 'grade') {
+        const internal = gradeKey(item.grade);
+        if (!GRADES.includes(internal)) continue;
+        texts.push(GRADE_LABELS[internal]);
+        expandGrade(resolver, internal, whole, other);
+      } else if (item?.type === 'class') {
+        const record = byId.get(item.id);
+        if (!record) continue;
+        texts.push(classFileName(record));
+        whole.push(record.id);
+      } else if (item?.type === 'union') {
+        const union = unions.get(item.id);
+        if (!union?.name) continue;
+        texts.push(union.name);
+        validGrades(union.grades).forEach(grade => expandGrade(resolver, grade, whole, other));
+        whole.push(...(union.classIds || []).filter(id => byId.has(id)));
+        for (const subset of union.subsets || []) if (subset?.name) subsets.push({name: String(subset.name), classId: byId.has(subset.classId) ? subset.classId : null});
+        other.push(...(union.otherStudents || []).map(String).filter(Boolean));
+      }
+    }
+    return {text: texts.join('+'), ...combineStudents(whole, subsets, other)};
   }
 
   // Οι γραμμές ενός σχεδίου, με τη σειρά του CSV για το FET:
   //   Πρωινή Ζώνη (κατά ημέρα), μετά για κάθε ημέρα Γεύμα και Ολοήμερο (κατά ώρα και θέση), μετά Διευρυμένο.
   // Με αυτή τη σειρά δίνει το FET τα Activity Id στις δραστηριότητες του CSV.
-  //   ctx: {staff, teachingHours}. → {rows, sorted, incomplete}: rows με τη σειρά του CSV, sorted κατά
+  //   ctx: {staff, classes, teachingHours}. → {rows, sorted, incomplete}: rows με τη σειρά του CSV, sorted κατά
   //   ημέρα και ώρα· incomplete: δραστηριότητες χωρίς εκπαιδευτικό, μάθημα, μαθητές ή ώρα του πίνακα.
   function oloimeroDesignRows(program, ctx = {}) {
     const hours = oloimeroHours(ctx.teachingHours);
@@ -908,6 +1068,7 @@
     const source = program?.source?.type === 'oloimero-designer' ? program.source : {};
     const placements = isObject(source.placements) ? source.placements : {};
     const staffById = new Map((ctx.staff || []).map(person => [person.id, person]));
+    const classes = ctx.classes || [], classById = classesById(classes);
     const zoneTags = ctx.teachingHours?.tags || {}, dayTags = ctx.teachingHours?.dayTags || {};
     const items = [];
     let incomplete = 0;
@@ -916,7 +1077,8 @@
       let hour = place ? hours.find(item => String(item.hour.id) === String(place.hourId)) : null;
       if (!hour && time) hour = hours.find(item => item.start === time.start && item.end === time.end);
       const day = Number(place?.day || time?.day) || 0;
-      const students = place?.students?.length ? oloimeroStudents(place.students, source, []).text : (activity.classes || []).join('+');
+      const students = place?.students?.length ? oloimeroStudents(place.students, source, classes).text
+        : [...(activity.classes || []).map(id => classFileName(classById.get(id))).filter(Boolean), ...(activity.otherStudents || [])].join('+');
       const teachers = unique([...(activity.staff || []).map(id => staffById.get(id)?.shortName).filter(Boolean), ...(activity.unmatched || [])]);
       const subject = String(activity.subject || '').trim();
       if (!hour || day < 1 || day > 5 || !teachers.length || !subject || !students) { incomplete++; return; }
@@ -930,19 +1092,22 @@
 
   // Οι γραμμές ενός σχεδίου του .data, με τη σειρά του CSV για το FET και στη μορφή του oloimeroRowsFromCsv
   // ({line, studentsSets, subject, teachers, tags}). line: η θέση της γραμμής στο CSV για το FET (1, 2, …).
+  //   ctx: {staff, classes, teachingHours}.
   function oloimeroRowsFromProgram(program, ctx = {}) {
     return oloimeroDesignRows(program, ctx).rows.map((row, index) => ({line: index + 1, activityId: row.activityId, studentsSets: row.studentsSets, subject: row.subject, teachers: [...row.teachers], tags: [...row.tags]}));
   }
 
   // Εξαγωγή CSV για το FET από ένα σχέδιο (προσχέδιο ή σχέδιο περιόδου). Στη στήλη «Teachers» μπαίνει το
-  // σύντομο όνομα του Προσωπικού, ή το αρχικό όνομα για όσους δεν αντιστοιχίστηκαν. Το αρχείο κρατά στο
-  // τέλος, σε σχόλια που το FET αγνοεί, τα στοιχεία σχεδίασης (χρώματα, τμήματα, συνενώσεις, Σχεδιασμός),
-  // ώστε μια νέα εισαγωγή του να δίνει τον ίδιο πίνακα.
-  //   ctx: {staff, teachingHours, now}. → {text, exported, incomplete}.
+  // σύντομο όνομα του Προσωπικού, ή το αρχικό όνομα για όσους δεν αντιστοιχίστηκαν· στη «Students Sets» μια
+  // τάξη ως «Β'», ένα τμήμα Γενικής Παιδείας με το κλειδί («Α1», όχι «Α-1»), ένα άλλο τμήμα με το όνομά του και
+  // μια Συνένωση με το όνομά της. Το αρχείο κρατά στο τέλος, σε σχόλια που το FET αγνοεί, τα στοιχεία
+  // σχεδίασης (μορφή v4: χρώματα, Συνενώσεις, κρυφές Τάξεις και Τμήματα, Σχεδιασμός), με τα τμήματα στη γραφή
+  // των αρχείων και όχι με id, ώστε μια νέα εισαγωγή του να δίνει τον ίδιο πίνακα και σε άλλο κοινό αρχείο.
+  //   ctx: {staff, classes, teachingHours, now}. → {text, exported, incomplete}.
   function oloimeroCsvFromProgram(program, ctx = {}) {
     const {rows, sorted, incomplete} = oloimeroDesignRows(program, ctx);
     const line = row => [quote(row.studentsSets), quote(row.subject), quote(row.teachers.join('+')), quote(row.tags.join('+')), 1, quote(''), '', '', '', quote('')].join(',');
-    const lines = ['\uFEFF' + OLOIMERO_CSV_HEADER, '', '# Πρωινή Ζώνη #'];
+    const lines = ['﻿' + OLOIMERO_CSV_HEADER, '', '# Πρωινή Ζώνη #'];
     rows.filter(row => row.zone === 'morning').forEach(row => lines.push(line(row)));
     lines.push('', '');
     for (let day = 1; day <= 5; day++) {
@@ -979,19 +1144,31 @@
     teacherGroups(['day', 'extended'], true);
     const source = program?.source?.type === 'oloimero-designer' ? program.source : {};
     const staffById = new Map((ctx.staff || []).map(person => [person.id, person]));
+    const classById = classesById(ctx.classes || []);
+    const fileName = id => classFileName(classById.get(id));
     const metadata = {
-      format: 'oloimero-designer-data-v3', exportedAt: ctx.now || nowIso(), name: program?.name || '',
+      format: 'oloimero-designer-data-v4', exportedAt: ctx.now || nowIso(), name: program?.name || '',
       design: source.design || {hours: []},
       teachers: (source.teachers || []).map(teacher => ({...teacher, name: staffById.get(teacher.staffId)?.shortName || teacher.name})),
-      subjects: source.subjects || [], departments: source.departments || [], unions: source.unions || [], styles: source.styles || {}
+      subjects: source.subjects || [],
+      unions: (source.unions || []).filter(isObject).map(union => ({
+        id: union.id, name: union.name, grades: validGrades(union.grades),
+        classes: (union.classIds || []).map(fileName).filter(Boolean),
+        subsets: (union.subsets || []).filter(isObject).map(subset => ({name: subset.name, class: fileName(subset.classId)})),
+        otherStudents: [...(union.otherStudents || [])]
+      })),
+      hidden: {grades: validGrades(source.hidden?.grades), classes: (source.hidden?.classes || []).map(fileName).filter(Boolean)},
+      styles: source.styles || {}
     };
     lines.push('', '', OLOIMERO_JSON_BEGIN, ...JSON.stringify(metadata, null, 2).split('\n').map(item => '# ' + item), OLOIMERO_JSON_END);
     return {text: lines.join('\n') + '\n', exported: rows.length, incomplete};
   }
 
   // Τα στοιχεία σχεδίασης που γράφει ο Designer στο τέλος του CSV (σε σχόλια). Διαβάζει τις μορφές v1, v2
-  // (το παλιό αρχείο του Designer) και v3 (η εξαγωγή για το FET). → κανονικοποιημένα στοιχεία, {invalid:true}
-  // όταν δεν διαβάζονται, ή null όταν το CSV δεν τα έχει.
+  // (το παλιό αρχείο του Designer), v3 (η εξαγωγή για το FET με Τμήματα του Designer) και v4 (με Τάξεις και
+  // Τμήματα από τα Τμήματα του έτους). → κανονικοποιημένα στοιχεία, {invalid:true} όταν δεν διαβάζονται, ή
+  // null όταν το CSV δεν τα έχει. Οι Συνενώσεις: {id, name, grades, classes:[όνομα…], subsets:[{name, class}],
+  // otherStudents} (v4) ή {id, name, departments:[όνομα…]} (v1–v3: τα ονόματα των Τμημάτων του Designer).
   function oloimeroMetadata(textValue) {
     const lines = String(textValue ?? '').replace(BOM, '').split(/\r?\n/);
     const begin = lines.findIndex(line => line.trim() === OLOIMERO_JSON_BEGIN);
@@ -1002,6 +1179,7 @@
     if (!isObject(payload)) return {invalid: true};
     const list = value => Array.isArray(value) ? value.filter(isObject) : [];
     const text = value => String(value ?? '').normalize('NFC').trim();
+    const texts = value => Array.isArray(value) ? value.map(text).filter(Boolean) : [];
     const named = value => list(value).map(item => ({id: text(item.id) || uid(), name: text(item.name)})).filter(item => item.name);
     const days = DAY_LABELS.slice(0, 5);
     const counts = (value, count) => Array.isArray(value) ? days.map((_, index) => clampCount(value[index] ?? count)) : days.map(day => clampCount(value?.[day] ?? count));
@@ -1009,26 +1187,39 @@
     if (Array.isArray(payload.design?.hours)) design = list(payload.design.hours).map(item => ({ids: [text(item.hourId)], label: '', count: clampCount(item.count), exceptionsEnabled: !!item.exceptionsEnabled, dayCounts: counts(item.dayCounts, item.count)}));
     else if (Array.isArray(payload.state?.design?.periods)) design = list(payload.state.design.periods).map(item => ({ids: [text(item.sourceId), text(item.id)].filter(Boolean), label: text(item.label), count: clampCount(item.count), exceptionsEnabled: !!item.exceptionsEnabled, dayCounts: counts(item.dayCounts, item.count)}));
     const styles = Object.fromEntries(OLOIMERO_STYLE_KEYS.map(key => [key, designStyle(payload.styles?.[key] || payload.categoryStyles?.[key])]));
+    const format = text(payload.format), v4 = /-v4$/.test(format);
+    const departments = new Map(named(payload.departments).map(item => [item.id, item.name]));
+    const unions = list(payload.unions).map(item => {
+      const base = {id: text(item.id) || uid(), name: text(item.name)};
+      if (v4) return {...base, grades: validGrades(item.grades), classes: texts(item.classes), subsets: list(item.subsets).map(subset => ({name: text(subset.name), class: text(subset.class)})).filter(subset => subset.name), otherStudents: texts(item.otherStudents)};
+      return {...base, departments: (Array.isArray(item.departmentIds) ? item.departmentIds : []).map(id => departments.get(id)).filter(Boolean)};
+    }).filter(item => item.name);
     return {
-      format: text(payload.format), design, styles,
+      format, design, styles,
       teachers: list(payload.teachers).map(item => ({
         staffId: text(item.staffId) || null, code: text(item.staffCode), name: text(item.name),
         aliases: Array.isArray(item.aliases) ? item.aliases.map(text).filter(Boolean) : [],
         color: validColor(item.color) ? String(item.color).toLowerCase() : '', availableHours: Math.max(0, Math.floor(Number(item.availableHours) || 0))
       })).filter(item => item.name || item.staffId),
-      subjects: named(payload.subjects), departments: named(payload.departments),
-      unions: list(payload.unions).map(item => ({id: text(item.id) || uid(), name: text(item.name), departmentIds: Array.isArray(item.departmentIds) ? item.departmentIds.filter(id => typeof id === 'string') : []})).filter(item => item.name)
+      subjects: named(payload.subjects), unions,
+      hidden: {grades: validGrades(payload.hidden?.grades), classes: texts(payload.hidden?.classes)}
     };
   }
 
   // Ανάλυση της εισαγωγής ενός CSV του Ολοήμερου Designer (πρώτη φάση· δεν αλλάζει τίποτα).
-  //   input: {csvText, csvName, staff, teachingHours}.
+  //   input: {csvText, csvName, staff, classes, classLimit, teachingHours}. classes: τα Τμήματα του έτους, μαζί
+  //   με όσα δεν έχουν αποθηκευτεί ακόμη· classLimit: το όριο πλήθους τμημάτων.
   //   Οι ημέρες και οι ώρες βγαίνουν από τις ετικέτες ημέρας (dayTags) και ώρας (fetTag) των Ωρών
-  //   Διδασκαλίας. Αν το CSV έχει τα στοιχεία σχεδίασης του Designer, κρατιούνται χρώματα, τμήματα,
-  //   συνενώσεις και Σχεδιασμός.
-  // → {ok, errors, warnings, info, unmatchedTeachers, counts, …}. Με λάθη η εισαγωγή δεν γίνεται.
+  //   Διδασκαλίας. Αν το CSV έχει τα στοιχεία σχεδίασης του Designer, κρατιούνται χρώματα, Συνενώσεις,
+  //   κρυφές Τάξεις και Τμήματα και Σχεδιασμός.
+  //   Μαθητές κάθε γραμμής («Students Sets»): μια τάξη («Β'») ή ένα τμήμα γίνεται Τάξη ή Τμήμα του κελιού (τα
+  //   τμήματα αντιστοιχίζονται με το SchoolClasses.resolver, και όσα Γενικής Παιδείας λείπουν δημιουργούνται)·
+  //   μια Συνένωση των στοιχείων σχεδίασης με το όνομά της· ονόματα με «+» από τέτοια στοιχεία γίνονται
+  //   περισσότερα στοιχεία του κελιού· οτιδήποτε άλλο («Α'-Στ'», «Ομάδα Χ», «Ε1-Γαλ») γίνεται Συνένωση με αυτό
+  //   το όνομα, με τις τάξεις και τα τμήματα που αναγνωρίζονται μέσα του, και τα υπόλοιπα στο otherStudents.
+  // → {ok, errors, warnings, info, unmatchedTeachers, counts, newClasses, …}. Με λάθη η εισαγωγή δεν γίνεται.
   function analyzeOloimeroImport(input = {}) {
-    const result = {ok: false, errors: [], warnings: [], info: [], unmatchedTeachers: [], counts: {}, csvName: input.csvName || ''};
+    const result = {ok: false, errors: [], warnings: [], info: [], unmatchedTeachers: [], counts: {}, newClasses: [], csvName: input.csvName || ''};
     const stop = message => { result.errors.push(message); return result; };
     const staff = input.staff || [];
     if (!staff.length) return stop('Δεν έχει συμπληρωθεί το Προσωπικό του σχολικού έτους. Συμπλήρωσέ το πρώτα στο «Προσωπικό».');
@@ -1056,7 +1247,7 @@
     const metadata = oloimeroMetadata(input.csvText);
     if (metadata?.invalid) result.info.push('Τα στοιχεία σχεδίασης στο τέλος του CSV δεν διαβάζονται. Εισάγονται μόνο οι δραστηριότητες, με προεπιλεγμένα χρώματα.');
     const meta = metadata && !metadata.invalid ? metadata : null;
-    if (meta) result.info.push('Κρατήθηκαν και τα στοιχεία σχεδίασης του Designer που υπάρχουν στο CSV (χρώματα, τμήματα, συνενώσεις, Σχεδιασμός).');
+    if (meta) result.info.push('Κρατήθηκαν και τα στοιχεία σχεδίασης του Designer που υπάρχουν στο CSV (χρώματα, συνενώσεις, Σχεδιασμός).');
 
     // Εκπαιδευτικοί: με το σύντομο όνομα, μετά με τον κωδικό.
     const byShortName = new Map(staff.filter(person => person.shortName).map(person => [compareKey(person.shortName), person]));
@@ -1066,34 +1257,64 @@
     result.unmatchedTeachers = teacherNames.filter(name => !teacherMatch.get(name));
     if (result.unmatchedTeachers.length) result.warnings.push('Εκπαιδευτικοί χωρίς αντιστοίχιση στο Προσωπικό: ' + result.unmatchedTeachers.map(quoted).join(', ') + '. Μπορούν να εισαχθούν χωρίς αντιστοίχιση ή να μην εισαχθούν. Για αντιστοίχιση, διόρθωσε το σύντομο όνομα στο Προσωπικό ή στο CSV.');
 
-    // Τμήματα και συνενώσεις του Designer, όπως τις έφτιαχνε και το άνοιγμα του CSV στον Designer.
-    const departments = clone(meta?.departments || []), unions = clone(meta?.unions || []);
-    const findName = (list, name) => list.find(item => compareKey(item.name) === compareKey(name));
-    const addDepartment = name => findName(departments, name) || (departments.push({id: uid(), name}), departments[departments.length - 1]);
-    const resolve = value => {
+    // Μαθητές: Τάξεις, Τμήματα και Συνενώσεις.
+    const resolver = classResolver(input.classes, {limit: input.classLimit});
+    // Ένα όνομα που είναι μία τάξη ή ένα τμήμα → το στοιχείο του κελιού· αλλιώς null.
+    const single = name => {
+      if (String(name).includes('+')) return null;
+      const parts = studentsParts(name, resolver);
+      if (parts.grades.length === 1 && !parts.classIds.length && !parts.subsets.length && !parts.other.length && !/[-–—]/.test(gradeKey(name))) return {type: 'grade', grade: parts.grades[0]};
+      if (parts.classIds.length === 1 && !parts.grades.length && !parts.subsets.length && !parts.other.length) return {type: 'class', id: parts.classIds[0]};
+      return null;
+    };
+    const unionFromParts = (base, parts) => ({id: base.id || uid(), name: base.name, grades: parts.grades, classIds: parts.classIds, subsets: parts.subsets, otherStudents: parts.other});
+    // Οι Συνενώσεις των στοιχείων σχεδίασης. Μια Συνένωση με όνομα μίας τάξης ή ενός τμήματος (π.χ. η παλιά
+    // «Β'») δεν χρειάζεται πια: γίνεται Τάξη ή Τμήμα του κελιού.
+    const unions = [];
+    for (const saved of meta?.unions || []) {
+      if (single(saved.name)) continue;
+      let parts;
+      if (saved.departments) {
+        // v1–v3: η Συνένωση αναλύεται με το όνομά της· αν το όνομα δεν είναι τάξεις ή τμήματα (π.χ.
+        // «Συνένωση Α»), με τα Τμήματα του Designer που περιείχε.
+        parts = studentsParts(saved.name, resolver);
+        if (!parts.grades.length && !parts.classIds.length && !parts.subsets.length) parts = studentsParts(saved.departments, resolver);
+      } else {
+        parts = {grades: saved.grades, classIds: [], subsets: [], other: [...saved.otherStudents]};
+        for (const name of saved.classes) { const id = resolver.resolve(name); if (id) parts.classIds.push(id); else parts.other.push(name); }
+        for (const subset of saved.subsets) parts.subsets.push({name: subset.name, classId: (subset.class && resolver.resolve(subset.class)) || subsetParent(subset.name, resolver)});
+        parts.classIds = unique(parts.classIds); parts.other = unique(parts.other);
+      }
+      unions.push(unionFromParts(saved, parts));
+    }
+    const findUnion = name => unions.find(item => compareKey(item.name) === compareKey(name));
+    const resolveCell = value => {
       const name = String(value || '').normalize('NFC').trim();
       if (!name) return [];
-      const union = findName(unions, name);
+      const item = single(name);
+      if (item) return [item];
+      const union = findUnion(name);
       if (union) return [{type: 'union', id: union.id}];
-      const department = findName(departments, name);
-      if (department) return [{type: 'department', id: department.id}];
-      const parts = name.split('+').map(part => part.trim()).filter(Boolean);
-      if (parts.length > 1) {
-        const items = parts.map(part => { const u = findName(unions, part); if (u) return {type: 'union', id: u.id}; const d = findName(departments, part); return d ? {type: 'department', id: d.id} : null; });
+      const pieces = name.split('+').map(part => part.trim()).filter(Boolean);
+      if (pieces.length > 1) {
+        const items = pieces.map(part => { const found = findUnion(part); return found ? {type: 'union', id: found.id} : single(part); });
         if (items.every(Boolean)) return items;
-        const created = {id: uid(), name, departmentIds: parts.map(part => addDepartment(part).id)};
-        unions.push(created);
-        return [{type: 'union', id: created.id}];
       }
-      return [{type: 'department', id: addDepartment(name).id}];
+      const created = unionFromParts({name}, studentsParts(name, resolver));
+      unions.push(created);
+      return [{type: 'union', id: created.id}];
     };
-    const classes = homeroomClasses(staff), unknown = [];
-    for (const item of placed) {
-      item.students = resolve(item.row.studentsSets);
-      item.expanded = oloimeroStudents(item.students, {departments, unions}, classes);
-      unknown.push(...item.expanded.unknown);
-    }
-    if (unique(unknown).length) result.info.push('Ομάδες μαθητών που δεν είναι τμήματα με υπεύθυνο στο Προσωπικό, τάξεις ή υποσύνολα τμημάτων: ' + unique(unknown).map(quoted).join(', ') + '. Μένουν στις δραστηριότητες με τη γραφή του αρχείου.');
+    for (const item of placed) item.students = resolveCell(item.row.studentsSets);
+    if (resolver.overLimit.length) return stop('Η εισαγωγή θα δημιουργούσε τα τμήματα ' + resolver.overLimit.join(', ') + ', πάνω από το όριο των ' + input.classLimit + ' τμημάτων του σχολικού έτους. Αφαίρεσε τμήματα που δεν χρειάζονται στα «Τμήματα» ή διόρθωσε το CSV.');
+    for (const item of placed) item.expanded = oloimeroStudents(item.students, {unions}, resolver);
+    const usedUnions = new Set(placed.flatMap(item => item.students.filter(part => part.type === 'union').map(part => part.id)));
+    const others = unique(unions.filter(union => usedUnions.has(union.id)).flatMap(union => union.otherStudents));
+    if (others.length) result.info.push('Ομάδες μαθητών που δεν είναι τμήματα, τάξεις ή υποσύνολα τμημάτων: ' + others.map(quoted).join(', ') + '. Μπαίνουν σε συνένωση με το όνομα του αρχείου, χωρίς τμήμα.');
+    const labels = new Set(Object.values(GRADE_LABELS));
+    const emptyGrades = unique(placed.flatMap(item => item.expanded.otherStudents.filter(name => labels.has(name))));
+    if (emptyGrades.length) result.warnings.push((emptyGrades.length === 1 ? 'Η τάξη ' + emptyGrades[0] + ' δεν έχει' : 'Οι τάξεις ' + emptyGrades.join(', ') + ' δεν έχουν') + ' τμήματα στα «Τμήματα». Οι δραστηριότητές τους μπαίνουν χωρίς τμήμα· πρόσθεσε τα τμήματα στα «Τμήματα» και ξαναδοκίμασε.');
+    result.newClasses = clone(sortClasses(resolver.newClasses));
+    if (result.newClasses.length) result.warnings.push('Θα δημιουργηθούν τα τμήματα: ' + result.newClasses.map(item => item.name).join(', ') + '.');
 
     // Σχεδιασμός: από τα στοιχεία του Designer, αλλιώς από τις γραμμές· πάντα αρκετά κελιά για τις γραμμές.
     const needed = new Map();
@@ -1121,28 +1342,34 @@
       return entry;
     })};
     if (raised) result.info.push('Ο Σχεδιασμός του CSV είχε λιγότερα κελιά από τις δραστηριότητες σε κάποιες ώρες· αυξήθηκαν ώστε να χωρούν όλες.');
+    // Κρυφές Τάξεις και Τμήματα (μόνο όσα υπάρχουν).
+    const hidden = {grades: meta?.hidden?.grades || [], classes: unique((meta?.hidden?.classes || []).map(name => resolver.find(name)).filter(Boolean))};
 
     result.counts = {activities: placed.length, rows: rows.length, teachers: teacherNames.length, matched: teacherNames.length - result.unmatchedTeachers.length, classes: unique(placed.flatMap(item => item.expanded.classes)).length};
     result.ok = true;
     // Για τη δεύτερη φάση (buildOloimeroProgram). Δεν προορίζονται για εμφάνιση.
-    Object.defineProperty(result, 'plan', {enumerable: false, value: {placed, teacherMatch, meta, departments, unions, design, staff}});
+    Object.defineProperty(result, 'plan', {enumerable: false, value: {placed, teacherMatch, meta, unions, hidden, design, staff}});
     return result;
   }
 
-  // Κατασκευή του σχεδίου από την ανάλυση (δεύτερη φάση).
+  // Κατασκευή του σχεδίου από την ανάλυση (δεύτερη φάση). Τα νέα τμήματα της ανάλυσης (analysis.newClasses)
+  // τα αποθηκεύει η εφαρμογή μαζί με το σχέδιο.
   //   options: {unmatched:'keep'|'drop', kind ('oloimero'), name, periodId (ή null για προσχέδιο), id, now}.
   function buildOloimeroProgram(analysis, options = {}) {
     if (!analysis?.ok || !analysis.plan) throw Error('Η εισαγωγή δεν μπορεί να γίνει: ' + (analysis?.errors?.[0] || 'δεν έγινε ανάλυση.'));
-    const {placed, teacherMatch, meta, departments, unions, design, staff} = analysis.plan;
+    const {placed, teacherMatch, meta, unions, hidden, design, staff} = analysis.plan;
     const keepUnmatched = options.unmatched !== 'drop', at = options.now || nowIso();
     const activities = [], placements = {};
+    // Μόνο οι Συνενώσεις των στοιχείων σχεδίασης και όσες χρησιμοποιούνται.
+    const savedIds = new Set((meta?.unions || []).map(item => item.id));
+    const used = new Set(placed.flatMap(item => item.students.filter(part => part.type === 'union').map(part => part.id)));
     for (const item of placed) {
       const id = uid();
       const people = item.row.teachers.map(name => teacherMatch.get(name)).filter(Boolean);
       activities.push({
         id, subject: item.row.subject, staff: unique(people.map(person => person.id)),
         unmatched: keepUnmatched ? unique(item.row.teachers.filter(name => !teacherMatch.get(name))) : [],
-        classes: [...item.expanded.classes], subsets: [...item.expanded.subsets], room: '',
+        classes: [...item.expanded.classes], subsets: [...item.expanded.subsets], otherStudents: [...item.expanded.otherStudents], room: '',
         times: [{day: item.day, start: item.hour.start, end: item.hour.end}]
       });
       placements[id] = {hourId: String(item.hour.hour.id), day: item.day, slot: item.slot, students: clone(item.students)};
@@ -1170,11 +1397,13 @@
     const subjects = clone(meta?.subjects || []);
     for (const name of unique(placed.map(item => item.row.subject).filter(Boolean))) if (!subjects.some(item => compareKey(item.name) === compareKey(name))) subjects.push({id: uid(), name});
     return {
-      id: options.id || uid(), formatVersion: 1, kind: options.kind || 'oloimero', periodId: options.periodId ?? null,
+      id: options.id || uid(), formatVersion: 2, kind: options.kind || 'oloimero', periodId: options.periodId ?? null,
       name: options.name || '', createdAt: at, updatedAt: at, activities,
       source: {
-        type: 'oloimero-designer', version: 1, csvName: analysis.csvName, importedAt: at,
-        design: clone(design), teachers, subjects, departments: clone(departments), unions: clone(unions),
+        type: 'oloimero-designer', version: 2, csvName: analysis.csvName, importedAt: at,
+        design: clone(design), teachers, subjects,
+        unions: clone(unions.filter(union => savedIds.has(union.id) || used.has(union.id))),
+        hidden: clone(hidden),
         styles: clone(meta?.styles || Object.fromEntries(OLOIMERO_STYLE_KEYS.map(key => [key, designStyle(null)]))),
         placements, pending: []
       }
@@ -1210,13 +1439,17 @@
   }
 
   // Ανάλυση της εισαγωγής ωρολογίου από FET (πρώτη φάση· δεν αλλάζει τίποτα).
-  //   input: {csvText, csvName, fetText, fetName, staff, teachingHours, replacing (το πρόγραμμα που θα
-  //           αντικατασταθεί, αν υπάρχει)}.
-  // → {ok, errors, warnings, info, unmatchedTeachers, counts, …}. Με λάθη η εισαγωγή δεν γίνεται.
+  //   input: {csvText, csvName, fetText, fetName, staff, classes, classLimit, teachingHours, replacing (το
+  //           πρόγραμμα που θα αντικατασταθεί, αν υπάρχει)}. classes: τα Τμήματα του έτους, μαζί με όσα δεν
+  //           έχουν αποθηκευτεί ακόμη· classLimit: το όριο πλήθους τμημάτων.
+  // → {ok, errors, warnings, info, unmatchedTeachers, counts, newClasses, …}. Με λάθη η εισαγωγή δεν γίνεται.
+  //   Τμήματα: τα Groups του FET αντιστοιχίζονται με το SchoolClasses.resolver· όσα τμήματα Γενικής Παιδείας
+  //   λείπουν δημιουργούνται (newClasses, με τελικά id, που τα αποθηκεύει η εφαρμογή μαζί με το πρόγραμμα)·
+  //   ονόματα που δεν είναι τμήματα μπαίνουν στο otherStudents.
   //   unmatchedTeachers: εκπαιδευτικοί χωρίς αντιστοίχιση· ο χρήστης επιλέγει «Εισαγωγή χωρίς
   //   αντιστοίχιση» ή «Να μην εισαχθούν» (buildFetProgram, options.unmatched 'keep' ή 'drop').
   function analyzeFetImport(input = {}) {
-    const result = {ok: false, errors: [], warnings: [], info: [], unmatchedTeachers: [], counts: {}, csvName: input.csvName || '', fetName: input.fetName || ''};
+    const result = {ok: false, errors: [], warnings: [], info: [], unmatchedTeachers: [], counts: {}, newClasses: [], csvName: input.csvName || '', fetName: input.fetName || ''};
     const stop = message => { result.errors.push(message); return result; };
     const staff = input.staff || [];
     if (!staff.length) return stop('Δεν έχει συμπληρωθεί το Προσωπικό του σχολικού έτους. Συμπλήρωσέ το πρώτα στο «Προσωπικό».');
@@ -1299,14 +1532,17 @@
     }
     if (result.unmatchedTeachers.length) result.warnings.push('Εκπαιδευτικοί χωρίς αντιστοίχιση στο Προσωπικό: ' + result.unmatchedTeachers.map(quoted).join(', ') + '. Μπορούν να εισαχθούν χωρίς αντιστοίχιση ή να μην εισαχθούν. Για αντιστοίχιση, διόρθωσε τον κωδικό ή το σύντομο όνομα στο Προσωπικό ή στο FET.');
 
-    // Τμήματα
-    const classes = homeroomClasses(staff), classKeys = new Set(classes.map(compareKey));
+    // Τμήματα: μόνο όσα εμφανίζονται στις δραστηριότητες.
+    const resolver = classResolver(input.classes, {limit: input.classLimit});
     const hierarchy = studentsIndex(fet.students);
-    const fetGroups = unique(fet.students.flatMap(year => year.groups.map(group => group.name)));
-    const groupsWithout = fetGroups.filter(name => !classKeys.has(compareKey(name)));
-    if (groupsWithout.length) result.info.push('Τμήματα του FET χωρίς υπεύθυνο στο Προσωπικό: ' + groupsWithout.map(quoted).join(', ') + '. Μένουν στις δραστηριότητες με τη γραφή του FET.');
-    const unknownSets = unique([...activities.values()].flatMap(activity => expandStudents(activity.studentsSets, hierarchy, classes).unknown));
-    if (unknownSets.length) result.info.push('Σύνολα μαθητών του CSV που δεν υπάρχουν στο .fet: ' + unknownSets.map(quoted).join(', ') + '. Μένουν ως τμήματα με τη γραφή του αρχείου.');
+    for (const activity of activities.values()) activity.students = expandStudents(activity.studentsSets, hierarchy, resolver);
+    if (resolver.overLimit.length) return stop('Η εισαγωγή θα δημιουργούσε τα τμήματα ' + resolver.overLimit.join(', ') + ', πάνω από το όριο των ' + input.classLimit + ' τμημάτων του σχολικού έτους. Αφαίρεσε τμήματα που δεν χρειάζονται στα «Τμήματα» ή διόρθωσε το FET.');
+    const unknownSets = unique([...activities.values()].flatMap(activity => activity.students.unknown));
+    if (unknownSets.length) result.info.push('Σύνολα μαθητών του CSV που δεν υπάρχουν στο .fet: ' + unknownSets.map(quoted).join(', ') + '.');
+    const others = unique([...activities.values()].flatMap(activity => activity.students.otherStudents));
+    if (others.length) result.info.push('Ομάδες μαθητών του FET που δεν είναι τμήματα: ' + others.map(quoted).join(', ') + '. Μένουν στις δραστηριότητες με το όνομά τους, χωρίς τμήμα. Ένα τμήμα που δεν είναι Γενικής Παιδείας (π.χ. «Τμήμα Ένταξης») αντιστοιχίζεται όταν υπάρχει με το ίδιο όνομα στα «Τμήματα».');
+    result.newClasses = clone(sortClasses(resolver.newClasses));
+    if (result.newClasses.length) result.warnings.push('Θα δημιουργηθούν τα τμήματα: ' + result.newClasses.map(item => item.name).join(', ') + '.');
 
     if (input.replacing?.source?.modifiedAfterImport?.replacements?.length) {
       result.warnings.push('Το πρόγραμμα που αντικαθίσταται είχε τροποποιηθεί μετά την εισαγωγή με αντικαταστάσεις εκπαιδευτικών (' + input.replacing.source.modifiedAfterImport.replacements.map(item => (item.fromName || '?') + ' → ' + (item.toName || '?')).join(', ') + '). Βεβαιώσου ότι οι αντικαταστάσεις έχουν περάσει και στο FET.');
@@ -1315,23 +1551,24 @@
     result.counts = {activities: activities.size, rows: rows.length, teachers: teacherNames.length, matched: teacherNames.length - result.unmatchedTeachers.length};
     result.ok = true;
     // Για τη δεύτερη φάση (buildFetProgram). Δεν προορίζονται για εμφάνιση.
-    Object.defineProperty(result, 'plan', {enumerable: false, value: {activities, fet, teacherMatch, hierarchy, classes, hours, dayNumber}});
+    Object.defineProperty(result, 'plan', {enumerable: false, value: {activities, fet, teacherMatch, hours, dayNumber}});
     return result;
   }
 
-  // Κατασκευή του προγράμματος από την ανάλυση (δεύτερη φάση).
+  // Κατασκευή του προγράμματος από την ανάλυση (δεύτερη φάση). Τα νέα τμήματα της ανάλυσης
+  // (analysis.newClasses) τα αποθηκεύει η εφαρμογή μαζί με το πρόγραμμα.
   //   options: {unmatched:'keep'|'drop', kind ('school'), name, periodId (ή null για προσχέδιο), now}.
   function buildFetProgram(analysis, options = {}) {
     if (!analysis?.ok || !analysis.plan) throw Error('Η εισαγωγή δεν μπορεί να γίνει: ' + (analysis?.errors?.[0] || 'δεν έγινε ανάλυση.'));
-    const {activities, fet, teacherMatch, hierarchy, classes, dayNumber} = analysis.plan;
+    const {activities, fet, teacherMatch, dayNumber} = analysis.plan;
     const keepUnmatched = options.unmatched !== 'drop', at = options.now || nowIso();
     const hourByName = new Map(analysis.plan.hours.map(item => [item.name, item]));
     const programActivities = [], sourceActivities = {};
     for (const activity of activities.values()) {
-      const id = 'fet-' + activity.fetId, students = expandStudents(activity.studentsSets, hierarchy, classes);
+      const id = 'fet-' + activity.fetId, students = activity.students;
       const matched = activity.teachers.map(name => teacherMatch.get(name)).filter(Boolean);
       const unmatched = keepUnmatched ? activity.teachers.filter(name => !teacherMatch.get(name)) : [];
-      programActivities.push({id, subject: activity.subject, staff: unique(matched), unmatched: unique(unmatched), classes: students.classes, subsets: students.subsets, room: activity.room, times: activity.times});
+      programActivities.push({id, subject: activity.subject, staff: unique(matched), unmatched: unique(unmatched), classes: [...students.classes], subsets: [...students.subsets], otherStudents: [...students.otherStudents], room: activity.room, times: clone(activity.times)});
       sourceActivities[id] = {fetId: activity.fetId, tags: fet.activities.get(activity.fetId)?.tags || activity.csvTags, students: activity.studentsSets};
     }
     const unavailable = fet.unavailable.map(item => {
@@ -1339,7 +1576,7 @@
       return hour && day ? {teacher: item.teacher, day, hour: item.hour, start: hour.start, end: hour.end, weight: item.weight} : null;
     }).filter(Boolean);
     return {
-      id: options.id || uid(), formatVersion: 1, kind: options.kind || 'school', periodId: options.periodId ?? null,
+      id: options.id || uid(), formatVersion: 2, kind: options.kind || 'school', periodId: options.periodId ?? null,
       name: options.name || '', createdAt: at, updatedAt: at,
       activities: programActivities,
       source: {
@@ -1361,8 +1598,13 @@
   //   label      η ενέργεια για τον χρήστη (π.χ. «Εισαγωγή από FET»)
   //   intro      τι αρχεία ζητά, για τον διάλογο
   //   files      [{key, label, description, accept:{mime:[καταλήξεις]}}]: τα αρχεία, με τη σειρά τους
-  //   analyze(files, {staff, teachingHours, replacing})
-  //              files: {key: {name, text}}. → {ok, errors, warnings, info, unmatchedTeachers, summary:[{value, label}]}
+  //   analyze(files, {staff, classes, classLimit, teachingHours, replacing})
+  //              files: {key: {name, text}}· classes: τα Τμήματα του έτους, μαζί με όσα δεν έχουν αποθηκευτεί
+  //              ακόμη· classLimit: το όριο πλήθους τμημάτων (από τα limits του context).
+  //              → {ok, errors, warnings, info, unmatchedTeachers, newClasses, summary:[{value, label}]}.
+  //              newClasses: τα τμήματα που θα δημιουργηθούν, με τελικά id· η εφαρμογή τα στέλνει στο host με
+  //              την ίδια «Αποθήκευση» με το πρόγραμμα. Όταν υπάρχουν, η ανάλυση έχει και προειδοποίηση («Θα
+  //              δημιουργηθούν τα τμήματα: …»), ώστε ο διάλογος εισαγωγής να ανοίγει πάντα.
   //   build(analysis, {unmatched:'keep'|'drop', kind, periodId, name, id, now}) → το πρόγραμμα
   function fetImporter() {
     return Object.freeze({
@@ -1374,7 +1616,7 @@
         Object.freeze({key: 'fet', label: 'Αρχείο .fet', description: 'Αρχείο FET', accept: Object.freeze({'application/xml': ['.fet']})})
       ]),
       analyze(files, options = {}) {
-        const analysis = analyzeFetImport({csvText: files.csv?.text, csvName: files.csv?.name, fetText: files.fet?.text, fetName: files.fet?.name, staff: options.staff, teachingHours: options.teachingHours, replacing: options.replacing});
+        const analysis = analyzeFetImport({csvText: files.csv?.text, csvName: files.csv?.name, fetText: files.fet?.text, fetName: files.fet?.name, staff: options.staff, classes: options.classes, classLimit: options.classLimit, teachingHours: options.teachingHours, replacing: options.replacing});
         if (analysis.ok) {
           const preview = buildFetProgram(analysis, {unmatched: 'keep'});
           analysis.summary = [
@@ -1383,6 +1625,7 @@
             {value: unique(preview.activities.flatMap(activity => activity.classes)).length, label: 'τμήματα'},
             {value: analysis.counts.matched + '/' + analysis.counts.teachers, label: 'εκπαιδευτικοί με αντιστοίχιση'}
           ];
+          if (analysis.newClasses.length) analysis.summary.push({value: analysis.newClasses.length, label: 'νέα τμήματα'});
         }
         return analysis;
       },
@@ -1401,13 +1644,14 @@
         Object.freeze({key: 'csv', label: 'CSV Ολοημέρου', description: 'CSV του Ολοήμερου Designer', accept: Object.freeze({'text/csv': ['.csv']})})
       ]),
       analyze(files, options = {}) {
-        const analysis = analyzeOloimeroImport({csvText: files.csv?.text, csvName: files.csv?.name, staff: options.staff, teachingHours: options.teachingHours});
+        const analysis = analyzeOloimeroImport({csvText: files.csv?.text, csvName: files.csv?.name, staff: options.staff, classes: options.classes, classLimit: options.classLimit, teachingHours: options.teachingHours});
         if (analysis.ok) {
           analysis.summary = [
             {value: analysis.counts.activities, label: 'δραστηριότητες'},
             {value: analysis.counts.classes, label: 'τμήματα'},
             {value: analysis.counts.matched + '/' + analysis.counts.teachers, label: 'εκπαιδευτικοί με αντιστοίχιση'}
           ];
+          if (analysis.newClasses.length) analysis.summary.push({value: analysis.newClasses.length, label: 'νέα τμήματα'});
         }
         return analysis;
       },
@@ -1447,35 +1691,35 @@
     }
     return 0;
   }
-  // Η τάξη ενός τμήματος: «Στ2» → {grade:'Στ', label:"Στ'", index:5, number:2}· ό,τι δεν είναι τμήμα → null.
-  function classGrade(name) {
-    const parts = classParts(name);
-    return parts ? {grade: parts.grade === 'ΣΤ' ? 'Στ' : parts.grade, label: GRADE_LABELS[parts.grade], index: GRADES.indexOf(parts.grade), number: parts.number} : null;
+  // Οι συναρτήσεις τάξης, προαγωγής και ΑΔΥΜ δέχονται την εγγραφή τμήματος από τα Τμήματα (classesByYear) και
+  // αφορούν μόνο τμήματα Γενικής Παιδείας: υπολογίζονται από τα grade και number, όχι από το όνομα.
+  // Η τάξη ενός τμήματος: {grade:'Στ', number:2} → {grade:'Στ', label:"Στ'", index:5, number:2}· άλλο τμήμα → null.
+  function classGrade(record) {
+    if (!isGeneralClass(record)) return null;
+    const index = gradeIndex(record.grade);
+    return {grade: gradeName(GRADES[index]), label: GRADE_LABELS[GRADES[index]], index, number: record.number};
   }
-  // Οι τάξεις των τμημάτων, με τη σειρά τους: [{grade:'Στ', label:"Στ'", classes:['Στ1', …]}]· τα ονόματα στην
-  // κανονική γραφή. Μόνο τάξεις που έχουν τμήματα.
-  function studentGrades(classNames) {
-    return schoolGrades((classNames || []).map(classSpelling).filter(Boolean)).map(item => ({grade: item.grade === 'ΣΤ' ? 'Στ' : item.grade, label: GRADE_LABELS[item.grade], classes: item.classes}));
-  }
-  // Το τμήμα της επόμενης χρονιάς, με τον ίδιο αριθμό: «Β2» → «Γ2», «Ε1» → «Στ1». Η Στ' δεν έχει επόμενο → ''.
-  function promotedClass(name) {
-    const parts = classParts(name), index = parts ? GRADES.indexOf(parts.grade) : -1;
+  // Το κλειδί του τμήματος της επόμενης χρονιάς, με τον ίδιο αριθμό: Β2 → «Γ2», Ε1 → «Στ1». Η Στ' και τα άλλα
+  // τμήματα δεν έχουν επόμενο → ''. Το τμήμα του τρέχοντος έτους βρίσκεται (ή δημιουργείται) με το
+  // SchoolClasses.resolver.
+  function promotedClass(record) {
+    const index = isGeneralClass(record) ? gradeIndex(record.grade) : -1;
     if (index < 0 || index >= GRADES.length - 1) return '';
-    return classSpelling(GRADES[index + 1] + parts.number);
+    return gradeName(GRADES[index + 1]) + record.number;
   }
   // ΑΔΥΜ: συμπληρώνεται στην Α' και στη Δ'. Η ημερομηνία πρέπει να είναι από την έναρξη της σχολικής χρονιάς
   // στην οποία ο μαθητής ήταν στην Α' (για Α', Β', Γ') ή στη Δ' (για Δ', Ε', Στ'). Για το 2026-2027: Α', Δ' από
-  // 01/09/2026· Β', Ε' από 01/09/2025· Γ', Στ' από 01/09/2024. Τμήμα ή έτος που δεν αναγνωρίζεται → ''.
-  function adymRequiredFrom(className, year) {
-    const parts = classParts(className), range = schoolYearRange(year);
-    if (!parts || !range) return '';
-    const index = GRADES.indexOf(parts.grade), back = index < 3 ? index : index - 3;
+  // 01/09/2026· Β', Ε' από 01/09/2025· Γ', Στ' από 01/09/2024. Άλλο τμήμα ή έτος που δεν αναγνωρίζεται → ''.
+  function adymRequiredFrom(record, year) {
+    const range = schoolYearRange(year);
+    if (!isGeneralClass(record) || !range) return '';
+    const index = gradeIndex(record.grade), back = index < 3 ? index : index - 3;
     return (Number(range.from.slice(0, 4)) - back) + '-09-01';
   }
   // Κατάσταση ΑΔΥΜ (υπολογίζεται, δεν αποθηκεύεται): χωρίς ημερομηνία → 'pending' («Εκκρεμεί»)· ημερομηνία
   // πριν από την adymRequiredFrom → 'expired' («Έληξε»)· αλλιώς 'valid' («Σε ισχύ»).
-  function adymStatus(date, className, year) {
-    const requiredFrom = adymRequiredFrom(className, year);
+  function adymStatus(date, record, year) {
+    const requiredFrom = adymRequiredFrom(record, year);
     if (!isoValid(date)) return {status: 'pending', label: 'Εκκρεμεί', requiredFrom};
     if (requiredFrom && date < requiredFrom) return {status: 'expired', label: 'Έληξε', requiredFrom};
     return {status: 'valid', label: 'Σε ισχύ', requiredFrom};
@@ -1551,12 +1795,16 @@
   window.SchoolFet = Object.freeze({parse: parseFet, child, children, text});
   window.SchoolText = Object.freeze({withoutTones, weekdayIndex});
   window.SchoolDate = Object.freeze({valid: isoValid, format: formatDate, parse: parseDate, schoolYear: schoolYearRange, schoolYearTeachingEnd, inSchoolYear, today, weekday: isoWeekday});
+  window.SchoolClasses = Object.freeze({
+    isGeneral: isGeneralClass, key: classKey, sort: sortClasses, byId: classesById, nameOf: classNameOf,
+    grades: classGrades, renameError: classRenameError, resolver: classResolver
+  });
   window.SchoolTimetable = Object.freeze({
     kinds: KINDS, countsInHours, importers: importersOf, importer: importerOf, hourGroupKeys: HOUR_GROUPS, dayLabels: DAY_LABELS,
     STAY_MINUTES, EARLY_ARRIVAL_MINUTES,
     parseTimeRange, hourTimes, timedHours, hourGroups,
     periodEnd, periodAt, programAt, programsAt, periodWarnings,
-    homeroomClasses, classSpelling, studentsIndex, expandStudents, studentsFromNames, studentsText, homeroomTeacher, isGeneralTeacher, sortStaff,
+    classSpelling, studentsIndex, expandStudents, studentsFromNames, studentsText, homeroomTeacher, isGeneralTeacher, sortStaff,
     conflicts, studentsClash, staffHours, unavailableTimes, availability, staffBusyAt, replaceStaff,
     analyzeOloimeroReplace, applyOloimeroReplace,
     OLOIMERO_CATEGORIES, OLOIMERO_MAX_SLOTS, oloimeroHours, oloimeroTeacherColor, oloimeroStudents,
@@ -1565,6 +1813,6 @@
   });
   window.SchoolStudents = Object.freeze({
     parseCsv: parseStudentsCsv, studentKey, sameStudent, compare: compareStudents,
-    classGrade, grades: studentGrades, promotedClass, adymRequiredFrom, adymStatus
+    classGrade, promotedClass, adymRequiredFrom, adymStatus
   });
 })();
