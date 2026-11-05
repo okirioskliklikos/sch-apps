@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων
- * Έκδοση αρχείου: 0.17
+ * Έκδοση αρχείου: 0.18
  * Όνομα κατά την εγκατάσταση: _data.js
  *
  * Φορτώνεται από όσες υποεφαρμογές διαβάζουν ή γράφουν CSV, FET, ημερομηνίες ή προγράμματα, μετά
@@ -1164,11 +1164,11 @@
     return {text: lines.join('\n') + '\n', exported: rows.length, incomplete};
   }
 
-  // Τα στοιχεία σχεδίασης που γράφει ο Designer στο τέλος του CSV (σε σχόλια). Διαβάζει τις μορφές v1, v2
-  // (το παλιό αρχείο του Designer), v3 (η εξαγωγή για το FET με Τμήματα του Designer) και v4 (με Τάξεις και
-  // Τμήματα από τα Τμήματα του έτους). → κανονικοποιημένα στοιχεία, {invalid:true} όταν δεν διαβάζονται, ή
+  // Τα στοιχεία σχεδίασης που γράφει ο Designer στο τέλος του CSV (σε σχόλια), στη μορφή v4 (με Τάξεις και
+  // Τμήματα από τα Τμήματα του έτους, στη γραφή των αρχείων). → κανονικοποιημένα στοιχεία, {invalid:true} όταν
+  // δεν διαβάζονται, {old:true} όταν είναι σε παλαιότερη μορφή του Designer (v1–v3, που δεν διαβάζεται πια), ή
   // null όταν το CSV δεν τα έχει. Οι Συνενώσεις: {id, name, grades, classes:[όνομα…], subsets:[{name, class}],
-  // otherStudents} (v4) ή {id, name, departments:[όνομα…]} (v1–v3: τα ονόματα των Τμημάτων του Designer).
+  // otherStudents}.
   function oloimeroMetadata(textValue) {
     const lines = String(textValue ?? '').replace(BOM, '').split(/\r?\n/);
     const begin = lines.findIndex(line => line.trim() === OLOIMERO_JSON_BEGIN);
@@ -1180,42 +1180,31 @@
     const list = value => Array.isArray(value) ? value.filter(isObject) : [];
     const text = value => String(value ?? '').normalize('NFC').trim();
     const texts = value => Array.isArray(value) ? value.map(text).filter(Boolean) : [];
+    const format = text(payload.format);
+    if (format !== 'oloimero-designer-data-v4') return {old: true};
     const named = value => list(value).map(item => ({id: text(item.id) || uid(), name: text(item.name)})).filter(item => item.name);
-    const days = DAY_LABELS.slice(0, 5);
-    const counts = (value, count) => Array.isArray(value) ? days.map((_, index) => clampCount(value[index] ?? count)) : days.map(day => clampCount(value?.[day] ?? count));
-    let design = null;
-    if (Array.isArray(payload.design?.hours)) design = list(payload.design.hours).map(item => ({ids: [text(item.hourId)], label: '', count: clampCount(item.count), exceptionsEnabled: !!item.exceptionsEnabled, dayCounts: counts(item.dayCounts, item.count)}));
-    else if (Array.isArray(payload.state?.design?.periods)) design = list(payload.state.design.periods).map(item => ({ids: [text(item.sourceId), text(item.id)].filter(Boolean), label: text(item.label), count: clampCount(item.count), exceptionsEnabled: !!item.exceptionsEnabled, dayCounts: counts(item.dayCounts, item.count)}));
-    const styles = Object.fromEntries(OLOIMERO_STYLE_KEYS.map(key => [key, designStyle(payload.styles?.[key] || payload.categoryStyles?.[key])]));
-    const format = text(payload.format), v4 = /-v4$/.test(format);
-    const departments = new Map(named(payload.departments).map(item => [item.id, item.name]));
-    const unions = list(payload.unions).map(item => {
-      const base = {id: text(item.id) || uid(), name: text(item.name)};
-      if (v4) return {...base, grades: validGrades(item.grades), classes: texts(item.classes), subsets: list(item.subsets).map(subset => ({name: text(subset.name), class: text(subset.class)})).filter(subset => subset.name), otherStudents: texts(item.otherStudents)};
-      return {...base, departments: (Array.isArray(item.departmentIds) ? item.departmentIds : []).map(id => departments.get(id)).filter(Boolean)};
-    }).filter(item => item.name);
+    const counts = (value, count) => DAY_LABELS.slice(0, 5).map((_, index) => clampCount(Array.isArray(value) ? value[index] ?? count : count));
+    const design = Array.isArray(payload.design?.hours) ? list(payload.design.hours).map(item => ({hourId: text(item.hourId), count: clampCount(item.count), exceptionsEnabled: !!item.exceptionsEnabled, dayCounts: counts(item.dayCounts, item.count)})) : null;
     return {
-      format, design, styles,
+      format, design,
+      styles: Object.fromEntries(OLOIMERO_STYLE_KEYS.map(key => [key, designStyle(payload.styles?.[key])])),
       teachers: list(payload.teachers).map(item => ({
-        staffId: text(item.staffId) || null, code: text(item.staffCode), name: text(item.name),
-        aliases: Array.isArray(item.aliases) ? item.aliases.map(text).filter(Boolean) : [],
+        staffId: text(item.staffId) || null, name: text(item.name),
         color: validColor(item.color) ? String(item.color).toLowerCase() : '', availableHours: Math.max(0, Math.floor(Number(item.availableHours) || 0))
       })).filter(item => item.name || item.staffId),
-      subjects: named(payload.subjects), unions,
+      subjects: named(payload.subjects),
+      unions: list(payload.unions).map(item => ({id: text(item.id) || uid(), name: text(item.name), grades: validGrades(item.grades), classes: texts(item.classes), subsets: list(item.subsets).map(subset => ({name: text(subset.name), class: text(subset.class)})).filter(subset => subset.name), otherStudents: texts(item.otherStudents)})).filter(item => item.name),
       hidden: {grades: validGrades(payload.hidden?.grades), classes: texts(payload.hidden?.classes)}
     };
   }
 
-  // Οι μαθητές των κελιών του Ολοημέρου από ονόματα (κοινό στην εισαγωγή CSV και στη μετατροπή των παλιών
-  // σχεδίων του .data, που κρατούσαν δικά τους Τμήματα του Designer).
-  //   resolver: SchoolClasses.resolver (ή τα Τμήματα του έτους)· saved: οι Συνενώσεις των στοιχείων σχεδίασης,
-  //   στη μορφή v4 ({id, name, grades, classes:[όνομα…], subsets:[{name, class}], otherStudents}) ή v1–v3
-  //   ({id, name, departments:[όνομα…]}: τα ονόματα των Τμημάτων του Designer που περιείχε).
+  // Οι μαθητές των κελιών του Ολοημέρου από ονόματα (στην εισαγωγή CSV).
+  //   resolver: SchoolClasses.resolver (ή τα Τμήματα του έτους)· saved: οι Συνενώσεις των στοιχείων σχεδίασης
+  //   ({id, name, grades, classes:[όνομα…], subsets:[{name, class}], otherStudents}).
   // → {unions, single(name), cell(name)}:
-  //   unions: οι Συνενώσεις στη νέα μορφή ({id, name, grades, classIds, subsets:[{name, classId}], otherStudents}).
-  //     Μια αποθηκευμένη Συνένωση με όνομα μίας τάξης ή ενός τμήματος (π.χ. η παλιά «Β'») δεν χρειάζεται πια και
-  //     δεν μπαίνει· μια v1–v3 αναλύεται με το όνομά της, και αν αυτό δεν είναι τάξεις ή τμήματα (π.χ.
-  //     «Συνένωση Α»), με τα Τμήματα του Designer που περιείχε. Η λίστα μεγαλώνει με όσες δημιουργεί το cell.
+  //   unions: οι Συνενώσεις με τα τμήματα σε id ({id, name, grades, classIds, subsets:[{name, classId}],
+  //     otherStudents}). Μια αποθηκευμένη Συνένωση με όνομα μίας τάξης ή ενός τμήματος δεν μπαίνει, γιατί το
+  //     όνομα γίνεται Τάξη ή Τμήμα του κελιού. Η λίστα μεγαλώνει με όσες δημιουργεί το cell.
   //   single(name): μία τάξη («Β'») ή ένα τμήμα → {type:'grade', grade} ή {type:'class', id}· αλλιώς null.
   //   cell(name): τα στοιχεία ενός κελιού: μία τάξη ή ένα τμήμα· μια Συνένωση με το όνομά της· ονόματα με «+»
   //     από τέτοια στοιχεία → περισσότερα στοιχεία· οτιδήποτε άλλο («Α'-Στ'», «Ε1-Γαλ», «Ομάδα Χ») → νέα
@@ -1235,16 +1224,10 @@
     for (const item of (Array.isArray(saved) ? saved : []).filter(isObject)) {
       const name = String(item.name ?? '').normalize('NFC').trim();
       if (!name || single(name)) continue;
-      let parts;
-      if (!('grades' in item) && !('classes' in item)) {
-        parts = studentsParts(name, classes);
-        if (!parts.grades.length && !parts.classIds.length && !parts.subsets.length) parts = studentsParts((item.departments || []).map(String), classes);
-      } else {
-        parts = {grades: validGrades(item.grades), classIds: [], subsets: [], other: [...(item.otherStudents || []).map(String).filter(Boolean)]};
-        for (const className of item.classes || []) { const id = classes.resolve(className); if (id) parts.classIds.push(id); else parts.other.push(String(className)); }
-        for (const subset of (item.subsets || []).filter(isObject)) parts.subsets.push({name: String(subset.name ?? ''), classId: (subset.class && classes.resolve(subset.class)) || subsetParent(subset.name, classes)});
-        parts.classIds = unique(parts.classIds); parts.other = unique(parts.other);
-      }
+      const parts = {grades: validGrades(item.grades), classIds: [], subsets: [], other: [...(item.otherStudents || []).map(String).filter(Boolean)]};
+      for (const className of item.classes || []) { const id = classes.resolve(className); if (id) parts.classIds.push(id); else parts.other.push(String(className)); }
+      for (const subset of (item.subsets || []).filter(isObject)) parts.subsets.push({name: String(subset.name ?? ''), classId: (subset.class && classes.resolve(subset.class)) || subsetParent(subset.name, classes)});
+      parts.classIds = unique(parts.classIds); parts.other = unique(parts.other);
       unions.push(unionFromParts({id: item.id, name}, parts));
     }
     const findUnion = name => unions.find(item => compareKey(item.name) === compareKey(name));
@@ -1309,7 +1292,8 @@
 
     const metadata = oloimeroMetadata(input.csvText);
     if (metadata?.invalid) result.info.push('Τα στοιχεία σχεδίασης στο τέλος του CSV δεν διαβάζονται. Εισάγονται μόνο οι δραστηριότητες, με προεπιλεγμένα χρώματα.');
-    const meta = metadata && !metadata.invalid ? metadata : null;
+    if (metadata?.old) result.info.push('Τα στοιχεία σχεδίασης στο τέλος του CSV είναι σε παλαιότερη μορφή του Ολοήμερου Designer, που δεν διαβάζεται πια. Εισάγονται μόνο οι δραστηριότητες, με προεπιλεγμένα χρώματα.');
+    const meta = metadata && !metadata.invalid && !metadata.old ? metadata : null;
     if (meta) result.info.push('Κρατήθηκαν και τα στοιχεία σχεδίασης του Designer που υπάρχουν στο CSV (χρώματα, συνενώσεις, Σχεδιασμός).');
 
     // Εκπαιδευτικοί: με το σύντομο όνομα, μετά με τον κωδικό.
@@ -1357,7 +1341,7 @@
     let raised = false;
     const design = {hours: hours.map(item => {
       const id = String(item.hour.id), need = needed.get(item.hour.id) || [0, 0, 0, 0, 0];
-      const saved = meta?.design?.find(entry => entry.ids.includes(id)) || meta?.design?.find(entry => entry.label && entry.label === item.name);
+      const saved = meta?.design?.find(entry => entry.hourId === id);
       if (!saved) {
         const count = Math.max(...need);
         return {hourId: id, count, exceptionsEnabled: need.some(value => value !== count), dayCounts: need.map(value => need.some(other => other !== count) ? value : count)};
@@ -1407,11 +1391,10 @@
     }
     // Εκπαιδευτικοί της αριστερής μπάρας: όσοι είχε επιλέξει ο Designer και όσοι εμφανίζονται στις γραμμές.
     const savedFor = person => meta?.teachers.find(item => item.staffId === person.id)
-      || meta?.teachers.find(item => item.code && compareKey(item.code) === compareKey(person.code))
-      || meta?.teachers.find(item => [item.name, ...item.aliases].some(name => compareKey(name) === compareKey(person.shortName)));
+      || meta?.teachers.find(item => compareKey(item.name) === compareKey(person.shortName));
     const chosen = new Map();
     for (const saved of meta?.teachers || []) {
-      const person = staff.find(item => item.id === saved.staffId) || staff.find(item => saved.code && compareKey(item.code) === compareKey(saved.code)) || staff.find(item => [saved.name, ...saved.aliases].some(name => compareKey(name) === compareKey(item.shortName)));
+      const person = staff.find(item => item.id === saved.staffId) || staff.find(item => compareKey(item.shortName) === compareKey(saved.name));
       if (person) chosen.set(person.id, person);
     }
     for (const person of teacherMatch.values()) if (person) chosen.set(person.id, person);
@@ -1421,7 +1404,7 @@
     });
     if (keepUnmatched) {
       for (const name of [...teacherMatch].filter(([, person]) => !person).map(([name]) => name).sort((a, b) => a.localeCompare(b, 'el', {numeric: true, sensitivity: 'base'}))) {
-        const saved = meta?.teachers.find(item => [item.name, ...item.aliases].some(other => compareKey(other) === compareKey(name)));
+        const saved = meta?.teachers.find(item => !item.staffId && compareKey(item.name) === compareKey(name));
         teachers.push({staffId: null, name, color: saved?.color || OLOIMERO_COLORS.other, availableHours: saved?.availableHours || 0});
       }
     }
@@ -1664,8 +1647,8 @@
     });
   }
 
-  // Ο εισαγωγέας του Ολοημέρου: το CSV που εξάγει ο Ολοήμερο Designer για το FET (και το παλιό αρχείο
-  // του Designer, που έχει την ίδια μορφή). Ημέρες και ώρες από τις ετικέτες των Ωρών Διδασκαλίας.
+  // Ο εισαγωγέας του Ολοημέρου: το CSV που εξάγει ο Ολοήμερο Designer για το FET, με τα στοιχεία σχεδίασης
+  // στη μορφή v4. Ημέρες και ώρες από τις ετικέτες των Ωρών Διδασκαλίας.
   function oloimeroImporter() {
     return Object.freeze({
       id: 'csv',

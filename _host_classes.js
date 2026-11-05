@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Τμήματα στο Κεντρικό Μενού (host)
- * Έκδοση αρχείου: 0.04
+ * Έκδοση αρχείου: 0.05
  * Όνομα κατά την εγκατάσταση: _host_classes.js
  *
  * Κώδικας μόνο του host για τα Τμήματα (classesByYear). Το φορτώνει το index.html μετά το _data.js και πριν
@@ -35,8 +35,8 @@
  * Όλα τα δεδομένα αναφέρονται στα τμήματα με το id: μια μετονομασία περνά παντού. Ένα τμήμα δεν αφαιρείται, και
  * δεν αλλάζει είδος, όταν έχει μαθητές, υπεύθυνο ή εμφανίζεται σε πρόγραμμα ή προσχέδιο του έτους.
  * Παλιά μορφή τμημάτων (needsMigration): Προσωπικό με homeroomClass, τμήμα χωρίς grade/number με όνομα τμήματος,
- * πρόγραμμα με formatVersion:1, σχέδιο του Ολοήμερου Designer με source.version:1. Το μετατρέπει το προσωρινό
- * _host_migrate.js· χωρίς αυτό το index δεν ανοίγει το αρχείο.
+ * πρόγραμμα με formatVersion:1, σχέδιο του Ολοήμερου Designer με source.version:1. Ένα τέτοιο αρχείο το index
+ * δεν το ανοίγει.
  */
 (() => {
   'use strict';
@@ -271,9 +271,9 @@
     return changed;
   }
 
-  // Το αρχείο είναι στην παλιά μορφή τμημάτων (πριν από τα τμήματα με id); Τότε χρειάζεται μετατροπή
-  // (_host_migrate.js) πριν ανοίξει: Προσωπικό με homeroomClass, τμήμα χωρίς grade/number με όνομα τμήματος,
-  // πρόγραμμα με formatVersion:1, σχέδιο του Ολοήμερου Designer με source.version:1.
+  // Το αρχείο είναι στην παλιά μορφή τμημάτων (πριν από τα τμήματα με id); Τότε το index δεν το ανοίγει:
+  // Προσωπικό με homeroomClass, τμήμα χωρίς grade/number με όνομα τμήματος, πρόγραμμα με formatVersion:1,
+  // σχέδιο του Ολοήμερου Designer με source.version:1.
   function needsMigration(data) {
     const values = value => isObject(value) ? Object.values(value) : [];
     for (const staff of values(data?.staffByYear)) {
