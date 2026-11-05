@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων
- * Έκδοση αρχείου: 0.16
+ * Έκδοση αρχείου: 0.17
  * Όνομα κατά την εγκατάσταση: _data.js
  *
  * Φορτώνεται από όσες υποεφαρμογές διαβάζουν ή γράφουν CSV, FET, ημερομηνίες ή προγράμματα, μετά
@@ -1276,8 +1276,10 @@
   //   Μαθητές κάθε γραμμής («Students Sets»): μια τάξη («Β'») ή ένα τμήμα γίνεται Τάξη ή Τμήμα του κελιού (τα
   //   τμήματα αντιστοιχίζονται με το SchoolClasses.resolver, και όσα Γενικής Παιδείας λείπουν δημιουργούνται)·
   //   μια Συνένωση των στοιχείων σχεδίασης με το όνομά της· ονόματα με «+» από τέτοια στοιχεία γίνονται
-  //   περισσότερα στοιχεία του κελιού· οτιδήποτε άλλο («Α'-Στ'», «Ομάδα Χ», «Ε1-Γαλ») γίνεται Συνένωση με αυτό
-  //   το όνομα, με τις τάξεις και τα τμήματα που αναγνωρίζονται μέσα του, και τα υπόλοιπα στο otherStudents.
+  //   περισσότερα στοιχεία του κελιού· οτιδήποτε άλλο (π.χ. «Α'-Στ'») γίνεται Συνένωση με αυτό το όνομα.
+  //   Ο Designer δέχεται μόνο τάξεις και τμήματα Γενικής Παιδείας: υποσύνολα («Ε1-Γαλ»), άλλα τμήματα
+  //   («Τμήμα Ένταξης») και ομάδες μαθητών («Ομάδα Χ»), στις γραμμές ή στις Συνενώσεις των στοιχείων
+  //   σχεδίασης, σταματούν την εισαγωγή με λάθος.
   // → {ok, errors, warnings, info, unmatchedTeachers, counts, newClasses, …}. Με λάθη η εισαγωγή δεν γίνεται.
   function analyzeOloimeroImport(input = {}) {
     const result = {ok: false, errors: [], warnings: [], info: [], unmatchedTeachers: [], counts: {}, newClasses: [], csvName: input.csvName || ''};
@@ -1322,11 +1324,23 @@
     const resolver = classResolver(input.classes, {limit: input.classLimit});
     const {unions, cell} = oloimeroCells(resolver, meta?.unions);
     for (const item of placed) item.students = cell(item.row.studentsSets);
+    // Μόνο τάξεις και τμήματα Γενικής Παιδείας, στα κελιά και στις Συνενώσεις (και όσες δεν χρησιμοποιούνται,
+    // γιατί αποθηκεύονται κι αυτές).
+    const classById = classesById(resolver.classes), unionById = new Map(unions.map(union => [union.id, union]));
+    const notAccepted = union => [
+      ...(union?.classIds || []).filter(id => !isGeneralClass(classById.get(id))).map(id => classNameOf(classById, id)),
+      ...(union?.subsets || []).map(subset => subset.name), ...(union?.otherStudents || [])
+    ];
+    const rejected = [];
+    for (const item of placed) for (const part of item.students) {
+      if (part.type === 'class' && !isGeneralClass(classById.get(part.id))) rejected.push(classNameOf(classById, part.id));
+      else if (part.type === 'union') rejected.push(...notAccepted(unionById.get(part.id)));
+    }
+    unions.forEach(union => rejected.push(...notAccepted(union)));
+    const rejectedNames = unique(rejected.map(String).filter(Boolean));
+    if (rejectedNames.length) return stop((rejectedNames.length === 1 ? 'Στο αρχείο CSV υπάρχει το Τμήμα ' + quoted(rejectedNames[0]) + ' που δεν γίνεται αποδεκτό.' : 'Στο αρχείο CSV υπάρχουν τα Τμήματα ' + rejectedNames.map(quoted).join(', ') + ' που δεν γίνονται αποδεκτά.') + " Ο Ολοήμερος Designer δέχεται μόνο τάξεις (π.χ. «Β'», «Α'-Στ'») και τμήματα Γενικής Παιδείας (π.χ. «Α1»). Παρακαλώ διορθώστε το CSV και ξαναδοκιμάστε.");
     if (resolver.overLimit.length) return stop('Η εισαγωγή θα δημιουργούσε τα τμήματα ' + resolver.overLimit.join(', ') + ', πάνω από το όριο των ' + input.classLimit + ' τμημάτων του σχολικού έτους. Αφαίρεσε τμήματα που δεν χρειάζονται στα «Τμήματα» ή διόρθωσε το CSV.');
     for (const item of placed) item.expanded = oloimeroStudents(item.students, {unions}, resolver);
-    const usedUnions = new Set(placed.flatMap(item => item.students.filter(part => part.type === 'union').map(part => part.id)));
-    const others = unique(unions.filter(union => usedUnions.has(union.id)).flatMap(union => union.otherStudents));
-    if (others.length) result.info.push('Ομάδες μαθητών που δεν είναι τμήματα, τάξεις ή υποσύνολα τμημάτων: ' + others.map(quoted).join(', ') + '. Μπαίνουν σε συνένωση με το όνομα του αρχείου, χωρίς τμήμα.');
     const labels = new Set(Object.values(GRADE_LABELS));
     const emptyGrades = unique(placed.flatMap(item => item.expanded.otherStudents.filter(name => labels.has(name))));
     if (emptyGrades.length) result.warnings.push((emptyGrades.length === 1 ? 'Η τάξη ' + emptyGrades[0] + ' δεν έχει' : 'Οι τάξεις ' + emptyGrades.join(', ') + ' δεν έχουν') + ' τμήματα στα «Τμήματα». Οι δραστηριότητές τους μπαίνουν χωρίς τμήμα· πρόσθεσε τα τμήματα στα «Τμήματα» και ξαναδοκίμασε.');

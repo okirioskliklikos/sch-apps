@@ -12,7 +12,7 @@
   Τα προγράμματα είναι στη νέα μορφή τμημάτων (formatVersion:2, τμήματα με id). Τα τμήματα των ελέγχων
   φτιάχνονται από τους υπευθύνους του Προσωπικού (classesFromStaff). Η μετατροπή των αρχείων της παλιάς μορφής
   (_host_migrate.js) ελέγχεται στην ενότητα 11, και με το .data δοκιμής· φεύγει μαζί με το _host_migrate.js.
-  Έκδοση αρχείου: 0.22
+  Έκδοση αρχείου: 0.23
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -802,7 +802,8 @@ function hostClassesChecks() {
     K.needsMigration({...v2, timetablesByYear: {[year]: {programs: [{id: 'z', formatVersion: 2, activities: [], source: {type: 'oloimero-designer', version: 1}}]}}}),
     K.needsMigration({...v2, classesByYear: {[year]: {classes: [{id: 'c', name: 'Τμήμα Ένταξης'}]}}})
   ], [false, true, true, true, true, false]);
-  if (texts.data) check('needsMigration: το .data δοκιμής είναι στην παλιά μορφή', K.needsMigration(JSON.parse(texts.data).payload));
+  // Το .data δοκιμής είναι στη νέα μορφή (porfyriada_2026-2027_new.data)· το παλιό (porfyriada_2026-2027.data) μένει για τη μετατροπή.
+  if (texts.data) record('ok', 'needsMigration του .data δοκιμής: ' + (K.needsMigration(JSON.parse(texts.data).payload) ? 'παλιά μορφή (ελέγχεται η μετατροπή στην ενότητα 11)' : 'νέα μορφή'));
   else skip('needsMigration με το .data δοκιμής', 'Λείπει το .data δοκιμής.');
 }
 const C_GENERAL = record => SchoolClasses.isGeneral(record);
@@ -961,7 +962,19 @@ function hostMigrateChecks() {
 
   // Το .data δοκιμής.
   if (!texts.data) return skip('Μετατροπή του .data δοκιμής', 'Λείπει το .data δοκιμής.');
-  const file = JSON.parse(texts.data).payload, converted = M.migrate(file), d = converted.data;
+  const file = JSON.parse(texts.data).payload;
+  if (!K.needsMigration(file)) {
+    // .data στη νέα μορφή: δεν μετατρέπεται· ελέγχεται ότι περνά την επικύρωση και ότι τα σχέδια εξάγονται.
+    const again = M.migrate(clone(file)), nClasses = file.classesByYear[year].classes, nStaff = file.staffByYear[year], nPrograms = file.timetablesByYear[year].programs;
+    check('.data στη νέα μορφή: η μετατροπή δεν αλλάζει τίποτα', JSON.stringify(again.data) === JSON.stringify(file) && !again.report.years.length);
+    let invalidNew = '';
+    try { K.validateClasses(nClasses, nStaff); for (const program of nPrograms) H.validateProgram(program, {staffIds: new Set(nStaff.map(p => p.id)), periodIds: new Set(file.timetablesByYear[year].periods.map(p => p.id)), classIds: new Set(nClasses.map(c => c.id))}); } catch (e) { invalidNew = e.message; }
+    check('.data στη νέα μορφή: Τμήματα και προγράμματα περνούν την επικύρωση του host', !invalidNew, invalidNew);
+    const exports = nPrograms.filter(p => p.kind === 'oloimero').map(p => [p.activities.length, SchoolTimetable.oloimeroCsvFromProgram(p, {staff: nStaff, classes: nClasses, teachingHours: file.teachingHoursByYear[year]})]);
+    check('.data στη νέα μορφή: κάθε σχέδιο του Ολοημέρου εξάγεται σε CSV για το FET, χωρίς ελλιπή', exports.length > 0 && exports.every(([count, csv]) => csv.exported === count && !csv.incomplete), JSON.stringify(exports.map(([count, csv]) => [count, csv.exported, csv.incomplete])));
+    return skip('Μετατροπή του .data δοκιμής', 'Το .data είναι ήδη στη νέα μορφή. Για τον έλεγχο της μετατροπής χρησιμοποίησε το porfyriada_2026-2027.data.');
+  }
+  const converted = M.migrate(file), d = converted.data;
   const fileClasses = d.classesByYear[year].classes, fileStaff = d.staffByYear[year];
   equal('.data: 12 τμήματα Α1–Στ2, με υπεύθυνο τον εκπαιδευτικό που ήταν υπεύθυνος στο Προσωπικό', fileClasses.map(c => c.name + '=' + (file.staffByYear[year].find(p => p.id === c.homeroomStaffId)?.homeroomClass || '')), CLASSES.map(name => name + '=' + name));
   check('.data: το Προσωπικό χωρίς homeroomClass, χωρίς άλλη αλλαγή', JSON.stringify(fileStaff) === JSON.stringify(file.staffByYear[year].map(({homeroomClass, ...person}) => person)));
@@ -1394,18 +1407,24 @@ function run() {
       equal('Χωρίς στοιχεία σχεδίασης: «Α\'-Στ\'» → 12 τμήματα, προεπιλεγμένα χρώματα', [pz?.classes.length, program.source.teachers.every(t => t.color === SchoolTimetable.oloimeroTeacherColor(staff.find(p => p.id === t.staffId)))], [12, true]);
     }
     const empty = importer.analyze({csv: {name: 'empty.csv', text: '"Students Sets","Subject","Teachers","Activity Tags"\n'}}, {staff, classes, teachingHours: HOURS_V2});
-    // Ονόματα που δεν είναι τμήμα ή τάξη: Συνένωση με αυτό το όνομα, με ό,τι αναγνωρίζεται, και το υπόλοιπο στο otherStudents.
+    // Ο Designer δέχεται μόνο τάξεις και τμήματα Γενικής Παιδείας: υποσύνολα, ομάδες μαθητών και άλλα τμήματα,
+    // στις γραμμές ή στις Συνενώσεις των στοιχείων σχεδίασης, σταματούν την εισαγωγή με ένα λάθος.
     const row = (students, tag) => '"' + students + '","Μελέτη","[Α1] - Δασκάλα","[Ολοήμερο]+[ΗΜ_ΔΕΥΤΕΡΑ]+' + tag + '",1,"",,,,""';
-    const odd = importer.analyze({csv: {name: 'odd.csv', text: ['"Students Sets","Subject","Teachers","Activity Tags","Total Duration","Split Duration","Min Days","Weight","Consecutive","Comments"', row('Ομάδα Χ', 'ΩΡΑ_ΟΛΟ_1'), row('Ε1-Γαλ', 'ΩΡΑ_ΟΛΟ_2'), row('Τμήμα Ένταξης', 'ΩΡΑ_ΟΛΟ_3'), row('Α3', 'ΩΡΑ_ΟΛΟ_4')].join('\n')}}, {staff, classes, classLimit: 50, teachingHours: HOURS_V2});
-    if (odd.ok) {
-      const program = importer.build(odd, {unmatched: 'keep'}), union = name => program.source.unions.find(u => u.name === name);
-      const of = name => program.activities.find(a => { const item = program.source.placements[a.id].students[0]; return item.type === 'union' ? union(name)?.id === item.id : SchoolClasses.nameOf([...classes, ...odd.newClasses], item.id) === name; });
-      equal('«Ομάδα Χ» → Συνένωση χωρίς τμήματα, otherStudents· «Ε1-Γαλ» → Συνένωση με το υποσύνολο του Ε1', [union('Ομάδα Χ')?.otherStudents, of('Ομάδα Χ')?.otherStudents, namesOf(of('Ε1-Γαλ')?.classes, classes), of('Ε1-Γαλ')?.subsets], [['Ομάδα Χ'], ['Ομάδα Χ'], ['Ε1'], ['Ε1-Γαλ']]);
-      equal('«Τμήμα Ένταξης» χωρίς τμήμα: Συνένωση με otherStudents (δεν δημιουργείται)· «Α3»: δημιουργείται', [of('Τμήμα Ένταξης')?.otherStudents, odd.newClasses.map(c => c.name), has(odd.info, '«Ομάδα Χ», «Τμήμα Ένταξης»')], [['Τμήμα Ένταξης'], ['Α3'], true], messages(odd));
-      const withEntaxi = importer.analyze({csv: {name: 'odd.csv', text: ['"Students Sets","Subject","Teachers","Activity Tags"', row('Τμήμα Ένταξης', 'ΩΡΑ_ΟΛΟ_1')].join('\n')}}, {staff, classes: [...classes, ENTAXI], teachingHours: HOURS_V2});
-      const built = withEntaxi.ok && importer.build(withEntaxi, {unmatched: 'keep'});
-      equal('«Τμήμα Ένταξης» που υπάρχει στα Τμήματα: Τμήμα του κελιού', built && [built.source.placements[built.activities[0].id].students, built.activities[0].classes], [[{type: 'class', id: ENTAXI.id}], [ENTAXI.id]], messages(withEntaxi));
-    } else check('CSV με ονόματα που δεν είναι τμήματα: εισάγεται', false, messages(odd));
+    const csvOf = (rows, meta) => ['"Students Sets","Subject","Teachers","Activity Tags","Total Duration","Split Duration","Min Days","Weight","Consecutive","Comments"', ...rows, ...(meta ? ['# OLOIMERO_DESIGNER_JSON_BEGIN', ...JSON.stringify(meta, null, 2).split('\n').map(line => '# ' + line), '# OLOIMERO_DESIGNER_JSON_END'] : [])].join('\n');
+    const tryCsv = (rows, meta, list = classes) => importer.analyze({csv: {name: 'odd.csv', text: csvOf(rows, meta)}}, {staff, classes: list, classLimit: 50, teachingHours: HOURS_V2});
+    const rejectedText = names => (names.length === 1 ? 'Στο αρχείο CSV υπάρχει το Τμήμα «' + names[0] + '» που δεν γίνεται αποδεκτό.' : 'Στο αρχείο CSV υπάρχουν τα Τμήματα ' + names.map(name => '«' + name + '»').join(', ') + ' που δεν γίνονται αποδεκτά.') + " Ο Ολοήμερος Designer δέχεται μόνο τάξεις (π.χ. «Β'», «Α'-Στ'») και τμήματα Γενικής Παιδείας (π.χ. «Α1»). Παρακαλώ διορθώστε το CSV και ξαναδοκιμάστε.";
+    const rejected = (analysis, names) => !analysis.ok && analysis.errors.length === 1 && analysis.errors[0] === rejectedText(names);
+    const odd = tryCsv([row('Ομάδα Χ', 'ΩΡΑ_ΟΛΟ_1'), row('Ε1-Γαλ+Ε2-Γαλ', 'ΩΡΑ_ΟΛΟ_2'), row('Τμήμα Ένταξης', 'ΩΡΑ_ΟΛΟ_3'), row('Α3', 'ΩΡΑ_ΟΛΟ_4')]);
+    check('«Ομάδα Χ», «Ε1-Γαλ+Ε2-Γαλ», «Τμήμα Ένταξης»: η εισαγωγή σταματά με ένα λάθος, με τα ονόματα χωριστά και με τη σειρά των γραμμών', rejected(odd, ['Ομάδα Χ', 'Ε1-Γαλ', 'Ε2-Γαλ', 'Τμήμα Ένταξης']), messages(odd));
+    const oneSubset = tryCsv([row('Ε1-Γαλ', 'ΩΡΑ_ΟΛΟ_1')]);
+    check('Ένα όνομα («Ε1-Γαλ»): το λάθος σε ενικό', rejected(oneSubset, ['Ε1-Γαλ']), messages(oneSubset));
+    const withEntaxi = tryCsv([row('Τμήμα Ένταξης+Β1', 'ΩΡΑ_ΟΛΟ_1')], null, [...classes, ENTAXI]);
+    check('«Τμήμα Ένταξης+Β1», με το «Τμήμα Ένταξης» στα Τμήματα: η εισαγωγή σταματά (δεν είναι τμήμα Γενικής Παιδείας)', rejected(withEntaxi, ['Τμήμα Ένταξης']), messages(withEntaxi));
+    const unusedUnion = tryCsv([row("Β1+Δ'", 'ΩΡΑ_ΟΛΟ_1')], {format: 'oloimero-designer-data-v4', unions: [{id: 'u1', name: 'Γαλλικά Ε', grades: [], classes: [], subsets: [{name: 'Ε1-Γαλ', class: 'Ε1'}], otherStudents: []}, {id: 'u2', name: 'Ομάδα', grades: ['Α'], classes: ['Β1'], subsets: [], otherStudents: ['Χορωδία']}]});
+    check('Συνενώσεις v4 των στοιχείων σχεδίασης με υποσύνολο ή ομάδα, και όταν δεν χρησιμοποιούνται: η εισαγωγή σταματά', rejected(unusedUnion, ['Ε1-Γαλ', 'Χορωδία']), messages(unusedUnion));
+    const accepted = tryCsv([row("Α'-Στ'", 'ΩΡΑ_ΟΛΟ_1'), row("Β1+Δ'", 'ΩΡΑ_ΟΛΟ_2'), row('Α3', 'ΩΡΑ_ΟΛΟ_3'), row('ΣΤ1', 'ΩΡΑ_ΟΛΟ_4')]);
+    const acceptedProgram = accepted.ok ? importer.build(accepted, {unmatched: 'keep'}) : null;
+    equal('Τάξεις, εύρος τάξεων, τμήματα και «+»: εισάγονται· το «Α3» δημιουργείται· καμία Συνένωση με υποσύνολα ή ομάδες', acceptedProgram && [accepted.newClasses.map(c => c.name), acceptedProgram.source.unions.map(u => u.name + ':' + u.subsets.length + ':' + u.otherStudents.length), acceptedProgram.activities.every(a => !a.subsets.length && !a.otherStudents.length)], [['Α3'], ["Α'-Στ':0:0"], true], messages(accepted));
     const noB = importer.analyze({csv: {name: 'nob.csv', text: ['"Students Sets","Subject","Teachers","Activity Tags"', row("Β'", 'ΩΡΑ_ΟΛΟ_1')].join('\n')}}, {staff, classes: classes.filter(c => c.grade !== 'Β'), teachingHours: HOURS_V2});
     check('Τάξη χωρίς τμήματα στα Τμήματα: προειδοποίηση, κανένα νέο τμήμα', noB.ok && has(noB.warnings, "Η τάξη Β' δεν έχει τμήματα") && !noB.newClasses.length, messages(noB));
     check('CSV χωρίς δραστηριότητες: η εισαγωγή σταματά', !empty.ok && has(empty.errors, 'δεν έχει δραστηριότητες'), empty.errors.join('\n'));
