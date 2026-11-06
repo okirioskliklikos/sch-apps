@@ -287,13 +287,15 @@ dialog .school-color-picker-auto.selected{border-color:var(--school-ui-primary-b
 .school-richtext .school-richtext-toolbar button:hover:not(:disabled){background:#e6ebf0;border-color:transparent}
 .school-richtext .school-richtext-toolbar button[aria-pressed="true"]{background:#dbe7f6;color:var(--school-ui-primary-text)}
 .school-richtext .school-richtext-toolbar button:focus-visible{outline:2px solid var(--school-ui-focus);outline-offset:-2px}
-.school-richtext-toolbar svg{width:20px;height:20px;display:block}
+.school-richtext-toolbar svg{width:23px;height:23px;display:block}
+/* «U» and «A» are as tall as the other letters; their lines sit just below the icon box. */
+.school-richtext-toolbar :is(button[data-command="underline"],button.school-richtext-color) svg{overflow:visible}
 /* Colour: «A» as tall as «U», with a bar in the last colour where «U» has its line, and a narrow «▾» right
    next to it. The bar is part of the icon (_ui.js), with a faint outline for light colours. */
 .school-richtext-color-outline{stroke:#00000026;stroke-width:2.8}
 .school-richtext-color-bar{stroke:var(--school-richtext-color,#ff7800)}
 .school-richtext .school-richtext-toolbar button.school-richtext-color-menu{width:20px;min-width:20px;margin-left:-2px}
-.school-richtext-toolbar button.school-richtext-color-menu svg{width:13px;height:13px}
+.school-richtext-toolbar button.school-richtext-color-menu svg{width:15px;height:15px}
 .school-richtext-editor{
   min-height:var(--school-richtext-min-height,145px);max-height:var(--school-richtext-max-height,38vh);overflow:auto;
   padding:10px;border:1px solid var(--school-ui-input-border);border-radius:0 0 8px 8px;background:var(--school-ui-surface);

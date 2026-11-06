@@ -501,10 +501,10 @@
     edit: ['2.2', 'M4 20l4.5-1 10-10a2.1 2.1 0 0 0-3-3l-10 10L4 20zM14.5 7.5l3 3'],
     close: ['2.2', 'M6 6l12 12M18 6 6 18'],
     // Μορφοποίηση κειμένου (schoolRichText).
-    bold: ['2.8', 'M7 4h5.5a4 4 0 0 1 0 8H7zM7 12h6.5a4 4 0 0 1 0 8H7z'],
+    bold: ['3.3', 'M7 4h5.5a4 4 0 0 1 0 8H7zM7 12h6.5a4 4 0 0 1 0 8H7z'],
     italic: ['2', 'M10 4h8M6 20h8M15 4 9 20'],
-    underline: ['2', 'M7 4v7a5 5 0 0 0 10 0V4M5 20h14'],
-    'text-color': ['2', 'M7 16 12 4l5 12M9.1 11h5.8'],
+    underline: ['2', 'M5.5 4v9.5a6.5 6.5 0 0 0 13 0V4M4 23.5h16'],
+    'text-color': ['2', 'M5.5 20 12 4l6.5 16M7.9 14h8.2'],
     'chevron-down': ['2.4', 'm6 9 6 6 6-6'],
     'bullet-list': ['2', 'M10 6h10M10 12h10M10 18h10M4.5 5.2a.8.8 0 1 0 0 1.6.8.8 0 1 0 0-1.6zM4.5 11.2a.8.8 0 1 0 0 1.6.8.8 0 1 0 0-1.6zM4.5 17.2a.8.8 0 1 0 0 1.6.8.8 0 1 0 0-1.6z'],
     'number-list': ['1.8', 'M10 6h10M10 12h10M10 18h10M3.6 4.4 5 3.5v5M3.4 8.5h3.2M3.5 15a1.6 1.6 0 0 1 3.1.3c0 .9-.8 1.4-3.1 3.2h3.2'],
@@ -592,9 +592,10 @@
       buttons[command] = button; order.push(button); group.append(button);
     }
     buttons.color.classList.add('school-richtext-color');
-    // The bar in the last colour, drawn like the line of «U»: a faint outline under it keeps a light colour visible.
+    // The bar in the last colour, drawn like the line of «U» (below the letter, a little outside the icon box):
+    // a faint outline under it keeps a light colour visible.
     buttons.color.querySelector('svg').insertAdjacentHTML('beforeend',
-      '<path class="school-richtext-color-outline" d="M5 20h14"/><path class="school-richtext-color-bar" d="M5 20h14"/>');
+      '<path class="school-richtext-color-outline" d="M4 23.5h16"/><path class="school-richtext-color-bar" d="M4 23.5h16"/>');
     buttons.colorMenu.classList.add('school-richtext-color-menu');
     buttons.colorMenu.setAttribute('aria-haspopup', 'dialog');
     toolbar.append(...groups);
