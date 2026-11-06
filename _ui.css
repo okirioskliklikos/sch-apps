@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινό περιβάλλον χρήστη
- * Έκδοση αρχείου: 0.26
+ * Έκδοση αρχείου: 0.27
  * Όνομα κατά την εγκατάσταση: _ui.css
  */
 
@@ -257,6 +257,52 @@ dialog .school-color-picker-choice:hover:not(:disabled){
 }
 dialog .school-color-picker-add{height:33px;padding:0;border-radius:4px;font-size:25px;line-height:1}
 .school-color-picker-native{position:fixed;left:-9999px;width:1px;height:1px;opacity:0}
+/* Next to the button that opened it (options.anchor): placed by _ui.js, with a clear backdrop. */
+.school-color-picker.school-color-picker-anchored{margin:0;inset:auto;box-shadow:0 10px 34px #172b4d38}
+.school-color-picker.school-color-picker-anchored::backdrop{background:transparent}
+/* «Αυτόματο» (options.defaultColor): the default text colour, above the palette. */
+dialog .school-color-picker-auto{
+  display:flex;align-items:center;gap:9px;width:100%;height:33px;margin:0 0 6px;padding:0 9px;
+  border-radius:4px;text-align:left
+}
+.school-color-picker-auto-swatch{width:18px;height:18px;flex:none;border:1px solid var(--school-ui-swatch-border);border-radius:3px;background:var(--school-ui-text)}
+dialog .school-color-picker-auto.selected{border-color:var(--school-ui-primary-border);background:var(--school-ui-primary-bg);color:var(--school-ui-primary-text)}
+.school-color-picker-auto.selected::after{content:"✓";margin-left:auto;font-weight:900}
+
+/* Text with formatting (window.schoolRichText in _ui.js): a toolbar with flat icon buttons, in groups with
+   separators, aligned left, over a contenteditable field. Pressed buttons (aria-pressed) show the format
+   under the cursor. --school-richtext-min-height / --school-richtext-max-height set the size of the field. */
+.school-richtext{display:flex;flex-direction:column;min-width:0}
+.school-richtext-toolbar{
+  display:flex;flex-wrap:wrap;align-items:center;gap:2px;padding:4px;
+  background:#f6f7f9;border:1px solid var(--school-ui-input-border);border-bottom:0;border-radius:8px 8px 0 0
+}
+.school-richtext-group{display:inline-flex;align-items:center;gap:2px}
+.school-richtext-sep{width:1px;height:22px;margin:0 5px;background:var(--school-ui-control-border)}
+.school-richtext .school-richtext-toolbar button{
+  position:relative;display:inline-flex;align-items:center;justify-content:center;
+  width:34px;height:34px;min-width:34px;padding:0;border:1px solid transparent;border-radius:6px;
+  background:transparent;color:#2d3a45;line-height:1
+}
+.school-richtext .school-richtext-toolbar button:hover:not(:disabled){background:#e6ebf0;border-color:transparent}
+.school-richtext .school-richtext-toolbar button[aria-pressed="true"]{background:#dbe7f6;color:var(--school-ui-primary-text)}
+.school-richtext .school-richtext-toolbar button:focus-visible{outline:2px solid var(--school-ui-focus);outline-offset:-2px}
+.school-richtext-toolbar svg{width:20px;height:20px;display:block}
+/* Colour: «A» with a bar in the last colour, and a narrow «▾» right next to it. */
+.school-richtext .school-richtext-toolbar button.school-richtext-color::after{
+  content:"";position:absolute;left:8px;right:8px;bottom:5px;height:4px;border-radius:2px;
+  background:var(--school-richtext-color,#ff7800);box-shadow:inset 0 0 0 1px #0000001a
+}
+.school-richtext-toolbar button.school-richtext-color svg{margin-top:-4px}
+.school-richtext .school-richtext-toolbar button.school-richtext-color-menu{width:20px;min-width:20px;margin-left:-2px}
+.school-richtext-toolbar button.school-richtext-color-menu svg{width:13px;height:13px}
+.school-richtext-editor{
+  min-height:var(--school-richtext-min-height,145px);max-height:var(--school-richtext-max-height,38vh);overflow:auto;
+  padding:10px;border:1px solid var(--school-ui-input-border);border-radius:0 0 8px 8px;background:var(--school-ui-surface);
+  line-height:1.5;white-space:normal;overflow-wrap:anywhere;outline:none
+}
+.school-richtext-editor:focus{border-color:#6e9ad0;box-shadow:0 0 0 2px #d9e8fa}
+.school-richtext-editor :is(ul,ol){margin:4px 0;padding-left:26px}
 
 /* Application icon: <span class="app-mark"><span>ΞΞ</span></span>, always exactly 2 letters.
    Each page sets --app-mark-bg to its --school-app-* variable; --app-mark-fg overrides the letter colour if needed.

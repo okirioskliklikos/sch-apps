@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.8
+ * Έκδοση αρχείου: 0.9
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -10,6 +10,7 @@
  *   window.schoolProgramImport                     κοινός διάλογος εισαγωγής προγράμματος (ανάλυση → κατασκευή)
  *   window.schoolReplaceProgram                    ερώτηση πριν αντικατασταθεί πρόγραμμα περιόδου
  *   window.schoolColorPicker, window.schoolColor   επιλογέας χρώματος και βοηθητικά χρώματος
+ *   window.schoolRichText                          κείμενο με μορφοποίηση (μπάρα και πεδίο)
  *   window.schoolHost                              επικοινωνία υποεφαρμογής ↔ Κεντρικού Μενού
  *   window.schoolEscape                            ασφαλές κείμενο μέσα σε HTML
  *   window.schoolIcon                              κοινά εικονίδια SVG
@@ -24,7 +25,7 @@
  * ύψος της κεφαλίδας (αλλάζει όταν η κεφαλίδα αναδιπλώνεται).
  * Το κείμενο μπαίνει πάντα με textContent, ποτέ ως HTML.
  * Η εμφάνιση των διαλόγων ορίζεται στο _ui.css (.school-confirm, .school-choice-*, .school-import-*,
- *   .school-color-picker)
+ *   .school-color-picker, .school-richtext-*)
  * και του κουμπιού «☰» στο _subapp.css.
  */
 (() => {
@@ -342,7 +343,13 @@
 
   // Επιλογέας χρώματος: σταθερή παλέτα και έως 8 προσαρμοσμένα χρώματα, που ο browser θυμάται.
   // Επιστρέφει Promise με το χρώμα (#rrggbb) στην «Επιλογή», ή null στο «Άκυρο»/Esc.
-  // Επιλογές: title, accept.
+  // Επιλογές:
+  //   title, accept   τίτλος και ετικέτα του κουμπιού αποδοχής
+  //   anchor          στοιχείο (π.χ. το κουμπί που πατήθηκε): ο επιλογέας ανοίγει κάτω από αυτό, με τη δεξιά
+  //                   του άκρη στη δεξιά άκρη του στοιχείου (ή, αν έτσι βγαίνει από τη σελίδα αριστερά, με την
+  //                   αριστερή στην αριστερή)· αν δεν χωρά από κάτω, από πάνω· αν δεν χωρά καθόλου, στο κέντρο. Κλικ έξω από τον επιλογέα τον κλείνει όπως το «Άκυρο». Χωρίς anchor: στο κέντρο.
+  //   defaultColor    true: προσθέτει την επιλογή «Αυτόματο» (το προεπιλεγμένο χρώμα)· τότε η τιμή μπορεί να
+  //                   είναι και '' (κενό κείμενο) όταν επιλέχθηκε το «Αυτόματο».
   const palette = [
     '#a8d8ff','#8be8a8','#fff36b','#ffc16d','#ff6254','#d07ed4','#c5a185','#ffffff','#808085',
     '#5d9be5','#4fd87a','#ffe55f','#ffa548','#ef2f3e','#b962c6','#b4865e','#f5f5f5','#5e5e65',
@@ -378,9 +385,10 @@
       const previous = document.activeElement, dialog = document.createElement('dialog');
       dialog.className = 'school-color-picker';
       dialog.setAttribute('aria-labelledby', 'school-color-picker-title');
-      let selected = normalColor(color);
+      const withDefault = !!options.defaultColor;
+      let selected = withDefault && (color === '' || color == null) ? '' : normalColor(color);
       const custom = loadCustomColors();
-      if (!palette.includes(selected) && !custom.includes(selected)) { custom.unshift(selected); custom.splice(8); }
+      if (selected && !palette.includes(selected) && !custom.includes(selected)) { custom.unshift(selected); custom.splice(8); }
 
       const header = document.createElement('div'); header.className = 'school-color-picker-header';
       const cancel = document.createElement('button'); cancel.type = 'button'; cancel.textContent = 'Άκυρο';
@@ -389,6 +397,15 @@
       const accept = document.createElement('button'); accept.type = 'button'; accept.className = 'confirm-accept';
       accept.textContent = options.accept || 'Επιλογή';
       header.append(cancel, title, accept);
+      // «Αυτόματο»: το προεπιλεγμένο χρώμα κειμένου (χωρίς δικό του χρώμα).
+      let auto = null;
+      if (withDefault) {
+        auto = document.createElement('button'); auto.type = 'button'; auto.className = 'school-color-picker-auto';
+        const swatch = document.createElement('span'); swatch.className = 'school-color-picker-auto-swatch'; swatch.setAttribute('aria-hidden', 'true');
+        const label = document.createElement('span'); label.textContent = 'Αυτόματο';
+        auto.append(swatch, label);
+        auto.onclick = () => { selected = ''; render(); };
+      }
       const grid = document.createElement('div'); grid.className = 'school-color-picker-grid';
       const customTitle = document.createElement('div'); customTitle.className = 'school-color-picker-custom-title';
       customTitle.textContent = 'Προσαρμογή';
@@ -414,9 +431,10 @@
       const render = () => {
         grid.replaceChildren(...palette.map(choice));
         customList.replaceChildren(...custom.map(choice));
+        if (auto) { auto.classList.toggle('selected', selected === ''); auto.setAttribute('aria-pressed', String(selected === '')); }
       };
       let done = false;
-      add.onclick = () => { native.value = selected; native.click(); };
+      add.onclick = () => { native.value = selected || '#000000'; native.click(); };
       native.oninput = () => {
         selected = normalColor(native.value, selected);
         const index = custom.indexOf(selected); if (index !== -1) custom.splice(index, 1);
@@ -425,14 +443,44 @@
       cancel.onclick = () => dialog.close();
       accept.onclick = () => { done = true; dialog.close(); };
       dialog.addEventListener('cancel', event => { event.preventDefault(); dialog.close(); });
+      // Next to the anchor (below it, else above it), with the right edges lined up; centred when it does not fit.
+      const anchor = options.anchor?.isConnected ? options.anchor : null;
+      const place = () => {
+        if (!anchor || !dialog.open) return;
+        const gap = 4, edge = 8, box = anchor.getBoundingClientRect();
+        const width = dialog.offsetWidth, height = dialog.offsetHeight;
+        const viewWidth = document.documentElement.clientWidth, viewHeight = window.innerHeight;
+        let top = box.bottom + gap;
+        if (top + height > viewHeight - edge) top = box.top - gap - height;
+        const fits = width <= viewWidth - 2 * edge && top >= edge;
+        dialog.classList.toggle('school-color-picker-anchored', fits);
+        if (!fits) { dialog.style.removeProperty('left'); dialog.style.removeProperty('top'); return; }
+        // Right edges lined up; when that would leave the page on the left, left edges lined up.
+        const left = box.right - width >= edge ? box.right - width : box.left;
+        dialog.style.left = Math.max(edge, Math.min(left, viewWidth - edge - width)) + 'px';
+        dialog.style.top = top + 'px';
+      };
+      if (anchor) {
+        window.addEventListener('resize', place);
+        // A click on the backdrop (outside the picker) closes it like «Άκυρο».
+        dialog.addEventListener('click', event => {
+          if (event.target !== dialog) return;
+          const box = dialog.getBoundingClientRect();
+          if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) dialog.close();
+        });
+      }
       dialog.addEventListener('close', () => {
+        window.removeEventListener('resize', place);
         dialog.remove();
         if (previous?.isConnected) previous.focus();
         resolve(done ? selected : null);
       }, {once: true});
-      dialog.append(header, grid, customTitle, customRow, native);
+      dialog.append(header, ...(auto ? [auto] : []), grid, customTitle, customRow, native);
       document.body.append(dialog); render();
-      try { dialog.showModal(); (grid.querySelector('.selected') || customList.querySelector('.selected') || accept).focus(); }
+      try {
+        dialog.showModal(); place();
+        (grid.querySelector('.selected') || customList.querySelector('.selected') || (auto?.classList.contains('selected') ? auto : null) || accept).focus();
+      }
       catch { dialog.remove(); resolve(null); }
     });
   }
@@ -451,7 +499,16 @@
     export: ['2.4', 'M12 16V3m-5 5 5-5 5 5M4 16v5h16v-5'],
     menu: ['2.2', 'M4 6h16M4 12h16M4 18h16'],
     edit: ['2.2', 'M4 20l4.5-1 10-10a2.1 2.1 0 0 0-3-3l-10 10L4 20zM14.5 7.5l3 3'],
-    close: ['2.2', 'M6 6l12 12M18 6 6 18']
+    close: ['2.2', 'M6 6l12 12M18 6 6 18'],
+    // Μορφοποίηση κειμένου (schoolRichText).
+    bold: ['2.8', 'M7 4h5.5a4 4 0 0 1 0 8H7zM7 12h6.5a4 4 0 0 1 0 8H7z'],
+    italic: ['2', 'M10 4h8M6 20h8M15 4 9 20'],
+    underline: ['2', 'M7 4v7a5 5 0 0 0 10 0V4M5 20h14'],
+    'text-color': ['2', 'M6.5 16 12 3l5.5 13M8.7 11h6.6'],
+    'chevron-down': ['2.4', 'm6 9 6 6 6-6'],
+    'bullet-list': ['2', 'M10 6h10M10 12h10M10 18h10M4.5 5.2a.8.8 0 1 0 0 1.6.8.8 0 1 0 0-1.6zM4.5 11.2a.8.8 0 1 0 0 1.6.8.8 0 1 0 0-1.6zM4.5 17.2a.8.8 0 1 0 0 1.6.8.8 0 1 0 0-1.6z'],
+    'number-list': ['1.8', 'M10 6h10M10 12h10M10 18h10M3.6 4.4 5 3.5v5M3.4 8.5h3.2M3.5 15a1.6 1.6 0 0 1 3.1.3c0 .9-.8 1.4-3.1 3.2h3.2'],
+    'clear-format': ['2', 'M5 5h11M10.5 5 8 18M14 14l6 6M20 14l-6 6']
   };
   function schoolIcon(name) {
     const icon = icons[name];
@@ -461,6 +518,245 @@
   for (const element of document.querySelectorAll('[data-school-icon]')) {
     if (!element.firstElementChild) element.insertAdjacentHTML('afterbegin', schoolIcon(element.dataset.schoolIcon));
   }
+
+  // Κείμενο με μορφοποίηση: μπάρα (B I U | χρώμα ▾ | λίστες | καθαρισμός) πάνω από πεδίο contenteditable.
+  //   schoolRichText.create({html, labelledBy, label, color}) → {element, editor, html, setHtml(html), focus()}
+  //     html        το αρχικό κείμενο (καθαρίζεται με το SchoolHtml.sanitize του _data.js, όταν είναι φορτωμένο)
+  //     labelledBy  id της ετικέτας του πεδίου (ή label: κείμενο για aria-label)
+  //     color       το αρχικό χρώμα του «A», όταν ο browser δεν θυμάται ακόμη κάποιο (#rrggbb)
+  //   element: το κουτί (.school-richtext) με τη μπάρα και το πεδίο, για να μπει στη σελίδα.
+  //   html: getter με το καθαρισμένο HTML του πεδίου.
+  // Το τελευταίο χρώμα του «A» το θυμάται ο browser, κοινό για όλες τις εφαρμογές. Το «▾» ανοίγει το
+  // schoolColorPicker κάτω από το βελάκι, με την επιλογή «Αυτόματο». Συντομεύσεις: Ctrl+B, Ctrl+I, Ctrl+U
+  // (του browser) και Ctrl+\ (καθαρισμός)· Tab / Shift+Tab μέσα σε λίστα αλλάζει το επίπεδο. Η επικόλληση
+  // καθαρίζεται αμέσως. Η εμφάνιση ορίζεται στο _ui.css (.school-richtext-*).
+  const textColorKey = 'school-ui:text-color';
+  const loadTextColor = fallback => {
+    try { const saved = localStorage.getItem(textColorKey); if (validColor(saved)) return normalColor(saved); } catch {}
+    return normalColor(fallback, '#ff7800');
+  };
+  const saveTextColor = value => { try { localStorage.setItem(textColorKey, value); } catch {} };
+  const cleanHtml = html => window.SchoolHtml ? window.SchoolHtml.sanitize(html) : schoolEscape(String(html ?? '').replace(/<[^>]*>/g, ''));
+  const richTextEditors = new Set();
+  document.addEventListener('selectionchange', () => {
+    for (const instance of richTextEditors) {
+      if (!instance.editor.isConnected) { richTextEditors.delete(instance); continue; }
+      instance.selectionChanged();
+    }
+  });
+  const RICH_BUTTONS = [
+    ['bold', 'bold', 'Έντονα (Ctrl+B)'],
+    ['italic', 'italic', 'Πλάγια (Ctrl+I)'],
+    ['underline', 'underline', 'Υπογράμμιση (Ctrl+U)'],
+    '|',
+    ['color', 'text-color', 'Χρώμα κειμένου'],
+    ['colorMenu', 'chevron-down', 'Επιλογή χρώματος κειμένου…'],
+    '|',
+    ['insertUnorderedList', 'bullet-list', 'Λίστα με κουκκίδες'],
+    ['insertOrderedList', 'number-list', 'Αριθμημένη λίστα'],
+    '|',
+    ['removeFormat', 'clear-format', 'Καθαρισμός μορφοποίησης (Ctrl+\\)']
+  ];
+  const STATE_COMMANDS = ['bold', 'italic', 'underline', 'insertUnorderedList', 'insertOrderedList'];
+
+  function createRichText(options = {}) {
+    const box = document.createElement('div'); box.className = 'school-richtext';
+    const toolbar = document.createElement('div'); toolbar.className = 'school-richtext-toolbar';
+    toolbar.setAttribute('role', 'toolbar'); toolbar.setAttribute('aria-label', 'Μορφοποίηση κειμένου');
+    const editor = document.createElement('div'); editor.className = 'school-richtext-editor';
+    editor.contentEditable = 'true'; editor.spellcheck = true;
+    editor.setAttribute('role', 'textbox'); editor.setAttribute('aria-multiline', 'true');
+    if (options.labelledBy) editor.setAttribute('aria-labelledby', options.labelledBy);
+    else if (options.label) editor.setAttribute('aria-label', options.label);
+    editor.innerHTML = cleanHtml(options.html);
+    let textColor = loadTextColor(options.color);
+    let range = null;   // The last selection inside the editor, for the buttons and the colour picker.
+
+    const buttons = {}, order = [];
+    let group = document.createElement('span'); group.className = 'school-richtext-group';
+    const groups = [group];
+    for (const item of RICH_BUTTONS) {
+      if (item === '|') {
+        const sep = document.createElement('span'); sep.className = 'school-richtext-sep'; sep.setAttribute('aria-hidden', 'true');
+        groups.push(sep);
+        group = document.createElement('span'); group.className = 'school-richtext-group'; groups.push(group);
+        continue;
+      }
+      const [command, icon, title] = item, button = document.createElement('button');
+      button.type = 'button'; button.title = title; button.setAttribute('aria-label', title.replace(/ \(Ctrl.*\)$/, ''));
+      button.dataset.command = command; button.tabIndex = order.length ? -1 : 0;
+      button.insertAdjacentHTML('afterbegin', schoolIcon(icon));
+      if (STATE_COMMANDS.includes(command)) button.setAttribute('aria-pressed', 'false');
+      // The editor keeps its selection (and focus) when a button is clicked with the mouse.
+      button.addEventListener('mousedown', event => event.preventDefault());
+      buttons[command] = button; order.push(button); group.append(button);
+    }
+    buttons.color.classList.add('school-richtext-color');
+    buttons.colorMenu.classList.add('school-richtext-color-menu');
+    buttons.colorMenu.setAttribute('aria-haspopup', 'dialog');
+    toolbar.append(...groups);
+    box.append(toolbar, editor);
+
+    const inEditor = node => !!node && (node === editor || editor.contains(node));
+    const remember = () => {
+      const selection = getSelection();
+      if (selection?.rangeCount && inEditor(selection.anchorNode)) range = selection.getRangeAt(0).cloneRange();
+    };
+    const restore = () => {
+      editor.focus();
+      if (range && inEditor(range.startContainer)) { const selection = getSelection(); selection.removeAllRanges(); selection.addRange(range); }
+    };
+    const showColor = () => {
+      buttons.color.style.setProperty('--school-richtext-color', textColor);
+      buttons.color.title = 'Χρώμα κειμένου (' + textColor + ')';
+    };
+    const updateState = () => {
+      for (const command of STATE_COMMANDS) {
+        let on = false;
+        try { on = document.queryCommandState(command); } catch {}
+        buttons[command].setAttribute('aria-pressed', String(!!on));
+      }
+    };
+    // The selection as text positions inside the editor, to put the caret back after a list command
+    // (Chrome may move it to the start of the line, although the text does not change).
+    const textPoint = (container, offset) => {
+      const before = document.createRange(); before.selectNodeContents(editor); before.setEnd(container, offset);
+      return {count: before.toString().length, atStart: container.nodeType === Node.TEXT_NODE && offset === 0};
+    };
+    const pointAt = ({count, atStart}) => {
+      const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+      let seen = 0, node = null, last = null;
+      while ((node = walker.nextNode())) {
+        const length = node.nodeValue.length;
+        if (atStart ? count < seen + length : count <= seen + length) return [node, count - seen];
+        seen += length; last = node;
+      }
+      return last ? [last, last.nodeValue.length] : [editor, editor.childNodes.length];
+    };
+    const exec = (command, value = null) => {
+      restore();
+      const selection = getSelection(), before = selection.rangeCount ? selection.getRangeAt(0) : null;
+      const keep = /List$|^(indent|outdent)$/.test(command) && before && inEditor(before.startContainer)
+        ? [textPoint(before.startContainer, before.startOffset), textPoint(before.endContainer, before.endOffset)] : null;
+      document.execCommand(command, false, value);
+      // Only when the browser moved the caret to another place in the text.
+      const moved = keep && selection.rangeCount && inEditor(selection.anchorNode) &&
+        textPoint(selection.getRangeAt(0).startContainer, selection.getRangeAt(0).startOffset).count !== keep[0].count;
+      if (moved) {
+        const after = document.createRange();
+        after.setStart(...pointAt(keep[0])); after.setEnd(...pointAt(keep[1]));
+        selection.removeAllRanges(); selection.addRange(after);
+      }
+      remember(); updateState();
+    };
+    const applyColor = color => {
+      restore();
+      // With CSS the colour is written as <span style="color">; the other commands keep <b>, <i>, <u>.
+      document.execCommand('styleWithCSS', false, true);
+      document.execCommand('foreColor', false, color);
+      document.execCommand('styleWithCSS', false, false);
+      remember();
+    };
+    // «Αυτόματο»: the selected text loses its own colour; with no selection, the text typed next has the default colour.
+    // The browser first colours the selection with a marker colour (it splits the coloured parts around the
+    // selection), and then every element with the marker colour loses its colour.
+    const MARKER = 'rgb(1, 2, 3)';
+    const applyDefaultColor = () => {
+      restore();
+      const selection = getSelection(), current = selection?.rangeCount ? selection.getRangeAt(0) : null;
+      if (!current || current.collapsed || !inEditor(current.commonAncestorContainer)) { applyColor(getComputedStyle(editor).color); return; }
+      applyColor(MARKER);
+      for (const element of editor.querySelectorAll('[style],font[color]')) {
+        if (element.style.color.replace(/\s/g, '') === MARKER.replace(/\s/g, '') || /^#010203$/i.test(element.getAttribute('color') || '')) {
+          element.style.removeProperty('color'); element.removeAttribute('color');
+          if (!element.getAttribute('style')) element.removeAttribute('style');
+          if ((element.tagName === 'SPAN' || element.tagName === 'FONT') && !element.attributes.length) element.replaceWith(...element.childNodes);
+        }
+      }
+      editor.normalize();
+      remember();
+    };
+    const chooseColor = async () => {
+      remember();
+      const chosen = await schoolColorPicker(textColor, {title: 'Χρώμα κειμένου', accept: 'Εφαρμογή', anchor: buttons.colorMenu, defaultColor: true});
+      if (chosen === null) { restore(); return; }
+      if (chosen === '') { applyDefaultColor(); return; }
+      textColor = chosen; saveTextColor(chosen); showColor(); applyColor(chosen);
+    };
+    const listItem = () => {
+      const selection = getSelection();
+      let node = selection?.rangeCount ? selection.anchorNode : null;
+      while (node && node !== editor) { if (node.nodeName === 'LI') return node; node = node.parentNode; }
+      return null;
+    };
+
+    toolbar.addEventListener('click', event => {
+      const button = event.target.closest('button[data-command]');
+      if (!button) return;
+      const command = button.dataset.command;
+      if (command === 'color') applyColor(textColor);
+      else if (command === 'colorMenu') chooseColor();
+      else exec(command);
+    });
+    // One tab stop for the toolbar; the arrow keys, Home and End move between its buttons.
+    toolbar.addEventListener('keydown', event => {
+      const index = order.indexOf(document.activeElement);
+      if (index < 0) return;
+      const next = {ArrowRight: index + 1, ArrowLeft: index - 1, Home: 0, End: order.length - 1}[event.key];
+      if (next === undefined) return;
+      event.preventDefault();
+      const target = order[(next + order.length) % order.length];
+      order.forEach(button => { button.tabIndex = button === target ? 0 : -1; });
+      target.focus();
+    });
+    editor.addEventListener('keydown', event => {
+      if ((event.ctrlKey || event.metaKey) && !event.altKey && event.code === 'Backslash') { event.preventDefault(); exec('removeFormat'); return; }
+      if (event.key === 'Tab' && !event.ctrlKey && !event.metaKey && !event.altKey && listItem()) {
+        event.preventDefault(); exec(event.shiftKey ? 'outdent' : 'indent');
+      }
+    });
+    editor.addEventListener('paste', event => {
+      const data = event.clipboardData;
+      if (!data) return;
+      event.preventDefault();
+      const html = data.getData('text/html');
+      const clean = html ? cleanHtml(html.replace(/^[\s\S]*<!--StartFragment-->|<!--EndFragment-->[\s\S]*$/g, ''))
+        : schoolEscape(data.getData('text/plain')).replace(/\r?\n/g, '<br>');
+      // Inserted as it is: execCommand('insertHTML') would add styles of its own (e.g. white-space).
+      const selection = getSelection();
+      if (!selection?.rangeCount || !inEditor(selection.anchorNode)) return;
+      const target = selection.getRangeAt(0), template = document.createElement('template');
+      template.innerHTML = clean;
+      const last = template.content.lastChild;
+      target.deleteContents(); target.insertNode(template.content);
+      if (last) { target.setStartAfter(last); target.collapse(true); selection.removeAllRanges(); selection.addRange(target); }
+      editor.dispatchEvent(new Event('input', {bubbles: true}));
+      remember();
+    });
+    for (const type of ['keyup', 'mouseup', 'input', 'focus']) editor.addEventListener(type, () => { remember(); updateState(); });
+    // Outside the box (field and toolbar) the toolbar shows no format as pressed.
+    box.addEventListener('focusout', event => {
+      if (event.relatedTarget && box.contains(event.relatedTarget)) return;
+      for (const command of STATE_COMMANDS) buttons[command].setAttribute('aria-pressed', 'false');
+    });
+
+    const instance = {
+      editor,
+      selectionChanged() {
+        const selection = getSelection();
+        if (selection?.rangeCount && inEditor(selection.anchorNode)) { remember(); updateState(); }
+      }
+    };
+    richTextEditors.add(instance);
+    showColor();
+    return {
+      element: box, editor,
+      get html() { return cleanHtml(editor.innerHTML); },
+      setHtml(value) { editor.innerHTML = cleanHtml(value); range = null; updateState(); },
+      focus() { editor.focus(); }
+    };
+  }
+  const schoolRichText = Object.freeze({create: createRichText});
 
   // Πολλαπλή επιλογή σε λίστα. order: τα κλειδιά των γραμμών με τη σειρά που εμφανίζονται.
   // Επιστρέφουν {selected:Set, anchor} με τη νέα επιλογή· η εφαρμογή αποφασίζει πώς τη ζωγραφίζει.
@@ -597,6 +893,7 @@
   window.schoolProgramImport = schoolProgramImport;
   window.schoolReplaceProgram = schoolReplaceProgram;
   window.schoolColorPicker = schoolColorPicker;
+  window.schoolRichText = schoolRichText;
   window.schoolColor = Object.freeze({normalize: normalColor, ink: inkFor, valid: validColor});
   window.schoolEscape = schoolEscape;
   window.schoolIcon = schoolIcon;

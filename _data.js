@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων
- * Έκδοση αρχείου: 0.18
+ * Έκδοση αρχείου: 0.19
  * Όνομα κατά την εγκατάσταση: _data.js
  *
  * Φορτώνεται από όσες υποεφαρμογές διαβάζουν ή γράφουν CSV, FET, ημερομηνίες ή προγράμματα, μετά
@@ -20,6 +20,7 @@
  *                           (από FET και από το CSV του Ολοήμερου Designer), εξαγωγή CSV του Ολοημέρου
  *                           για το FET, μαθητές των κελιών του Ολοημέρου από ονόματα, δάσκαλοι και σειρά του Προσωπικού, κανονική γραφή τμημάτων,
  *                           απασχόληση εκπαιδευτικών σε ημερομηνία και ώρα (συνεδριάσεις)
+ *   window.SchoolHtml       κείμενο με μορφοποίηση (HTML του schoolRichText): καθαρισμός, έλεγχος κενού
  *   window.SchoolStudents   μαθητές (studentsByYear): ανάγνωση του CSV μαθητών του myschool, ίδιος μαθητής,
  *                           τάξη και επόμενο τμήμα, κατάσταση ΑΔΥΜ, ταξινόμηση
  * Τα προγράμματα είναι στη μορφή formatVersion:2: οι δραστηριότητες αναφέρονται στα τμήματα με το id τους
@@ -1805,7 +1806,43 @@
     return {ok: !errors.length, errors, warnings, info, year, classes, count};
   }
 
-  window.SchoolCsv = Object.freeze({parse, quote, detectDelimiter, staffCsvRead, staffCsvUpdate, staffCsvSuggest});
+  // ---- Κείμενο με μορφοποίηση (HTML του schoolRichText) ----
+  // Κρατά μόνο ό,τι γράφει ο editor: έντονα, πλάγια, υπογράμμιση, χρώμα κειμένου (span με style color),
+  // παραγράφους, αλλαγές γραμμής και λίστες (ul, ol, li). Κάθε άλλο στοιχείο αφαιρείται και μένει το
+  // περιεχόμενό του (εκτός από script, style κ.ά., που φεύγουν ολόκληρα)· οι ιδιότητες αφαιρούνται όλες,
+  // εκτός από το χρώμα. Το <font color> γίνεται span.
+  const HTML_TAGS = new Set(['b','strong','i','em','u','span','p','div','font','ul','ol','li']);
+  // Στοιχεία που φεύγουν μαζί με το περιεχόμενό τους (π.χ. από επικόλληση ιστοσελίδας ή Word).
+  const HTML_DROP = new Set(['script','style','template','noscript','iframe','object','embed','svg','math','head','title','meta','link','xml']);
+  const HTML_COLOR = /^(#[0-9a-f]{3,8}|rgb\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*\))$/i;
+  function sanitizeHtml(input) {
+    const doc = new DOMParser().parseFromString(String(input || ''), 'text/html');
+    const copy = node => {
+      if (node.nodeType === Node.TEXT_NODE) return document.createTextNode(node.nodeValue);
+      if (node.nodeType !== Node.ELEMENT_NODE) return document.createDocumentFragment();
+      const tag = node.tagName.toLowerCase();
+      if (tag === 'br') return document.createElement('br');
+      if (HTML_DROP.has(tag)) return document.createDocumentFragment();
+      if (!HTML_TAGS.has(tag)) { const fragment = document.createDocumentFragment(); [...node.childNodes].forEach(child => fragment.append(copy(child))); return fragment; }
+      const element = document.createElement(tag === 'font' ? 'span' : tag);
+      if (tag === 'span' || tag === 'font') {
+        const color = (node.style.color || node.getAttribute('color') || '').trim();
+        if (HTML_COLOR.test(color)) element.style.color = color;
+      }
+      [...node.childNodes].forEach(child => element.append(copy(child)));
+      return element;
+    };
+    const out = document.createElement('div');
+    [...doc.body.childNodes].forEach(child => out.append(copy(child)));
+    return out.innerHTML;
+  }
+  // true όταν το HTML έχει ορατό κείμενο (όχι μόνο ετικέτες, αλλαγές γραμμής, κενά ή κενές λίστες).
+  function htmlHasText(html) {
+    return !!String(html || '').replace(/<br\s*\/?\s*>/gi, '').replace(/<[^>]*>/g, '').replace(/&nbsp;|\s/g, '');
+  }
+
+  window.SchoolHtml = Object.freeze({sanitize: sanitizeHtml, hasText: htmlHasText});
+  window.SchoolCsv =Object.freeze({parse, quote, detectDelimiter, staffCsvRead, staffCsvUpdate, staffCsvSuggest});
   window.SchoolFet = Object.freeze({parse: parseFet, child, children, text});
   window.SchoolText = Object.freeze({withoutTones, weekdayIndex});
   window.SchoolDate = Object.freeze({valid: isoValid, format: formatDate, parse: parseDate, schoolYear: schoolYearRange, schoolYearTeachingEnd, inSchoolYear, today, weekday: isoWeekday});

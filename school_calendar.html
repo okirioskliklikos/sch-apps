@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Σχολικό Ημερολόγιο v0.74</title>
+<title>Σχολικό Ημερολόγιο v0.75</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -92,22 +92,6 @@
 .cal-editor .editor-date{display:block;text-align:center;font-size:23px;font-weight:700;color:#34424c;margin-bottom:4px}
 .cal-editor .editor-section{margin-top:15px}
 .cal-editor .editor-label{display:block;font-weight:700;margin-bottom:6px}
-.cal-editor .formatbar{display:flex;gap:5px;align-items:center;flex-wrap:wrap;padding:6px;background:#f2f4f6;border:1px solid #d1d6da;border-bottom:0;border-radius:7px 7px 0 0}
-.cal-editor .fmt-spacer{flex:1;min-width:12px}
-.cal-editor .formatbar :is(.format-btn,.clear-format){width:32px;height:32px;min-width:32px;padding:0;display:inline-flex;align-items:center;justify-content:center;border-radius:5px;font-size:16px;line-height:1}
-.cal-editor .formatbar svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.cal-editor .font-color{position:relative;display:inline-flex;height:32px;border:1px solid var(--school-ui-control-border);border-radius:7px;background:#fff}
-.cal-editor .font-color:hover,.cal-editor .font-color:focus-within{background:#eef3f8}
-.cal-editor .font-color>button{height:30px;min-width:0;padding:0;border:0;border-radius:0;background:transparent;display:inline-flex;align-items:center;justify-content:center;line-height:1}
-.cal-editor .font-color-main{width:30px;font:normal 19px/1 Arial,sans-serif;position:relative}
-.cal-editor .font-color-main::after{content:"";position:absolute;bottom:2px;left:7px;right:7px;height:2px;background:var(--chosen-font-color,#ff7800)}
-.cal-editor .font-color>.font-color-menu{width:20px;border-left:1px solid #d7dce0;padding:0 3px}
-.cal-editor .font-color-menu svg{width:11px;height:11px;display:block}
-.cal-editor .font-color-pop{position:absolute;top:31px;right:0;width:max-content;padding:5px;background:#fff;border:1px solid #aeb6bd;border-radius:6px;box-shadow:0 3px 10px #0003;z-index:15;display:grid;gap:4px}
-.cal-editor .font-color-pop[hidden]{display:none}
-.cal-editor .font-color-pop button{text-align:left;width:100%}
-.cal-editor .richtext{border:1px solid #b8c0c7;border-radius:0 0 7px 7px;min-height:145px;max-height:38vh;overflow:auto;padding:10px;line-height:1.5;outline:none;white-space:normal}
-.cal-editor .richtext:focus{border-color:#6e9ad0;box-shadow:0 0 0 2px #d9e8fa}
 .cal-editor label.checkrow{display:flex;gap:9px;align-items:center;margin:17px 0 0;font-weight:700}
 .cal-editor .checkrow input{width:17px;height:17px;margin:0}
 
@@ -212,7 +196,7 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v0.74</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v0.75</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="print" type="button" disabled>Εκτύπωση...</button>
@@ -271,7 +255,6 @@ let cal = emptyCalendar(), savedJson = calendarJson(cal), dirty = false, busy = 
 let startYear = 0, currentView = 'year', calendarClickTimer = null;
 let displayed = new Date(), selectedDate = new Date();
 let zoom = 100, zoomLimits = {min:70, max:150, step:10};
-let rememberedFontColor = DEFAULT_FONT_COLOR;
 
 // ---- Data ----
 function emptyCalendar() { return {entries:{}, ssdMeetings:{}, pedagogicMeetings:{}}; }
@@ -286,7 +269,8 @@ const longDate = d => `${weekdayName(d)}, ${String(d.getDate()).padStart(2,'0')}
 const schoolYearFor = d => d.getMonth() >= 8 ? d.getFullYear() : d.getFullYear() - 1;
 const inYear = d => schoolYearFor(d) === startYear;
 const monthDelta = (d, n) => new Date(d.getFullYear(), d.getMonth() + n, 1, 12);
-function hasHtml(html) { return !!(html || '').replace(/<br\s*\/?\s*>/gi,'').replace(/<[^>]*>/g,'').replace(/&nbsp;|\s/g,''); }
+const hasHtml = html => SchoolHtml.hasText(html);
+const sanitizeHtml = html => SchoolHtml.sanitize(html);
 function getEntry(k) { return cal.entries[k] || {personal:'', school:''}; }
 // A cancelled confirmation inside a dialog: the dialog stays open and shows no error.
 const cancelled = () => Object.assign(Error('Η ενέργεια ακυρώθηκε.'), {name:'AbortError'});
@@ -321,27 +305,6 @@ function normalizeCalendar(value) {
     if (hasHtml(personal) || hasHtml(school)) entries[key] = {personal, school};
   }
   return {entries, ssdMeetings: normalizeMeetings(value?.ssdMeetings, true), pedagogicMeetings: normalizeMeetings(value?.pedagogicMeetings, false)};
-}
-function sanitizeHtml(input) {
-  const doc = new DOMParser().parseFromString(String(input || ''), 'text/html');
-  const allowed = ['b','strong','i','em','u','span','p','div','font'];
-  function copy(node) {
-    if (node.nodeType === Node.TEXT_NODE) return document.createTextNode(node.nodeValue);
-    if (node.nodeType !== Node.ELEMENT_NODE) return document.createDocumentFragment();
-    const tag = node.tagName.toLowerCase();
-    if (tag === 'br') return document.createElement('br');
-    if (!allowed.includes(tag)) { const fragment = document.createDocumentFragment(); [...node.childNodes].forEach(child => fragment.append(copy(child))); return fragment; }
-    const element = document.createElement(tag === 'font' ? 'span' : tag);
-    if (tag === 'span' || tag === 'font') {
-      const color = node.style.color || node.getAttribute('color') || '';
-      if (/^#[0-9a-f]{3,8}$/i.test(color) || /^rgb\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*\)$/i.test(color)) element.style.color = color;
-    }
-    [...node.childNodes].forEach(child => element.append(copy(child)));
-    return element;
-  }
-  const out = document.createElement('div');
-  [...doc.body.childNodes].forEach(child => out.append(copy(child)));
-  return out.innerHTML;
 }
 
 // ---- Host ----
@@ -555,13 +518,28 @@ async function openDayActions(date) {
 }
 
 // ---- Notes editor ----
+// One notes field: its label and its own formatting toolbar (schoolRichText of _ui.js).
 function editorBox(id, label, html) {
-  return `<section class="editor-section"><span class="editor-label" id="${id}Label">${label}</span><div class="formatbar" data-target="${id}"><button type="button" class="format-btn" data-cmd="bold" title="Έντονα" aria-label="Έντονα"><b>B</b></button><button type="button" class="format-btn" data-cmd="italic" title="Πλάγια" aria-label="Πλάγια"><i>I</i></button><button type="button" class="format-btn" data-cmd="underline" title="Υπογράμμιση" aria-label="Υπογράμμιση"><u>U</u></button><span class="fmt-spacer"></span><div class="font-color" data-target="${id}"><button type="button" class="font-color-main" title="Χρώμα γραμματοσειράς" aria-label="Εφαρμογή χρώματος γραμματοσειράς">A</button><button type="button" class="font-color-menu" title="Άλλα χρώματα" aria-label="Άλλα χρώματα" aria-haspopup="true" aria-expanded="false"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="m2 4 4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button><div class="font-color-pop" hidden><button type="button" class="default-font-color">Προεπιλεγμένο χρώμα</button><button type="button" class="choose-font-color">Επιλογή χρώματος…</button></div></div><button type="button" class="clear-format" data-cmd="removeFormat" title="Καθαρισμός μορφοποίησης" aria-label="Καθαρισμός μορφοποίησης"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M12 6v12M3 3l18 18"/></svg></button></div><div class="richtext" contenteditable="true" spellcheck="true" id="${id}" role="textbox" aria-multiline="true" aria-labelledby="${id}Label">${sanitizeHtml(html)}</div></section>`;
+  const section = document.createElement('section'); section.className = 'editor-section';
+  const title = document.createElement('span'); title.className = 'editor-label'; title.id = id + 'Label'; title.textContent = label;
+  const rich = schoolRichText.create({html, labelledBy: title.id, color: DEFAULT_FONT_COLOR});
+  rich.editor.id = id;
+  section.append(title, rich.element);
+  return {section, rich};
 }
 async function editDay(date) {
   const key = dateKey(date), entry = getEntry(key), hasEntry = hasHtml(entry.personal) || hasHtml(entry.school), withSchool = hasHtml(entry.school);
   const body = document.createElement('div');
-  body.innerHTML = `<span class="editor-date">${weekdayName(date)} ${D.format(key)}</span>${editorBox('personalEditor', 'Προσωπικές σημειώσεις', entry.personal)}<label class="checkrow"><input type="checkbox" id="schoolEnabled" ${withSchool ? 'checked' : ''}> Να προστεθεί εγγραφή στο ημερολόγιο σχολικής ζωής</label><div id="schoolField" ${withSchool ? '' : 'hidden'}>${editorBox('schoolEditor', 'Σχολικό ημερολόγιο', entry.school)}</div>`;
+  const dateLine = document.createElement('span'); dateLine.className = 'editor-date'; dateLine.textContent = `${weekdayName(date)} ${D.format(key)}`;
+  const personal = editorBox('personalEditor', 'Προσωπικές σημειώσεις', entry.personal);
+  const check = document.createElement('label'); check.className = 'checkrow';
+  check.innerHTML = `<input type="checkbox" id="schoolEnabled" ${withSchool ? 'checked' : ''}> Να προστεθεί εγγραφή στο ημερολόγιο σχολικής ζωής`;
+  const schoolField = document.createElement('div'); schoolField.id = 'schoolField'; schoolField.hidden = !withSchool;
+  const school = editorBox('schoolEditor', 'Σχολικό ημερολόγιο', entry.school);
+  schoolField.append(school.section);
+  body.append(dateLine, personal.section, check, schoolField);
+  const enabled = check.querySelector('input');
+  enabled.addEventListener('change', () => { schoolField.hidden = !enabled.checked; });
   const result = await schoolChoiceDialog({
     title: 'Σημειώσεις Σχολικού Ημερολογίου', content: body, className: 'cal-editor', escape: false,
     actions: [
@@ -571,63 +549,16 @@ async function editDay(date) {
       }},
       {label: 'Ακύρωση'},
       {label: hasEntry ? 'Ενημέρωση' : 'Αποθήκευση', accept: true, run: () => ({
-        personal: sanitizeHtml(body.querySelector('#personalEditor').innerHTML),
-        school: body.querySelector('#schoolEnabled').checked ? sanitizeHtml(body.querySelector('#schoolEditor').innerHTML) : ''
+        personal: personal.rich.html,
+        school: enabled.checked ? school.rich.html : ''
       })}
     ],
-    ready: ({dialog}) => { dialog.querySelector('.school-confirm-actions button').classList.add('cal-delete'); bindEditor(body); body.querySelector('#personalEditor').focus(); }
+    ready: ({dialog}) => { dialog.querySelector('.school-confirm-actions button').classList.add('cal-delete'); personal.rich.focus(); }
   });
   if (!result) return;
   if (result.remove || (!hasHtml(result.personal) && !hasHtml(result.school))) delete cal.entries[key];
   else cal.entries[key] = {personal: result.personal, school: result.school};
   render(); updateDirty();
-}
-function bindEditor(root) {
-  const savedRanges = new WeakMap();
-  const editorOf = widget => root.querySelector('#' + widget.dataset.target);
-  const restore = editor => { editor.focus(); const range = savedRanges.get(editor); if (range) { const selection = getSelection(); selection.removeAllRanges(); selection.addRange(range); } return range; };
-  const closePops = () => { root.querySelectorAll('.font-color-pop').forEach(pop => { pop.hidden = true; }); root.querySelectorAll('.font-color-menu').forEach(button => button.setAttribute('aria-expanded', 'false')); };
-  const showColor = color => root.querySelectorAll('.font-color-main').forEach(button => { button.style.setProperty('--chosen-font-color', color); button.title = 'Χρώμα γραμματοσειράς: ' + color; });
-  root.querySelectorAll('.formatbar .format-btn,.formatbar .clear-format').forEach(button => button.addEventListener('click', () => {
-    const target = root.querySelector('#' + button.closest('.formatbar').dataset.target);
-    target.focus(); document.execCommand(button.dataset.cmd, false, null);
-  }));
-  root.querySelectorAll('.richtext').forEach(editor => {
-    const remember = () => { const selection = getSelection(); if (selection && selection.rangeCount && editor.contains(selection.anchorNode)) savedRanges.set(editor, selection.getRangeAt(0).cloneRange()); };
-    for (const type of ['keyup','mouseup','input','blur']) editor.addEventListener(type, remember);
-  });
-  function applyColor(widget, color) {
-    const editor = editorOf(widget); restore(editor);
-    document.execCommand('foreColor', false, color);
-    rememberedFontColor = color; showColor(color); savedRanges.delete(editor); editor.focus();
-  }
-  function applyDefaultColor(widget) {
-    const editor = editorOf(widget), range = restore(editor);
-    if (range && !range.collapsed) {
-      const fragment = range.extractContents();
-      const strip = node => { if (node.nodeType !== Node.ELEMENT_NODE) return; node.style.removeProperty('color'); node.removeAttribute('color'); if (!node.getAttribute('style')) node.removeAttribute('style'); [...node.childNodes].forEach(strip); };
-      [...fragment.childNodes].forEach(strip);
-      range.insertNode(fragment); range.collapse(false);
-      const selection = getSelection(); selection.removeAllRanges(); selection.addRange(range); savedRanges.set(editor, range.cloneRange());
-    } else document.execCommand('foreColor', false, '#000000');
-    editor.focus();
-  }
-  showColor(rememberedFontColor);
-  root.querySelectorAll('.font-color').forEach(widget => {
-    const main = widget.querySelector('.font-color-main'), menu = widget.querySelector('.font-color-menu'), pop = widget.querySelector('.font-color-pop');
-    for (const button of widget.querySelectorAll('button')) button.addEventListener('mousedown', event => event.preventDefault());
-    main.addEventListener('click', () => applyColor(widget, rememberedFontColor));
-    menu.addEventListener('click', () => { const opening = pop.hidden; closePops(); if (opening) { pop.hidden = false; menu.setAttribute('aria-expanded', 'true'); } });
-    pop.querySelector('.default-font-color').addEventListener('click', () => { closePops(); applyDefaultColor(widget); });
-    pop.querySelector('.choose-font-color').addEventListener('click', async () => {
-      closePops();
-      const color = await schoolColorPicker(rememberedFontColor, {title:'Χρώμα γραμματοσειράς', accept:'Εφαρμογή'});
-      if (color) applyColor(widget, color); else editorOf(widget).focus();
-    });
-  });
-  root.addEventListener('mousedown', event => { if (!event.target.closest('.font-color')) closePops(); });
-  root.addEventListener('keydown', event => { if (event.key === 'Escape' && [...root.querySelectorAll('.font-color-pop')].some(pop => !pop.hidden)) { event.preventDefault(); closePops(); } });
-  root.querySelector('#schoolEnabled').addEventListener('change', event => { root.querySelector('#schoolField').hidden = !event.target.checked; });
 }
 
 // ---- Meetings (ΣΣΔ and Παιδαγωγική Συνάντηση) ----
