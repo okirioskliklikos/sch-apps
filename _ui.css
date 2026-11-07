@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινό περιβάλλον χρήστη
- * Έκδοση αρχείου: 0.34
+ * Έκδοση αρχείου: 0.35
  * Όνομα κατά την εγκατάσταση: _ui.css
  */
 
@@ -362,6 +362,19 @@ fieldset.ui-fields{margin:0;padding:0;min-width:0;border:0}
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:middle
 }
 .school-tag.is-missing{background:#fff;color:var(--school-ui-muted);border-style:dashed;border-color:var(--school-ui-control-border)}
+/* Προαιρετικό × στα chips επεξεργασίας: κληρονομεί το χρώμα του chip και όχι στυλ κοινών κουμπιών. */
+.school-tag.is-removable{display:inline-flex;align-items:center;gap:4px;padding-right:3px;overflow:visible}
+.school-tag.is-removable .school-tag-label{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.school-tag .school-tag-remove,
+.school-confirm .school-tag .school-tag-remove{
+  display:inline-flex;align-items:center;justify-content:center;flex:none;
+  width:18px;height:18px;min-width:18px;min-height:18px;margin:0;padding:0;
+  border:0;border-radius:50%;background:transparent;color:inherit;
+  font:inherit;font-size:17px;line-height:1;cursor:pointer
+}
+.school-tag .school-tag-remove:hover:not(:disabled),
+.school-confirm .school-tag .school-tag-remove:hover:not(:disabled){background:#00000015;border-color:transparent}
+.school-tag .school-tag-remove:focus-visible{outline:2px solid var(--school-ui-focus);outline-offset:1px}
 .school-confirm.school-tag-dialog{width:min(640px,calc(100vw - 32px))}
 .school-tag-picker{display:flex;flex-direction:column;gap:8px;margin-top:4px}
 .school-tag-picker .school-tag-search{width:100%;box-sizing:border-box}

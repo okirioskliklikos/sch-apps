@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.19
+ * Έκδοση αρχείου: 0.20
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -1025,10 +1025,24 @@
     chip.title = TAG_KIND_TITLES[info.type] + ': ' + (info.missing ? 'δεν βρέθηκε' : info.label);
     return chip;
   }
-  // Οι ετικέτες ως chips, με τη σειρά του SchoolTags.sort. → <span class="school-tags"> (κενό όταν δεν υπάρχουν).
-  function tagChips(refs, data) {
+  // Οι ετικέτες ως chips, με τη σειρά του SchoolTags.sort. Προαιρετικό onRemove(ref):
+  // εμφανίζει × σε κάθε chip μόνο όπου η εφαρμογή επιτρέπει αφαίρεση.
+  function tagChips(refs, data, {onRemove} = {}) {
     const box = document.createElement('span'); box.className = 'school-tags';
-    for (const ref of tagsLib().sort(refs, data)) box.append(tagChip(ref, data));
+    for (const ref of tagsLib().sort(refs, data)) {
+      const chip = tagChip(ref, data);
+      if (typeof onRemove === 'function') {
+        const label = chip.textContent;
+        chip.classList.add('is-removable');
+        const text = document.createElement('span'); text.className = 'school-tag-label'; text.textContent = label;
+        const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'school-tag-remove';
+        remove.textContent = '×'; remove.title = 'Αφαίρεση ετικέτας: ' + label;
+        remove.setAttribute('aria-label', remove.title);
+        remove.addEventListener('click', () => onRemove(ref));
+        chip.replaceChildren(text, remove);
+      }
+      box.append(chip);
+    }
     return box;
   }
 
