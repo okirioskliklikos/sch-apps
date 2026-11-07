@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Σχολικό Ημερολόγιο v0.80</title>
+<title>Σχολικό Ημερολόγιο v0.81</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -103,10 +103,11 @@
 .cal-note-grip{align-self:center;flex:none;cursor:grab!important;border:0!important;background:transparent!important;color:#8997a3!important;padding:8px 4px!important;font-size:22px;line-height:1;touch-action:none}
 .cal-note-grip:active{cursor:grabbing!important}
 .cal-note-content{min-width:0;flex:1;overflow-wrap:anywhere}
-.cal-note-content .cal-note-html{line-height:1.5;min-height:22px;padding-top:1px}
+.cal-note-content .cal-note-html{line-height:1.5;min-height:22px;padding-top:4px}
 .cal-note-html p{margin:0 0 5px}
+.cal-note-html :is(ul,ol):first-child{margin-top:0}
 .cal-note-html p:last-child,.cal-note-html ul:last-child,.cal-note-html ol:last-child{margin-bottom:0}
-.cal-note-tools{display:flex;flex:none;gap:1px;align-self:flex-start;margin-top:-1px}
+.cal-note-tools{display:flex;flex:none;gap:1px;align-self:flex-start;margin-top:0}
 .cal-note-tools button{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:30px;padding:4px!important;border-color:transparent!important;background:transparent!important;border-radius:8px;color:#536575}
 .cal-note-tools button:hover{background:#e8eff6!important}
 .cal-note-tools svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
@@ -114,8 +115,8 @@
 .cal-note-editor .school-richtext{width:100%}
 .cal-note-editor .school-richtext-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-right:4px}
 .cal-note-editor-actions{margin-left:auto;display:inline-flex;align-items:center;gap:8px;flex:0 0 auto;white-space:nowrap;padding-left:8px}
-.cal-note-editor-actions button{min-width:88px;height:32px;padding:0 12px!important;font-size:13px;line-height:1.2;border-radius:8px;white-space:nowrap;border:1px solid var(--school-ui-control-border)!important;background:#fff!important;color:#334155!important;box-shadow:0 1px 1px #0000000a}
-.cal-note-editor-actions .confirm-accept{background:var(--school-ui-primary-bg)!important;border-color:var(--school-ui-primary-border)!important;color:var(--school-ui-primary-text)!important}
+.school-richtext .school-richtext-toolbar .cal-note-editor-actions button{width:auto!important;min-width:88px!important;height:32px;flex:0 0 auto;box-sizing:border-box;padding:0 12px!important;font-size:13px;line-height:1.2;border-radius:8px;white-space:nowrap;border:1px solid var(--school-ui-control-border)!important;background:#fff!important;color:#334155!important;box-shadow:0 1px 1px #0000000a}
+.school-richtext .school-richtext-toolbar .cal-note-editor-actions .confirm-accept{background:var(--school-ui-primary-bg)!important;border-color:var(--school-ui-primary-border)!important;color:var(--school-ui-primary-text)!important}
 .cal-note-editor .school-richtext-editor{min-height:130px;max-height:300px}
 .cal-note-add{display:block;width:100%;border:1px dashed #a8b9c8!important;background:#f9fbfd!important;color:#365e83!important;text-align:center!important}
 .cal-note-empty{color:#697984;text-align:center;padding:30px 10px}
@@ -228,7 +229,7 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v0.80</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v0.81</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="print" type="button" disabled>Εκτύπωση...</button>
