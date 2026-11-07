@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.12
+ * Έκδοση αρχείου: 0.13
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -341,7 +341,7 @@
     });
   }
 
-  // Επιλογέας χρώματος: σταθερή παλέτα και έως 8 προσαρμοσμένα χρώματα, που ο browser θυμάται.
+  // Επιλογέας χρώματος: σταθερή παλέτα και 9 προσαρμοσμένα χρώματα, που ο browser θυμάται.
   // Επιστρέφει Promise με το χρώμα (#rrggbb) στην «Επιλογή», ή null στο «Άκυρο»/Esc.
   // Επιλογές:
   //   title, accept   τίτλος και ετικέτα του κουμπιού αποδοχής
@@ -357,7 +357,7 @@
     '#1f73cc','#2db864','#f0b100','#c84e00','#b31332','#71378e','#60442c','#aaaaaa','#000000'
   ];
   const customKey = 'school-ui:custom-colors';
-  const customDefaults = ['#f27e00','#2f68b6','#fff1a8','#add7f4','#fac9c9','#f5bfc0','#dfa0a2','#dc9698'];
+  const customDefaults = ['#f27e00','#2f68b6','#fff1a8','#add7f4','#fac9c9','#f5bfc0','#dfa0a2','#dc9698','#a2d6b5'];
   const validColor = value => /^#[0-9a-f]{6}$/.test(String(value ?? '').trim().toLowerCase());
   const normalColor = (value, fallback = '#a8d8ff') => validColor(value) ? String(value).trim().toLowerCase() : fallback;
   // Χρώμα γραμμάτων που διαβάζεται πάνω στο δοσμένο φόντο: λευκό σε σκούρο, σχεδόν μαύρο σε ανοιχτό.
@@ -371,9 +371,10 @@
     if (customColors) return customColors;
     try {
       const saved = JSON.parse(localStorage.getItem(customKey) || 'null');
-      customColors = Array.isArray(saved) ? saved.filter(validColor).map(c => normalColor(c)).slice(0, 8) : null;
+      customColors = Array.isArray(saved) ? saved.filter(validColor).map(c => normalColor(c)).slice(0, 9) : null;
     } catch { customColors = null; }
-    if (!customColors) customColors = [...customDefaults];
+    if (!customColors) customColors = [];
+    while (customColors.length < 9) customColors.push(customDefaults[customColors.length]);
     return customColors;
   }
   function saveCustomColors() {
@@ -388,7 +389,7 @@
       const withDefault = !!options.defaultColor;
       let selected = withDefault && (color === '' || color == null) ? '' : normalColor(color);
       const custom = loadCustomColors();
-      if (selected && !palette.includes(selected) && !custom.includes(selected)) { custom.unshift(selected); custom.splice(8); }
+      if (selected && !palette.includes(selected) && !custom.includes(selected)) { custom.unshift(selected); custom.splice(9); }
       let customSelectedIndex = custom.indexOf(selected);
 
       const header = document.createElement('div'); header.className = 'school-color-picker-header';
@@ -410,51 +411,67 @@
       const grid = document.createElement('div'); grid.className = 'school-color-picker-grid';
       const customTitle = document.createElement('div'); customTitle.className = 'school-color-picker-custom-title';
       customTitle.textContent = 'Προσαρμογή';
-      const customRow = document.createElement('div'); customRow.className = 'school-color-picker-custom-row';
-      const add = document.createElement('button'); add.type = 'button'; add.className = 'school-color-picker-add';
-      add.innerHTML = schoolIcon('plus'); add.setAttribute('aria-label', 'Προσθήκη προσαρμοσμένου χρώματος');
       const customList = document.createElement('div'); customList.className = 'school-color-picker-custom';
-      customRow.append(add, customList);
       // The native input lives inside the dialog, so it is not inert while the dialog is modal.
       const native = document.createElement('input'); native.type = 'color'; native.tabIndex = -1;
       native.className = 'school-color-picker-native'; native.setAttribute('aria-hidden', 'true');
 
-      const choice = (value, customIndex = -1) => {
-        const isSelected = customIndex >= 0 ? customIndex === customSelectedIndex : customSelectedIndex < 0 && value === selected;
-        const button = document.createElement('button'); button.type = 'button';
-        button.className = 'school-color-picker-choice' + (isSelected ? ' selected' : '');
-        button.style.setProperty('--choice-color', value);
-        button.style.setProperty('--choice-ink', inkFor(value));
-        button.setAttribute('aria-label', 'Χρώμα ' + value);
-        button.setAttribute('aria-pressed', String(isSelected));
-        button.onclick = () => { selected = value; customSelectedIndex = customIndex; render(); };
-        return button;
-      };
-      const render = () => {
-        grid.replaceChildren(...palette.map(value => choice(value)));
-        customList.replaceChildren(...custom.map((value, index) => choice(value, index)));
+      // Keep custom swatch nodes in place on a click, so a second click can trigger dblclick.
+      const updateSelection = () => {
+        for (const [index, button] of [...customList.children].entries()) {
+          const active = index === customSelectedIndex;
+          button.classList.toggle('selected', active);
+          button.setAttribute('aria-pressed', String(active));
+        }
+        for (const [index, button] of [...grid.children].entries()) {
+          const active = customSelectedIndex < 0 && palette[index] === selected;
+          button.classList.toggle('selected', active);
+          button.setAttribute('aria-pressed', String(active));
+        }
         if (auto) { auto.classList.toggle('selected', selected === ''); auto.setAttribute('aria-pressed', String(selected === '')); }
       };
-      let done = false;
-      add.onclick = () => {
-        if (customSelectedIndex < 0) {
-          customSelectedIndex = 0;
-          selected = custom[0];
-          render();
-        }
-        native.value = custom[customSelectedIndex];
-        // Anchor the browser's native colour picker to the visible + button, not off-screen.
-        const rect = add.getBoundingClientRect();
+      let editingIndex = -1;
+      const openCustomColor = (index, button) => {
+        editingIndex = index;
+        selected = custom[index];
+        customSelectedIndex = index;
+        updateSelection();
+        native.value = selected;
+        // Position the native picker over the swatch that was double-clicked.
+        const rect = button.getBoundingClientRect();
         native.style.left = rect.left + 'px';
         native.style.top = rect.top + 'px';
         native.style.width = rect.width + 'px';
         native.style.height = rect.height + 'px';
         native.click();
       };
+      const choice = (value, customIndex = -1) => {
+        const isSelected = customIndex >= 0 ? customIndex === customSelectedIndex : customSelectedIndex < 0 && value === selected;
+        const button = document.createElement('button'); button.type = 'button';
+        button.className = 'school-color-picker-choice' + (isSelected ? ' selected' : '');
+        button.style.setProperty('--choice-color', value);
+        button.style.setProperty('--choice-ink', inkFor(value));
+        button.setAttribute('aria-label', customIndex >= 0 ? 'Προσαρμοσμένο χρώμα ' + value + ' (διπλό κλικ για αλλαγή)' : 'Χρώμα ' + value);
+        button.setAttribute('aria-pressed', String(isSelected));
+        button.onclick = () => {
+          selected = customIndex >= 0 ? custom[customIndex] : value;
+          customSelectedIndex = customIndex;
+          if (customIndex >= 0) updateSelection(); else render();
+        };
+        if (customIndex >= 0) button.ondblclick = () => openCustomColor(customIndex, button);
+        return button;
+      };
+      const render = () => {
+        grid.replaceChildren(...palette.map(value => choice(value)));
+        customList.replaceChildren(...custom.map((value, index) => choice(value, index)));
+        updateSelection();
+      };
+      let done = false;
       native.oninput = () => {
-        if (customSelectedIndex < 0) return;
-        selected = normalColor(native.value, custom[customSelectedIndex]);
-        custom[customSelectedIndex] = selected;
+        if (editingIndex < 0) return;
+        selected = normalColor(native.value, custom[editingIndex]);
+        custom[editingIndex] = selected;
+        customSelectedIndex = editingIndex;
         saveCustomColors();
         render();
       };
@@ -493,7 +510,7 @@
         if (previous?.isConnected) previous.focus();
         resolve(done ? selected : null);
       }, {once: true});
-      dialog.append(header, ...(auto ? [auto] : []), grid, customTitle, customRow, native);
+      dialog.append(header, ...(auto ? [auto] : []), grid, customTitle, customList, native);
       document.body.append(dialog); render();
       try {
         dialog.showModal(); place();

@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινό περιβάλλον χρήστη
- * Έκδοση αρχείου: 0.29
+ * Έκδοση αρχείου: 0.30
  * Όνομα κατά την εγκατάσταση: _ui.css
  */
 
@@ -240,8 +240,7 @@ dialog button:focus-visible,dialog input:focus-visible,dialog select:focus-visib
 .school-color-picker-header button{height:var(--school-ui-control-height);padding:5px 12px}
 .school-color-picker-grid{display:grid;grid-template-columns:repeat(9,minmax(28px,1fr));gap:4px}
 .school-color-picker-custom-title{margin:9px 0 5px}
-.school-color-picker-custom-row{display:grid;grid-template-columns:48px repeat(8,minmax(28px,1fr));gap:4px}
-.school-color-picker-custom{display:contents}
+.school-color-picker-custom{display:grid;grid-template-columns:repeat(9,minmax(28px,1fr));gap:4px}
 dialog .school-color-picker-choice{
   position:relative;height:33px;padding:0;border:1px solid var(--school-ui-swatch-border);
   border-radius:4px;background:var(--choice-color)
@@ -255,8 +254,6 @@ dialog .school-color-picker-choice:hover:not(:disabled){
   content:"✓";position:absolute;inset:0;display:grid;place-items:center;
   color:var(--choice-ink,var(--school-ui-text));font-size:20px;font-weight:900;text-shadow:0 1px 1px #fff8
 }
-dialog .school-color-picker-add{display:flex;align-items:center;justify-content:center;height:33px;padding:0;border-radius:4px}
-.school-color-picker-add svg{display:block;width:24px;height:24px}
 .school-color-picker-native{position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none}
 /* Next to the button that opened it (options.anchor): placed by _ui.js, with a clear backdrop. */
 .school-color-picker.school-color-picker-anchored{margin:0;inset:auto;box-shadow:0 10px 34px #172b4d38}
