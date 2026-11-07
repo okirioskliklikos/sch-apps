@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.16
+ * Έκδοση αρχείου: 0.17
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -11,6 +11,7 @@
  *   window.schoolReplaceProgram                    ερώτηση πριν αντικατασταθεί πρόγραμμα περιόδου
  *   window.schoolColorPicker, window.schoolColor   επιλογέας χρώματος και βοηθητικά χρώματος
  *   window.schoolRichText                          κείμενο με μορφοποίηση (μπάρα και πεδίο)
+ *   window.schoolTags                              ετικέτες: chips, επιλογέας, διαχείριση (χρειάζεται το _data.js)
  *   window.schoolHost                              επικοινωνία υποεφαρμογής ↔ Κεντρικού Μενού
  *   window.schoolEscape                            ασφαλές κείμενο μέσα σε HTML
  *   window.schoolIcon                              κοινά εικονίδια SVG
@@ -27,7 +28,7 @@
  * Κουμπιά κάτω δεξιά σε κάθε διάλογο: τέρμα δεξιά η «Ακύρωση», αριστερά της η προεπιλεγμένη ενέργεια
  * (αποδοχή) και πιο αριστερά οι υπόλοιπες. Κάτω αριστερά δεν μπαίνουν κουμπιά.
  * Η εμφάνιση των διαλόγων ορίζεται στο _ui.css (.school-confirm, .school-choice-*, .school-import-*,
- *   .school-color-picker, .school-richtext-*)
+ *   .school-color-picker, .school-richtext-*, .school-tag*)
  * και του κουμπιού «☰» στο _subapp.css.
  */
 (() => {
@@ -966,6 +967,269 @@
     if (typeof ResizeObserver === 'function') new ResizeObserver(update).observe(pageHead);
   }
 
+  // ---- Ετικέτες (window.schoolTags) ----
+  // Τα κοινά components των ετικετών· χρειάζονται το _data.js (SchoolTags, SchoolClasses, SchoolTimetable,
+  // SchoolStudents, SchoolText). data = {tags, classes, staff, students}: το μητρώο του έτους και ό,τι χρειάζεται
+  // για την εμφάνιση. Η εμφάνιση είναι στο _ui.css (.school-tag, .school-tags, .school-tag-picker, .school-tag-manager).
+  const TAG_GROUP_TITLES = {general: 'Γενικές', class: 'Τμήματα', staff: 'Εκπαιδευτικοί', student: 'Μαθητές'};
+  const TAG_KIND_TITLES = {general: 'Ετικέτα', class: 'Τμήμα', staff: 'Εκπαιδευτικός', student: 'Μαθητής'};
+  const tagsLib = () => {
+    if (!window.SchoolTags || !window.SchoolClasses || !window.SchoolTimetable || !window.SchoolStudents) throw Error('Οι ετικέτες χρειάζονται το _data.js. Βεβαιώσου ότι η εφαρμογή και τα κοινά αρχεία είναι η τελευταία έκδοση.');
+    return window.SchoolTags;
+  };
+  const tagSearchKey = value => String(value ?? '').normalize('NFD').replace(/\p{M}+/gu, '').toLowerCase().replace(/\s+/g, ' ').trim();
+  const tagCancelled = () => Object.assign(Error('Η ενέργεια ακυρώθηκε.'), {name: 'AbortError'});
+  const tagPlural = (count, one, many) => count + ' ' + (count === 1 ? one : many);
+  // Η χρήση μιας γενικής ετικέτας ως κείμενο: «5 Προσωπικές Σημειώσεις, 1 …». usage(id) → [{one, many, count}].
+  const tagUsageText = list => (list || []).filter(item => item?.count > 0).map(item => tagPlural(item.count, item.one, item.many)).join(', ');
+  const tagUsageCount = list => (list || []).reduce((sum, item) => sum + (Number(item?.count) || 0), 0);
+
+  // Ένα chip: το όνομα της ετικέτας στο χρώμα της.
+  function tagChip(ref, data) {
+    const info = tagsLib().resolve(ref, data);
+    const chip = document.createElement('span');
+    chip.className = 'school-tag' + (info.missing ? ' is-missing' : '');
+    chip.textContent = info.label;
+    chip.style.setProperty('--school-tag-bg', info.color);
+    chip.style.setProperty('--school-tag-ink', inkFor(info.color));
+    chip.title = TAG_KIND_TITLES[info.type] + ': ' + (info.missing ? 'δεν βρέθηκε' : info.label);
+    return chip;
+  }
+  // Οι ετικέτες ως chips, με τη σειρά του SchoolTags.sort. → <span class="school-tags"> (κενό όταν δεν υπάρχουν).
+  function tagChips(refs, data) {
+    const box = document.createElement('span'); box.className = 'school-tags';
+    for (const ref of tagsLib().sort(refs, data)) box.append(tagChip(ref, data));
+    return box;
+  }
+
+  // Ο επιλογέας ετικετών. options: {title, refs, data, usage(id) → [{one, many, count}], limits:{tags, tagsPerItem, warnRatio}}
+  // → {refs, tags} (οι επιλεγμένες ετικέτες, με την κοινή σειρά, και το μητρώο, ίσως αλλαγμένο από τη «Διαχείριση
+  // ετικετών…») ή null. Η «Ακύρωση» αναιρεί και τις αλλαγές του μητρώου.
+  function tagPick(options = {}) {
+    const Tags = tagsLib(), C = window.SchoolClasses, T = window.SchoolTimetable, S = window.SchoolStudents;
+    const base = options.data || {};
+    let registry = structuredClone(base.tags || {general: [], colors: {}});
+    const dataNow = () => ({...base, tags: registry});
+    const perItem = Number(options.limits?.tagsPerItem) || 40;
+    const keyOf = ref => ref.type + '\u0001' + ref.id;
+    const selected = new Map(Tags.clean(options.refs).map(ref => [keyOf(ref), ref]));
+    const root = document.createElement('div'); root.className = 'school-tag-picker';
+    const search = document.createElement('input'); search.type = 'search'; search.className = 'school-tag-search';
+    search.placeholder = 'Αναζήτηση ετικέτας…'; search.setAttribute('aria-label', 'Αναζήτηση ετικέτας');
+    const status = document.createElement('p'); status.className = 'school-tag-status'; status.setAttribute('role', 'status');
+    const groups = document.createElement('div'); groups.className = 'school-tag-groups';
+    root.append(search, status, groups);
+    const checkboxes = [];
+    let openState = {};
+    const refreshLimit = () => {
+      const full = selected.size >= perItem;
+      for (const box of checkboxes) box.disabled = !box.checked && full;
+      status.textContent = 'Επιλεγμένες: ' + selected.size + (full ? ' — έφτασες το όριο των ' + perItem + ' ετικετών ανά στοιχείο.' : '');
+      status.classList.toggle('ui-validation-warning', full);
+    };
+    const item = ref => {
+      const label = document.createElement('label'); label.className = 'school-tag-option';
+      const box = document.createElement('input'); box.type = 'checkbox'; box.checked = selected.has(keyOf(ref));
+      box.onchange = () => { if (box.checked) selected.set(keyOf(ref), ref); else selected.delete(keyOf(ref)); refreshLimit(); };
+      const chip = tagChip(ref, dataNow());
+      label.dataset.search = tagSearchKey(chip.textContent);
+      label.append(box, chip); checkboxes.push(box);
+      return label;
+    };
+    const group = (key, title, refs, nested) => {
+      const details = document.createElement('details'); details.className = 'school-tag-group' + (nested ? ' is-nested' : '');
+      details.dataset.key = key;
+      const summary = document.createElement('summary');
+      const list = document.createElement('div'); list.className = 'school-tag-options';
+      details.append(summary, list);
+      const fill = children => { list.replaceChildren(...children); };
+      details.dataset.title = title;
+      return {details, summary, list, fill, refs};
+    };
+    const build = () => {
+      checkboxes.length = 0;
+      const data = dataNow(), made = [];
+      const general = [...(registry.general || [])].filter(tag => tag && tag.id).sort((a, b) => String(a.name).localeCompare(String(b.name), 'el', {sensitivity: 'base', numeric: true}));
+      const classes = C.sort(data.classes || []), staff = T.sortStaff(data.staff || []);
+      const sections = [
+        ['general', general.map(tag => ({type: 'general', id: tag.id}))],
+        ['class', classes.map(record => ({type: 'class', id: record.id}))],
+        ['staff', staff.filter(person => person?.id).map(person => ({type: 'staff', id: person.id}))]
+      ];
+      for (const [type, refs] of sections) {
+        const g = group(type, TAG_GROUP_TITLES[type], refs);
+        g.fill(refs.length ? refs.map(item) : [Object.assign(document.createElement('p'), {className: 'school-tag-empty', textContent: type === 'general' ? 'Δεν υπάρχουν γενικές ετικέτες. Πρόσθεσε από τη «Διαχείριση ετικετών…».' : 'Δεν υπάρχουν.'})]);
+        made.push(g);
+      }
+      // Μαθητές: ανά τμήμα, με τη σειρά των Τμημάτων, και μέσα στο τμήμα με το SchoolStudents.compare.
+      const students = (data.students || []).filter(student => student?.id);
+      const studentGroup = group('student', TAG_GROUP_TITLES.student, students);
+      const byClass = new Map();
+      for (const student of students) { if (!byClass.has(student.classId)) byClass.set(student.classId, []); byClass.get(student.classId).push(student); }
+      const order = [...classes.map(record => record.id).filter(id => byClass.has(id)), ...[...byClass.keys()].filter(id => !classes.some(record => record.id === id))];
+      const nested = order.map(id => {
+        const list = byClass.get(id).sort(S.compare), sub = group('student:' + id, C.nameOf(classes, id) || 'Χωρίς τμήμα', list, true);
+        sub.fill(list.map(student => item({type: 'student', id: student.id}))); return sub;
+      });
+      studentGroup.fill(nested.length ? nested.map(sub => sub.details) : [Object.assign(document.createElement('p'), {className: 'school-tag-empty', textContent: 'Δεν υπάρχουν.'})]);
+      made.push(studentGroup);
+      groups.replaceChildren(...made.map(g => g.details));
+      for (const g of [...made, ...nested]) {
+        const own = g.details.querySelectorAll('input[type=checkbox]');
+        g.summary.textContent = g.details.dataset.title + ' (' + own.length + ')';
+        const has = [...own].some(box => box.checked);
+        g.details.open = g.details.dataset.key in openState ? openState[g.details.dataset.key] : (has || g.details.dataset.key === 'general');
+        g.details.addEventListener('toggle', () => { if (!search.value.trim()) openState[g.details.dataset.key] = g.details.open; });
+      }
+      filter(); refreshLimit();
+    };
+    // Αναζήτηση χωρίς τόνους και διάκριση πεζών–κεφαλαίων· οι ομάδες με αποτελέσματα ανοίγουν.
+    const filter = () => {
+      const query = tagSearchKey(search.value);
+      for (const label of groups.querySelectorAll('.school-tag-option')) label.hidden = !!query && !label.dataset.search.includes(query);
+      for (const details of [...groups.querySelectorAll('details')].reverse()) {
+        const visible = [...details.querySelectorAll('.school-tag-option')].some(label => !label.hidden);
+        details.hidden = !!query && !visible;
+        if (query) details.open = visible;
+        else details.open = details.dataset.key in openState ? openState[details.dataset.key] : ([...details.querySelectorAll('input:checked')].length > 0 || details.dataset.key === 'general');
+      }
+    };
+    search.addEventListener('input', filter);
+    search.addEventListener('keydown', event => { if (event.key === 'Enter') event.preventDefault(); });
+    return schoolChoiceDialog({
+      title: options.title || 'Ετικέτες', content: root, className: 'school-tag-dialog',
+      actions: [
+        {label: 'Διαχείριση ετικετών…', run: async () => {
+          const next = await tagManage({tags: registry, usage: options.usage, limits: options.limits});
+          if (next) {
+            registry = next;
+            const ids = new Set((registry.general || []).map(tag => tag.id));
+            for (const [key, ref] of selected) if (ref.type === 'general' && !ids.has(ref.id)) selected.delete(key);
+            build();
+          }
+          search.focus();
+          throw tagCancelled();
+        }},
+        {label: 'Εφαρμογή', accept: true, run: () => ({refs: Tags.sort([...selected.values()], dataNow()), tags: registry})},
+        {label: 'Ακύρωση'}
+      ],
+      ready: () => { build(); search.focus(); }
+    });
+  }
+
+  // Η «Διαχείριση ετικετών»: γενικές ετικέτες (όνομα, χρώμα, διαγραφή, νέα) και τα χρώματα κατηγορίας.
+  // options: {tags, usage(id) → [{one, many, count}], limits:{tags, warnRatio}} → το νέο μητρώο ή null.
+  function tagManage(options = {}) {
+    const Tags = tagsLib();
+    const source = structuredClone(options.tags || {});
+    const limit = Number(options.limits?.tags) || 100, warnAt = Math.ceil(limit * (Number(options.limits?.warnRatio) || 0.9));
+    const collator = new Intl.Collator('el', {sensitivity: 'base', numeric: true});
+    let general = (Array.isArray(source.general) ? source.general : []).filter(tag => tag && tag.id).map(tag => ({...tag})).sort((a, b) => collator.compare(String(a.name), String(b.name)));
+    const colors = {...(source.colors && typeof source.colors === 'object' ? source.colors : {})};
+    const root = document.createElement('div'); root.className = 'school-tag-manager';
+    const generalTitle = document.createElement('h3'); generalTitle.textContent = 'Γενικές ετικέτες';
+    const list = document.createElement('div'); list.className = 'school-tag-manager-list';
+    const tools = document.createElement('div'); tools.className = 'school-tag-manager-tools';
+    const add = document.createElement('button'); add.type = 'button'; add.textContent = '+ Νέα ετικέτα';
+    const count = document.createElement('p'); count.className = 'school-tag-manager-count';
+    tools.append(add, count);
+    const colorsTitle = document.createElement('h3'); colorsTitle.textContent = 'Χρώματα κατηγοριών';
+    const colorRows = document.createElement('div'); colorRows.className = 'school-tag-manager-colors';
+    root.append(generalTitle, list, tools, colorsTitle, colorRows);
+    const swatch = (button, color) => button.querySelector('.school-color-trigger-swatch').style.background = color;
+    const trigger = (label, color) => {
+      const button = document.createElement('button'); button.type = 'button'; button.className = 'school-color-trigger';
+      button.title = label; button.setAttribute('aria-label', label);
+      const span = document.createElement('span'); span.className = 'school-color-trigger-swatch'; button.append(span);
+      swatch(button, color); return button;
+    };
+    const fieldError = () => {
+      const keys = new Map();
+      let problem = null;
+      for (const row of list.children) {
+        const input = row.querySelector('input'), name = input.value.trim(), key = Tags.nameKey(name);
+        let error = !name ? 'Το όνομα είναι υποχρεωτικό.' : '';
+        if (!error && keys.has(key)) error = 'Η ετικέτα «' + name + '» υπάρχει ήδη.';
+        if (name) keys.set(key, true);
+        input.setAttribute('aria-invalid', String(!!error));
+        const message = row.querySelector('.ui-validation-error'); message.textContent = error; message.hidden = !error;
+        if (error && !problem) problem = {input, error};
+      }
+      return problem;
+    };
+    const refreshCount = () => {
+      add.disabled = general.length >= limit;
+      count.textContent = general.length >= warnAt ? 'Υπάρχουν ' + general.length + ' από τις ' + limit + ' γενικές ετικέτες του σχολικού έτους.' + (general.length >= limit ? ' Για νέα ετικέτα διάγραψε πρώτα μια που δεν χρειάζεται.' : '') : '';
+      count.className = 'school-tag-manager-count' + (general.length >= warnAt ? ' ui-validation-warning' : '');
+    };
+    const row = tag => {
+      const element = document.createElement('div'); element.className = 'school-tag-manager-row';
+      const color = trigger('Χρώμα της ετικέτας', tag.color);
+      color.onclick = async () => {
+        const value = await schoolColorPicker(tag.color, {anchor: color, title: 'Χρώμα ετικέτας'});
+        if (value) { tag.color = value; swatch(color, value); }
+      };
+      const input = document.createElement('input'); input.type = 'text'; input.maxLength = 60; input.value = tag.name || '';
+      input.setAttribute('aria-label', 'Όνομα ετικέτας'); input.placeholder = 'Όνομα ετικέτας';
+      input.oninput = () => { tag.name = input.value; fieldError(); };
+      const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'school-tag-manager-remove';
+      remove.innerHTML = schoolIcon('close'); remove.title = 'Διαγραφή ετικέτας'; remove.setAttribute('aria-label', 'Διαγραφή ετικέτας');
+      remove.onclick = async () => {
+        const uses = options.usage ? options.usage(tag.id) : [];
+        const name = (tag.name || '').trim() || 'χωρίς όνομα';
+        if (tagUsageCount(uses) && !await schoolConfirm('Η ετικέτα «' + name + '» υπάρχει σε ' + tagUsageText(uses) + ' και θα αφαιρεθεί από όλες.', {title: 'Διαγραφή ετικέτας', accept: 'Διαγραφή'})) return;
+        const index = general.indexOf(tag);
+        general = general.filter(item => item !== tag);
+        element.remove(); fieldError(); refreshCount();
+        const next = list.children[Math.min(index, list.children.length - 1)];
+        (next?.querySelector('input') || add).focus();
+      };
+      const error = document.createElement('p'); error.className = 'ui-validation-error'; error.setAttribute('role', 'alert'); error.hidden = true;
+      element.append(color, input, remove, error);
+      return element;
+    };
+    add.onclick = () => {
+      if (general.length >= limit) return;
+      const tag = {id: crypto.randomUUID(), name: '', color: Tags.NEW_COLOR};
+      general.push(tag); const element = row(tag); list.append(element); refreshCount();
+      element.querySelector('input').focus();
+    };
+    const defaults = Tags.DEFAULT_COLORS;
+    for (const [key, label] of [['classes', 'Τμήματα'], ['staff', 'Εκπαιδευτικοί'], ['students', 'Μαθητές']]) {
+      const line = document.createElement('div'); line.className = 'school-tag-manager-color';
+      const name = document.createElement('span'); name.textContent = label;
+      const note = document.createElement('span'); note.className = 'ui-helper';
+      const effective = () => Tags.validColor(colors[key]) ? colors[key] : defaults[key];
+      const button = trigger('Χρώμα ετικετών: ' + label, effective());
+      const refresh = () => { swatch(button, effective()); note.textContent = Tags.validColor(colors[key]) ? '' : 'προεπιλογή'; };
+      button.onclick = async () => {
+        const value = await schoolColorPicker(Tags.validColor(colors[key]) ? colors[key] : '', {anchor: button, title: 'Χρώμα ετικετών: ' + label, defaultColor: true});
+        if (value === null) return;
+        if (value === '') delete colors[key]; else colors[key] = value;
+        refresh();
+      };
+      refresh();
+      line.append(button, name, note); colorRows.append(line);
+    }
+    list.append(...general.map(row)); refreshCount();
+    return schoolChoiceDialog({
+      title: 'Διαχείριση ετικετών', content: root, className: 'school-tag-dialog',
+      actions: [
+        {label: 'Ενημέρωση', accept: true, run: () => {
+          const problem = fieldError();
+          if (problem) { problem.input.focus(); throw Error(problem.error); }
+          return {...source, general: general.map(tag => ({...tag, name: tag.name.trim()})), colors};
+        }},
+        {label: 'Ακύρωση'}
+      ],
+      ready: ({dialog}) => {
+        dialog.addEventListener('input', () => { const error = dialog.querySelector(':scope > .school-choice-error'); if (error) error.textContent = ''; });
+        (list.querySelector('input') || add).focus();
+      }
+    });
+  }
+  const schoolTags = Object.freeze({chips: tagChips, chip: tagChip, pick: tagPick, manage: tagManage, usageText: tagUsageText});
+
   window.schoolMessage = schoolMessage;
   window.schoolConfirm = schoolConfirm;
   window.schoolChoiceDialog = schoolChoiceDialog;
@@ -978,4 +1242,5 @@
   window.schoolIcon = schoolIcon;
   window.schoolListSelection = schoolListSelection;
   window.schoolHost = schoolHost;
+  window.schoolTags = schoolTags;
 })();

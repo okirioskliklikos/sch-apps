@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Σχολικό Ημερολόγιο v0.87</title>
+<title>Σχολικό Ημερολόγιο v0.88</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -118,6 +118,12 @@
 .cal-note-editor .school-richtext-editor{min-height:130px;max-height:300px}
 .cal-note-add{display:block;width:100%;border:1px dashed #a8b9c8!important;background:#f9fbfd!important;color:#365e83!important;text-align:center!important}
 .cal-note-empty{color:#697984;text-align:center;padding:30px 10px}
+/* Tags of a note: chips under its text; while editing, the chips and «Ετικέτες…» under the editor. */
+.cal-note-content>.school-tags{margin-top:7px}
+.cal-note-tagbar{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;margin-top:8px}
+.cal-note-tagbar .school-tags{flex:1 1 auto}
+.cal-note-tagbar-empty{color:var(--school-ui-muted);font-size:13px}
+.cal-note-tagbar>button{flex:none}
 .cal-personal-editor .school-confirm-actions{justify-content:flex-end}
 @media(max-width:560px){.cal-note{gap:3px;padding-right:5px}.cal-note-tools{flex-direction:column}.cal-note-grip{padding:5px 2px!important}.school-confirm.cal-personal-editor{height:75dvh}}
 .cal-editor > h2{text-align:center;font-size:23px;font-weight:700;color:#34424c;margin-bottom:4px}
@@ -227,7 +233,7 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v0.87</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v0.88</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="print" type="button" disabled>Εκτύπωση...</button>
@@ -263,9 +269,12 @@
 // Messages, requests and their time limits: schoolHost in _ui.js. Dates: SchoolDate in _data.js.
 // Data of the school year: calendarByYear[year] = {entries, ssdMeetings, pedagogicMeetings}, read and written
 // only through the Index (school-calendar:*). Staff from Προσωπικό (context.staff), programs from the
-// Σχολικά Προγράμματα (school-timetables:context, read only).
+// Σχολικά Προγράμματα (school-timetables:context, read only). Tags of the Προσωπικές Σημειώσεις: each note has
+// tags:[{type, id}…]; the registry of the year (tagsByYear[year]) comes in context.tags and its changes are sent,
+// the whole registry, as tags in the same school-calendar:save (schoolTags of _ui.js, SchoolTags of _data.js).
 const $ = id => document.getElementById(id), esc = schoolEscape, post = schoolHost.post;
-const D = SchoolDate, T = SchoolTimetable, Selection = schoolListSelection;
+const D = SchoolDate, T = SchoolTimetable, Selection = schoolListSelection, G = SchoolTags;
+const APP = 'school_calendar.html', NOTE_WORDS = {one: 'Προσωπική Σημείωση', many: 'Προσωπικές Σημειώσεις'};
 const MONTHS = ['Ιανουάριος','Φεβρουάριος','Μάρτιος','Απρίλιος','Μάιος','Ιούνιος','Ιούλιος','Αύγουστος','Σεπτέμβριος','Οκτώβριος','Νοέμβριος','Δεκέμβριος'];
 const MONTHS_GEN = ['Ιανουαρίου','Φεβρουαρίου','Μαρτίου','Απριλίου','Μαΐου','Ιουνίου','Ιουλίου','Αυγούστου','Σεπτεμβρίου','Οκτωβρίου','Νοεμβρίου','Δεκεμβρίου'];
 const DAYS = ['Δευτέρα','Τρίτη','Τετάρτη','Πέμπτη','Παρασκευή','Σάββατο','Κυριακή'];
@@ -283,12 +292,33 @@ const MEETINGS = {
 
 let context = null, timetables = null;
 let cal = emptyCalendar(), savedJson = calendarJson(cal), dirty = false, busy = false;
+// The registry of tags in the page and as saved (tags of the Προσωπικές Σημειώσεις).
+let tagRegistry = emptyTags(), savedTagsJson = calendarJson(tagRegistry);
 let startYear = 0, currentView = 'year', calendarClickTimer = null;
 let displayed = new Date(), selectedDate = new Date();
 let zoom = 100, zoomLimits = {min:70, max:150, step:10};
 
 // ---- Data ----
 function emptyCalendar() { return {entries:{}, ssdMeetings:{}, pedagogicMeetings:{}}; }
+function emptyTags() { return {general:[], colors:{}}; }
+function normalizeTags(value) {
+  const tags = isObject(value) ? clone(value) : {};
+  return {...tags, general: Array.isArray(tags.general) ? tags.general.filter(item => isObject(item) && typeof item.id === 'string') : [], colors: isObject(tags.colors) ? tags.colors : {}};
+}
+// What the tags need for display: the registry, Τμήματα, Προσωπικό and Μαθητές of the year.
+const tagData = (tags = tagRegistry) => ({tags, classes: context?.classes || [], staff: context?.staff || [], students: context?.students || []});
+// The use of a general tag: the notes of the page (notes: the notes of an open dialog, for its day) and the other
+// applications (context.tagUsage, from the saved data). → [{one, many, count}] for schoolTags.
+function tagUsageOf(id, dayKey, dayNotes) {
+  let count = 0;
+  for (const [key, entry] of Object.entries(cal.entries)) {
+    if (key === dayKey) continue;
+    for (const note of entry.personalNotes || []) if ((note.tags || []).some(ref => ref.type === 'general' && ref.id === id)) count++;
+  }
+  for (const note of dayNotes || []) if ((note.tags || []).some(ref => ref.type === 'general' && ref.id === id)) count++;
+  const others = ((context?.tagUsage || {})[id] || []).filter(item => item.app !== APP);
+  return [...(count ? [{...NOTE_WORDS, count}] : []), ...others];
+}
 function clone(value) { return structuredClone(value); }
 function isObject(value) { return !!value && typeof value === 'object' && !Array.isArray(value); }
 // JSON with sorted keys: the same content gives the same text (to know whether there are changes).
@@ -334,7 +364,7 @@ function normalizeCalendar(value) {
   const entries = {};
   for (const [key, entry] of Object.entries(isObject(value?.entries) ? value.entries : {})) {
     if (!D.valid(key) || !isObject(entry)) continue;
-    const personalNotes = (Array.isArray(entry.personalNotes) ? entry.personalNotes : []).filter(note => isObject(note) && typeof note.id === 'string' && typeof note.html === 'string').map(note => ({id:note.id, html:sanitizeHtml(note.html)})).filter(note => hasHtml(note.html));
+    const personalNotes = (Array.isArray(entry.personalNotes) ? entry.personalNotes : []).filter(note => isObject(note) && typeof note.id === 'string' && typeof note.html === 'string').map(note => ({id:note.id, html:sanitizeHtml(note.html), tags:G.clean(note.tags)})).filter(note => hasHtml(note.html));
     const schoolLifeBook = sanitizeHtml(entry.schoolLifeBook);
     if (hasPersonal(personalNotes) || hasHtml(schoolLifeBook)) entries[key] = {personalNotes, schoolLifeBook};
   }
@@ -343,7 +373,7 @@ function normalizeCalendar(value) {
 
 // ---- Host ----
 function updateDirty() {
-  const now = !!context && calendarJson(cal) !== savedJson;
+  const now = !!context && (calendarJson(cal) !== savedJson || calendarJson(tagRegistry) !== savedTagsJson);
   if (now !== dirty) { dirty = now; post({type:'school-calendar:dirty', dirty}); }
   buttons();
 }
@@ -364,6 +394,8 @@ function receiveContext(next) {
   startYear = Number(String(next.school.year).slice(0, 4));
   cal = normalizeCalendar(next.calendar);
   savedJson = calendarJson(cal);
+  tagRegistry = normalizeTags(next.tags);
+  savedTagsJson = calendarJson(tagRegistry);
   if (next.zoomLimits) zoomLimits = next.zoomLimits;
   applyZoom(next.zoom, false);
   if (first || !inYear(selectedDate)) {
@@ -382,10 +414,15 @@ async function save() {
   if (busy || !context || !dirty) return;
   setBusy(true);
   try {
-    const next = await schoolHost.request('school-calendar:save', {revision: context.revision, year: context.school.year, calendar: clone(cal)});
+    // The registry of tags goes with the notes only when it changed, so that both are saved or neither.
+    const request = {revision: context.revision, year: context.school.year, calendar: clone(cal)};
+    if (calendarJson(tagRegistry) !== savedTagsJson) request.tags = clone(tagRegistry);
+    const next = await schoolHost.request('school-calendar:save', request);
     context = next;
     cal = normalizeCalendar(next.calendar);
     savedJson = calendarJson(cal);
+    tagRegistry = normalizeTags(next.tags);
+    savedTagsJson = calendarJson(tagRegistry);
     render();
   } catch (error) {
     await schoolMessage(error.message, {title:'Η αποθήκευση δεν έγινε'});
@@ -395,6 +432,7 @@ async function undoAll() {
   if (busy || !dirty) return;
   if (!await schoolConfirm('Να απορριφθούν όλες οι αλλαγές από την τελευταία αποθήκευση;', {title:'Αναίρεση Όλων', accept:'Αναίρεση Όλων'})) return;
   cal = JSON.parse(savedJson);
+  tagRegistry = JSON.parse(savedTagsJson);
   render(); updateDirty();
 }
 
@@ -564,17 +602,20 @@ function editorBox(id, label, html) {
 }
 async function editPersonalNotes(date) {
   const key = dateKey(date), entry = getEntry(key);
-  const original = clone(entry.personalNotes);
-  let notes = clone(original), activeId = null, activeRich = null;
+  const original = clone(entry.personalNotes), originalTags = clone(tagRegistry);
+  // registry: the registry of tags in this dialog; it reaches the page with «Ενημέρωση» (with the notes).
+  // activeTags: the tags of the open note; «Αποδοχή» keeps them, «Ακύρωση» brings them back.
+  let notes = clone(original), activeId = null, activeRich = null, activeTags = [], registry = clone(originalTags), draftHtml = null;
   const body = document.createElement('div'); body.className = 'cal-notes-list';
-  const closeEditor = () => { activeId = null; activeRich = null; };
+  const closeEditor = () => { activeId = null; activeRich = null; activeTags = []; draftHtml = null; };
+  // A note without text is not kept, even when it has tags.
   const commitEditor = () => {
     if (activeId === null || !activeRich) return;
     const html = sanitizeHtml(activeRich.html);
     if (hasHtml(html)) {
       const note = notes.find(item => item.id === activeId);
-      if (note) note.html = html;
-      else notes.push({id: activeId, html});
+      if (note) { note.html = html; note.tags = clone(activeTags); }
+      else notes.push({id: activeId, html, tags: clone(activeTags)});
     } else notes = notes.filter(item => item.id !== activeId);
     closeEditor();
   };
@@ -582,8 +623,35 @@ async function editPersonalNotes(date) {
   const acceptEditor = () => { commitEditor(); renderNotes(); };
   const openEditor = (id, focus = true) => {
     closeEditor(); activeId = id;
+    activeTags = clone(notes.find(item => item.id === id)?.tags || []);
     renderNotes();
     if (focus) activeRich?.focus();
+  };
+  const generalIds = tags => (tags?.general || []).map(item => item.id);
+  // «Ετικέτες…» of the open note: the shared picker, with «Διαχείριση ετικετών…». General tags deleted there leave
+  // every note of the dialog (and, with «Ενημέρωση», every note of the year).
+  const chooseTags = async () => {
+    if (activeId === null) return;
+    const result = await schoolTags.pick({title: 'Ετικέτες σημείωσης', refs: activeTags, data: tagData(registry), usage: id => tagUsageOf(id, key, notes), limits: context?.limits});
+    if (!result || activeId === null) return;
+    const kept = new Set(generalIds(result.tags)), removed = new Set(generalIds(registry).filter(id => !kept.has(id)));
+    registry = result.tags; activeTags = result.refs;
+    for (const note of notes) note.tags = (note.tags || []).filter(ref => !(ref.type === 'general' && removed.has(ref.id)));
+    // The open editor is drawn again with the text the user has written so far.
+    draftHtml = activeRich ? activeRich.html : draftHtml;
+    renderNotes();
+    body.querySelector('.cal-note-tagbar button')?.focus();
+  };
+  // Under the editor of the open note: its tags and «Ετικέτες…».
+  const tagBar = () => {
+    const bar = document.createElement('div'); bar.className = 'cal-note-tagbar';
+    const chips = schoolTags.chips(activeTags, tagData(registry));
+    if (chips.childElementCount) bar.append(chips);
+    else { const none = document.createElement('span'); none.className = 'cal-note-tagbar-empty'; none.textContent = 'Χωρίς ετικέτες'; bar.append(none); }
+    const button = document.createElement('button'); button.type = 'button'; button.textContent = 'Ετικέτες…';
+    button.addEventListener('click', chooseTags);
+    bar.append(button);
+    return bar;
   };
   // The open note: the shared editor, with «Αποδοχή» / «Ακύρωση» at the right end of its toolbar.
   const noteEditor = (html, label, what) => schoolRichText.create({html, label, color: DEFAULT_FONT_COLOR, actions: [
@@ -690,10 +758,11 @@ async function editPersonalNotes(date) {
       grip.addEventListener('dragend', () => finishDrag(false));
       const content = document.createElement('div'); content.className = 'cal-note-content';
       if (note.id === activeId) {
-        const rich = noteEditor(note.html, 'Προσωπική σημείωση', 'αλλαγών σημείωσης');
-        activeRich = rich; content.classList.add('cal-note-editor'); content.append(rich.element);
+        const rich = noteEditor(draftHtml ?? note.html, 'Προσωπική σημείωση', 'αλλαγών σημείωσης');
+        activeRich = rich; content.classList.add('cal-note-editor'); content.append(rich.element, tagBar());
       } else {
-        const text = document.createElement('div'); text.className = 'cal-note-html'; text.innerHTML = sanitizeHtml(note.html); content.append(text);
+        const text = document.createElement('div'); text.className = 'cal-note-html'; text.innerHTML = sanitizeHtml(note.html);
+        content.append(text, schoolTags.chips(note.tags || [], tagData(registry)));
       }
       const tools = document.createElement('div'); tools.className = 'cal-note-tools';
       if (note.id !== activeId) {
@@ -713,8 +782,8 @@ async function editPersonalNotes(date) {
     if (activeId !== null && !notes.some(note => note.id === activeId)) {
       const row = document.createElement('div'); row.className = 'cal-note is-editing';
       const content = document.createElement('div'); content.className = 'cal-note-content cal-note-editor';
-      activeRich = noteEditor('', 'Νέα προσωπική σημείωση', 'νέας σημείωσης');
-      content.append(activeRich.element);
+      activeRich = noteEditor(draftHtml ?? '', 'Νέα προσωπική σημείωση', 'νέας σημείωσης');
+      content.append(activeRich.element, tagBar());
       row.append(content); body.append(row);
     }
     const add = document.createElement('button'); add.type = 'button'; add.className = 'cal-note-add';
@@ -726,8 +795,8 @@ async function editPersonalNotes(date) {
   const result = await schoolChoiceDialog({
     title: `${weekdayName(date)} ${D.format(key)}`, content: [heading, body], className: 'cal-editor cal-personal-editor', escape:false,
     actions: [
-      {label:'Επαναφορά', run: () => { notes = clone(original); activeId = null; activeRich = null; renderNotes(); throw cancelled(); }},
-      {label:'Ενημέρωση', accept:true, run: () => { commitEditor(); return {notes}; }},
+      {label:'Επαναφορά', run: () => { notes = clone(original); registry = clone(originalTags); closeEditor(); renderNotes(); throw cancelled(); }},
+      {label:'Ενημέρωση', accept:true, run: () => { commitEditor(); return {notes, registry}; }},
       {label:'Ακύρωση'}
     ],
     ready: ({dialog}) => {
@@ -747,6 +816,10 @@ async function editPersonalNotes(date) {
   document.removeEventListener('dragover', trackDragPosition, true);
   document.removeEventListener('keydown', cancelDragOnEscape);
   if (!result) return;
+  // Changes of the registry reach the page with the notes; deleted general tags leave every note of the year.
+  const kept = new Set(generalIds(result.registry)), removed = new Set(generalIds(tagRegistry).filter(id => !kept.has(id)));
+  tagRegistry = result.registry;
+  if (removed.size) for (const other of Object.values(cal.entries)) for (const note of other.personalNotes || []) note.tags = (note.tags || []).filter(ref => !(ref.type === 'general' && removed.has(ref.id)));
   const next = {...entry, personalNotes: result.notes};
   if (!hasPersonal(next.personalNotes) && !hasHtml(next.schoolLifeBook)) delete cal.entries[key];
   else cal.entries[key] = next;

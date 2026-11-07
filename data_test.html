@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Έλεγχος _data.js και των _host_*.js</title>
 <!--
-  Σελίδα ελέγχου του _data.js, του _host_timetables.js, του _host_calendar.js, του _host_classes.js και του
-  _host_students.js, εκτός σουίτας: δεν μπαίνει στο Κεντρικό Μενού και δεν ακολουθεί τις συμβάσεις των
+  Σελίδα ελέγχου του _data.js, του _host_timetables.js, του _host_calendar.js, του _host_classes.js, του
+  _host_students.js και του _host_tags.js, εκτός σουίτας: δεν μπαίνει στο Κεντρικό Μενού και δεν ακολουθεί τις συμβάσεις των
   υποεφαρμογών. Μπαίνει στον ίδιο φάκελο με αυτά τα αρχεία και ανοίγει μόνη της.
   Τα προγράμματα είναι στη νέα μορφή τμημάτων (formatVersion:2, τμήματα με id). Τα τμήματα των ελέγχων
   φτιάχνονται από το σύντομο όνομα των δασκάλων («[Α1] - …», classesFromStaff). Με το .data δοκιμής, οι
   έλεγχοι των νέων ετικετών (v2) παίρνουν το Προσωπικό από αυτό, γιατί το CSV του Ολοημέρου έχει τα σύντομα
   ονόματα του Προσωπικού.
-  Έκδοση αρχείου: 0.26
+  Έκδοση αρχείου: 0.27
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -39,7 +39,7 @@ button{font:inherit;padding:6px 14px;border-radius:8px;border:1px solid #94a3b8;
 <body>
 <main>
 <h1>Έλεγχος του _data.js και των _host_*.js</h1>
-<p>Η σελίδα ελέγχει τις κοινές λειτουργίες του <code>_data.js</code> και τις καθαρές συναρτήσεις του <code>_host_timetables.js</code>, του <code>_host_calendar.js</code>, του <code>_host_classes.js</code>, και του <code>_host_students.js</code> με τα αρχεία δοκιμής (βλέπε «Αρχεία δοκιμής» στο <code>project_instructions.md</code>). Δεν αλλάζει κανένα αρχείο.</p>
+<p>Η σελίδα ελέγχει τις κοινές λειτουργίες του <code>_data.js</code> και τις καθαρές συναρτήσεις του <code>_host_timetables.js</code>, του <code>_host_calendar.js</code>, του <code>_host_classes.js</code>, του <code>_host_students.js</code> και του <code>_host_tags.js</code> με τα αρχεία δοκιμής (βλέπε «Αρχεία δοκιμής» στο <code>project_instructions.md</code>). Δεν αλλάζει κανένα αρχείο.</p>
 <div class="drop" id="drop">
   <p><strong>Αρχεία δοκιμής:</strong> σύρε τα εδώ ή <input type="file" id="files" multiple accept=".fet,.csv,.data"></p>
   <div class="files" id="fileList"></div>
@@ -53,6 +53,7 @@ button{font:inherit;padding:6px 14px;border-radius:8px;border:1px solid #94a3b8;
 <script src="_host_calendar.js"></script>
 <script src="_host_classes.js"></script>
 <script src="_host_students.js"></script>
+<script src="_host_tags.js"></script>
 <script>
 (() => {
 'use strict';
@@ -684,10 +685,10 @@ function hostCalendarChecks() {
   const saved = C.applySave(base, {calendar});
   equal('Αποθήκευση: γράφει μόνο το calendarByYear του έτους, τα άλλα έτη μένουν', [Object.keys(saved.calendarByYear).sort(), saved.calendarByYear['2025-2026'].entries['2026-01-10'].personalNotes[0].html], [['2025-2026', year], 'παλιό']);
   equal('Οι κενές σημειώσεις δεν κρατιούνται', Object.keys(saved.calendarByYear[year].entries), ['2026-11-10']);
-  equal('Τα δύο πεδία σημειώσεων αποθηκεύονται ανεξάρτητα, οι προσωπικές με τη σειρά τους', saved.calendarByYear[year].entries['2026-11-10'], {personalNotes: notes('<b>σημ.</b>', 'δεύτερη'), schoolLifeBook: '<p>Σχολική ζωή</p>'});
+  equal('Τα δύο πεδία σημειώσεων αποθηκεύονται ανεξάρτητα, οι προσωπικές με τη σειρά τους', saved.calendarByYear[year].entries['2026-11-10'], {personalNotes: notes('<b>σημ.</b>', 'δεύτερη').map(note => ({...note, tags: []})), schoolLifeBook: '<p>Σχολική ζωή</p>'});
   equal('Μόνο προσωπικές σημειώσεις: διατηρείται η ημέρα', Object.keys(C.validateCalendar({entries: {'2026-11-13': {personalNotes: notes('Π'), schoolLifeBook: ''}}}, year, []).entries), ['2026-11-13']);
   equal('Μόνο Βιβλίο Σχολικής Ζωής: διατηρείται η ημέρα', Object.keys(C.validateCalendar({entries: {'2026-11-13': {personalNotes: [], schoolLifeBook: 'Β'}}}, year, []).entries), ['2026-11-13']);
-  equal('Προσωπική σημείωση με κενό html δεν κρατιέται', C.validateCalendar({entries: {'2026-11-13': {personalNotes: [{id: 'a', html: ''}, {id: 'b', html: 'Β'}], schoolLifeBook: ''}}}, year, []).entries['2026-11-13'].personalNotes, [{id: 'b', html: 'Β'}]);
+  equal('Προσωπική σημείωση με κενό html δεν κρατιέται', C.validateCalendar({entries: {'2026-11-13': {personalNotes: [{id: 'a', html: ''}, {id: 'b', html: 'Β'}], schoolLifeBook: ''}}}, year, []).entries['2026-11-13'].personalNotes, [{id: 'b', html: 'Β', tags: []}]);
   equal('Ο λόγος «Αναμονή άδειας» γίνεται δεκτός', saved.calendarByYear[year].pedagogicMeetings['2026-11-20'].absenceReasons['s2'], 'leavePending');
   check('Το αρχικό data δεν αλλάζει', !base.calendarByYear[year]);
   const rejects = (label, value, text) => { try { C.applySave(base, {calendar: value}); record('fail', label, 'έγινε δεκτό'); } catch (error) { check(label, error.message.includes(text), error.message); } };
@@ -899,6 +900,114 @@ function hostStudentsChecks() {
 
 // ---- Το .data δοκιμής ----
 // Είναι στη νέα μορφή τμημάτων: περνά την επικύρωση του host και τα σχέδια του Ολοημέρου εξάγονται.
+// ---- Ετικέτες (SchoolTags του _data.js, _host_tags.js) ----
+function hostTagsChecks() {
+  start('12. Ετικέτες: SchoolTags και Host: Ετικέτες');
+  const G = window.SchoolTags, H = window.SchoolHostTags, Cal = window.SchoolHostCalendar, K = window.SchoolHostClasses;
+  if (!G) { record('fail', 'Λείπει το SchoolTags από το _data.js'); return; }
+  if (!H) { record('fail', 'Λείπει το _host_tags.js'); return; }
+  const year = '2026-2027';
+  const classes = [{...generalClass('Β1'), id: 'c2'}, {...generalClass('Α1'), id: 'c1', name: 'Α-1'}, {id: 'ce', name: 'Τμήμα Ένταξης', homeroomStaffId: ''}];
+  const staff = [{id: 's1', code: 'Β1', shortName: '[Β1] - Β', name: 'Βασιλείου Μαρία', shortNameOrder: 1}, {id: 's2', code: 'Α1', shortName: '[Α1] - Α', name: 'Αλεξίου Νίκος', shortNameOrder: 0}];
+  const students = [{id: 'm1', lastName: 'ΠΑΠΑΣ', firstName: 'Γιώργος', classId: 'c2'}, {id: 'm2', lastName: 'ΖΩΗ', firstName: 'Άννα', classId: 'c1'}, {id: 'm3', lastName: 'ΑΛΦΑ', firstName: 'Βήτα', classId: 'c1'}];
+  const tags = {general: [{id: 'g1', name: 'Εκδρομή', color: '#ff0000'}, {id: 'g2', name: 'αγωγή υγείας', color: '#00ff00', extra: 1}], colors: {staff: '#123456'}, note: 'x'};
+  const data = {tags, classes, staff, students};
+
+  // SchoolTags (_data.js)
+  equal('Χρώματα κατηγορίας: με τις προεπιλογές όπου λείπουν', G.colors(tags), {classes: G.DEFAULT_COLORS.classes, staff: '#123456', students: G.DEFAULT_COLORS.students});
+  equal('Όνομα στο chip: τμήμα από τα «Τμήματα», εκπαιδευτικός με πλήρες όνομα, μαθητής «ΕΠΩΝΥΜΟ Όνομα (Α-1)»',
+    [G.resolve({type: 'class', id: 'c1'}, data).label, G.resolve({type: 'staff', id: 's1'}, data).label, G.resolve({type: 'student', id: 'm2'}, data).label, G.resolve({type: 'general', id: 'g1'}, data).color],
+    ['Α-1', 'Βασιλείου Μαρία', 'ΖΩΗ Άννα (Α-1)', '#ff0000']);
+  const lost = G.resolve({type: 'student', id: 'xx'}, data);
+  equal('Ετικέτα που δεν βρίσκεται: «?», missing', [lost.label, lost.missing], ['?', true]);
+  const refs = [{type: 'student', id: 'm1'}, {type: 'staff', id: 's1'}, {type: 'general', id: 'g1'}, {type: 'student', id: 'm2'}, {type: 'class', id: 'ce'}, {type: 'class', id: 'c2'}, {type: 'staff', id: 's2'}, {type: 'general', id: 'g2'}, {type: 'student', id: 'm3'}, {type: 'general', id: 'g1'}];
+  equal('Σειρά: γενικές αλφαβητικά, τμήματα, εκπαιδευτικοί με τη σειρά του Προσωπικού, μαθητές ανά τμήμα και αλφαβητικά, χωρίς διπλές',
+    G.sort(refs, data).map(ref => ref.id), ['g2', 'g1', 'c2', 'ce', 's2', 's1', 'm3', 'm2', 'm1']);
+  equal('Σύγκριση ονομάτων: χωρίς τόνους, κενά και διάκριση πεζών–κεφαλαίων', [G.nameKey('Αγωγή  Υγείας') === G.nameKey('αγωγη υγειας'), G.nameKey('Α') === G.nameKey('Β')], [true, false]);
+  check('same: ίδιο είδος και id', G.same({type: 'class', id: 'c1'}, {type: 'class', id: 'c1'}) && !G.same({type: 'class', id: 'c1'}, {type: 'staff', id: 'c1'}));
+
+  // Μητρώο
+  const registry = H.validateRegistry({general: [{id: 'g1', name: '  Εκδρομή ', color: '#FF0000', extra: 2}], colors: {classes: '', staff: '#ABCDEF'}, note: 'x'});
+  equal('Μητρώο: καθαρό αντίγραφο με τα άγνωστα πεδία', registry, {general: [{id: 'g1', name: 'Εκδρομή', color: '#ff0000', extra: 2}], colors: {staff: '#abcdef'}, note: 'x'});
+  const rejectsRegistry = (label, value, text) => { try { H.validateRegistry(value); record('fail', label, 'έγινε δεκτό'); } catch (error) { check(label, error.message.includes(text), error.message); } };
+  rejectsRegistry('Γενική ετικέτα χωρίς id: απορρίπτεται', {general: [{name: 'Α', color: '#000000'}]}, 'ταυτότητα');
+  rejectsRegistry('Διπλό id: απορρίπτεται', {general: [{id: 'a', name: 'Α', color: '#000000'}, {id: 'a', name: 'Β', color: '#000000'}]}, 'διπλές ταυτότητες');
+  rejectsRegistry('Κενό όνομα: απορρίπτεται', {general: [{id: 'a', name: '  ', color: '#000000'}]}, 'υποχρεωτικό');
+  rejectsRegistry('Διπλό όνομα (τόνοι, κενά, κεφαλαία): απορρίπτεται', {general: [{id: 'a', name: 'Αγωγή Υγείας', color: '#000000'}, {id: 'b', name: 'αγωγη  υγειας', color: '#000000'}]}, 'δύο φορές');
+  rejectsRegistry('Όνομα πάνω από ' + H.LIMITS.name + ' χαρακτήρες: απορρίπτεται', {general: [{id: 'a', name: 'x'.repeat(H.LIMITS.name + 1), color: '#000000'}]}, 'πολύ μεγάλο');
+  rejectsRegistry('Μη έγκυρο χρώμα ετικέτας: απορρίπτεται', {general: [{id: 'a', name: 'Α', color: 'red'}]}, 'χρώμα');
+  rejectsRegistry('Μη έγκυρο χρώμα κατηγορίας: απορρίπτεται', {general: [], colors: {students: '#12'}}, 'χρώμα κατηγορίας');
+  rejectsRegistry('Πάνω από ' + H.LIMITS.general + ' γενικές ετικέτες: απορρίπτεται', {general: Array.from({length: H.LIMITS.general + 1}, (_, i) => ({id: 'g' + i, name: 'Ε' + i, color: '#000000'}))}, 'όριο των ' + H.LIMITS.general);
+  check('Ακριβώς ' + H.LIMITS.general + ' γενικές ετικέτες: δεκτό', H.validateRegistry({general: Array.from({length: H.LIMITS.general}, (_, i) => ({id: 'g' + i, name: 'Ε' + i, color: '#000000'}))}).general.length === H.LIMITS.general);
+
+  // Αναφορές
+  const base = {format: 'school-shared-data', formatVersion: 1, school: {name: 'Σχολείο', year},
+    staffByYear: {[year]: staff}, classesByYear: {[year]: {classes}}, studentsByYear: {[year]: {students}}, tagsByYear: {[year]: tags, '2025-2026': {general: [{id: 'old', name: 'Παλιά', color: '#000000'}]}}};
+  const ids = H.known(base, year);
+  equal('known: τα id ανά κατηγορία', [[...ids.general], [...ids.class], [...ids.staff], [...ids.student]], [['g1', 'g2'], ['c2', 'c1', 'ce'], ['s1', 's2'], ['m1', 'm2', 'm3']]);
+  equal('Αναφορές: οι διπλές δεν κρατιούνται', H.validateRefs([{type: 'class', id: 'c1'}, {type: 'class', id: 'c1'}, {type: 'staff', id: 's1'}], ids, 'x'), [{type: 'class', id: 'c1'}, {type: 'staff', id: 's1'}]);
+  const rejectsRefs = (label, value, text) => { try { H.validateRefs(value, ids, 'στη δοκιμή'); record('fail', label, 'έγινε δεκτό'); } catch (error) { check(label, error.message.includes(text), error.message); } };
+  rejectsRefs('Άγνωστο είδος: απορρίπτεται', [{type: 'room', id: 'x'}], 'άγνωστου είδους');
+  rejectsRefs('Γενική ετικέτα που δεν υπάρχει στο μητρώο: απορρίπτεται', [{type: 'general', id: 'old'}], 'μητρώο');
+  rejectsRefs('Τμήμα που δεν υπάρχει: απορρίπτεται', [{type: 'class', id: 'xx'}], '«Τμήματα»');
+  rejectsRefs('Εκπαιδευτικός που δεν υπάρχει: απορρίπτεται', [{type: 'staff', id: 'xx'}], 'Προσωπικό');
+  rejectsRefs('Μαθητής που δεν υπάρχει: απορρίπτεται', [{type: 'student', id: 'xx'}], '«Μαθητές»');
+  const many = Array.from({length: H.LIMITS.general}, (_, i) => ({id: 'g' + i, name: 'Ε' + i, color: '#000000'}));
+  const manyIds = {...ids, general: new Set(many.map(item => item.id))};
+  try { H.validateRefs(many.slice(0, H.LIMITS.perItem + 1).map(item => ({type: 'general', id: item.id})), manyIds, 'στη δοκιμή'); record('fail', 'Πάνω από ' + H.LIMITS.perItem + ' ετικέτες σε ένα στοιχείο: απορρίπτεται', 'έγινε δεκτό'); }
+  catch (error) { check('Πάνω από ' + H.LIMITS.perItem + ' ετικέτες σε ένα στοιχείο: απορρίπτεται', error.message.includes('όριο των ' + H.LIMITS.perItem), error.message); }
+  check('Ακριβώς ' + H.LIMITS.perItem + ' ετικέτες: δεκτό', H.validateRefs(many.slice(0, H.LIMITS.perItem).map(item => ({type: 'general', id: item.id})), manyIds, 'x').length === H.LIMITS.perItem);
+
+  // Αποθήκευση του Ημερολογίου με ετικέτες
+  if (!Cal) { record('fail', 'Λείπει το _host_calendar.js'); return; }
+  const note = (id, tagList, html = 'σημ. ' + id) => ({id, html, tags: tagList});
+  const calendar = {entries: {
+    '2026-11-10': {personalNotes: [note('n1', [{type: 'general', id: 'g1'}, {type: 'class', id: 'c1'}, {type: 'staff', id: 's1'}, {type: 'student', id: 'm1'}]), note('n2', [{type: 'general', id: 'g1'}, {type: 'general', id: 'g1'}])], schoolLifeBook: ''},
+    '2026-11-11': {personalNotes: [{id: 'n3', html: 'χωρίς tags'}, note('n4', [{type: 'class', id: 'c1'}], '')], schoolLifeBook: ''}}};
+  const saved = Cal.applySave(base, {calendar});
+  equal('Ημερολόγιο: οι ετικέτες κρατιούνται, χωρίς διπλές· σημείωση χωρίς tags → []· σημείωση χωρίς κείμενο δεν κρατιέται, ακόμη κι αν έχει ετικέτες',
+    [saved.calendarByYear[year].entries['2026-11-10'].personalNotes.map(item => item.tags.length), saved.calendarByYear[year].entries['2026-11-11'].personalNotes], [[4, 1], [{id: 'n3', html: 'χωρίς tags', tags: []}]]);
+  check('Ημερολόγιο χωρίς tags στο μήνυμα: το μητρώο μένει όπως είναι', JSON.stringify(saved.tagsByYear[year]) === JSON.stringify(tags));
+  const rejectsSave = (label, message, text) => { try { Cal.applySave(base, message); record('fail', label, 'έγινε δεκτό'); } catch (error) { check(label, error.message.includes(text), error.message); } };
+  rejectsSave('Σημείωση με ετικέτα που δεν υπάρχει: απορρίπτεται, με την ημερομηνία', {calendar: {entries: {'2026-11-12': {personalNotes: [note('n', [{type: 'staff', id: 'xx'}])], schoolLifeBook: ''}}}}, '12/11/2026');
+  rejectsSave('Μη έγκυρο μητρώο στο :save: απορρίπτεται', {calendar, tags: {general: [{id: 'g1', name: '', color: '#000000'}]}}, 'υποχρεωτικό');
+  const removedTag = Cal.applySave(saved, {calendar: saved.calendarByYear[year], tags: {general: [tags.general[1]], colors: {}}});
+  equal('Διαγραφή γενικής ετικέτας από το μητρώο: αντικαθίσταται το tagsByYear του έτους, τα άλλα έτη μένουν', [removedTag.tagsByYear[year].general.map(item => item.id), removedTag.tagsByYear['2025-2026'].general.length], [['g2'], 1]);
+  equal('Οι σημειώσεις του :save που κρατούν ακόμη την ετικέτα που διαγράφεται: η ετικέτα φεύγει και από αυτές', JSON.stringify(removedTag.calendarByYear[year]).includes('"g1"'), false);
+  const withOther = clone(saved);
+  // Μια σημείωση της σελίδας χωρίς την ετικέτα, ενώ στο αρχείο την έχουν: το host την αφαιρεί από όλα τα δεδομένα του έτους.
+  const cleaned = clone(saved.calendarByYear[year]); for (const entry of Object.values(cleaned.entries)) for (const item of entry.personalNotes) item.tags = item.tags.filter(ref => ref.id !== 'g1');
+  const after = Cal.applySave(withOther, {calendar: cleaned, tags: {general: [tags.general[1]]}});
+  equal('Μετά τη διαγραφή η ετικέτα δεν υπάρχει πουθενά', JSON.stringify(after.calendarByYear[year]).includes('"g1"'), false);
+  const applied = clone(saved); const gone = H.applyRegistry(applied, year, {general: [tags.general[1]]});
+  equal('applyRegistry: αφαιρεί τη γενική ετικέτα από όλες τις σημειώσεις του έτους', [gone, applied.calendarByYear[year].entries['2026-11-10'].personalNotes.map(item => item.tags.map(ref => ref.id))], [['g1'], [['c1', 's1', 'm1'], []]]);
+
+  // Χρήση και καθάρισμα
+  const used = H.usage(saved, year);
+  equal('Χρήση: ανά είδος και id, με την εφαρμογή και το πλήθος', [used.general.g1, used.class.c1?.[0]?.count, used.staff.s1?.[0]?.count, used.student.m1?.[0]?.count, used.general.g2],
+    [[{app: 'school_calendar.html', one: 'Προσωπική Σημείωση', many: 'Προσωπικές Σημειώσεις', count: 2}], 1, 1, 1, undefined]);
+  const removedStaff = clone(saved);
+  equal('Διαγραφή εκπαιδευτικού: οι αναφορές του φεύγουν (removeRefs)', [H.removeRefs(removedStaff, year, 'staff', ['s1']), removedStaff.calendarByYear[year].entries['2026-11-10'].personalNotes[0].tags.map(ref => ref.id)], [1, ['g1', 'c1', 'm1']]);
+  const removedStudent = clone(saved);
+  equal('Διαγραφή μαθητή: οι αναφορές του φεύγουν (removeRefs)', [H.removeRefs(removedStudent, year, 'student', ['m1']), removedStudent.calendarByYear[year].entries['2026-11-10'].personalNotes[0].tags.map(ref => ref.id)], [1, ['g1', 'c1', 's1']]);
+
+  // Context του Ημερολογίου
+  const context = Cal.context(saved, 3);
+  equal('Context του Ημερολογίου: μητρώο, χρήση γενικών, Τμήματα, Μαθητές, όρια', [context.tags.general.length, context.tagUsage.g1[0].count, context.classes.length, context.students.length, context.limits],
+    [2, 2, 3, 3, {tags: H.LIMITS.general, tagsPerItem: H.LIMITS.perItem, warnRatio: H.LIMITS.warnRatio}]);
+
+  // Τμήματα ως ετικέτες
+  if (!K) { record('fail', 'Λείπει το _host_classes.js'); return; }
+  equal('Context των Τμημάτων: tagUsage ανά τμήμα', K.context(saved, 1).tagUsage.c1?.[0]?.count, 1);
+  const rejectsClasses = (label, list, text) => { try { K.applySave(saved, {classes: list}); record('fail', label, 'έγινε δεκτό'); } catch (error) { check(label, error.message.includes(text), error.message); } };
+  rejectsClasses('Αφαίρεση τμήματος που χρησιμοποιείται ως ετικέτα: απορρίπτεται', classes.filter(item => item.id !== 'c1'), 'χρήση ως ετικέτα σε 1 Προσωπική Σημείωση');
+  const taggedEntaxi = clone(saved); taggedEntaxi.calendarByYear[year].entries['2026-11-10'].personalNotes[1].tags.push({type: 'class', id: 'ce'});
+  try { K.applySave(taggedEntaxi, {classes: classes.map(item => item.id === 'ce' ? {...generalClass('Γ1'), id: 'ce'} : item)}); record('fail', 'Αλλαγή είδους τμήματος που χρησιμοποιείται ως ετικέτα: απορρίπτεται', 'έγινε δεκτό'); }
+  catch (error) { check('Αλλαγή είδους τμήματος που χρησιμοποιείται ως ετικέτα: απορρίπτεται', error.message.includes('ετικέτα'), error.message); }
+  check('Μετονομασία τμήματος που χρησιμοποιείται ως ετικέτα: δεκτή', (() => { try { K.applySave(saved, {classes: classes.map(item => item.id === 'c1' ? {...item, name: 'Α1'} : item)}); return true; } catch { return false; } })());
+  check('Αφαίρεση τμήματος χωρίς δεδομένα: δεκτή', (() => { try { K.applySave(saved, {classes: classes.filter(item => item.id !== 'ce')}); return true; } catch (error) { return false; } })());
+}
+
 function dataFileChecks() {
   start('11. Το .data δοκιμής');
   const K = window.SchoolHostClasses, H = window.SchoolHostTimetables;
@@ -1388,6 +1497,7 @@ function run() {
   attempt('Host: Τμήματα', hostClassesChecks);
   attempt('Μαθητές', studentsChecks);
   attempt('Host: Μαθητές', hostStudentsChecks);
+  attempt('Host: Ετικέτες', hostTagsChecks);
   attempt('Το .data δοκιμής', dataFileChecks);
 
   const summary = document.createElement('div');

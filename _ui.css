@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινό περιβάλλον χρήστη
- * Έκδοση αρχείου: 0.32
+ * Έκδοση αρχείου: 0.33
  * Όνομα κατά την εγκατάσταση: _ui.css
  */
 
@@ -351,3 +351,45 @@ fieldset.ui-fields{margin:0;padding:0;min-width:0;border:0}
 .ui-toggle[aria-pressed="true"]{
   background:#dceaf4;color:#244b69;border-color:#7a9eb9;box-shadow:inset 0 2px 4px #183c5b26
 }
+
+/* Ετικέτες (window.schoolTags in _ui.js): chips, the tag picker and the «Διαχείριση ετικετών» dialog.
+   A chip takes its colour from --school-tag-bg and its text colour from --school-tag-ink (schoolColor.ink). */
+.school-tags{display:flex;flex-wrap:wrap;gap:4px 5px;min-width:0}
+.school-tags:empty{display:none}
+.school-tag{
+  display:inline-block;max-width:100%;box-sizing:border-box;padding:1px 9px;border:1px solid #0000001f;border-radius:999px;
+  background:var(--school-tag-bg,#e5e7eb);color:var(--school-tag-ink,#111);font-size:13px;line-height:20px;font-weight:500;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:middle
+}
+.school-tag.is-missing{background:#fff;color:var(--school-ui-muted);border-style:dashed;border-color:var(--school-ui-control-border)}
+.school-confirm.school-tag-dialog{width:min(640px,calc(100vw - 32px))}
+.school-tag-picker{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+.school-tag-picker .school-tag-search{width:100%;box-sizing:border-box}
+.school-tag-status{margin:0!important;font-size:13px;color:var(--school-ui-label-text)}
+.school-tag-status.ui-validation-warning{color:var(--school-ui-warning)}
+.school-tag-groups{display:grid;gap:6px;max-height:min(52dvh,460px);overflow:auto;padding:2px 4px 2px 2px;border-top:1px solid var(--school-ui-row-border);border-bottom:1px solid var(--school-ui-row-border)}
+.school-tag-group>summary{cursor:pointer;padding:5px 2px;font-weight:650;color:var(--school-ui-label-text);border-radius:6px}
+.school-tag-group>summary:focus-visible{outline:2px solid var(--school-ui-focus);outline-offset:1px}
+.school-tag-group.is-nested{margin-left:14px}
+.school-tag-group.is-nested>summary{font-weight:600;font-size:14px}
+.school-tag-options{display:flex;flex-direction:column;gap:2px;padding:0 0 4px 16px}
+.school-tag-option{display:flex;align-items:center;gap:8px;min-width:0;margin:0;padding:2px 4px;font-weight:400;border-radius:6px;cursor:pointer;line-height:1.4}
+.school-tag-option:hover{background:var(--school-ui-workspace-bg)}
+.school-tag-option input[type=checkbox]{flex:none;width:16px;height:16px;min-height:0;margin:0;padding:0}
+.school-tag-option input:disabled+.school-tag{opacity:.55}
+.school-tag-empty{margin:2px 0 6px!important;font-size:13px;color:var(--school-ui-muted)}
+.school-tag-manager h3{margin:14px 0 6px;font-size:15px;color:var(--school-ui-label-text)}
+.school-tag-manager h3:first-child{margin-top:0}
+.school-tag-manager-list{display:grid;gap:6px;max-height:min(40dvh,340px);overflow:auto;padding:4px}
+.school-tag-manager-list:empty{display:none}
+.school-tag-manager-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px}
+.school-tag-manager-row input{width:100%;box-sizing:border-box;min-width:0}
+.school-tag-manager-row .ui-validation-error{grid-column:2/4;margin-top:-2px}
+.school-confirm .school-tag-manager .school-color-trigger{width:48px;padding:4px 5px}
+.school-confirm .school-tag-manager-remove{display:inline-flex;align-items:center;justify-content:center;width:var(--school-ui-control-height);height:var(--school-ui-control-height);padding:0;color:#536575}
+.school-tag-manager-remove svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.school-tag-manager-tools{display:flex;align-items:center;flex-wrap:wrap;gap:6px 12px;margin-top:8px}
+.school-tag-manager-count{margin:0!important;font-size:13px}
+.school-tag-manager-count:empty{display:none}
+.school-tag-manager-colors{display:grid;gap:6px}
+.school-tag-manager-color{display:flex;align-items:center;gap:10px}

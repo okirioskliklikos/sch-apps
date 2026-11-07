@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Σχολικό Ημερολόγιο στο Κεντρικό Μενού (host)
- * Έκδοση αρχείου: 0.4
+ * Έκδοση αρχείου: 0.5
  * Όνομα κατά την εγκατάσταση: _host_calendar.js
  *
  * Κώδικας μόνο του host για το Σχολικό Ημερολόγιο (calendarByYear). Το φορτώνει το index.html μετά το
@@ -10,8 +10,9 @@
  *   APP                                     το αρχείο της εφαρμογής (school_calendar.html)
  *   yearData(data, year)                    το calendarByYear[year] ({entries, ssdMeetings, pedagogicMeetings})
  *   context(data, revision)                 το school-calendar:context
- *   validateCalendar(calendar, year, staff) έλεγχος των δεδομένων ενός έτους· επιστρέφει καθαρό αντίγραφο
- *                                           (πετά λάθος)
+ *   validateCalendar(calendar, year, staff, known)  έλεγχος των δεδομένων ενός έτους· επιστρέφει καθαρό
+ *                                           αντίγραφο (πετά λάθος). known: τα id των ετικετών (SchoolHostTags.known)·
+ *                                           χωρίς αυτό ελέγχεται μόνο η μορφή των ετικετών
  *   applySave(data, message)                εφαρμογή ενός school-calendar:save σε αντίγραφο του data
  *   zoom(data)                              το ζουμ του Ημερολογίου (calendarSettings.zoom, κοινό για όλα τα έτη)
  *   withZoom(data, zoom)                    αντίγραφο του data με νέο ζουμ
@@ -20,12 +21,15 @@
  *   install(bridge)                         σύνδεση με το index (πρωτόκολλο school-calendar:*)
  *
  * Στο .data:
- *   calendarByYear[year] = {entries:{'YYYY-MM-DD':{personalNotes:[{id,html}], schoolLifeBook}}, ssdMeetings:{'YYYY-MM-DD':{…}},
+ *   calendarByYear[year] = {entries:{'YYYY-MM-DD':{personalNotes:[{id,html,tags}], schoolLifeBook}}, ssdMeetings:{'YYYY-MM-DD':{…}},
  *                           pedagogicMeetings:{'YYYY-MM-DD':{…}}}
  *   calendarSettings = {zoom}   έξω από το calendarByYear, ώστε να ισχύει για όλα τα σχολικά έτη. Δεν μετρά
  *                               ως αλλαγή δεδομένων: γράφεται όπως το lastViewByYear (βλέπε install).
  * Οι εκπαιδευτικοί των συνεδριάσεων αναφέρονται με το id τους στο Προσωπικό (present, absent, absenceReasons,
  * scheduleAutoReasons, leaveAutoIds, directorId), όπως στα προγράμματα: αλλαγή κωδικού ή ονόματος δεν τους επηρεάζει.
+ * Ετικέτες των Προσωπικών Σημειώσεων: tags:[{type, id}…] σε κάθε σημείωση (ή κενή λίστα), με τους ελέγχους του
+ * _host_tags.js (φορτώνεται μετά από αυτό· το χρησιμοποιεί τη στιγμή της κλήσης). Το school-calendar:save δέχεται
+ * και προαιρετικό tags, το μητρώο ετικετών του έτους, που αντικαθιστά το tagsByYear[year] στην ίδια αποθήκευση.
  */
 (() => {
   'use strict';
@@ -44,6 +48,8 @@
   const isObject = value => !!value && typeof value === 'object' && !Array.isArray(value);
   const isText = (value, max) => typeof value === 'string' && value.length <= max;
   const formatDate = iso => D.format(iso);
+  const missingTags = 'Λείπει το αρχείο _host_tags.js από τον φάκελο των εφαρμογών. Βεβαιώσου ότι το index.html και τα κοινά αρχεία είναι η τελευταία έκδοση.';
+  const hostTags = () => window.SchoolHostTags || null;
 
   // ---- Δεδομένα του έτους ----
   // Το calendarByYear[year], ή κενή δομή όταν δεν υπάρχει ακόμη. Δεν αλλάζει το data.
@@ -64,15 +70,23 @@
     return {...data, calendarSettings: {...settings, zoom: value}};
   }
 
-  // school-calendar:context: το Προσωπικό και το Ημερολόγιο του έτους, και το ζουμ.
+  // school-calendar:context: το Προσωπικό και το Ημερολόγιο του έτους, και το ζουμ. Για τις ετικέτες των
+  // Προσωπικών Σημειώσεων: το μητρώο (tags), η χρήση των γενικών ετικετών (tagUsage), τα Τμήματα, οι Μαθητές και
+  // τα όρια (limits).
   function context(data, revision) {
-    const year = data.school.year;
+    const year = data.school.year, H = hostTags();
+    const classes = isObject(data?.classesByYear) && Array.isArray(data.classesByYear[year]?.classes) ? data.classesByYear[year].classes : [];
+    const students = isObject(data?.studentsByYear) && Array.isArray(data.studentsByYear[year]?.students) ? data.studentsByYear[year].students : [];
     return clone({
       revision, school: {...data.school}, year,
       staff: Array.isArray(data?.staffByYear?.[year]) ? data.staffByYear[year] : [],
       calendar: yearData(data, year),
       zoom: zoom(data),
-      zoomLimits: {min: ZOOM.min, max: ZOOM.max, step: ZOOM.step}
+      zoomLimits: {min: ZOOM.min, max: ZOOM.max, step: ZOOM.step},
+      tags: H ? H.yearTags(data, year) : {general: [], colors: {}},
+      tagUsage: H ? H.usage(data, year).general : {},
+      classes, students,
+      limits: H ? {tags: H.LIMITS.general, tagsPerItem: H.LIMITS.perItem, warnRatio: H.LIMITS.warnRatio} : {tags: 100, tagsPerItem: 40, warnRatio: 0.9}
     });
   }
 
@@ -131,7 +145,8 @@
   }
   // Τα δεδομένα του Ημερολογίου για ένα έτος. Απορρίπτει ό,τι θα χαλούσε τα δεδομένα· επιστρέφει καθαρό
   // αντίγραφο (οι κενές σημειώσεις δεν κρατιούνται). staff: το Προσωπικό του έτους, για τα id των συνεδριάσεων.
-  function validateCalendar(calendar, year, staff) {
+  // known: τα id που μπορεί να έχει μια ετικέτα (SchoolHostTags.known)· χωρίς αυτό ελέγχεται μόνο η μορφή.
+  function validateCalendar(calendar, year, staff, known = null) {
     const ids = new Set((Array.isArray(staff) ? staff : []).map(person => person?.id).filter(Boolean));
     if (!isObject(calendar)) throw Error('Μη έγκυρα δεδομένα Ημερολογίου. Βεβαιώσου ότι το school_calendar.html είναι η τελευταία έκδοση.');
     const out = {entries: {}, ssdMeetings: {}, pedagogicMeetings: {}};
@@ -148,7 +163,14 @@
         if (!isObject(note) || !isText(note.id, LIMITS.id) || !note.id || !isText(note.html, LIMITS.html) || seen.has(note.id))
           throw Error('Μη έγκυρη ή διπλή προσωπική σημείωση στις ' + formatDate(key) + '.');
         seen.add(note.id);
-        if (note.html) personalNotes.push({id:note.id, html:note.html});
+        if (!note.html) continue;
+        let tags = [];
+        if (note.tags != null && !(Array.isArray(note.tags) && !note.tags.length)) {
+          const H = hostTags();
+          if (!H) throw Error(missingTags);
+          tags = H.validateRefs(note.tags, known, 'στην προσωπική σημείωση της ' + formatDate(key), APP);
+        }
+        personalNotes.push({id:note.id, html:note.html, tags});
       }
       const schoolLifeBook = entry.schoolLifeBook || '';
       if (personalNotes.length || schoolLifeBook) out.entries[key] = {personalNotes, schoolLifeBook};
@@ -168,11 +190,23 @@
     }
     return out;
   }
-  // Το school-calendar:save σε αντίγραφο του data: αντικαθιστά μόνο το calendarByYear[year].
-  // Τα υπόλοιπα έτη και τα άγνωστα πεδία του έτους μένουν όπως είναι.
+  // Το school-calendar:save σε αντίγραφο του data: αντικαθιστά μόνο το calendarByYear[year] και, όταν το μήνυμα έχει
+  // tags, το tagsByYear[year] (οι γενικές ετικέτες που αφαιρέθηκαν φεύγουν από τα δεδομένα όλων των εφαρμογών). Οι
+  // ετικέτες των σημειώσεων ελέγχονται με το νέο μητρώο. Τα υπόλοιπα έτη και τα άγνωστα πεδία του έτους μένουν.
   function applySave(data, message) {
     const year = data.school.year, staff = Array.isArray(data?.staffByYear?.[year]) ? data.staffByYear[year] : [];
-    const calendar = validateCalendar(message.calendar, year, staff), candidate = clone(data);
+    const candidate = clone(data), H = hostTags();
+    let sent = message.calendar;
+    if (message.tags !== undefined) {
+      if (!H) throw Error(missingTags);
+      // The general tags removed from the registry leave every note, also the notes of this save.
+      const removed = H.applyRegistry(candidate, year, message.tags, APP);
+      if (removed.length && isObject(sent)) {
+        sent = clone(sent);
+        H.removeRefs({calendarByYear: {[year]: sent}}, year, 'general', removed);
+      }
+    }
+    const calendar = validateCalendar(sent, year, staff, H ? H.known(candidate, year) : null);
     if (!isObject(candidate.calendarByYear)) candidate.calendarByYear = {};
     const previous = isObject(candidate.calendarByYear[year]) ? candidate.calendarByYear[year] : {};
     candidate.calendarByYear[year] = {...previous, ...calendar};

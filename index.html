@@ -367,7 +367,7 @@ body.session-locked #app-shell { visibility:hidden; pointer-events:none; }
     <div class="sidebar-head">
       <div class="brand">
         <span class="brand-name">Εφαρμογές σχολείου</span>
-        <span class="sidebar-version" aria-label="Έκδοση 1.01">v1.01</span>
+        <span class="sidebar-version" aria-label="Έκδοση 1.02">v1.02</span>
       </div>
     </div>
     <div id="sidebar-school" class="sidebar-school" hidden><span id="nav-school-name" class="sidebar-school-name"></span><span id="nav-school-year" class="sidebar-school-year"></span></div>
@@ -416,6 +416,7 @@ body.session-locked #app-shell { visibility:hidden; pointer-events:none; }
 <script src="_host_calendar.js"></script>
 <script src="_host_classes.js"></script>
 <script src="_host_students.js"></script>
+<script src="_host_tags.js"></script>
 <script id="shared-data-codec">
 globalThis.SchoolDataCodec = (() => {
   const iterations = 310000, encoder = new TextEncoder(), decoder = new TextDecoder();
@@ -497,6 +498,16 @@ globalThis.SchoolDataCodec = (() => {
   // Μαθητές (studentsByYear): validation and the school-students:* protocol live in _host_students.js.
   const Students = window.SchoolHostStudents || null;
   const missingStudents = 'Λείπει το αρχείο _data.js, _host_classes.js ή _host_students.js από τον φάκελο των εφαρμογών. Βεβαιώσου ότι το index.html και τα κοινά αρχεία είναι η τελευταία έκδοση.';
+  // Ετικέτες (tagsByYear): validation, usage and the clean-up of references live in _host_tags.js (no protocol of
+  // its own: used by the Σχολικό Ημερολόγιο, the Τμήματα and the saves of Προσωπικό and Μαθητές).
+  const Tags = window.SchoolHostTags || null;
+  const missingTags = 'Λείπει το αρχείο _data.js ή _host_tags.js από τον φάκελο των εφαρμογών. Βεβαιώσου ότι το index.html και τα κοινά αρχεία είναι η τελευταία έκδοση.';
+  // References of removed staff or students (id) used as tags leave the data of the year in the same save.
+  function removeTagRefs(candidate, year, type, ids) {
+    if (!ids.length) return;
+    if (Tags) Tags.removeRefs(candidate, year, type, ids);
+    else if (candidate.calendarByYear) throw Error(missingTags);
+  }
 
   const $ = id => document.getElementById(id);
   const passwordToggles = [...document.querySelectorAll('.password-toggle')];
@@ -1344,6 +1355,8 @@ const StaffStorage = (() => {
       // The homeroom of a removed teacher (homeroomStaffId of Τμήματα) is cleared in this same save.
       if (Classes) Classes.removeStaff(candidate, message.year, removedIds);
       else if (candidate.classesByYear && removedIds.length) throw Error(missingClasses);
+      // Tags of removed staff (Προσωπικές Σημειώσεις and any other data with tags) go in this same save.
+      removeTagRefs(candidate, message.year, 'staff', removedIds);
       staffSaving = true; ownsSave = true;
       const filename = await saveNewData(candidate, sessionPassword, sharedFilename, rememberedHandle);
       showSharedData(candidate, filename, sessionPassword !== '', sessionPassword);
@@ -1668,13 +1681,17 @@ const StaffStorage = (() => {
 
   // Μαθητές (studentsByYear): menu, unsaved changes, data and the CSV file of school-students:*.
   // Validation and replies are in _host_students.js; the Index only stores. The remembered file uses the shared
-  // file code of _host_timetables.js.
+  // file code of _host_timetables.js. Tags of removed students (id, found by comparing before and after) leave
+  // the data of the year in the same save.
   if (Students) Students.install({
     frame,
     acceptOrigin: event => staffLocalFile || event.origin === location.origin,
     targetOrigin: staffTargetOrigin,
     state: () => ({data:sharedData, revision:schoolRevision, app:currentAppFile, locked:sessionLocked, busy:staffSaving}),
     save: async candidate => {
+      const year = candidate.school.year;
+      const kept = new Set(Students.yearStudents(candidate, year).map(student => student.id));
+      removeTagRefs(candidate, year, 'student', Students.yearStudents(sharedData, year).map(student => student?.id).filter(id => id && !kept.has(id)));
       staffSaving = true;
       try {
         const filename = await saveNewData(candidate, sessionPassword, sharedFilename, rememberedHandle);
@@ -1695,6 +1712,7 @@ const StaffStorage = (() => {
   else if (!Calendar) $('load-error').textContent = missingCalendar;
   else if (!Classes) $('load-error').textContent = missingClasses;
   else if (!Students) $('load-error').textContent = missingStudents;
+  else if (!Tags) $('load-error').textContent = missingTags;
   void restoreRememberedFile();
 })();
 </script>

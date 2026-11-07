@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων
- * Έκδοση αρχείου: 0.19
+ * Έκδοση αρχείου: 0.20
  * Όνομα κατά την εγκατάσταση: _data.js
  *
  * Φορτώνεται από όσες υποεφαρμογές διαβάζουν ή γράφουν CSV, FET, ημερομηνίες ή προγράμματα, μετά
@@ -23,6 +23,8 @@
  *   window.SchoolHtml       κείμενο με μορφοποίηση (HTML του schoolRichText): καθαρισμός, έλεγχος κενού
  *   window.SchoolStudents   μαθητές (studentsByYear): ανάγνωση του CSV μαθητών του myschool, ίδιος μαθητής,
  *                           τάξη και επόμενο τμήμα, κατάσταση ΑΔΥΜ, ταξινόμηση
+ *   window.SchoolTags       ετικέτες (tagsByYear): κατηγορίες, χρώματα κατηγορίας, όνομα και χρώμα κάθε ετικέτας,
+ *                           κοινή σειρά, σύγκριση ονομάτων γενικών ετικετών
  * Τα προγράμματα είναι στη μορφή formatVersion:2: οι δραστηριότητες αναφέρονται στα τμήματα με το id τους
  * (classes), και τα ονόματα μαθητών των αρχείων που δεν είναι τμήματα μπαίνουν στο otherStudents.
  */
@@ -1841,6 +1843,95 @@
     return !!String(html || '').replace(/<br\s*\/?\s*>/gi, '').replace(/<[^>]*>/g, '').replace(/&nbsp;|\s/g, '');
   }
 
+  // ---- Ετικέτες (tagsByYear) ----
+  // Μητρώο του έτους: tagsByYear[year] = {general:[{id, name, color}], colors:{classes, staff, students}}.
+  // Αναφορά σε ετικέτα: {type:'general'|'class'|'staff'|'student', id}. Τα ονόματα και τα χρώματα για εμφάνιση
+  // παίρνονται πάντα από το μητρώο, τα Τμήματα, το Προσωπικό και τους Μαθητές, ώστε μια μετονομασία να περνά παντού.
+  const TAG_TYPES = Object.freeze(['general', 'class', 'staff', 'student']);
+  // Το χρώμα κάθε κατηγορίας στο colors του μητρώου.
+  const TAG_COLOR_KEYS = Object.freeze({class: 'classes', staff: 'staff', student: 'students'});
+  const TAG_DEFAULT_COLORS = Object.freeze({classes: '#9ca3af', staff: '#4b5563', students: '#e5e7eb'});
+  const TAG_NEW_COLOR = '#a8d8ff';
+  const tagColorValid = value => /^#[0-9a-f]{6}$/.test(String(value ?? '').trim().toLowerCase());
+  const tagCollator = new Intl.Collator('el', {sensitivity: 'base', numeric: true});
+  // Σύγκριση ονομάτων γενικών ετικετών: χωρίς τόνους, κενά και διάκριση πεζών–κεφαλαίων.
+  const tagNameKey = name => compareKey(name);
+  const sameTag = (a, b) => !!a && !!b && a.type === b.type && a.id === b.id;
+  // Οι αναφορές μιας εφαρμογής: μόνο έγκυρες μορφές, χωρίς διπλές, με τη σειρά τους. Νέος πίνακας.
+  function cleanTagRefs(refs) {
+    const out = [], seen = new Set();
+    for (const ref of Array.isArray(refs) ? refs : []) {
+      if (!isObject(ref) || !TAG_TYPES.includes(ref.type) || typeof ref.id !== 'string' || !ref.id) continue;
+      const key = ref.type + '\u0001' + ref.id;
+      if (seen.has(key)) continue;
+      seen.add(key); out.push({type: ref.type, id: ref.id});
+    }
+    return out;
+  }
+  // Τα χρώματα κατηγορίας του έτους, με τις προεπιλογές όπου λείπουν: {classes, staff, students}.
+  function tagColors(tags) {
+    const colors = isObject(tags?.colors) ? tags.colors : {}, out = {};
+    for (const [key, fallback] of Object.entries(TAG_DEFAULT_COLORS)) out[key] = tagColorValid(colors[key]) ? String(colors[key]).trim().toLowerCase() : fallback;
+    return out;
+  }
+  const tagGeneral = tags => Array.isArray(tags?.general) ? tags.general.filter(item => isObject(item) && typeof item.id === 'string') : [];
+  // Ευρετήρια για εμφάνιση και ταξινόμηση. data = {tags, classes, staff, students}.
+  function tagIndex(data) {
+    const classes = classesById(data?.classes || []);
+    const byId = list => new Map((Array.isArray(list) ? list : []).filter(item => isObject(item) && item.id).map(item => [item.id, item]));
+    return {general: byId(tagGeneral(data?.tags)), classes, staff: byId(data?.staff), students: byId(data?.students), colors: tagColors(data?.tags)};
+  }
+  const tagText = value => String(value ?? '').trim();
+  const staffTagLabel = person => tagText(person?.name) || tagText(person?.shortName) || tagText(person?.code) || 'χωρίς όνομα';
+  // «ΕΠΩΝΥΜΟ Όνομα (Α1)», με το όνομα του τμήματος από τα Τμήματα.
+  function studentTagLabel(student, classes) {
+    const name = [tagText(student?.lastName), tagText(student?.firstName)].filter(Boolean).join(' ') || 'χωρίς όνομα';
+    const className = classNameOf(classes, student?.classId);
+    return className ? name + ' (' + className + ')' : name;
+  }
+  // Όνομα και χρώμα μιας ετικέτας → {type, label, color, missing}. Αναφορά που δεν βρίσκεται: «?», missing:true.
+  function resolveTag(ref, data) {
+    const index = tagIndex(data), type = ref?.type, id = ref?.id;
+    const missing = color => ({type, label: '?', color, missing: true});
+    if (type === 'general') {
+      const item = index.general.get(id);
+      return item ? {type, label: tagText(item.name) || '?', color: tagColorValid(item.color) ? item.color.toLowerCase() : TAG_NEW_COLOR, missing: false} : missing('#ffffff');
+    }
+    const color = index.colors[TAG_COLOR_KEYS[type]] || '#ffffff';
+    if (type === 'class') { const item = index.classes.get(id); return item ? {type, label: tagText(item.name) || '?', color, missing: false} : missing(color); }
+    if (type === 'staff') { const item = index.staff.get(id); return item ? {type, label: staffTagLabel(item), color, missing: false} : missing(color); }
+    if (type === 'student') { const item = index.students.get(id); return item ? {type, label: studentTagLabel(item, index.classes), color, missing: false} : missing(color); }
+    return missing('#ffffff');
+  }
+  // Η κοινή σειρά: γενικές αλφαβητικά, τμήματα (SchoolClasses.sort), εκπαιδευτικοί με τη σειρά του Προσωπικού,
+  // μαθητές ανά τμήμα και μέσα στο τμήμα με το SchoolStudents.compare. Όσες δεν βρίσκονται στο τέλος της κατηγορίας τους.
+  function sortTags(refs, data) {
+    const index = tagIndex(data), list = cleanTagRefs(refs);
+    const classOrder = new Map(sortClasses([...index.classes.values()]).map((item, position) => [item.id, position]));
+    const staffOrder = new Map(sortStaff([...index.staff.values()]).map((item, position) => [item.id, position]));
+    const far = Number.MAX_SAFE_INTEGER;
+    const compare = (a, b) => {
+      const ta = TAG_TYPES.indexOf(a.type), tb = TAG_TYPES.indexOf(b.type);
+      if (ta !== tb) return ta - tb;
+      if (a.type === 'general') {
+        const ga = index.general.get(a.id), gb = index.general.get(b.id);
+        if (!ga || !gb) return (ga ? 0 : 1) - (gb ? 0 : 1);
+        return tagCollator.compare(tagText(ga.name), tagText(gb.name));
+      }
+      if (a.type === 'class') return (classOrder.get(a.id) ?? far) - (classOrder.get(b.id) ?? far);
+      if (a.type === 'staff') return (staffOrder.get(a.id) ?? far) - (staffOrder.get(b.id) ?? far);
+      const sa = index.students.get(a.id), sb = index.students.get(b.id);
+      if (!sa || !sb) return (sa ? 0 : 1) - (sb ? 0 : 1);
+      return (classOrder.get(sa.classId) ?? far) - (classOrder.get(sb.classId) ?? far) || compareStudents(sa, sb);
+    };
+    return list.sort(compare);
+  }
+
+  window.SchoolTags = Object.freeze({
+    TYPES: TAG_TYPES, COLOR_KEYS: TAG_COLOR_KEYS, DEFAULT_COLORS: TAG_DEFAULT_COLORS, NEW_COLOR: TAG_NEW_COLOR,
+    colors: tagColors, resolve: resolveTag, sort: sortTags, same: sameTag, nameKey: tagNameKey, clean: cleanTagRefs,
+    validColor: tagColorValid, staffLabel: staffTagLabel, studentLabel: studentTagLabel
+  });
   window.SchoolHtml = Object.freeze({sanitize: sanitizeHtml, hasText: htmlHasText});
   window.SchoolCsv =Object.freeze({parse, quote, detectDelimiter, staffCsvRead, staffCsvUpdate, staffCsvSuggest});
   window.SchoolFet = Object.freeze({parse: parseFet, child, children, text});
