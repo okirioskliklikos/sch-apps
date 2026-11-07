@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινό περιβάλλον χρήστη
- * Έκδοση αρχείου: 0.35
+ * Έκδοση αρχείου: 0.36
  * Όνομα κατά την εγκατάσταση: _ui.css
  */
 
@@ -46,6 +46,7 @@
   --school-ui-success-disabled-bg:#9cc9b2;
   --school-ui-success-disabled-text:#f4fbf7;
   --school-ui-swatch-border:#6f6f6f;
+  --school-richtext-toolbar-bg:#f6f7f9;
   /* Application icons (.app-mark): one gradient per application, shared by Index and the application itself.
      A new application adds its own --school-app-<name> here. */
   --school-app-mark-fg:#fff;
@@ -274,7 +275,7 @@ dialog .school-color-picker-auto.selected{border-color:var(--school-ui-primary-b
 .school-richtext{display:flex;flex-direction:column;min-width:0}
 .school-richtext-toolbar{
   display:flex;flex-wrap:wrap;align-items:center;gap:2px;padding:4px;
-  background:#f6f7f9;border:1px solid var(--school-ui-input-border);border-bottom:0;border-radius:8px 8px 0 0
+  background:var(--school-richtext-toolbar-bg);border:1px solid var(--school-ui-input-border);border-bottom:0;border-radius:8px 8px 0 0
 }
 .school-richtext-group{display:inline-flex;align-items:center;gap:2px}
 .school-richtext-sep{width:1px;height:22px;margin:0 5px;background:var(--school-ui-control-border)}
