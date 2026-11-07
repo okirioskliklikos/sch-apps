@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Σχολικό Ημερολόγιο v0.78</title>
+<title>Σχολικό Ημερολόγιο v0.80</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -93,20 +93,29 @@
 .cal-personal-editor>.cal-notes-list{flex:1;min-height:0;overflow-y:auto;padding:3px 5px 8px 2px}
 .cal-personal-editor>.school-confirm-actions{flex:none;margin-top:12px}
 .cal-personal-editor>.school-choice-error{flex:none}
-.cal-note{position:relative;display:flex;align-items:stretch;gap:9px;border:1px solid #d7dfe5;background:#fbfcfd;border-radius:9px;margin:0 0 10px;padding:10px 11px 10px 5px;min-width:0}
-.cal-note.is-editing{background:#fff;border-color:#86aede;box-shadow:0 0 0 1px #86aede44}
+.cal-note{position:relative;display:flex;align-items:flex-start;gap:9px;border:1px solid #d7dfe5;background:#fbfcfd;border-radius:9px;margin:0 0 10px;padding:10px 11px 10px 5px;min-width:0}
+.cal-note.is-editing{display:block;background:transparent;border-color:transparent;box-shadow:none;padding:0;margin:0 0 10px}
+.cal-note.is-editing .cal-note-grip,.cal-note.is-editing .cal-note-tools{display:none}
+.cal-note.is-editing .cal-note-content{width:100%}
 .cal-note.is-dragging{opacity:.45}
 .cal-note.drop-before{border-top:3px solid var(--cal-drop)}
 .cal-note.drop-after{border-bottom:3px solid var(--cal-drop)}
 .cal-note-grip{align-self:center;flex:none;cursor:grab!important;border:0!important;background:transparent!important;color:#8997a3!important;padding:8px 4px!important;font-size:22px;line-height:1;touch-action:none}
 .cal-note-grip:active{cursor:grabbing!important}
 .cal-note-content{min-width:0;flex:1;overflow-wrap:anywhere}
-.cal-note-content .cal-note-html{line-height:1.5;min-height:22px}
+.cal-note-content .cal-note-html{line-height:1.5;min-height:22px;padding-top:1px}
 .cal-note-html p{margin:0 0 5px}
 .cal-note-html p:last-child,.cal-note-html ul:last-child,.cal-note-html ol:last-child{margin-bottom:0}
-.cal-note-tools{display:flex;flex:none;gap:3px;align-self:flex-start}
-.cal-note-tools button{padding:5px 8px!important;font-size:17px;line-height:1.25;color:#536575}
-.cal-note-tools button:hover{background:#e8eff6}
+.cal-note-tools{display:flex;flex:none;gap:1px;align-self:flex-start;margin-top:-1px}
+.cal-note-tools button{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:30px;padding:4px!important;border-color:transparent!important;background:transparent!important;border-radius:8px;color:#536575}
+.cal-note-tools button:hover{background:#e8eff6!important}
+.cal-note-tools svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.cal-note-editor{overflow:visible}
+.cal-note-editor .school-richtext{width:100%}
+.cal-note-editor .school-richtext-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-right:4px}
+.cal-note-editor-actions{margin-left:auto;display:inline-flex;align-items:center;gap:8px;flex:0 0 auto;white-space:nowrap;padding-left:8px}
+.cal-note-editor-actions button{min-width:88px;height:32px;padding:0 12px!important;font-size:13px;line-height:1.2;border-radius:8px;white-space:nowrap;border:1px solid var(--school-ui-control-border)!important;background:#fff!important;color:#334155!important;box-shadow:0 1px 1px #0000000a}
+.cal-note-editor-actions .confirm-accept{background:var(--school-ui-primary-bg)!important;border-color:var(--school-ui-primary-border)!important;color:var(--school-ui-primary-text)!important}
 .cal-note-editor .school-richtext-editor{min-height:130px;max-height:300px}
 .cal-note-add{display:block;width:100%;border:1px dashed #a8b9c8!important;background:#f9fbfd!important;color:#365e83!important;text-align:center!important}
 .cal-note-empty{color:#697984;text-align:center;padding:30px 10px}
@@ -219,7 +228,7 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v0.78</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v0.80</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="print" type="button" disabled>Εκτύπωση...</button>
@@ -559,6 +568,7 @@ async function editPersonalNotes(date) {
   const original = clone(entry.personalNotes);
   let notes = clone(original), activeId = null, activeRich = null;
   const body = document.createElement('div'); body.className = 'cal-notes-list';
+  const closeEditor = () => { activeId = null; activeRich = null; };
   const commitEditor = () => {
     if (activeId === null || !activeRich) return;
     const html = sanitizeHtml(activeRich.html);
@@ -567,16 +577,20 @@ async function editPersonalNotes(date) {
       if (note) note.html = html;
       else notes.push({id: activeId, html});
     } else notes = notes.filter(item => item.id !== activeId);
-    activeId = null; activeRich = null;
+    closeEditor();
   };
+  const cancelEditor = () => { closeEditor(); renderNotes(); };
+  const acceptEditor = () => { commitEditor(); renderNotes(); };
   const openEditor = (id, focus = true) => {
-    commitEditor(); activeId = id;
+    closeEditor(); activeId = id;
     renderNotes();
     if (focus) activeRich?.focus();
   };
+  const iconEdit = () => '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M14.5 3.5 16.5 5.5 8 14 5 15 6 12 14.5 3.5Z"/><path d="M13.5 4.5 15.5 6.5"/></svg>';
+  const iconClose = () => '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 5 15 15M15 5 5 15"/></svg>';
   const makeButton = (label, icon, click) => {
     const button = document.createElement('button'); button.type = 'button';
-    button.textContent = icon; button.title = label; button.setAttribute('aria-label', label);
+    button.innerHTML = icon; button.title = label; button.setAttribute('aria-label', label);
     button.addEventListener('click', click); return button;
   };
   let dragId = null;
@@ -597,13 +611,22 @@ async function editPersonalNotes(date) {
       if (note.id === activeId) {
         const rich = schoolRichText.create({html: note.html, label:'Προσωπική σημείωση', color: DEFAULT_FONT_COLOR});
         activeRich = rich; content.classList.add('cal-note-editor'); content.append(rich.element);
+        const toolbar = rich.element.querySelector('.school-richtext-toolbar');
+        if (toolbar) {
+          const actions = document.createElement('div'); actions.className = 'cal-note-editor-actions';
+          const accept = document.createElement('button'); accept.type = 'button'; accept.className = 'confirm-accept'; accept.textContent = 'Αποδοχή';
+          accept.setAttribute('aria-label', 'Αποδοχή αλλαγών σημείωσης'); accept.addEventListener('click', acceptEditor);
+          const cancel = document.createElement('button'); cancel.type = 'button'; cancel.textContent = 'Ακύρωση';
+          cancel.setAttribute('aria-label', 'Ακύρωση αλλαγών σημείωσης'); cancel.addEventListener('click', cancelEditor);
+          actions.append(accept, cancel); toolbar.append(actions);
+        }
       } else {
         const text = document.createElement('div'); text.className = 'cal-note-html'; text.innerHTML = sanitizeHtml(note.html); content.append(text);
       }
       const tools = document.createElement('div'); tools.className = 'cal-note-tools';
       if (note.id !== activeId) {
-        tools.append(makeButton('Επεξεργασία σημείωσης', '✎', () => openEditor(note.id)),
-          makeButton('Διαγραφή σημείωσης', '🗑', async () => {
+        tools.append(makeButton('Επεξεργασία σημείωσης', iconEdit(), () => openEditor(note.id)),
+          makeButton('Διαγραφή σημείωσης', iconClose(), async () => {
             if (!await schoolConfirm('Να διαγραφεί αυτή η προσωπική σημείωση;', {title:'Διαγραφή σημείωσης', accept:'Διαγραφή'})) return;
             commitEditor(); notes = notes.filter(item => item.id !== note.id); renderNotes();
           }));
@@ -635,7 +658,17 @@ async function editPersonalNotes(date) {
     if (activeId !== null && !notes.some(note => note.id === activeId)) {
       const row = document.createElement('div'); row.className = 'cal-note is-editing';
       const content = document.createElement('div'); content.className = 'cal-note-content cal-note-editor';
-      activeRich = schoolRichText.create({html:'', label:'Νέα προσωπική σημείωση', color:DEFAULT_FONT_COLOR}); content.append(activeRich.element);
+      activeRich = schoolRichText.create({html:'', label:'Νέα προσωπική σημείωση', color:DEFAULT_FONT_COLOR});
+      const toolbar = activeRich.element.querySelector('.school-richtext-toolbar');
+      if (toolbar) {
+        const actions = document.createElement('div'); actions.className = 'cal-note-editor-actions';
+        const accept = document.createElement('button'); accept.type = 'button'; accept.className = 'confirm-accept'; accept.textContent = 'Αποδοχή';
+        accept.setAttribute('aria-label', 'Αποδοχή νέας σημείωσης'); accept.addEventListener('click', acceptEditor);
+        const cancel = document.createElement('button'); cancel.type = 'button'; cancel.textContent = 'Ακύρωση';
+        cancel.setAttribute('aria-label', 'Ακύρωση νέας σημείωσης'); cancel.addEventListener('click', cancelEditor);
+        actions.append(accept, cancel); toolbar.append(actions);
+      }
+      content.append(activeRich.element);
       row.append(content); body.append(row);
     }
     const add = document.createElement('button'); add.type = 'button'; add.className = 'cal-note-add';
