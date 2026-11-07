@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινό περιβάλλον χρήστη
- * Έκδοση αρχείου: 0.36
+ * Έκδοση αρχείου: 0.37
  * Όνομα κατά την εγκατάσταση: _ui.css
  */
 
@@ -299,11 +299,19 @@ dialog .school-color-picker-auto.selected{border-color:var(--school-ui-primary-b
 /* Text buttons of the toolbar (options.actions, e.g. «Αποδοχή» / «Ακύρωση»): at its right end, with the look
    of ordinary buttons (.primary for the main one). On a narrow toolbar they wrap as one unit. */
 .school-richtext-actions{display:inline-flex;align-items:center;gap:6px;margin-left:auto;padding-left:8px}
+/* Reusable compact text button: the same size as rich-text toolbar actions (e.g. «Ακύρωση»).
+   Opt in with .ui-compact-button; do not change ordinary dialog buttons. */
+button.ui-compact-button,
+.school-confirm button.ui-compact-button,
 .school-richtext .school-richtext-toolbar .school-richtext-actions button{
   width:auto;min-width:80px;height:32px;padding:0 12px;border:1px solid var(--school-ui-control-border);border-radius:7px;
-  background:#fff;color:#334155;font-size:14px;line-height:1.2
+  background:var(--school-ui-surface);color:#334155;font-size:14px;line-height:1.2
 }
-.school-richtext .school-richtext-toolbar .school-richtext-actions button:hover:not(:disabled){background:#f1f1f1;border-color:var(--school-ui-control-border)}
+button.ui-compact-button:hover:not(:disabled),
+.school-confirm button.ui-compact-button:hover:not(:disabled),
+.school-richtext .school-richtext-toolbar .school-richtext-actions button:hover:not(:disabled){
+  background:#f1f1f1;border-color:var(--school-ui-control-border)
+}
 .school-richtext .school-richtext-toolbar .school-richtext-actions button.primary{
   background:var(--school-ui-primary-bg);border-color:var(--school-ui-primary-border);color:var(--school-ui-primary-text)
 }

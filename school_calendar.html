@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Σχολικό Ημερολόγιο v0.90</title>
+<title>Σχολικό Ημερολόγιο v0.91</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -238,7 +238,7 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v0.90</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v0.91</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="print" type="button" disabled>Εκτύπωση...</button>
@@ -657,7 +657,7 @@ async function editPersonalNotes(date) {
     }});
     if (chips.childElementCount) bar.append(chips);
     else { const none = document.createElement('span'); none.className = 'cal-note-tagbar-empty'; none.textContent = 'Χωρίς ετικέτες'; bar.append(none); }
-    const button = document.createElement('button'); button.type = 'button'; button.textContent = 'Ετικέτες…';
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'ui-compact-button'; button.textContent = 'Ετικέτες…';
     button.addEventListener('click', chooseTags);
     bar.append(button);
     return bar;
