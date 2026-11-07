@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων
- * Έκδοση αρχείου: 0.20
+ * Έκδοση αρχείου: 0.21
  * Όνομα κατά την εγκατάσταση: _data.js
  *
  * Φορτώνεται από όσες υποεφαρμογές διαβάζουν ή γράφουν CSV, FET, ημερομηνίες ή προγράμματα, μετά
@@ -1848,6 +1848,7 @@
   // Αναφορά σε ετικέτα: {type:'general'|'class'|'staff'|'student', id}. Τα ονόματα και τα χρώματα για εμφάνιση
   // παίρνονται πάντα από το μητρώο, τα Τμήματα, το Προσωπικό και τους Μαθητές, ώστε μια μετονομασία να περνά παντού.
   const TAG_TYPES = Object.freeze(['general', 'class', 'staff', 'student']);
+  const TAG_DISPLAY_ORDER = Object.freeze(['staff', 'class', 'student', 'general']);
   // Το χρώμα κάθε κατηγορίας στο colors του μητρώου.
   const TAG_COLOR_KEYS = Object.freeze({class: 'classes', staff: 'staff', student: 'students'});
   const TAG_DEFAULT_COLORS = Object.freeze({classes: '#9ca3af', staff: '#4b5563', students: '#e5e7eb'});
@@ -1903,15 +1904,15 @@
     if (type === 'student') { const item = index.students.get(id); return item ? {type, label: studentTagLabel(item, index.classes), color, missing: false} : missing(color); }
     return missing('#ffffff');
   }
-  // Η κοινή σειρά: γενικές αλφαβητικά, τμήματα (SchoolClasses.sort), εκπαιδευτικοί με τη σειρά του Προσωπικού,
-  // μαθητές ανά τμήμα και μέσα στο τμήμα με το SchoolStudents.compare. Όσες δεν βρίσκονται στο τέλος της κατηγορίας τους.
+  // Η κοινή σειρά: εκπαιδευτικοί, τμήματα, μαθητές, γενικές. Μέσα στην κάθε κατηγορία
+  // διατηρείται η αντίστοιχη ταξινόμηση. Όσες δεν βρίσκονται στο τέλος της κατηγορίας τους.
   function sortTags(refs, data) {
     const index = tagIndex(data), list = cleanTagRefs(refs);
     const classOrder = new Map(sortClasses([...index.classes.values()]).map((item, position) => [item.id, position]));
     const staffOrder = new Map(sortStaff([...index.staff.values()]).map((item, position) => [item.id, position]));
     const far = Number.MAX_SAFE_INTEGER;
     const compare = (a, b) => {
-      const ta = TAG_TYPES.indexOf(a.type), tb = TAG_TYPES.indexOf(b.type);
+      const ta = TAG_DISPLAY_ORDER.indexOf(a.type), tb = TAG_DISPLAY_ORDER.indexOf(b.type);
       if (ta !== tb) return ta - tb;
       if (a.type === 'general') {
         const ga = index.general.get(a.id), gb = index.general.get(b.id);

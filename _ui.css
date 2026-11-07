@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινό περιβάλλον χρήστη
- * Έκδοση αρχείου: 0.33
+ * Έκδοση αρχείου: 0.34
  * Όνομα κατά την εγκατάσταση: _ui.css
  */
 
@@ -353,11 +353,11 @@ fieldset.ui-fields{margin:0;padding:0;min-width:0;border:0}
 }
 
 /* Ετικέτες (window.schoolTags in _ui.js): chips, the tag picker and the «Διαχείριση ετικετών» dialog.
-   A chip takes its colour from --school-tag-bg and its text colour from --school-tag-ink (schoolColor.ink). */
+   A chip uses derived shades of its saved colour for background, border and text. */
 .school-tags{display:flex;flex-wrap:wrap;gap:4px 5px;min-width:0}
 .school-tags:empty{display:none}
 .school-tag{
-  display:inline-block;max-width:100%;box-sizing:border-box;padding:1px 9px;border:1px solid #0000001f;border-radius:999px;
+  display:inline-block;max-width:100%;box-sizing:border-box;padding:1px 9px;border:1px solid var(--school-tag-border,#cbd5e1);border-radius:999px;
   background:var(--school-tag-bg,#e5e7eb);color:var(--school-tag-ink,#111);font-size:13px;line-height:20px;font-weight:500;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:middle
 }

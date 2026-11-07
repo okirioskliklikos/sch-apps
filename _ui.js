@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.17
+ * Έκδοση αρχείου: 0.19
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -984,14 +984,44 @@
   const tagUsageText = list => (list || []).filter(item => item?.count > 0).map(item => tagPlural(item.count, item.one, item.many)).join(', ');
   const tagUsageCount = list => (list || []).reduce((sum, item) => sum + (Number(item?.count) || 0), 0);
 
-  // Ένα chip: το όνομα της ετικέτας στο χρώμα της.
+  // Αποχρώσεις του χρώματος της ετικέτας: απαλό φόντο, συγγενικό περίγραμμα και σκούρα γράμματα.
+  // Η αντίθεση γραμμάτων/φόντου διατηρείται τουλάχιστον 4.5:1, και για πολύ φωτεινά χρώματα.
+  function tagTones(color) {
+    const hex = normalColor(color).slice(1);
+    const rgb = [0, 2, 4].map(i => parseInt(hex.slice(i, i + 2), 16));
+    const mix = (from, to, share) => from.map((value, i) => Math.round(value * (1 - share) + to[i] * share));
+    const toHex = values => '#' + values.map(value => value.toString(16).padStart(2, '0')).join('');
+    const light = [255, 255, 255], dark = [0, 0, 0];
+    const luminance = values => {
+      const [r, g, b] = values.map(value => {
+        const s = value / 255;
+        return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const bg = mix(rgb, light, 0.62);
+    const border = mix(rgb, luminance(rgb) > 0.55 ? dark : light, luminance(rgb) > 0.55 ? 0.18 : 0.26);
+    let ink = rgb;
+    for (let strength = 0; strength <= 1; strength += 0.05) {
+      const candidate = mix(rgb, dark, strength);
+      ink = candidate;
+      if ((luminance(bg) + 0.05) / (luminance(candidate) + 0.05) >= 4.5) break;
+    }
+    return {bg: toHex(bg), border: toHex(border), ink: toHex(ink)};
+  }
+
+  // Ένα chip: αποχρώσεις του επιλεγμένου χρώματος (χωρίς αλλαγή του αποθηκευμένου χρώματος).
   function tagChip(ref, data) {
     const info = tagsLib().resolve(ref, data);
     const chip = document.createElement('span');
     chip.className = 'school-tag' + (info.missing ? ' is-missing' : '');
     chip.textContent = info.label;
-    chip.style.setProperty('--school-tag-bg', info.color);
-    chip.style.setProperty('--school-tag-ink', inkFor(info.color));
+    if (!info.missing) {
+      const tones = tagTones(info.color);
+      chip.style.setProperty('--school-tag-bg', tones.bg);
+      chip.style.setProperty('--school-tag-border', tones.border);
+      chip.style.setProperty('--school-tag-ink', tones.ink);
+    }
     chip.title = TAG_KIND_TITLES[info.type] + ': ' + (info.missing ? 'δεν βρέθηκε' : info.label);
     return chip;
   }
@@ -1052,9 +1082,8 @@
       const general = [...(registry.general || [])].filter(tag => tag && tag.id).sort((a, b) => String(a.name).localeCompare(String(b.name), 'el', {sensitivity: 'base', numeric: true}));
       const classes = C.sort(data.classes || []), staff = T.sortStaff(data.staff || []);
       const sections = [
-        ['general', general.map(tag => ({type: 'general', id: tag.id}))],
-        ['class', classes.map(record => ({type: 'class', id: record.id}))],
-        ['staff', staff.filter(person => person?.id).map(person => ({type: 'staff', id: person.id}))]
+        ['staff', staff.filter(person => person?.id).map(person => ({type: 'staff', id: person.id}))],
+        ['class', classes.map(record => ({type: 'class', id: record.id}))]
       ];
       for (const [type, refs] of sections) {
         const g = group(type, TAG_GROUP_TITLES[type], refs);
@@ -1073,12 +1102,16 @@
       });
       studentGroup.fill(nested.length ? nested.map(sub => sub.details) : [Object.assign(document.createElement('p'), {className: 'school-tag-empty', textContent: 'Δεν υπάρχουν.'})]);
       made.push(studentGroup);
+      const generalGroup = group('general', TAG_GROUP_TITLES.general, general);
+      const generalRefs = general.map(tag => ({type: 'general', id: tag.id}));
+      generalGroup.fill(generalRefs.length ? generalRefs.map(item) : [Object.assign(document.createElement('p'), {className: 'school-tag-empty', textContent: 'Δεν υπάρχουν γενικές ετικέτες. Πρόσθεσε από τη «Διαχείριση ετικετών…».'})]);
+      made.push(generalGroup);
       groups.replaceChildren(...made.map(g => g.details));
       for (const g of [...made, ...nested]) {
         const own = g.details.querySelectorAll('input[type=checkbox]');
         g.summary.textContent = g.details.dataset.title + ' (' + own.length + ')';
         const has = [...own].some(box => box.checked);
-        g.details.open = g.details.dataset.key in openState ? openState[g.details.dataset.key] : (has || g.details.dataset.key === 'general');
+        g.details.open = g.details.dataset.key in openState ? openState[g.details.dataset.key] : (has || g.details.dataset.key === 'staff');
         g.details.addEventListener('toggle', () => { if (!search.value.trim()) openState[g.details.dataset.key] = g.details.open; });
       }
       filter(); refreshLimit();
@@ -1091,7 +1124,7 @@
         const visible = [...details.querySelectorAll('.school-tag-option')].some(label => !label.hidden);
         details.hidden = !!query && !visible;
         if (query) details.open = visible;
-        else details.open = details.dataset.key in openState ? openState[details.dataset.key] : ([...details.querySelectorAll('input:checked')].length > 0 || details.dataset.key === 'general');
+        else details.open = details.dataset.key in openState ? openState[details.dataset.key] : ([...details.querySelectorAll('input:checked')].length > 0 || details.dataset.key === 'staff');
       }
     };
     search.addEventListener('input', filter);
