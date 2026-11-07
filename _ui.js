@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.13
+ * Έκδοση αρχείου: 0.15
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -341,7 +341,9 @@
     });
   }
 
-  // Επιλογέας χρώματος: σταθερή παλέτα και 9 προσαρμοσμένα χρώματα, που ο browser θυμάται.
+  // Επιλογέας χρώματος: σταθερή παλέτα και 9 σταθερές θέσεις προσαρμοσμένων χρωμάτων, που ο browser θυμάται.
+  // Διπλό κλικ (ή F2) σε θέση ανοίγει τον επιλογέα του browser και αλλάζει το χρώμα της. Ένα αρχικό χρώμα που
+  // δεν υπάρχει στην παλέτα ούτε στις θέσεις μένει επιλεγμένο χωρίς να μπει σε θέση (οι θέσεις δεν μετακινούνται).
   // Επιστρέφει Promise με το χρώμα (#rrggbb) στην «Επιλογή», ή null στο «Άκυρο»/Esc.
   // Επιλογές:
   //   title, accept   τίτλος και ετικέτα του κουμπιού αποδοχής
@@ -389,7 +391,6 @@
       const withDefault = !!options.defaultColor;
       let selected = withDefault && (color === '' || color == null) ? '' : normalColor(color);
       const custom = loadCustomColors();
-      if (selected && !palette.includes(selected) && !custom.includes(selected)) { custom.unshift(selected); custom.splice(9); }
       let customSelectedIndex = custom.indexOf(selected);
 
       const header = document.createElement('div'); header.className = 'school-color-picker-header';
@@ -451,14 +452,18 @@
         button.className = 'school-color-picker-choice' + (isSelected ? ' selected' : '');
         button.style.setProperty('--choice-color', value);
         button.style.setProperty('--choice-ink', inkFor(value));
-        button.setAttribute('aria-label', customIndex >= 0 ? 'Προσαρμοσμένο χρώμα ' + value + ' (διπλό κλικ για αλλαγή)' : 'Χρώμα ' + value);
+        button.setAttribute('aria-label', customIndex >= 0 ? 'Προσαρμοσμένο χρώμα ' + value + ' (διπλό κλικ ή F2 για αλλαγή)' : 'Χρώμα ' + value);
+        if (customIndex >= 0) button.title = 'Διπλό κλικ ή F2 για αλλαγή του χρώματος';
         button.setAttribute('aria-pressed', String(isSelected));
         button.onclick = () => {
           selected = customIndex >= 0 ? custom[customIndex] : value;
           customSelectedIndex = customIndex;
           if (customIndex >= 0) updateSelection(); else render();
         };
-        if (customIndex >= 0) button.ondblclick = () => openCustomColor(customIndex, button);
+        if (customIndex >= 0) {
+          button.ondblclick = () => openCustomColor(customIndex, button);
+          button.onkeydown = event => { if (event.key === 'F2') { event.preventDefault(); openCustomColor(customIndex, button); } };
+        }
         return button;
       };
       const render = () => {
@@ -473,7 +478,14 @@
         custom[editingIndex] = selected;
         customSelectedIndex = editingIndex;
         saveCustomColors();
-        render();
+        // The swatch is changed in place: it keeps the focus (F2) and the double click.
+        const button = customList.children[editingIndex];
+        if (button) {
+          button.style.setProperty('--choice-color', selected);
+          button.style.setProperty('--choice-ink', inkFor(selected));
+          button.setAttribute('aria-label', 'Προσαρμοσμένο χρώμα ' + selected + ' (διπλό κλικ ή F2 για αλλαγή)');
+        }
+        updateSelection();
       };
       cancel.onclick = () => dialog.close();
       accept.onclick = () => { done = true; dialog.close(); };
@@ -528,7 +540,6 @@
   // schoolIcon(name) επιστρέφει το SVG ως κείμενο· ένα στοιχείο με data-school-icon="name" και χωρίς
   // περιεχόμενο στη σελίδα το παίρνει αυτόματα κατά τη φόρτωση.
   const icons = {
-    plus: ['2', 'M12 5v14M5 12h14'],
     up: ['2.6', 'M12 20V4m-7 7 7-7 7 7'],
     down: ['2.6', 'M12 4v16m-7-7 7 7 7-7'],
     import: ['2.4', 'M12 3v13m-5-5 5 5 5-5M4 16v5h16v-5'],
@@ -556,10 +567,13 @@
   }
 
   // Κείμενο με μορφοποίηση: μπάρα (B I U | χρώμα ▾ | λίστες | καθαρισμός) πάνω από πεδίο contenteditable.
-  //   schoolRichText.create({html, labelledBy, label, color}) → {element, editor, html, setHtml(html), focus()}
+  //   schoolRichText.create({html, labelledBy, label, color, actions}) → {element, editor, html, setHtml(html), focus()}
   //     html        το αρχικό κείμενο (καθαρίζεται με το SchoolHtml.sanitize του _data.js, όταν είναι φορτωμένο)
   //     labelledBy  id της ετικέτας του πεδίου (ή label: κείμενο για aria-label)
   //     color       το αρχικό χρώμα του «A», όταν ο browser δεν θυμάται ακόμη κάποιο (#rrggbb)
+  //     actions     [{label, title, accept, run}]: κουμπιά κειμένου στο δεξί άκρο της μπάρας (π.χ. «Αποδοχή»,
+  //                 «Ακύρωση» μιας σημείωσης)· accept:true για το κύριο κουμπί, run() στο κλικ. Δεν μπαίνουν
+  //                 στην κίνηση με τα βέλη της μπάρας· έχουν δική τους στάση Tab.
   //   element: το κουτί (.school-richtext) με τη μπάρα και το πεδίο, για να μπει στη σελίδα.
   //   html: getter με το καθαρισμένο HTML του πεδίου.
   // Το τελευταίο χρώμα του «A» το θυμάται ο browser, κοινό για όλες τις εφαρμογές. Το «▾» ανοίγει το
@@ -635,6 +649,17 @@
     buttons.colorMenu.classList.add('school-richtext-color-menu');
     buttons.colorMenu.setAttribute('aria-haspopup', 'dialog');
     toolbar.append(...groups);
+    if (options.actions?.length) {
+      const actions = document.createElement('span'); actions.className = 'school-richtext-actions';
+      for (const spec of options.actions) {
+        const button = document.createElement('button'); button.type = 'button'; button.textContent = spec.label;
+        if (spec.accept) button.className = 'primary';
+        if (spec.title) { button.title = spec.title; button.setAttribute('aria-label', spec.title); }
+        button.addEventListener('click', () => spec.run?.());
+        actions.append(button);
+      }
+      toolbar.append(actions);
+    }
     box.append(toolbar, editor);
 
     const inEditor = node => !!node && (node === editor || editor.contains(node));

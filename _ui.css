@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινό περιβάλλον χρήστη
- * Έκδοση αρχείου: 0.30
+ * Έκδοση αρχείου: 0.31
  * Όνομα κατά την εγκατάσταση: _ui.css
  */
 
@@ -294,6 +294,18 @@ dialog .school-color-picker-auto.selected{border-color:var(--school-ui-primary-b
 .school-richtext-color-bar{stroke:var(--school-richtext-color,#ff7800)}
 .school-richtext .school-richtext-toolbar button.school-richtext-color-menu{width:20px;min-width:20px;margin-left:-2px}
 .school-richtext-toolbar button.school-richtext-color-menu svg{width:15px;height:15px}
+/* Text buttons of the toolbar (options.actions, e.g. «Αποδοχή» / «Ακύρωση»): at its right end, with the look
+   of ordinary buttons (.primary for the main one). On a narrow toolbar they wrap as one unit. */
+.school-richtext-actions{display:inline-flex;align-items:center;gap:6px;margin-left:auto;padding-left:8px}
+.school-richtext .school-richtext-toolbar .school-richtext-actions button{
+  width:auto;min-width:80px;height:32px;padding:0 12px;border:1px solid var(--school-ui-control-border);border-radius:7px;
+  background:#fff;color:#334155;font-size:14px;line-height:1.2
+}
+.school-richtext .school-richtext-toolbar .school-richtext-actions button:hover:not(:disabled){background:#f1f1f1;border-color:var(--school-ui-control-border)}
+.school-richtext .school-richtext-toolbar .school-richtext-actions button.primary{
+  background:var(--school-ui-primary-bg);border-color:var(--school-ui-primary-border);color:var(--school-ui-primary-text)
+}
+.school-richtext .school-richtext-toolbar .school-richtext-actions button.primary:hover:not(:disabled){background:#d8e8ff;border-color:#709bd3}
 .school-richtext-editor{
   min-height:var(--school-richtext-min-height,145px);max-height:var(--school-richtext-max-height,38vh);overflow:auto;
   padding:10px;border:1px solid var(--school-ui-input-border);border-radius:0 0 8px 8px;background:var(--school-ui-surface);

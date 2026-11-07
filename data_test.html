@@ -12,7 +12,7 @@
   φτιάχνονται από το σύντομο όνομα των δασκάλων («[Α1] - …», classesFromStaff). Με το .data δοκιμής, οι
   έλεγχοι των νέων ετικετών (v2) παίρνουν το Προσωπικό από αυτό, γιατί το CSV του Ολοημέρου έχει τα σύντομα
   ονόματα του Προσωπικού.
-  Έκδοση αρχείου: 0.25
+  Έκδοση αρχείου: 0.26
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -677,20 +677,26 @@ function hostCalendarChecks() {
   const meeting = extra => ({startTime: '13:20', endTime: '14:00', subject: 'Θέμα', directorId: 's3', directorName: 'Δ', present: ['s1'], absent: ['s2'], absenceReasons: {'s2': 'leavePending'}, scheduleAutoReasons: {}, leaveAutoIds: ['s2'], ...extra});
   const base = {format: 'school-shared-data', formatVersion: 1, school: {name: 'Σχολείο', year},
     staffByYear: {[year]: [{id: 's1', code: 'Α1'}, {id: 's2', code: 'Α2'}, {id: 's3', code: 'ΔΘ', role: 'director'}]},
-    calendarByYear: {'2025-2026': {entries: {'2026-01-10': {personalNotes: 'παλιό', schoolLifeBook: ''}}, ssdMeetings: {}, pedagogicMeetings: {}}}};
-  const calendar = {entries: {'2026-11-10': {personalNotes: '<b>σημ.</b>', schoolLifeBook: '<p>Σχολική ζωή</p>'}, '2026-11-11': {personalNotes: '', schoolLifeBook: ''}},
+    calendarByYear: {'2025-2026': {entries: {'2026-01-10': {personalNotes: [{id: 'n0', html: 'παλιό'}], schoolLifeBook: ''}}, ssdMeetings: {}, pedagogicMeetings: {}}}};
+  const notes = (...htmls) => htmls.map((html, index) => ({id: 'n' + (index + 1), html}));
+  const calendar = {entries: {'2026-11-10': {personalNotes: notes('<b>σημ.</b>', 'δεύτερη'), schoolLifeBook: '<p>Σχολική ζωή</p>'}, '2026-11-11': {personalNotes: [], schoolLifeBook: ''}},
     ssdMeetings: {'2026-11-12': meeting({actNumber: 1}), '2026-12-01': meeting({actNumber: 2})}, pedagogicMeetings: {'2026-11-20': meeting()}};
   const saved = C.applySave(base, {calendar});
-  equal('Αποθήκευση: γράφει μόνο το calendarByYear του έτους, τα άλλα έτη μένουν', [Object.keys(saved.calendarByYear).sort(), saved.calendarByYear['2025-2026'].entries['2026-01-10'].personalNotes], [['2025-2026', year], 'παλιό']);
+  equal('Αποθήκευση: γράφει μόνο το calendarByYear του έτους, τα άλλα έτη μένουν', [Object.keys(saved.calendarByYear).sort(), saved.calendarByYear['2025-2026'].entries['2026-01-10'].personalNotes[0].html], [['2025-2026', year], 'παλιό']);
   equal('Οι κενές σημειώσεις δεν κρατιούνται', Object.keys(saved.calendarByYear[year].entries), ['2026-11-10']);
-  equal('Τα δύο πεδία σημειώσεων αποθηκεύονται ανεξάρτητα', saved.calendarByYear[year].entries['2026-11-10'], {personalNotes: '<b>σημ.</b>', schoolLifeBook: '<p>Σχολική ζωή</p>'});
-  equal('Μόνο προσωπικές σημειώσεις: διατηρείται η ημέρα', Object.keys(C.validateCalendar({entries: {'2026-11-13': {personalNotes: 'Π', schoolLifeBook: ''}}}, year, []).entries), ['2026-11-13']);
-  equal('Μόνο Βιβλίο Σχολικής Ζωής: διατηρείται η ημέρα', Object.keys(C.validateCalendar({entries: {'2026-11-13': {personalNotes: '', schoolLifeBook: 'Β'}}}, year, []).entries), ['2026-11-13']);
+  equal('Τα δύο πεδία σημειώσεων αποθηκεύονται ανεξάρτητα, οι προσωπικές με τη σειρά τους', saved.calendarByYear[year].entries['2026-11-10'], {personalNotes: notes('<b>σημ.</b>', 'δεύτερη'), schoolLifeBook: '<p>Σχολική ζωή</p>'});
+  equal('Μόνο προσωπικές σημειώσεις: διατηρείται η ημέρα', Object.keys(C.validateCalendar({entries: {'2026-11-13': {personalNotes: notes('Π'), schoolLifeBook: ''}}}, year, []).entries), ['2026-11-13']);
+  equal('Μόνο Βιβλίο Σχολικής Ζωής: διατηρείται η ημέρα', Object.keys(C.validateCalendar({entries: {'2026-11-13': {personalNotes: [], schoolLifeBook: 'Β'}}}, year, []).entries), ['2026-11-13']);
+  equal('Προσωπική σημείωση με κενό html δεν κρατιέται', C.validateCalendar({entries: {'2026-11-13': {personalNotes: [{id: 'a', html: ''}, {id: 'b', html: 'Β'}], schoolLifeBook: ''}}}, year, []).entries['2026-11-13'].personalNotes, [{id: 'b', html: 'Β'}]);
   equal('Ο λόγος «Αναμονή άδειας» γίνεται δεκτός', saved.calendarByYear[year].pedagogicMeetings['2026-11-20'].absenceReasons['s2'], 'leavePending');
   check('Το αρχικό data δεν αλλάζει', !base.calendarByYear[year]);
   const rejects = (label, value, text) => { try { C.applySave(base, {calendar: value}); record('fail', label, 'έγινε δεκτό'); } catch (error) { check(label, error.message.includes(text), error.message); } };
-  rejects('Ημερομηνία έξω από το έτος: απορρίπτεται', {entries: {'2027-09-01': {personalNotes: 'x', schoolLifeBook: ''}}}, 'έξω από το σχολικό έτος');
-  rejects('Μη έγκυρη ημερομηνία: απορρίπτεται', {entries: {'2026-02-30': {personalNotes: 'x', schoolLifeBook: ''}}}, 'Μη έγκυρη ημερομηνία');
+  rejects('Ημερομηνία έξω από το έτος: απορρίπτεται', {entries: {'2027-09-01': {personalNotes: notes('x'), schoolLifeBook: ''}}}, 'έξω από το σχολικό έτος');
+  rejects('Μη έγκυρη ημερομηνία: απορρίπτεται', {entries: {'2026-02-30': {personalNotes: notes('x'), schoolLifeBook: ''}}}, 'Μη έγκυρη ημερομηνία');
+  rejects('Προσωπικές σημειώσεις ως κείμενο (όχι πίνακας): απορρίπτεται', {entries: {'2026-11-13': {personalNotes: 'x', schoolLifeBook: ''}}}, 'Μη έγκυρες σημειώσεις');
+  rejects('Δύο προσωπικές σημειώσεις με το ίδιο id: απορρίπτεται', {entries: {'2026-11-13': {personalNotes: [{id: 'a', html: 'x'}, {id: 'a', html: 'y'}], schoolLifeBook: ''}}}, 'διπλή προσωπική σημείωση');
+  rejects('Προσωπική σημείωση χωρίς id: απορρίπτεται', {entries: {'2026-11-13': {personalNotes: [{id: '', html: 'x'}], schoolLifeBook: ''}}}, 'διπλή προσωπική σημείωση');
+  rejects('Πάνω από ' + C.LIMITS.notes + ' προσωπικές σημειώσεις σε μία ημέρα: απορρίπτεται', {entries: {'2026-11-13': {personalNotes: Array.from({length: C.LIMITS.notes + 1}, (_, index) => ({id: 'n' + index, html: 'x'})), schoolLifeBook: ''}}}, 'Υπερβολικά πολλές σημειώσεις');
   rejects('Λάθος ώρα συνεδρίασης: απορρίπτεται', {ssdMeetings: {'2026-11-12': meeting({actNumber: 1, startTime: '25:00'})}}, 'HH:MM');
   rejects('Λήξη πριν από την έναρξη: απορρίπτεται', {pedagogicMeetings: {'2026-11-12': meeting({startTime: '14:00', endTime: '13:20'})}}, 'ώρα λήξης');
   rejects('Διπλός αριθμός πράξης στο έτος: απορρίπτεται', {ssdMeetings: {'2026-11-12': meeting({actNumber: 3}), '2026-12-01': meeting({actNumber: 3})}}, 'υπάρχει στις 12/11/2026 και στις 01/12/2026');
