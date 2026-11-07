@@ -367,7 +367,7 @@ body.session-locked #app-shell { visibility:hidden; pointer-events:none; }
     <div class="sidebar-head">
       <div class="brand">
         <span class="brand-name">Εφαρμογές σχολείου</span>
-        <span class="sidebar-version" aria-label="Έκδοση 1.02">v1.02</span>
+        <span class="sidebar-version" aria-label="Έκδοση 1.03">v1.03</span>
       </div>
     </div>
     <div id="sidebar-school" class="sidebar-school" hidden><span id="nav-school-name" class="sidebar-school-name"></span><span id="nav-school-year" class="sidebar-school-year"></span></div>
@@ -1192,9 +1192,10 @@ const StaffStorage = (() => {
   function personnelContext() {
     const year = sharedData.school.year;
     const byYear = sharedData.staffByYear && typeof sharedData.staffByYear === 'object' ? sharedData.staffByYear : {};
-    // timetableUsage: in which programs each person appears (for the delete dialog of Προσωπικό); classes: the Τμήματα of
-    // the year (the list of Προσωπικό shows the class of each homeroom teacher).
-    return {revision:schoolRevision, school:{...sharedData.school}, staff:Array.isArray(byYear[year]) ? byYear[year] : [], staffByYear:byYear, classes:Classes ? Classes.yearClasses(sharedData, year) : [], ...meetingsOf(year), timetableUsage:Timetables ? Timetables.staffUsage(sharedData, year) : {}, limits:{staff:HOST_LIMITS.staff, warnRatio:HOST_LIMITS.warnRatio}};
+    // timetableUsage: in which programs each person appears (for the delete dialog of Προσωπικό); tagUsage: in how many
+    // items of which application each person is used as a tag (for the delete warning); classes: the Τμήματα of the year
+    // (the list of Προσωπικό shows the class of each homeroom teacher).
+    return {revision:schoolRevision, school:{...sharedData.school}, staff:Array.isArray(byYear[year]) ? byYear[year] : [], staffByYear:byYear, classes:Classes ? Classes.yearClasses(sharedData, year) : [], ...meetingsOf(year), timetableUsage:Timetables ? Timetables.staffUsage(sharedData, year) : {}, tagUsage:Tags ? Tags.usage(sharedData, year).staff : {}, limits:{staff:HOST_LIMITS.staff, warnRatio:HOST_LIMITS.warnRatio}};
   }
   let staffFetHandle=null,staffFetKey='',staffFetRead=null;
   function staffFetStore(mode,value,key){return new Promise((resolve,reject)=>{

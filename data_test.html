@@ -12,7 +12,7 @@
   φτιάχνονται από το σύντομο όνομα των δασκάλων («[Α1] - …», classesFromStaff). Με το .data δοκιμής, οι
   έλεγχοι των νέων ετικετών (v2) παίρνουν το Προσωπικό από αυτό, γιατί το CSV του Ολοημέρου έχει τα σύντομα
   ονόματα του Προσωπικού.
-  Έκδοση αρχείου: 0.27
+  Έκδοση αρχείου: 0.28
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -995,6 +995,25 @@ function hostTagsChecks() {
   const context = Cal.context(saved, 3);
   equal('Context του Ημερολογίου: μητρώο, χρήση γενικών, Τμήματα, Μαθητές, όρια', [context.tags.general.length, context.tagUsage.g1[0].count, context.classes.length, context.students.length, context.limits],
     [2, 2, 3, 3, {tags: H.LIMITS.general, tagsPerItem: H.LIMITS.perItem, warnRatio: H.LIMITS.warnRatio}]);
+
+  // Εκπαιδευτικοί και μαθητές ως ετικέτες: tagUsage στο school-staff:context και στο school-students:context, για την
+  // προειδοποίηση πριν από την αφαίρεση. Το context του Προσωπικού το φτιάχνει το index.html με το
+  // SchoolHostTags.usage(data, year).staff· ελέγχεται εδώ αυτό.
+  const SEMEIOSI = {app: 'school_calendar.html', one: 'Προσωπική Σημείωση', many: 'Προσωπικές Σημειώσεις'};
+  const counted = clone(saved);
+  counted.calendarByYear[year].entries['2026-11-12'] = {personalNotes: [note('n5', [{type: 'staff', id: 's1'}, {type: 'student', id: 'm1'}])], schoolLifeBook: ''};
+  counted.calendarByYear['2025-2026'] = {entries: {'2025-11-10': {personalNotes: [note('o1', [{type: 'staff', id: 's2'}, {type: 'student', id: 'm2'}])], schoolLifeBook: ''}}};
+  equal('tagUsage του Προσωπικού (usage(data, year).staff): ανά εκπαιδευτικό, με την εφαρμογή και το πλήθος· χωρίς όσους δεν είναι ετικέτα στο έτος (οι σημειώσεις άλλου έτους δεν μετρούν)',
+    H.usage(counted, year).staff, {s1: [{...SEMEIOSI, count: 2}]});
+  equal('tagUsage του Προσωπικού χωρίς Σχολικό Ημερολόγιο: κενό', H.usage(base, year).staff, {});
+  const Stu = window.SchoolHostStudents;
+  if (!Stu) record('fail', 'Λείπει το _host_students.js');
+  else {
+    equal('Context των Μαθητών: tagUsage ανά μαθητή, με την εφαρμογή και το πλήθος· χωρίς όσους δεν είναι ετικέτα στο έτος (οι σημειώσεις άλλου έτους δεν μετρούν)',
+      Stu.context(counted, 1).tagUsage, {m1: [{...SEMEIOSI, count: 2}]});
+    equal('Context των Μαθητών χωρίς Σχολικό Ημερολόγιο: tagUsage κενό', Stu.context(base, 1).tagUsage, {});
+    equal('tagUsage των Μαθητών: ίδιο με το usage(data, year).student', Stu.tagUsage(counted, year), H.usage(counted, year).student);
+  }
 
   // Τμήματα ως ετικέτες
   if (!K) { record('fail', 'Λείπει το _host_classes.js'); return; }

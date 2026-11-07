@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Μαθητές στο Κεντρικό Μενού (host)
- * Έκδοση αρχείου: 0.02
+ * Έκδοση αρχείου: 0.03
  * Όνομα κατά την εγκατάσταση: _host_students.js
  *
  * Κώδικας μόνο του host για τους μαθητές (studentsByYear). Το φορτώνει το index.html μετά το _data.js και το
@@ -12,6 +12,8 @@
  *   yearStudents(data, year)                οι μαθητές ενός έτους ([{id, …}])
  *   previousYears(data, year)               τα παλαιότερα έτη με μαθητές: [{year, classes:[τμήμα…], students}],
  *                                           νεότερο πρώτο (τα τμήματα με grade/number, για την προαγωγή)
+ *   tagUsage(data, year)                    σε ποια στοιχεία ποιας εφαρμογής χρησιμοποιείται κάθε μαθητής ως ετικέτα:
+ *                                           {[id μαθητή]: [{app, one, many, count}]}. Χωρίς το _host_tags.js → {}
  *   context(data, revision)                 το school-students:context
  *   validateStudents(students, classIds)    έλεγχος της λίστας ενός έτους· classIds: τα id των τμημάτων Γενικής
  *                                           Παιδείας· επιστρέφει καθαρό αντίγραφο (πετά λάθος)
@@ -61,7 +63,15 @@
       .sort((a, b) => startYear(b.year) - startYear(a.year));
   }
 
-  // school-students:context: οι μαθητές και τα τμήματα του έτους, τα παλαιότερα έτη και τα όρια.
+  // Σε ποια στοιχεία ποιας εφαρμογής χρησιμοποιείται κάθε μαθητής ως ετικέτα, από τα αποθηκευμένα δεδομένα του
+  // έτους (για την προειδοποίηση πριν από την αφαίρεση). Το _host_tags.js φορτώνεται μετά από αυτό το αρχείο, γι'
+  // αυτό διαβάζεται τη στιγμή της κλήσης.
+  function tagUsage(data, year) {
+    const H = window.SchoolHostTags;
+    return H ? H.usage(data, year).student : {};
+  }
+
+  // school-students:context: οι μαθητές και τα τμήματα του έτους, τα παλαιότερα έτη, η χρήση ως ετικέτα και τα όρια.
   function context(data, revision) {
     const year = data.school.year;
     return clone({
@@ -69,6 +79,7 @@
       students: yearStudents(data, year),
       classes: Classes.yearClasses(data, year),
       previousYears: previousYears(data, year),
+      tagUsage: tagUsage(data, year),
       limits: {students: LIMITS.students, classes: Classes.LIMITS.classes, warnRatio: LIMITS.warnRatio}
     });
   }
@@ -172,6 +183,6 @@
   }
 
   window.SchoolHostStudents = Object.freeze({
-    APP, LIMITS, yearStudents, previousYears, context, validateStudents, applySave, csvFile, install
+    APP, LIMITS, yearStudents, previousYears, tagUsage, context, validateStudents, applySave, csvFile, install
   });
 })();
