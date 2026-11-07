@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.10
+ * Έκδοση αρχείου: 0.11
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -411,7 +411,7 @@
       customTitle.textContent = 'Προσαρμογή';
       const customRow = document.createElement('div'); customRow.className = 'school-color-picker-custom-row';
       const add = document.createElement('button'); add.type = 'button'; add.className = 'school-color-picker-add';
-      add.textContent = '＋'; add.setAttribute('aria-label', 'Προσθήκη προσαρμοσμένου χρώματος');
+      add.innerHTML = schoolIcon('plus'); add.setAttribute('aria-label', 'Προσθήκη προσαρμοσμένου χρώματος');
       const customList = document.createElement('div'); customList.className = 'school-color-picker-custom';
       customRow.append(add, customList);
       // The native input lives inside the dialog, so it is not inert while the dialog is modal.
@@ -434,7 +434,16 @@
         if (auto) { auto.classList.toggle('selected', selected === ''); auto.setAttribute('aria-pressed', String(selected === '')); }
       };
       let done = false;
-      add.onclick = () => { native.value = selected || '#000000'; native.click(); };
+      add.onclick = () => {
+        native.value = selected || '#000000';
+        // Anchor the browser's native colour picker to the visible + button, not off-screen.
+        const rect = add.getBoundingClientRect();
+        native.style.left = rect.left + 'px';
+        native.style.top = rect.top + 'px';
+        native.style.width = rect.width + 'px';
+        native.style.height = rect.height + 'px';
+        native.click();
+      };
       native.oninput = () => {
         selected = normalColor(native.value, selected);
         const index = custom.indexOf(selected); if (index !== -1) custom.splice(index, 1);
@@ -493,6 +502,7 @@
   // schoolIcon(name) επιστρέφει το SVG ως κείμενο· ένα στοιχείο με data-school-icon="name" και χωρίς
   // περιεχόμενο στη σελίδα το παίρνει αυτόματα κατά τη φόρτωση.
   const icons = {
+    plus: ['2', 'M12 5v14M5 12h14'],
     up: ['2.6', 'M12 20V4m-7 7 7-7 7 7'],
     down: ['2.6', 'M12 4v16m-7-7 7 7 7-7'],
     import: ['2.4', 'M12 3v13m-5-5 5 5 5-5M4 16v5h16v-5'],
