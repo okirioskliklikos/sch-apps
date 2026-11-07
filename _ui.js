@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.11
+ * Έκδοση αρχείου: 0.12
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -389,6 +389,7 @@
       let selected = withDefault && (color === '' || color == null) ? '' : normalColor(color);
       const custom = loadCustomColors();
       if (selected && !palette.includes(selected) && !custom.includes(selected)) { custom.unshift(selected); custom.splice(8); }
+      let customSelectedIndex = custom.indexOf(selected);
 
       const header = document.createElement('div'); header.className = 'school-color-picker-header';
       const cancel = document.createElement('button'); cancel.type = 'button'; cancel.textContent = 'Άκυρο';
@@ -404,7 +405,7 @@
         const swatch = document.createElement('span'); swatch.className = 'school-color-picker-auto-swatch'; swatch.setAttribute('aria-hidden', 'true');
         const label = document.createElement('span'); label.textContent = 'Αυτόματο';
         auto.append(swatch, label);
-        auto.onclick = () => { selected = ''; render(); };
+        auto.onclick = () => { selected = ''; customSelectedIndex = -1; render(); };
       }
       const grid = document.createElement('div'); grid.className = 'school-color-picker-grid';
       const customTitle = document.createElement('div'); customTitle.className = 'school-color-picker-custom-title';
@@ -418,24 +419,30 @@
       const native = document.createElement('input'); native.type = 'color'; native.tabIndex = -1;
       native.className = 'school-color-picker-native'; native.setAttribute('aria-hidden', 'true');
 
-      const choice = value => {
+      const choice = (value, customIndex = -1) => {
+        const isSelected = customIndex >= 0 ? customIndex === customSelectedIndex : customSelectedIndex < 0 && value === selected;
         const button = document.createElement('button'); button.type = 'button';
-        button.className = 'school-color-picker-choice' + (value === selected ? ' selected' : '');
+        button.className = 'school-color-picker-choice' + (isSelected ? ' selected' : '');
         button.style.setProperty('--choice-color', value);
         button.style.setProperty('--choice-ink', inkFor(value));
         button.setAttribute('aria-label', 'Χρώμα ' + value);
-        button.setAttribute('aria-pressed', String(value === selected));
-        button.onclick = () => { selected = value; render(); };
+        button.setAttribute('aria-pressed', String(isSelected));
+        button.onclick = () => { selected = value; customSelectedIndex = customIndex; render(); };
         return button;
       };
       const render = () => {
-        grid.replaceChildren(...palette.map(choice));
-        customList.replaceChildren(...custom.map(choice));
+        grid.replaceChildren(...palette.map(value => choice(value)));
+        customList.replaceChildren(...custom.map((value, index) => choice(value, index)));
         if (auto) { auto.classList.toggle('selected', selected === ''); auto.setAttribute('aria-pressed', String(selected === '')); }
       };
       let done = false;
       add.onclick = () => {
-        native.value = selected || '#000000';
+        if (customSelectedIndex < 0) {
+          customSelectedIndex = 0;
+          selected = custom[0];
+          render();
+        }
+        native.value = custom[customSelectedIndex];
         // Anchor the browser's native colour picker to the visible + button, not off-screen.
         const rect = add.getBoundingClientRect();
         native.style.left = rect.left + 'px';
@@ -445,9 +452,11 @@
         native.click();
       };
       native.oninput = () => {
-        selected = normalColor(native.value, selected);
-        const index = custom.indexOf(selected); if (index !== -1) custom.splice(index, 1);
-        custom.unshift(selected); custom.splice(8); saveCustomColors(); render();
+        if (customSelectedIndex < 0) return;
+        selected = normalColor(native.value, custom[customSelectedIndex]);
+        custom[customSelectedIndex] = selected;
+        saveCustomColors();
+        render();
       };
       cancel.onclick = () => dialog.close();
       accept.onclick = () => { done = true; dialog.close(); };
