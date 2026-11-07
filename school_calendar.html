@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Σχολικό Ημερολόγιο v0.76</title>
+<title>Σχολικό Ημερολόγιο v0.77</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -89,7 +89,7 @@
 
 /* Notes editor */
 .school-confirm.cal-editor{width:min(850px,calc(100vw - 32px))}
-.cal-editor .editor-date{display:block;text-align:center;font-size:23px;font-weight:700;color:#34424c;margin-bottom:4px}
+.cal-editor > h2{text-align:center;font-size:23px;font-weight:700;color:#34424c;margin-bottom:4px}
 .cal-editor .editor-section{margin-top:15px}
 .cal-editor .editor-label{display:block;font-weight:700;margin-bottom:6px}
 .cal-editor label.checkrow{display:flex;gap:9px;align-items:center;margin:17px 0 0;font-weight:700}
@@ -196,7 +196,7 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v0.76</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v0.77</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="print" type="button" disabled>Εκτύπωση...</button>
@@ -504,16 +504,15 @@ async function openDayActions(date) {
   selectedDate = date; render();
   const key = dateKey(date), entry = getEntry(key);
   const has = [hasHtml(entry.personalNotes), hasHtml(entry.schoolLifeBook), !!cal.ssdMeetings[key], !!cal.pedagogicMeetings[key]];
-  const word = value => value ? 'Ενημέρωση' : 'Προσθήκη';
   const choice = await schoolChoiceDialog({
     title: longDate(date), className: 'cal-day-actions',
     choices: [
-      {label: `${word(has[0])} Προσωπικών σημειώσεων`, value: 'personalNotes'},
-      {label: `${word(has[1])} εγγραφής στο Βιβλίο Σχολικής Ζωής`, value: 'schoolLifeBook'},
-      {label: `${word(has[2])} ${MEETINGS.ssd.label}`, value: 'ssd'},
-      {label: `${word(has[3])} ${MEETINGS.ped.label}`, value: 'ped'}
+      {label: 'Προσωπικές Σημειώσεις', value: 'personalNotes'},
+      {label: 'Βιβλίο Σχολικής Ζωής', value: 'schoolLifeBook'},
+      {label: 'Παιδαγωγική Συνάντηση', value: 'ped'},
+      {label: 'Συνεδρίαση Συλλόγου Διδασκόντων', value: 'ssd'}
     ],
-    ready: ({dialog}) => dialog.querySelectorAll('.school-choice-options button').forEach((button, index) => button.classList.toggle('cal-has-data', has[index]))
+    ready: ({dialog}) => dialog.querySelectorAll('.school-choice-options button').forEach((button, index) => button.classList.toggle('cal-has-data', has[[0, 1, 3, 2][index]]))
   });
   if (choice === 'personalNotes' || choice === 'schoolLifeBook') editDay(date, choice);
   else if (choice === 'ssd' || choice === 'ped') openMeeting(choice, date);
@@ -535,11 +534,10 @@ async function editDay(date, field) {
   const label = isPersonal ? 'Προσωπικές σημειώσεις' : 'Βιβλίο Σχολικής Ζωής';
   const hasEntry = hasHtml(entry[field]);
   const body = document.createElement('div');
-  const dateLine = document.createElement('span'); dateLine.className = 'editor-date'; dateLine.textContent = `${weekdayName(date)} ${D.format(key)}`;
   const editor = editorBox(isPersonal ? 'personalEditor' : 'schoolLifeBookEditor', label, entry[field]);
-  body.append(dateLine, editor.section);
+  body.append(editor.section);
   const result = await schoolChoiceDialog({
-    title: label, content: body, className: 'cal-editor', escape: false,
+    title: `${weekdayName(date)} ${D.format(key)}`, content: body, className: 'cal-editor', escape: false,
     actions: [
       {label: 'Διαγραφή', disabled: !hasEntry, run: async () => {
         if (!await schoolConfirm(`Να διαγραφεί η καταχώριση «${label}» της ${weekdayName(date)} ${D.format(key)};`, {title:'Διαγραφή καταχώρισης', accept:'Διαγραφή'})) throw cancelled();
