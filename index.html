@@ -285,7 +285,7 @@ body.session-locked #app-shell { visibility:hidden; pointer-events:none; }
   <form id="unlock-form" class="data-form">
     <label class="data-field" for="unlock-password">Κωδικός<span class="password-input"><input id="unlock-password" type="password" autocomplete="current-password" required><button class="password-toggle" type="button" aria-label="Εμφάνιση κωδικού" aria-pressed="false" title="Εμφάνιση κωδικού" aria-controls="unlock-password"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/><path class="eye-slash" d="m3 3 18 18"/></svg></button></span></label>
     <p id="unlock-error" class="data-error" role="alert"></p>
-    <div class="dialog-actions"><button id="unlock-cancel" class="data-action" type="button">Ακύρωση</button><button id="unlock-submit" class="data-action primary" type="submit">Άνοιγμα</button></div>
+    <div class="dialog-actions"><button id="unlock-submit" class="data-action primary" type="submit">Άνοιγμα</button><button id="unlock-cancel" class="data-action" type="button">Ακύρωση</button></div>
   </form>
 </section>
         <div id="data-start">
@@ -351,7 +351,7 @@ body.session-locked #app-shell { visibility:hidden; pointer-events:none; }
           </form>
           <p id="edit-error" class="data-error" role="alert"></p>
           <p id="edit-status" class="data-help" role="status"></p>
-          <div class="data-footer"><button id="close-data" class="data-action" type="button">Κλείσιμο αρχείου πληροφοριών</button><button id="edit-data-cancel" class="data-action" type="button" hidden>Ακύρωση</button><button id="save-data-button" class="data-action primary" type="submit" form="edit-data" hidden>Αποθήκευση αλλαγών</button></div>
+          <div class="data-footer"><button id="close-data" class="data-action" type="button">Κλείσιμο αρχείου πληροφοριών</button><button id="save-data-button" class="data-action primary" type="submit" form="edit-data" hidden>Αποθήκευση αλλαγών</button><button id="edit-data-cancel" class="data-action" type="button" hidden>Ακύρωση</button></div>
         </section>
         <p class="home-note">Το Κεντρικό Μενού και το Documents Templater λειτουργούν και χωρίς κοινό αρχείο.</p>
       </div>
@@ -367,7 +367,7 @@ body.session-locked #app-shell { visibility:hidden; pointer-events:none; }
     <div class="sidebar-head">
       <div class="brand">
         <span class="brand-name">Εφαρμογές σχολείου</span>
-        <span class="sidebar-version" aria-label="Έκδοση 0.99">v0.99</span>
+        <span class="sidebar-version" aria-label="Έκδοση 1.01">v1.01</span>
       </div>
     </div>
     <div id="sidebar-school" class="sidebar-school" hidden><span id="nav-school-name" class="sidebar-school-name"></span><span id="nav-school-year" class="sidebar-school-year"></span></div>
@@ -396,7 +396,7 @@ body.session-locked #app-shell { visibility:hidden; pointer-events:none; }
   <p id="file-access-name" style="overflow-wrap:anywhere;font-weight:650"></p>
   <p class="data-help">Πάτησε «Να επιτραπεί η πρόσβαση» και επιβεβαίωσε στο παράθυρο του Chrome. Ο κωδικός του αρχείου θα ζητηθεί χωριστά, αν χρειάζεται.</p>
   <p id="file-access-error" class="data-error" role="alert"></p>
-  <div class="dialog-actions"><button id="file-access-cancel" class="data-action" type="button">Ακύρωση</button><button id="file-access-allow" class="data-action confirm-accept" type="button">Να επιτραπεί η πρόσβαση</button></div>
+  <div class="dialog-actions"><button id="file-access-allow" class="data-action confirm-accept" type="button">Να επιτραπεί η πρόσβαση</button><button id="file-access-cancel" class="data-action" type="button">Ακύρωση</button></div>
 </dialog>
 
 <section id="session-lock" hidden aria-labelledby="session-lock-title">

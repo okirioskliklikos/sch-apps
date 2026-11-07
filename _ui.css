@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινό περιβάλλον χρήστη
- * Έκδοση αρχείου: 0.31
+ * Έκδοση αρχείου: 0.32
  * Όνομα κατά την εγκατάσταση: _ui.css
  */
 
@@ -235,9 +235,10 @@ dialog button:focus-visible,dialog input:focus-visible,dialog select:focus-visib
 .school-color-trigger{display:block;width:64px;height:var(--school-ui-control-height);padding:4px 5px}
 .school-color-trigger-swatch{display:block;width:100%;height:100%;border:1px solid var(--school-ui-swatch-border);border-radius:2px}
 .school-color-picker{width:min(490px,calc(100vw - 24px));padding:12px 14px 16px;overflow:hidden}
-.school-color-picker-header{display:grid;grid-template-columns:104px 1fr 104px;gap:10px;align-items:center;margin-bottom:14px}
-.school-color-picker-title{font-weight:750;text-align:center;color:var(--school-ui-text);white-space:nowrap}
-.school-color-picker-header button{height:var(--school-ui-control-height);padding:5px 12px}
+.school-color-picker-title{margin:2px 0 12px;font-weight:750;color:var(--school-ui-text);overflow-wrap:anywhere}
+/* Buttons at the bottom right, like every dialog: «Επιλογή», then «Ακύρωση» at the far right. */
+.school-color-picker-actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:10px;margin-top:16px}
+.school-color-picker-actions button{padding:var(--school-ui-control-padding-y) 16px}
 .school-color-picker-grid{display:grid;grid-template-columns:repeat(9,minmax(28px,1fr));gap:4px}
 .school-color-picker-custom-title{margin:9px 0 5px}
 .school-color-picker-custom{display:grid;grid-template-columns:repeat(9,minmax(28px,1fr));gap:4px}

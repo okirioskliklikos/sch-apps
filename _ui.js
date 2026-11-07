@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.15
+ * Έκδοση αρχείου: 0.16
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -24,6 +24,8 @@
  * Σε κάθε σελίδα με την κοινή κεφαλίδα κρατά στη μεταβλητή --subapp-header-height το πραγματικό
  * ύψος της κεφαλίδας (αλλάζει όταν η κεφαλίδα αναδιπλώνεται).
  * Το κείμενο μπαίνει πάντα με textContent, ποτέ ως HTML.
+ * Κουμπιά κάτω δεξιά σε κάθε διάλογο: τέρμα δεξιά η «Ακύρωση», αριστερά της η προεπιλεγμένη ενέργεια
+ * (αποδοχή) και πιο αριστερά οι υπόλοιπες. Κάτω αριστερά δεν μπαίνουν κουμπιά.
  * Η εμφάνιση των διαλόγων ορίζεται στο _ui.css (.school-confirm, .school-choice-*, .school-import-*,
  *   .school-color-picker, .school-richtext-*)
  * και του κουμπιού «☰» στο _subapp.css.
@@ -45,15 +47,16 @@
       const text = document.createElement('p'); text.id = 'school-confirm-message'; text.textContent = message;
       const actions = document.createElement('div'); actions.className = 'school-confirm-actions';
       let cancel = null, accepted = false;
+      // Η αποδοχή αριστερά, η «Ακύρωση» τέρμα δεξιά. Η εστίαση πηγαίνει στην «Ακύρωση» (ασφαλέστερη).
+      const accept = document.createElement('button'); accept.type = 'button'; accept.className = 'confirm-accept';
+      accept.textContent = o.confirm ? o.accept : 'Εντάξει';
+      accept.onclick = () => { accepted = true; dialog.close(); };
+      actions.append(accept);
       if (o.confirm) {
         cancel = document.createElement('button'); cancel.type = 'button'; cancel.textContent = 'Ακύρωση';
         cancel.onclick = () => dialog.close();
         actions.append(cancel);
       }
-      const accept = document.createElement('button'); accept.type = 'button'; accept.className = 'confirm-accept';
-      accept.textContent = o.confirm ? o.accept : 'Εντάξει';
-      accept.onclick = () => { accepted = true; dialog.close(); };
-      actions.append(accept);
       dialog.append(title, text, actions); document.body.append(dialog); active = dialog;
       dialog.addEventListener('cancel', event => { event.preventDefault(); dialog.close(); });
       dialog.addEventListener('close', () => {
@@ -90,12 +93,22 @@
   // Ακύρωση από τον χρήστη (π.χ. έκλεισε το παράθυρο επιλογής αρχείου): δεν εμφανίζεται ως λάθος.
   const isCancellation = problem => problem?.name === 'AbortError' || /ακυρώθηκε/.test(String(problem?.message || ''));
 
+  // Η κοινή σειρά των κουμπιών κάτω δεξιά: οι υπόλοιπες ενέργειες, η αποδοχή, και τέρμα δεξιά η «Ακύρωση».
+  const isCancelAction = spec => !!spec.cancel || (spec.cancel !== false && spec.label === 'Ακύρωση');
+  function orderedActions(list) {
+    const rank = spec => isCancelAction(spec) ? 2 : spec.accept ? 1 : 0;
+    return list.map((spec, index) => ({spec, index})).sort((a, b) => rank(a.spec) - rank(b.spec) || a.index - b.index).map(item => item.spec);
+  }
+
   // Διάλογος με επιλογές: τίτλος, περιεχόμενο, μεγάλα κουμπιά επιλογών (π.χ. «Τελευταίο αρχείο» /
   // «Επιλογή άλλου αρχείου») και κουμπιά ενεργειών κάτω δεξιά.
   //   options.title    τίτλος
   //   options.content  κείμενο ή στοιχείο DOM, ή πίνακας από αυτά (το κείμενο μπαίνει σε <p> με textContent)
   //   options.choices  [{label, disabled, title, value, run}]  κουμπιά επιλογής, το ένα κάτω από το άλλο
-  //   options.actions  [{label, accept, disabled, value, run}] κουμπιά κάτω δεξιά (προεπιλογή: «Ακύρωση»)
+  //   options.actions  [{label, accept, cancel, disabled, value, run}] κουμπιά κάτω δεξιά (προεπιλογή: «Ακύρωση»).
+  //                    Μπαίνουν πάντα με την ίδια σειρά, όποια σειρά κι αν έχει ο πίνακας: τέρμα δεξιά η
+  //                    «Ακύρωση» (cancel:true ή ετικέτα «Ακύρωση»), αριστερά της το κουμπί αποδοχής (accept:true)
+  //                    και πιο αριστερά τα υπόλοιπα, με τη σειρά του πίνακα.
   //   options.escape   false: το Esc δεν κλείνει τον διάλογο
   //   options.className  επιπλέον κλάση του διαλόγου (π.χ. για πλάτος)
   //   options.ready(controls)  καλείται μόλις ανοίξει ο διάλογος, με:
@@ -148,7 +161,7 @@
         choices.append(...options.choices.map(button)); dialog.append(choices);
       }
       const actions = document.createElement('div'); actions.className = 'school-confirm-actions';
-      actions.append(...(options.actions || [{label: 'Ακύρωση'}]).map(button));
+      actions.append(...orderedActions(options.actions || [{label: 'Ακύρωση'}]).map(button));
       dialog.append(error, actions);
       // Κάθε αλλαγή σε πεδίο του διαλόγου σβήνει το προηγούμενο μήνυμα λάθους.
       dialog.addEventListener('change', () => { error.textContent = ''; });
@@ -293,9 +306,9 @@
       className: 'school-import',
       content: [options.intro, list, result],
       actions: [
-        {label: 'Ακύρωση'},
         {label: options.accept || 'Εισαγωγή', accept: true, get disabled() { return !analysis?.ok; },
-          run: async () => options.build(analysis, {unmatched: unmatchedBox.querySelector('input:checked')?.value === 'drop' ? 'drop' : 'keep', direct: false})}
+          run: async () => options.build(analysis, {unmatched: unmatchedBox.querySelector('input:checked')?.value === 'drop' ? 'drop' : 'keep', direct: false})},
+        {label: 'Ακύρωση', cancel: true}
       ],
       working: on => { for (const button of rowButtons) button.disabled = on; },
       ready: async api => {
@@ -344,12 +357,13 @@
   // Επιλογέας χρώματος: σταθερή παλέτα και 9 σταθερές θέσεις προσαρμοσμένων χρωμάτων, που ο browser θυμάται.
   // Διπλό κλικ (ή F2) σε θέση ανοίγει τον επιλογέα του browser και αλλάζει το χρώμα της. Ένα αρχικό χρώμα που
   // δεν υπάρχει στην παλέτα ούτε στις θέσεις μένει επιλεγμένο χωρίς να μπει σε θέση (οι θέσεις δεν μετακινούνται).
-  // Επιστρέφει Promise με το χρώμα (#rrggbb) στην «Επιλογή», ή null στο «Άκυρο»/Esc.
+  // Τίτλος πάνω· κάτω δεξιά «Επιλογή» και, τέρμα δεξιά, «Ακύρωση», όπως σε όλους τους διαλόγους.
+  // Επιστρέφει Promise με το χρώμα (#rrggbb) στην «Επιλογή», ή null στην «Ακύρωση»/Esc.
   // Επιλογές:
   //   title, accept   τίτλος και ετικέτα του κουμπιού αποδοχής
   //   anchor          στοιχείο (π.χ. το κουμπί που πατήθηκε): ο επιλογέας ανοίγει κάτω από αυτό, με τη δεξιά
   //                   του άκρη στη δεξιά άκρη του στοιχείου (ή, αν έτσι βγαίνει από τη σελίδα αριστερά, με την
-  //                   αριστερή στην αριστερή)· αν δεν χωρά από κάτω, από πάνω· αν δεν χωρά καθόλου, στο κέντρο. Κλικ έξω από τον επιλογέα τον κλείνει όπως το «Άκυρο». Χωρίς anchor: στο κέντρο.
+  //                   αριστερή στην αριστερή)· αν δεν χωρά από κάτω, από πάνω· αν δεν χωρά καθόλου, στο κέντρο. Κλικ έξω από τον επιλογέα τον κλείνει όπως η «Ακύρωση». Χωρίς anchor: στο κέντρο.
   //   defaultColor    true: προσθέτει την επιλογή «Αυτόματο» (το προεπιλεγμένο χρώμα)· τότε η τιμή μπορεί να
   //                   είναι και '' (κενό κείμενο) όταν επιλέχθηκε το «Αυτόματο».
   const palette = [
@@ -393,13 +407,13 @@
       const custom = loadCustomColors();
       let customSelectedIndex = custom.indexOf(selected);
 
-      const header = document.createElement('div'); header.className = 'school-color-picker-header';
-      const cancel = document.createElement('button'); cancel.type = 'button'; cancel.textContent = 'Άκυρο';
       const title = document.createElement('div'); title.id = 'school-color-picker-title';
       title.className = 'school-color-picker-title'; title.textContent = options.title || 'Επιλογή χρώματος';
       const accept = document.createElement('button'); accept.type = 'button'; accept.className = 'confirm-accept';
       accept.textContent = options.accept || 'Επιλογή';
-      header.append(cancel, title, accept);
+      const cancel = document.createElement('button'); cancel.type = 'button'; cancel.textContent = 'Ακύρωση';
+      const footer = document.createElement('div'); footer.className = 'school-color-picker-actions';
+      footer.append(accept, cancel);
       // «Αυτόματο»: το προεπιλεγμένο χρώμα κειμένου (χωρίς δικό του χρώμα).
       let auto = null;
       if (withDefault) {
@@ -509,7 +523,7 @@
       };
       if (anchor) {
         window.addEventListener('resize', place);
-        // A click on the backdrop (outside the picker) closes it like «Άκυρο».
+        // A click on the backdrop (outside the picker) closes it like «Ακύρωση».
         dialog.addEventListener('click', event => {
           if (event.target !== dialog) return;
           const box = dialog.getBoundingClientRect();
@@ -522,7 +536,7 @@
         if (previous?.isConnected) previous.focus();
         resolve(done ? selected : null);
       }, {once: true});
-      dialog.append(header, ...(auto ? [auto] : []), grid, customTitle, customList, native);
+      dialog.append(title, ...(auto ? [auto] : []), grid, customTitle, customList, footer, native);
       document.body.append(dialog); render();
       try {
         dialog.showModal(); place();
