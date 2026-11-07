@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Σχολικό Ημερολόγιο v0.82</title>
+<title>Σχολικό Ημερολόγιο v0.83</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -229,7 +229,7 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v0.81</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v0.83</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="print" type="button" disabled>Εκτύπωση...</button>
@@ -644,12 +644,6 @@ async function editPersonalNotes(date) {
     dragging.clientY = event.clientY;
     positionPlaceholder(event.clientY);
   });
-  body.addEventListener('drop', event => {
-    if (!dragging) return;
-    event.preventDefault();
-    positionPlaceholder(event.clientY);
-    finishDrag(true);
-  });
   document.addEventListener('keydown', event => {
     if (dragging && event.key === 'Escape') finishDrag(false);
   });
@@ -743,7 +737,20 @@ async function editPersonalNotes(date) {
       {label:'Ενημέρωση', accept:true, run: () => { commitEditor(); return {notes}; }},
       {label:'Ακύρωση'}
     ],
-    ready: ({dialog}) => { dialog.querySelector('.school-confirm-actions button').classList.add('cal-reset'); renderNotes(); }
+    ready: ({dialog}) => {
+      dialog.querySelector('.school-confirm-actions button').classList.add('cal-reset');
+      // Accept a drop anywhere in the notes dialog, at the already visible placeholder position.
+      // The pointer's final coordinates must not move the placeholder or cancel the move.
+      dialog.addEventListener('dragover', event => {
+        if (!dragging) return;
+        event.preventDefault(); event.dataTransfer.dropEffect = 'move';
+      });
+      dialog.addEventListener('drop', event => {
+        if (!dragging) return;
+        event.preventDefault(); finishDrag(true);
+      });
+      renderNotes();
+    }
   });
   if (!result) return;
   const next = {...entry, personalNotes: result.notes};
