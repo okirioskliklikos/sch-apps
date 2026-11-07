@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Σχολικό Ημερολόγιο στο Κεντρικό Μενού (host)
- * Έκδοση αρχείου: 0.3
+ * Έκδοση αρχείου: 0.4
  * Όνομα κατά την εγκατάσταση: _host_calendar.js
  *
  * Κώδικας μόνο του host για το Σχολικό Ημερολόγιο (calendarByYear). Το φορτώνει το index.html μετά το
@@ -20,7 +20,7 @@
  *   install(bridge)                         σύνδεση με το index (πρωτόκολλο school-calendar:*)
  *
  * Στο .data:
- *   calendarByYear[year] = {entries:{'YYYY-MM-DD':{personalNotes, schoolLifeBook}}, ssdMeetings:{'YYYY-MM-DD':{…}},
+ *   calendarByYear[year] = {entries:{'YYYY-MM-DD':{personalNotes:[{id,html}], schoolLifeBook}}, ssdMeetings:{'YYYY-MM-DD':{…}},
  *                           pedagogicMeetings:{'YYYY-MM-DD':{…}}}
  *   calendarSettings = {zoom}   έξω από το calendarByYear, ώστε να ισχύει για όλα τα σχολικά έτη. Δεν μετρά
  *                               ως αλλαγή δεδομένων: γράφεται όπως το lastViewByYear (βλέπε install).
@@ -34,7 +34,7 @@
 
   const APP = 'school_calendar.html';
   // Όρια: πιάνουν λάθη εφαρμογών, όχι πραγματικά δεδομένα (ένα σχολικό έτος έχει έως 366 ημέρες).
-  const LIMITS = Object.freeze({html: 200000, subject: 20000, name: 300, id: 200, people: 300});
+  const LIMITS = Object.freeze({notes: 366, html: 200000, subject: 20000, name: 300, id: 200, people: 300});
   const ZOOM = Object.freeze({min: 70, max: 150, step: 10, fallback: 100});
   const REASONS = Object.freeze(['leave', 'leavePending', 'lesson', 'otherSchool', 'other']);
   const AUTO_REASONS = Object.freeze(['lesson', 'otherSchool']);
@@ -139,10 +139,19 @@
     if (!isObject(entries)) throw Error('Μη έγκυρες σημειώσεις Ημερολογίου.');
     for (const [key, entry] of Object.entries(entries)) {
       checkDate(key, year, 'σημειώσεων');
-      if (!isObject(entry) || !isText(entry.personalNotes ?? '', LIMITS.html) || !isText(entry.schoolLifeBook ?? '', LIMITS.html))
+      if (!isObject(entry) || !Array.isArray(entry.personalNotes ?? []) || !isText(entry.schoolLifeBook ?? '', LIMITS.html))
         throw Error('Μη έγκυρες σημειώσεις στις ' + formatDate(key) + '.');
-      const personalNotes = entry.personalNotes || '', schoolLifeBook = entry.schoolLifeBook || '';
-      if (personalNotes || schoolLifeBook) out.entries[key] = {personalNotes, schoolLifeBook};
+      const list = entry.personalNotes ?? [];
+      if (list.length > LIMITS.notes) throw Error('Υπερβολικά πολλές σημειώσεις στις ' + formatDate(key) + '.');
+      const seen = new Set(), personalNotes = [];
+      for (const note of list) {
+        if (!isObject(note) || !isText(note.id, LIMITS.id) || !note.id || !isText(note.html, LIMITS.html) || seen.has(note.id))
+          throw Error('Μη έγκυρη ή διπλή προσωπική σημείωση στις ' + formatDate(key) + '.');
+        seen.add(note.id);
+        if (note.html) personalNotes.push({id:note.id, html:note.html});
+      }
+      const schoolLifeBook = entry.schoolLifeBook || '';
+      if (personalNotes.length || schoolLifeBook) out.entries[key] = {personalNotes, schoolLifeBook};
     }
     for (const [field, ssd] of [['ssdMeetings', true], ['pedagogicMeetings', false]]) {
       const meetings = calendar[field] ?? {};
