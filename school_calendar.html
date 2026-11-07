@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Σχολικό Ημερολόγιο v0.81</title>
+<title>Σχολικό Ημερολόγιο v0.82</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -97,9 +97,9 @@
 .cal-note.is-editing{display:block;background:transparent;border-color:transparent;box-shadow:none;padding:0;margin:0 0 10px}
 .cal-note.is-editing .cal-note-grip,.cal-note.is-editing .cal-note-tools{display:none}
 .cal-note.is-editing .cal-note-content{width:100%}
-.cal-note.is-dragging{opacity:.45}
-.cal-note.drop-before{border-top:3px solid var(--cal-drop)}
-.cal-note.drop-after{border-bottom:3px solid var(--cal-drop)}
+.cal-note-placeholder{box-sizing:border-box;border:2px dashed #8eadd1;background:var(--cal-drop-bg);border-radius:9px;pointer-events:none}
+.cal-note.is-drag-source{position:fixed;left:-10000px;top:-10000px;visibility:hidden;pointer-events:none;margin:0}
+.cal-note-grip{user-select:none;-webkit-user-select:none}
 .cal-note-grip{align-self:center;flex:none;cursor:grab!important;border:0!important;background:transparent!important;color:#8997a3!important;padding:8px 4px!important;font-size:22px;line-height:1;touch-action:none}
 .cal-note-grip:active{cursor:grabbing!important}
 .cal-note-content{min-width:0;flex:1;overflow-wrap:anywhere}
@@ -594,7 +594,65 @@ async function editPersonalNotes(date) {
     button.innerHTML = icon; button.title = label; button.setAttribute('aria-label', label);
     button.addEventListener('click', click); return button;
   };
-  let dragId = null;
+  // During a drag, the note is outside the list and a same-sized placeholder moves among its siblings.
+  // The array is updated only on drop; dragend/Escape restores the original order.
+  let dragging = null;
+  const finishDrag = (accept) => {
+    if (!dragging) return;
+    const state = dragging; dragging = null;
+    cancelAnimationFrame(state.scrollFrame);
+    state.row.classList.remove('is-drag-source');
+    if (accept) {
+      state.placeholder.replaceWith(state.row);
+      const byId = new Map(notes.map(note => [note.id, note]));
+      notes = [...body.querySelectorAll('.cal-note[data-note-id]')].map(row => byId.get(row.dataset.noteId)).filter(Boolean);
+    } else {
+      state.placeholder.remove();
+      const at = [...body.children].filter(element => element.classList.contains('cal-note') && element !== state.row)[state.originalIndex];
+      body.insertBefore(state.row, at || body.querySelector('.cal-note-add'));
+    }
+    renderNotes();
+  };
+  const positionPlaceholder = (clientY) => {
+    if (!dragging || !dragging.placeholder.isConnected) return;
+    const {placeholder} = dragging;
+    const siblings = [...body.querySelectorAll('.cal-note:not(.cal-note-placeholder):not(.is-drag-source)')];
+    const next = siblings.find(row => clientY < row.getBoundingClientRect().top + row.getBoundingClientRect().height / 2);
+    if (next) {
+      if (placeholder.nextElementSibling !== next) body.insertBefore(placeholder, next);
+    } else {
+      const add = body.querySelector('.cal-note-add');
+      if (add && placeholder.nextElementSibling !== add) body.insertBefore(placeholder, add);
+    }
+  };
+  const scrollOnDrag = () => {
+    if (!dragging) return;
+    const state = dragging, rect = body.getBoundingClientRect();
+    const edge = Math.min(60, rect.height / 4), y = state.clientY;
+    let step = 0;
+    if (y >= rect.top && y < rect.top + edge) step = -Math.ceil(18 * (rect.top + edge - y) / edge);
+    if (y <= rect.bottom && y > rect.bottom - edge) step = Math.ceil(18 * (y - rect.bottom + edge) / edge);
+    if (step) {
+      body.scrollTop += step;
+      positionPlaceholder(y);
+    }
+    state.scrollFrame = requestAnimationFrame(scrollOnDrag);
+  };
+  body.addEventListener('dragover', event => {
+    if (!dragging) return;
+    event.preventDefault(); event.dataTransfer.dropEffect = 'move';
+    dragging.clientY = event.clientY;
+    positionPlaceholder(event.clientY);
+  });
+  body.addEventListener('drop', event => {
+    if (!dragging) return;
+    event.preventDefault();
+    positionPlaceholder(event.clientY);
+    finishDrag(true);
+  });
+  document.addEventListener('keydown', event => {
+    if (dragging && event.key === 'Escape') finishDrag(false);
+  });
   const renderNotes = () => {
     body.replaceChildren();
     for (const note of notes) {
@@ -603,11 +661,30 @@ async function editPersonalNotes(date) {
       const grip = document.createElement('button'); grip.type = 'button'; grip.className = 'cal-note-grip';
       grip.textContent = '⠿'; grip.title = 'Σύρε για αλλαγή σειράς'; grip.setAttribute('aria-label', 'Μετακίνηση σημείωσης'); grip.draggable = note.id !== activeId;
       grip.addEventListener('dragstart', event => {
-        commitEditor(); dragId = note.id;
-        event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', note.id);
-        row.classList.add('is-dragging');
+        if (dragging || note.id === activeId) { event.preventDefault(); return; }
+        commitEditor();
+        const rect = row.getBoundingClientRect();
+        const placeholder = document.createElement('div');
+        placeholder.className = 'cal-note cal-note-placeholder';
+        placeholder.style.height = `${rect.height}px`;
+        placeholder.setAttribute('aria-hidden', 'true');
+        dragging = {
+          row, placeholder, originalIndex: notes.findIndex(item => item.id === note.id),
+          clientY: event.clientY, scrollFrame: null
+        };
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', note.id);
+        // Use the entire rendered note (including its frame), not just the grip, as the drag image.
+        event.dataTransfer.setDragImage(row, event.clientX - rect.left, event.clientY - rect.top);
+        // Let Chromium capture the drag image before removing its source from the layout.
+        requestAnimationFrame(() => {
+          if (!dragging || dragging.row !== row) return;
+          body.insertBefore(placeholder, row);
+          row.classList.add('is-drag-source');
+          dragging.scrollFrame = requestAnimationFrame(scrollOnDrag);
+        });
       });
-      grip.addEventListener('dragend', () => { dragId = null; body.querySelectorAll('.cal-note').forEach(el => el.classList.remove('drop-before', 'drop-after', 'is-dragging')); });
+      grip.addEventListener('dragend', () => finishDrag(false));
       const content = document.createElement('div'); content.className = 'cal-note-content';
       if (note.id === activeId) {
         const rich = schoolRichText.create({html: note.html, label:'Προσωπική σημείωση', color: DEFAULT_FONT_COLOR});
@@ -633,24 +710,6 @@ async function editPersonalNotes(date) {
           }));
       }
       row.append(grip, content, tools);
-      row.addEventListener('dragover', event => {
-        if (!dragId || dragId === note.id) return;
-        event.preventDefault(); event.dataTransfer.dropEffect = 'move';
-        body.querySelectorAll('.cal-note').forEach(el => el.classList.remove('drop-before','drop-after'));
-        const after = event.clientY > row.getBoundingClientRect().top + row.offsetHeight / 2;
-        row.classList.add(after ? 'drop-after' : 'drop-before');
-      });
-      row.addEventListener('drop', event => {
-        if (!dragId || dragId === note.id) return;
-        event.preventDefault();
-        const after = event.clientY > row.getBoundingClientRect().top + row.offsetHeight / 2;
-        const moving = notes.find(item => item.id === dragId);
-        if (!moving) return;
-        notes = notes.filter(item => item.id !== dragId);
-        const target = notes.findIndex(item => item.id === note.id);
-        notes.splice(target + (after ? 1 : 0), 0, moving);
-        dragId = null; renderNotes();
-      });
       body.append(row);
     }
     if (!notes.length && activeId === null) {
