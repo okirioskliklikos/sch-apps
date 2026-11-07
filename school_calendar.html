@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Σχολικό Ημερολόγιο v0.75</title>
+<title>Σχολικό Ημερολόγιο v0.76</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -196,7 +196,7 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v0.75</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v0.76</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="print" type="button" disabled>Εκτύπωση...</button>
@@ -271,7 +271,7 @@ const inYear = d => schoolYearFor(d) === startYear;
 const monthDelta = (d, n) => new Date(d.getFullYear(), d.getMonth() + n, 1, 12);
 const hasHtml = html => SchoolHtml.hasText(html);
 const sanitizeHtml = html => SchoolHtml.sanitize(html);
-function getEntry(k) { return cal.entries[k] || {personal:'', school:''}; }
+function getEntry(k) { return cal.entries[k] || {personalNotes:'', schoolLifeBook:''}; }
 // A cancelled confirmation inside a dialog: the dialog stays open and shows no error.
 const cancelled = () => Object.assign(Error('Η ενέργεια ακυρώθηκε.'), {name:'AbortError'});
 // The error line of a schoolChoiceDialog is cleared while typing, not only on change: otherwise the line
@@ -301,8 +301,8 @@ function normalizeCalendar(value) {
   const entries = {};
   for (const [key, entry] of Object.entries(isObject(value?.entries) ? value.entries : {})) {
     if (!D.valid(key) || !isObject(entry)) continue;
-    const personal = sanitizeHtml(entry.personal), school = sanitizeHtml(entry.school);
-    if (hasHtml(personal) || hasHtml(school)) entries[key] = {personal, school};
+    const personalNotes = sanitizeHtml(entry.personalNotes), schoolLifeBook = sanitizeHtml(entry.schoolLifeBook);
+    if (hasHtml(personalNotes) || hasHtml(schoolLifeBook)) entries[key] = {personalNotes, schoolLifeBook};
   }
   return {entries, ssdMeetings: normalizeMeetings(value?.ssdMeetings, true), pedagogicMeetings: normalizeMeetings(value?.pedagogicMeetings, false)};
 }
@@ -388,10 +388,10 @@ function meetingIcon(hasSsd, hasPed) {
 }
 // Colours, meeting icon and label of one day cell (month and school year).
 function decorateDay(cell, date, label) {
-  const key = dateKey(date), entry = getEntry(key), personal = hasHtml(entry.personal), school = hasHtml(entry.school);
+  const key = dateKey(date), entry = getEntry(key), personal = hasHtml(entry.personalNotes), school = hasHtml(entry.schoolLifeBook);
   const hasSsd = !!cal.ssdMeetings[key], hasPed = !!cal.pedagogicMeetings[key];
   cell.dataset.key = key; cell.tabIndex = 0; cell.setAttribute('role', 'gridcell');
-  cell.setAttribute('aria-label', `${label}${personal ? ' — προσωπικές σημειώσεις' : ''}${school ? ' — σχολικό ημερολόγιο' : ''}${hasSsd ? ' — συνεδρίαση Συλλόγου Διδασκόντων' : ''}${hasPed ? ' — παιδαγωγική συνάντηση' : ''}`);
+  cell.setAttribute('aria-label', `${label}${personal ? ' — προσωπικές σημειώσεις' : ''}${school ? ' — βιβλίο σχολικής ζωής' : ''}${hasSsd ? ' — συνεδρίαση Συλλόγου Διδασκόντων' : ''}${hasPed ? ' — παιδαγωγική συνάντηση' : ''}`);
   if (hasSsd || hasPed) { cell.classList.add('has-meeting'); cell.append(meetingIcon(hasSsd, hasPed)); }
   if (personal) cell.classList.add('has-personal');
   if (school) cell.classList.add('has-school');
@@ -502,18 +502,20 @@ async function openDayActions(date) {
     return;
   }
   selectedDate = date; render();
-  const key = dateKey(date), entry = getEntry(key), has = [hasHtml(entry.personal) || hasHtml(entry.school), !!cal.ssdMeetings[key], !!cal.pedagogicMeetings[key]];
+  const key = dateKey(date), entry = getEntry(key);
+  const has = [hasHtml(entry.personalNotes), hasHtml(entry.schoolLifeBook), !!cal.ssdMeetings[key], !!cal.pedagogicMeetings[key]];
   const word = value => value ? 'Ενημέρωση' : 'Προσθήκη';
   const choice = await schoolChoiceDialog({
     title: longDate(date), className: 'cal-day-actions',
     choices: [
-      {label: `${word(has[0])} Σημειώσεων Σχολικού Ημερολογίου`, value: 'notes'},
-      {label: `${word(has[1])} ${MEETINGS.ssd.label}`, value: 'ssd'},
-      {label: `${word(has[2])} ${MEETINGS.ped.label}`, value: 'ped'}
+      {label: `${word(has[0])} Προσωπικών σημειώσεων`, value: 'personalNotes'},
+      {label: `${word(has[1])} εγγραφής στο Βιβλίο Σχολικής Ζωής`, value: 'schoolLifeBook'},
+      {label: `${word(has[2])} ${MEETINGS.ssd.label}`, value: 'ssd'},
+      {label: `${word(has[3])} ${MEETINGS.ped.label}`, value: 'ped'}
     ],
     ready: ({dialog}) => dialog.querySelectorAll('.school-choice-options button').forEach((button, index) => button.classList.toggle('cal-has-data', has[index]))
   });
-  if (choice === 'notes') editDay(date);
+  if (choice === 'personalNotes' || choice === 'schoolLifeBook') editDay(date, choice);
   else if (choice === 'ssd' || choice === 'ped') openMeeting(choice, date);
 }
 
@@ -527,37 +529,31 @@ function editorBox(id, label, html) {
   section.append(title, rich.element);
   return {section, rich};
 }
-async function editDay(date) {
-  const key = dateKey(date), entry = getEntry(key), hasEntry = hasHtml(entry.personal) || hasHtml(entry.school), withSchool = hasHtml(entry.school);
+async function editDay(date, field) {
+  const key = dateKey(date), entry = getEntry(key);
+  const isPersonal = field === 'personalNotes';
+  const label = isPersonal ? 'Προσωπικές σημειώσεις' : 'Βιβλίο Σχολικής Ζωής';
+  const hasEntry = hasHtml(entry[field]);
   const body = document.createElement('div');
   const dateLine = document.createElement('span'); dateLine.className = 'editor-date'; dateLine.textContent = `${weekdayName(date)} ${D.format(key)}`;
-  const personal = editorBox('personalEditor', 'Προσωπικές σημειώσεις', entry.personal);
-  const check = document.createElement('label'); check.className = 'checkrow';
-  check.innerHTML = `<input type="checkbox" id="schoolEnabled" ${withSchool ? 'checked' : ''}> Να προστεθεί εγγραφή στο ημερολόγιο σχολικής ζωής`;
-  const schoolField = document.createElement('div'); schoolField.id = 'schoolField'; schoolField.hidden = !withSchool;
-  const school = editorBox('schoolEditor', 'Σχολικό ημερολόγιο', entry.school);
-  schoolField.append(school.section);
-  body.append(dateLine, personal.section, check, schoolField);
-  const enabled = check.querySelector('input');
-  enabled.addEventListener('change', () => { schoolField.hidden = !enabled.checked; });
+  const editor = editorBox(isPersonal ? 'personalEditor' : 'schoolLifeBookEditor', label, entry[field]);
+  body.append(dateLine, editor.section);
   const result = await schoolChoiceDialog({
-    title: 'Σημειώσεις Σχολικού Ημερολογίου', content: body, className: 'cal-editor', escape: false,
+    title: label, content: body, className: 'cal-editor', escape: false,
     actions: [
       {label: 'Διαγραφή', disabled: !hasEntry, run: async () => {
-        if (!await schoolConfirm(`Να διαγραφούν όλες οι σημειώσεις της ${weekdayName(date)} ${D.format(key)};`, {title:'Διαγραφή σημειώσεων', accept:'Διαγραφή'})) throw cancelled();
+        if (!await schoolConfirm(`Να διαγραφεί η καταχώριση «${label}» της ${weekdayName(date)} ${D.format(key)};`, {title:'Διαγραφή καταχώρισης', accept:'Διαγραφή'})) throw cancelled();
         return {remove: true};
       }},
       {label: 'Ακύρωση'},
-      {label: hasEntry ? 'Ενημέρωση' : 'Αποθήκευση', accept: true, run: () => ({
-        personal: personal.rich.html,
-        school: enabled.checked ? school.rich.html : ''
-      })}
+      {label: hasEntry ? 'Ενημέρωση' : 'Αποθήκευση', accept: true, run: () => ({html: editor.rich.html})}
     ],
-    ready: ({dialog}) => { dialog.querySelector('.school-confirm-actions button').classList.add('cal-delete'); personal.rich.focus(); }
+    ready: ({dialog}) => { dialog.querySelector('.school-confirm-actions button').classList.add('cal-delete'); editor.rich.focus(); }
   });
   if (!result) return;
-  if (result.remove || (!hasHtml(result.personal) && !hasHtml(result.school))) delete cal.entries[key];
-  else cal.entries[key] = {personal: result.personal, school: result.school};
+  const next = {...entry, [field]: result.remove ? '' : result.html};
+  if (!hasHtml(next.personalNotes) && !hasHtml(next.schoolLifeBook)) delete cal.entries[key];
+  else cal.entries[key] = next;
   render(); updateDirty();
 }
 
@@ -871,7 +867,7 @@ async function printDialog() {
   if (!context || busy) return;
   const current = D.format(dateKey(selectedDate)), month = `${String(displayed.getMonth() + 1).padStart(2, '0')}/${displayed.getFullYear()}`;
   const body = document.createElement('div');
-  body.innerHTML = `<fieldset><legend>Περίοδος</legend><div class="choice-row">${[['day','Ημέρα'],['week','Εβδομάδα'],['month','Μήνας'],['custom','Προσαρμοσμένο']].map(([value, label]) => `<label><input type="radio" name="calPrintPeriod" value="${value}" ${value === 'month' ? 'checked' : ''}> ${label}</label>`).join('')}</div></fieldset><div data-choice="day" hidden><label for="printDay">Ημερομηνία</label><input id="printDay" class="cal-date" type="text" inputmode="numeric" placeholder="dd/mm/yyyy" maxlength="10" value="${current}"></div><div data-choice="week" hidden><label for="printWeekDate">Μία ημέρα της εβδομάδας</label><input id="printWeekDate" class="cal-date" type="text" inputmode="numeric" placeholder="dd/mm/yyyy" maxlength="10" value="${current}"><div class="ui-helper">Θα εκτυπωθεί η εβδομάδα Δευτέρα–Παρασκευή που περιλαμβάνει την ημερομηνία: <span data-role="weekText"></span></div></div><div data-choice="month"><label for="printMonth">Μήνας (MM/YYYY)</label><input id="printMonth" class="cal-date" type="text" inputmode="numeric" placeholder="10/2026" maxlength="7" value="${month}"></div><div data-choice="custom" hidden><label for="rangeFrom">Εύρος ημερομηνιών</label><div class="print-range"><input id="rangeFrom" type="text" inputmode="numeric" placeholder="dd/mm/yyyy" maxlength="10" value="${current}" aria-label="Από"><span aria-hidden="true">—</span><input id="rangeTo" type="text" inputmode="numeric" placeholder="dd/mm/yyyy" maxlength="10" value="${current}" aria-label="Έως"></div></div><fieldset><legend>Περιεχόμενο</legend><div class="choice-row"><label><input type="checkbox" id="printPersonal"> Προσωπικές σημειώσεις</label><label><input type="checkbox" id="printSchool" checked> Σχολικό Ημερολόγιο</label></div><div class="ui-helper">Η αρχική επιλογή εκτυπώνει μόνο τις εγγραφές του σχολικού ημερολογίου.</div></fieldset>`;
+  body.innerHTML = `<fieldset><legend>Περίοδος</legend><div class="choice-row">${[['day','Ημέρα'],['week','Εβδομάδα'],['month','Μήνας'],['custom','Προσαρμοσμένο']].map(([value, label]) => `<label><input type="radio" name="calPrintPeriod" value="${value}" ${value === 'month' ? 'checked' : ''}> ${label}</label>`).join('')}</div></fieldset><div data-choice="day" hidden><label for="printDay">Ημερομηνία</label><input id="printDay" class="cal-date" type="text" inputmode="numeric" placeholder="dd/mm/yyyy" maxlength="10" value="${current}"></div><div data-choice="week" hidden><label for="printWeekDate">Μία ημέρα της εβδομάδας</label><input id="printWeekDate" class="cal-date" type="text" inputmode="numeric" placeholder="dd/mm/yyyy" maxlength="10" value="${current}"><div class="ui-helper">Θα εκτυπωθεί η εβδομάδα Δευτέρα–Παρασκευή που περιλαμβάνει την ημερομηνία: <span data-role="weekText"></span></div></div><div data-choice="month"><label for="printMonth">Μήνας (MM/YYYY)</label><input id="printMonth" class="cal-date" type="text" inputmode="numeric" placeholder="10/2026" maxlength="7" value="${month}"></div><div data-choice="custom" hidden><label for="rangeFrom">Εύρος ημερομηνιών</label><div class="print-range"><input id="rangeFrom" type="text" inputmode="numeric" placeholder="dd/mm/yyyy" maxlength="10" value="${current}" aria-label="Από"><span aria-hidden="true">—</span><input id="rangeTo" type="text" inputmode="numeric" placeholder="dd/mm/yyyy" maxlength="10" value="${current}" aria-label="Έως"></div></div><fieldset><legend>Περιεχόμενο</legend><div class="choice-row"><label><input type="checkbox" id="printPersonal"> Προσωπικές σημειώσεις</label><label><input type="checkbox" id="printSchool" checked> Βιβλίο Σχολικής Ζωής</label></div><div class="ui-helper">Η αρχική επιλογή εκτυπώνει μόνο τις εγγραφές του Βιβλίου Σχολικής Ζωής.</div></fieldset>`;
   const q = selector => body.querySelector(selector);
   const mode = () => body.querySelector('input[name="calPrintPeriod"]:checked').value;
   const weekOf = text => { const iso = D.parse(text); if (!iso) return null; const monday = fromKey(iso); monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7)); const friday = new Date(monday); friday.setDate(monday.getDate() + 4); return {start: monday, end: friday}; };
@@ -924,7 +920,7 @@ function preparePrint({start, end, school, personal}) {
   const out = $('printRoot');
   out.replaceChildren(); out.hidden = false;
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    const entry = getEntry(dateKey(d)), p = personal ? entry.personal : '', s = school ? entry.school : '', hasP = hasHtml(p), hasS = hasHtml(s);
+    const entry = getEntry(dateKey(d)), p = personal ? entry.personalNotes : '', s = school ? entry.schoolLifeBook : '', hasP = hasHtml(p), hasS = hasHtml(s);
     if (!hasP && !hasS) continue;
     const item = document.createElement('article'); item.className = 'print-item';
     const dateLine = document.createElement('div'); dateLine.className = 'print-date'; dateLine.textContent = `${weekdayName(d)} ${D.format(dateKey(d))}`;
@@ -932,18 +928,18 @@ function preparePrint({start, end, school, personal}) {
     const notes = () => { const div = document.createElement('div'); div.className = 'print-body'; div.innerHTML = sanitizeHtml(p); return div; };
     if (school && hasS) {
       const panel = document.createElement('div'); panel.className = 'school-panel print-first single-content-panel' + (personal ? ' combined-school-panel' : '');
-      panel.append(headingRow('Σχολικό Ημερολόγιο'));
+      panel.append(headingRow('Βιβλίο Σχολικής Ζωής'));
       const div = document.createElement('div'); div.className = 'print-body school-entry-body'; div.innerHTML = sanitizeHtml(s); panel.append(div);
       if (personal && hasP) {
         const before = document.createElement('div'); before.className = 'notes-divider before-notes';
-        const heading = document.createElement('div'); heading.className = 'print-label notes-after-school'; heading.textContent = 'Σημειώσεις';
+        const heading = document.createElement('div'); heading.className = 'print-label notes-after-school'; heading.textContent = 'Προσωπικές σημειώσεις';
         const after = document.createElement('div'); after.className = 'notes-divider';
         panel.append(before, heading, after, notes());
       }
       item.append(panel);
     } else {
       const panel = document.createElement('div'); panel.className = 'school-panel print-first single-content-panel';
-      panel.append(headingRow('Σημειώσεις'), notes()); item.append(panel);
+      panel.append(headingRow('Προσωπικές σημειώσεις'), notes()); item.append(panel);
     }
     out.append(item);
   }

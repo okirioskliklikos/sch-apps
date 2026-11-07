@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Σχολικό Ημερολόγιο στο Κεντρικό Μενού (host)
- * Έκδοση αρχείου: 0.2
+ * Έκδοση αρχείου: 0.3
  * Όνομα κατά την εγκατάσταση: _host_calendar.js
  *
  * Κώδικας μόνο του host για το Σχολικό Ημερολόγιο (calendarByYear). Το φορτώνει το index.html μετά το
@@ -20,7 +20,7 @@
  *   install(bridge)                         σύνδεση με το index (πρωτόκολλο school-calendar:*)
  *
  * Στο .data:
- *   calendarByYear[year] = {entries:{'YYYY-MM-DD':{personal, school}}, ssdMeetings:{'YYYY-MM-DD':{…}},
+ *   calendarByYear[year] = {entries:{'YYYY-MM-DD':{personalNotes, schoolLifeBook}}, ssdMeetings:{'YYYY-MM-DD':{…}},
  *                           pedagogicMeetings:{'YYYY-MM-DD':{…}}}
  *   calendarSettings = {zoom}   έξω από το calendarByYear, ώστε να ισχύει για όλα τα σχολικά έτη. Δεν μετρά
  *                               ως αλλαγή δεδομένων: γράφεται όπως το lastViewByYear (βλέπε install).
@@ -139,10 +139,10 @@
     if (!isObject(entries)) throw Error('Μη έγκυρες σημειώσεις Ημερολογίου.');
     for (const [key, entry] of Object.entries(entries)) {
       checkDate(key, year, 'σημειώσεων');
-      if (!isObject(entry) || !isText(entry.personal ?? '', LIMITS.html) || !isText(entry.school ?? '', LIMITS.html))
+      if (!isObject(entry) || !isText(entry.personalNotes ?? '', LIMITS.html) || !isText(entry.schoolLifeBook ?? '', LIMITS.html))
         throw Error('Μη έγκυρες σημειώσεις στις ' + formatDate(key) + '.');
-      const personal = entry.personal || '', school = entry.school || '';
-      if (personal || school) out.entries[key] = {personal, school};
+      const personalNotes = entry.personalNotes || '', schoolLifeBook = entry.schoolLifeBook || '';
+      if (personalNotes || schoolLifeBook) out.entries[key] = {personalNotes, schoolLifeBook};
     }
     for (const [field, ssd] of [['ssdMeetings', true], ['pedagogicMeetings', false]]) {
       const meetings = calendar[field] ?? {};
