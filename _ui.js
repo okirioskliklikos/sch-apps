@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.24
+ * Έκδοση αρχείου: 0.25
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -984,9 +984,15 @@
   const tagUsageText = list => (list || []).filter(item => item?.count > 0).map(item => tagPlural(item.count, item.one, item.many)).join(', ');
   const tagUsageCount = list => (list || []).reduce((sum, item) => sum + (Number(item?.count) || 0), 0);
 
-  // Το αρχικό χρώμα αποθηκεύεται ανέπαφο: τα φωτεινά chips παίρνουν 62% λευκό,
-  // τα σκούρα 30% λευκό. Η σχετική φωτεινότητα του τελικού φόντου καθορίζει
-  // τη φωτεινή ή σκούρα γραφή, χωρίς υπολογισμό αναλογίας αντίθεσης.
+  // Το αρχικό χρώμα αποθηκεύεται ανέπαφο· οι αποχρώσεις υπολογίζονται μόνο στην εμφάνιση.
+  // Όλα τα chips έχουν απαλό φόντο και σκούρα γράμματα από το ίδιο χρώμα.
+  // Φωτεινά χρώματα: φόντο με 62% λευκό, γράμματα με 75% μαύρο.
+  // Σκούρα χρώματα (relative luminance < 0.18): φόντο με 82% λευκό, περίγραμμα το ίδιο
+  // το χρώμα, γράμματα με 55% μαύρο. Αν η αντίθεση είναι κάτω από 7:1, το μαύρο ανεβαίνει
+  // έως 80% (ώστε τα γράμματα να κρατούν πάντα κάτι από το χρώμα) και μετά ανοίγει το
+  // φόντο έως 95% λευκό.
+  const TAG_DARK_LUMINANCE = 0.18;
+  const TAG_DARK_MIN_CONTRAST = 7;
   function tagTones(color) {
     const hex = normalColor(color).slice(1);
     const rgb = [0, 2, 4].map(i => parseInt(hex.slice(i, i + 2), 16));
@@ -1000,17 +1006,29 @@
       });
       return 0.2126 * r + 0.7152 * g + 0.0722 * b;
     };
-    const darkTag = luminance(rgb) < 0.18;
-    const bg = mix(rgb, light, darkTag ? 0.30 : 0.62);
-    const bgLuminance = luminance(bg);
-    // Χρησιμοποιούμε το τελικό relative luminance, όχι τη μέγιστη αριθμητική αντίθεση.
-    // Το 0.27 κρατά φωτεινή γραφή στο προεπιλεγμένο γκρι των εκπαιδευτικών.
-    const lightInk = bgLuminance < 0.27;
-    const border = darkTag ? mix(rgb, lightInk ? light : dark, lightInk ? 0.55 : 0.28) : mix(rgb, luminance(rgb) > 0.55 ? dark : light, luminance(rgb) > 0.55 ? 0.18 : 0.26);
-    // Σταθερές, συγγενικές αποχρώσεις: απαλά φωτεινά ή σκούρα γράμματα.
-    // Η επιλογή βασίζεται μόνο στη σχετική φωτεινότητα, όχι σε αναλογία αντίθεσης.
-    const ink = mix(rgb, lightInk ? light : dark, lightInk ? 0.85 : 0.75);
-    return {bg: toHex(bg), border: toHex(border), ink: toHex(ink)};
+    const contrast = (a, b) => {
+      const la = luminance(a), lb = luminance(b);
+      return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+    };
+    const tagLuminance = luminance(rgb);
+    if (tagLuminance >= TAG_DARK_LUMINANCE) {
+      const bg = mix(rgb, light, 0.62);
+      const border = mix(rgb, tagLuminance > 0.55 ? dark : light, tagLuminance > 0.55 ? 0.18 : 0.26);
+      const ink = mix(rgb, dark, 0.75);
+      return {bg: toHex(bg), border: toHex(border), ink: toHex(ink)};
+    }
+    // Ακέραια ποσοστά, ώστε τα βήματα να είναι ακριβή.
+    let white = 82, black = 55;
+    let bg = mix(rgb, light, white / 100), ink = mix(rgb, dark, black / 100);
+    while (contrast(bg, ink) < TAG_DARK_MIN_CONTRAST && black < 80) {
+      black += 5;
+      ink = mix(rgb, dark, black / 100);
+    }
+    while (contrast(bg, ink) < TAG_DARK_MIN_CONTRAST && white < 95) {
+      white += 1;
+      bg = mix(rgb, light, white / 100);
+    }
+    return {bg: toHex(bg), border: toHex(rgb), ink: toHex(ink)};
   }
 
   // Ένα chip: αποχρώσεις του επιλεγμένου χρώματος (χωρίς αλλαγή του αποθηκευμένου χρώματος).
