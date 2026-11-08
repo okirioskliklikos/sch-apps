@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινό περιβάλλον χρήστη
- * Έκδοση αρχείου: 0.38
+ * Έκδοση αρχείου: 0.39
  * Όνομα κατά την εγκατάσταση: _ui.css
  */
 
@@ -268,6 +268,22 @@ dialog .school-color-picker-auto{
 .school-color-picker-auto-swatch{width:18px;height:18px;flex:none;border:1px solid var(--school-ui-swatch-border);border-radius:3px;background:var(--school-ui-text)}
 dialog .school-color-picker-auto.selected{border-color:var(--school-ui-primary-border);background:var(--school-ui-primary-bg);color:var(--school-ui-primary-text)}
 .school-color-picker-auto.selected::after{content:"✓";margin-left:auto;font-weight:900}
+/* Dragging a colour onto a «Προσαρμογή» slot (_ui.js): a swatch in that colour follows the pointer, the slots
+   show a dashed frame, and the slot under the pointer a solid one, painted in the new colour until released. */
+.school-color-picker :is(.school-color-picker-choice,.school-color-picker-auto){touch-action:none}
+.school-color-picker-drag{
+  position:fixed;z-index:1;border:1px solid var(--school-ui-swatch-border);border-radius:4px;
+  box-shadow:0 6px 18px #172b4d59;pointer-events:none
+}
+dialog.school-color-picker-dragging{user-select:none}
+dialog.school-color-picker-dragging,dialog.school-color-picker-dragging *{cursor:grabbing}
+dialog.school-color-picker-dragging .school-color-picker-choice:hover:not(:disabled){box-shadow:none}
+dialog.school-color-picker-dragging .school-color-picker-custom .school-color-picker-choice:not(:disabled){
+  outline:2px dashed var(--school-ui-primary-border);outline-offset:1px;box-shadow:none
+}
+dialog.school-color-picker-dragging .school-color-picker-custom .school-color-picker-choice.school-color-picker-drop:not(:disabled){
+  outline:2px solid var(--school-ui-focus)
+}
 
 /* Text with formatting (window.schoolRichText in _ui.js): a toolbar with flat icon buttons, in groups with
    separators, aligned left, over a contenteditable field. Pressed buttons (aria-pressed) show the format

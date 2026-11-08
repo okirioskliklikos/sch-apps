@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.25
+ * Έκδοση αρχείου: 0.26
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -358,6 +358,9 @@
   // Επιλογέας χρώματος: σταθερή παλέτα και 9 σταθερές θέσεις προσαρμοσμένων χρωμάτων, που ο browser θυμάται.
   // Διπλό κλικ (ή F2) σε θέση ανοίγει τον επιλογέα του browser και αλλάζει το χρώμα της. Ένα αρχικό χρώμα που
   // δεν υπάρχει στην παλέτα ούτε στις θέσεις μένει επιλεγμένο χωρίς να μπει σε θέση (οι θέσεις δεν μετακινούνται).
+  // Σύρσιμο: ένα χρώμα της παλέτας, το «Αυτόματο» ή μια θέση, αφημένο πάνω σε θέση της «Προσαρμογής», της δίνει
+  // το χρώμα του (η θέση γίνεται η επιλεγμένη)· όσο σέρνεται, ένα δείγμα ακολουθεί τον δείκτη και η θέση από
+  // κάτω δείχνει το νέο χρώμα. Esc ή άφημα αλλού: τίποτα δεν αλλάζει.
   // Τίτλος πάνω· κάτω δεξιά «Επιλογή» και, τέρμα δεξιά, «Ακύρωση», όπως σε όλους τους διαλόγους.
   // Επιστρέφει Promise με το χρώμα (#rrggbb) στην «Επιλογή», ή null στην «Ακύρωση»/Esc.
   // Επιλογές:
@@ -365,8 +368,10 @@
   //   anchor          στοιχείο (π.χ. το κουμπί που πατήθηκε): ο επιλογέας ανοίγει κάτω από αυτό, με τη δεξιά
   //                   του άκρη στη δεξιά άκρη του στοιχείου (ή, αν έτσι βγαίνει από τη σελίδα αριστερά, με την
   //                   αριστερή στην αριστερή)· αν δεν χωρά από κάτω, από πάνω· αν δεν χωρά καθόλου, στο κέντρο. Κλικ έξω από τον επιλογέα τον κλείνει όπως η «Ακύρωση». Χωρίς anchor: στο κέντρο.
-  //   defaultColor    true: προσθέτει την επιλογή «Αυτόματο» (το προεπιλεγμένο χρώμα)· τότε η τιμή μπορεί να
-  //                   είναι και '' (κενό κείμενο) όταν επιλέχθηκε το «Αυτόματο».
+  //   defaultColor    true ή '#rrggbb': προσθέτει την επιλογή «Αυτόματο» (το προεπιλεγμένο χρώμα)· τότε η τιμή
+  //                   μπορεί να είναι και '' (κενό κείμενο) όταν επιλέχθηκε το «Αυτόματο». Με χρώμα, το δείγμα
+  //                   του «Αυτόματο» δείχνει αυτό το χρώμα και το σύρσιμο το αντιγράφει· με true, το χρώμα
+  //                   κειμένου (--school-ui-text).
   const palette = [
     '#a8d8ff','#8be8a8','#fff36b','#ffc16d','#ff6254','#d07ed4','#c5a185','#ffffff','#808085',
     '#5d9be5','#4fd87a','#ffe55f','#ffa548','#ef2f3e','#b962c6','#b4865e','#f5f5f5','#5e5e65',
@@ -382,6 +387,11 @@
     const hex = normalColor(color).slice(1);
     const r = parseInt(hex.slice(0, 2), 16), g = parseInt(hex.slice(2, 4), 16), b = parseInt(hex.slice(4, 6), 16);
     return (r * 299 + g * 587 + b * 114) / 1000 < 135 ? '#ffffff' : '#111111';
+  };
+  // Χρώμα του getComputedStyle («rgb(31, 41, 55)») → #rrggbb, ή κενό.
+  const cssHex = value => {
+    const parts = String(value ?? '').match(/\d+(\.\d+)?/g);
+    return parts && parts.length >= 3 ? '#' + parts.slice(0, 3).map(n => Math.min(255, Math.round(+n)).toString(16).padStart(2, '0')).join('') : '';
   };
   let customColors = null;
   function loadCustomColors() {
@@ -404,6 +414,7 @@
       dialog.className = 'school-color-picker';
       dialog.setAttribute('aria-labelledby', 'school-color-picker-title');
       const withDefault = !!options.defaultColor;
+      const defaultValue = typeof options.defaultColor === 'string' && validColor(options.defaultColor) ? normalColor(options.defaultColor) : '';
       let selected = withDefault && (color === '' || color == null) ? '' : normalColor(color);
       const custom = loadCustomColors();
       let customSelectedIndex = custom.indexOf(selected);
@@ -420,6 +431,7 @@
       if (withDefault) {
         auto = document.createElement('button'); auto.type = 'button'; auto.className = 'school-color-picker-auto';
         const swatch = document.createElement('span'); swatch.className = 'school-color-picker-auto-swatch'; swatch.setAttribute('aria-hidden', 'true');
+        if (defaultValue) swatch.style.background = defaultValue;
         const label = document.createElement('span'); label.textContent = 'Αυτόματο';
         auto.append(swatch, label);
         auto.onclick = () => { selected = ''; customSelectedIndex = -1; render(); };
@@ -468,7 +480,7 @@
         button.style.setProperty('--choice-color', value);
         button.style.setProperty('--choice-ink', inkFor(value));
         button.setAttribute('aria-label', customIndex >= 0 ? 'Προσαρμοσμένο χρώμα ' + value + ' (διπλό κλικ ή F2 για αλλαγή)' : 'Χρώμα ' + value);
-        if (customIndex >= 0) button.title = 'Διπλό κλικ ή F2 για αλλαγή του χρώματος';
+        if (customIndex >= 0) button.title = 'Διπλό κλικ ή F2 για αλλαγή του χρώματος· σύρε εδώ ένα χρώμα για να το αντιγράψεις';
         button.setAttribute('aria-pressed', String(isSelected));
         button.onclick = () => {
           selected = customIndex >= 0 ? custom[customIndex] : value;
@@ -486,6 +498,85 @@
         customList.replaceChildren(...custom.map((value, index) => choice(value, index)));
         updateSelection();
       };
+
+      // Σύρσιμο ενός χρώματος (παλέτα, «Αυτόματο» ή θέση) πάνω σε θέση της «Προσαρμογής». Ξεκινά μετά από 4px,
+      // ώστε το κλικ και το διπλό κλικ να μένουν όπως ήταν. Pointer events (όχι drag & drop του HTML): το δείγμα
+      // που ακολουθεί τον δείκτη φαίνεται καθαρά και το σύρσιμο δουλεύει και με δάχτυλο.
+      const paint = (button, value) => {
+        button.style.setProperty('--choice-color', value);
+        button.style.setProperty('--choice-ink', inkFor(value));
+      };
+      const slotIndex = button => [...customList.children].indexOf(button);
+      const autoValue = () => {
+        if (defaultValue) return defaultValue;
+        const swatch = auto?.querySelector('.school-color-picker-auto-swatch');
+        return swatch ? cssHex(getComputedStyle(swatch).backgroundColor) : '';
+      };
+      const dragValue = element => {
+        if (element === auto) return autoValue();
+        const index = slotIndex(element);
+        return index >= 0 ? custom[index] : palette[[...grid.children].indexOf(element)] || '';
+      };
+      let drag = null, skipClick = false;
+      const dropTarget = target => {
+        if (drag.target === target) return;
+        if (drag.target) { paint(drag.target, custom[slotIndex(drag.target)]); drag.target.classList.remove('school-color-picker-drop'); }
+        drag.target = target;
+        if (target) { paint(target, drag.value); target.classList.add('school-color-picker-drop'); }
+      };
+      const endDrag = drop => {
+        const current = drag; drag = null;
+        if (!current?.started) return;
+        const target = current.target, index = target ? slotIndex(target) : -1;
+        target?.classList.remove('school-color-picker-drop');
+        current.ghost.remove(); dialog.classList.remove('school-color-picker-dragging');
+        try { current.source.releasePointerCapture(current.pointerId); } catch {}
+        // The click that follows the release must not choose a colour, nor close the picker (outside it).
+        skipClick = true; setTimeout(() => { skipClick = false; });
+        if (drop && index >= 0) {
+          custom[index] = current.value; selected = current.value; customSelectedIndex = index;
+          saveCustomColors(); render(); customList.children[index]?.focus();
+        } else if (index >= 0) paint(target, custom[index]);
+      };
+      dialog.addEventListener('pointerdown', event => {
+        if (drag?.started || event.button !== 0 || !event.isPrimary) return;
+        drag = null;
+        const source = event.target.closest?.('.school-color-picker-choice, .school-color-picker-auto');
+        if (!source || !dialog.contains(source)) return;
+        const value = dragValue(source);
+        if (validColor(value)) drag = {source, value: normalColor(value), pointerId: event.pointerId, x: event.clientX, y: event.clientY, started: false, ghost: null, target: null};
+      });
+      dialog.addEventListener('pointermove', event => {
+        if (!drag || event.pointerId !== drag.pointerId) return;
+        if (!drag.started) {
+          if (!(event.buttons & 1)) { drag = null; return; }
+          if (Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < 4) return;
+          drag.started = true;
+          // A swatch as big as a slot, in the colour that is dragged.
+          const size = customList.firstElementChild.getBoundingClientRect();
+          const ghost = document.createElement('div'); ghost.className = 'school-color-picker-drag'; ghost.setAttribute('aria-hidden', 'true');
+          ghost.style.width = size.width + 'px'; ghost.style.height = size.height + 'px'; ghost.style.background = drag.value;
+          drag.ghost = ghost; dialog.append(ghost); dialog.classList.add('school-color-picker-dragging');
+          try { drag.source.setPointerCapture(event.pointerId); } catch {}
+        }
+        // Just above the pointer (or the finger), so that the slot under it stays visible.
+        const width = drag.ghost.offsetWidth, height = drag.ghost.offsetHeight;
+        drag.ghost.style.left = (event.clientX - width / 2) + 'px';
+        drag.ghost.style.top = (event.clientY - height - 18) + 'px';
+        const under = document.elementFromPoint(event.clientX, event.clientY)?.closest('.school-color-picker-choice');
+        dropTarget(under && under.parentNode === customList ? under : null);
+      });
+      dialog.addEventListener('pointerup', event => { if (drag && event.pointerId === drag.pointerId) endDrag(true); });
+      dialog.addEventListener('pointercancel', event => { if (drag && event.pointerId === drag.pointerId) endDrag(false); });
+      dialog.addEventListener('click', event => {
+        if (!skipClick) return;
+        skipClick = false; event.preventDefault(); event.stopImmediatePropagation();
+      }, true);
+      // Esc while dragging cancels only the dragging, not the picker.
+      dialog.addEventListener('keydown', event => {
+        if (event.key !== 'Escape' || !drag?.started) return;
+        event.preventDefault(); event.stopPropagation(); endDrag(false);
+      }, true);
       let done = false;
       native.oninput = () => {
         if (editingIndex < 0) return;
@@ -504,7 +595,7 @@
       };
       cancel.onclick = () => dialog.close();
       accept.onclick = () => { done = true; dialog.close(); };
-      dialog.addEventListener('cancel', event => { event.preventDefault(); dialog.close(); });
+      dialog.addEventListener('cancel', event => { event.preventDefault(); if (drag?.started) endDrag(false); else dialog.close(); });
       // Next to the anchor (below it, else above it), with the right edges lined up; centred when it does not fit.
       const anchor = options.anchor?.isConnected ? options.anchor : null;
       const place = () => {
@@ -1271,7 +1362,7 @@
       const button = trigger('Χρώμα ετικετών: ' + label, effective());
       const refresh = () => { swatch(button, effective()); note.textContent = Tags.validColor(colors[key]) ? '' : 'προεπιλογή'; };
       button.onclick = async () => {
-        const value = await schoolColorPicker(Tags.validColor(colors[key]) ? colors[key] : '', {anchor: button, title: 'Χρώμα ετικετών: ' + label, defaultColor: true});
+        const value = await schoolColorPicker(Tags.validColor(colors[key]) ? colors[key] : '', {anchor: button, title: 'Χρώμα ετικετών: ' + label, defaultColor: defaults[key]});
         if (value === null) return;
         if (value === '') delete colors[key]; else colors[key] = value;
         refresh();
