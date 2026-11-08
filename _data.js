@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων
- * Έκδοση αρχείου: 0.21
+ * Έκδοση αρχείου: 0.22
  * Όνομα κατά την εγκατάσταση: _data.js
  *
  * Φορτώνεται από όσες υποεφαρμογές διαβάζουν ή γράφουν CSV, FET, ημερομηνίες ή προγράμματα, μετά
@@ -1851,7 +1851,7 @@
   const TAG_DISPLAY_ORDER = Object.freeze(['staff', 'class', 'student', 'general']);
   // Το χρώμα κάθε κατηγορίας στο colors του μητρώου.
   const TAG_COLOR_KEYS = Object.freeze({class: 'classes', staff: 'staff', student: 'students'});
-  const TAG_DEFAULT_COLORS = Object.freeze({classes: '#9ca3af', staff: '#4b5563', students: '#e5e7eb'});
+  const TAG_DEFAULT_COLORS = Object.freeze({classes: '#242e49', staff: '#554b4b', students: '#242e49'});
   const TAG_NEW_COLOR = '#a8d8ff';
   const tagColorValid = value => /^#[0-9a-f]{6}$/.test(String(value ?? '').trim().toLowerCase());
   const tagCollator = new Intl.Collator('el', {sensitivity: 'base', numeric: true});
