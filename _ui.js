@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.20
+ * Έκδοση αρχείου: 0.21
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -984,8 +984,8 @@
   const tagUsageText = list => (list || []).filter(item => item?.count > 0).map(item => tagPlural(item.count, item.one, item.many)).join(', ');
   const tagUsageCount = list => (list || []).reduce((sum, item) => sum + (Number(item?.count) || 0), 0);
 
-  // Αποχρώσεις του χρώματος της ετικέτας: απαλό φόντο, συγγενικό περίγραμμα και σκούρα γράμματα.
-  // Η αντίθεση γραμμάτων/φόντου διατηρείται τουλάχιστον 4.5:1, και για πολύ φωτεινά χρώματα.
+  // Αποχρώσεις της ετικέτας: σκούρα χρώματα με φωτεινή γραφή, ανοιχτά με σκούρα.
+  // Το χρώμα που έχει επιλέξει ο χρήστης δεν αλλάζει· η αντίθεση κειμένου/φόντου είναι τουλάχιστον 7:1.
   function tagTones(color) {
     const hex = normalColor(color).slice(1);
     const rgb = [0, 2, 4].map(i => parseInt(hex.slice(i, i + 2), 16));
@@ -999,13 +999,20 @@
       });
       return 0.2126 * r + 0.7152 * g + 0.0722 * b;
     };
-    const bg = mix(rgb, light, 0.62);
-    const border = mix(rgb, luminance(rgb) > 0.55 ? dark : light, luminance(rgb) > 0.55 ? 0.18 : 0.26);
+    const darkTag = luminance(rgb) < 0.18;
+    let bg = darkTag ? mix(rgb, dark, 0.20) : mix(rgb, light, 0.62);
+    // Σε σκούρα chips κρατάμε το φόντο αρκετά σκούρο για ανοιχτή γραφή 7:1.
+    if (darkTag) for (let strength = 0.22; luminance(bg) > 0.085 && strength <= 1; strength += 0.02) {
+      bg = mix(rgb, dark, Math.min(1, strength));
+    }
+    const border = darkTag ? mix(rgb, light, 0.28) : mix(rgb, luminance(rgb) > 0.55 ? dark : light, luminance(rgb) > 0.55 ? 0.18 : 0.26);
     let ink = rgb;
-    for (let strength = 0; strength <= 1; strength += 0.05) {
-      const candidate = mix(rgb, dark, strength);
+    for (let step = 0; step <= 100; step++) {
+      const candidate = mix(rgb, darkTag ? light : dark, step / 100);
       ink = candidate;
-      if ((luminance(bg) + 0.05) / (luminance(candidate) + 0.05) >= 4.5) break;
+      const brighter = Math.max(luminance(bg), luminance(candidate));
+      const darker = Math.min(luminance(bg), luminance(candidate));
+      if ((brighter + 0.05) / (darker + 0.05) >= 7) break;
     }
     return {bg: toHex(bg), border: toHex(border), ink: toHex(ink)};
   }
