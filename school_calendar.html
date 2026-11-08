@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Σχολικό Ημερολόγιο v0.91</title>
+<title>Σχολικό Ημερολόγιο v0.92</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -14,7 +14,7 @@
 :root{
   --app-mark-bg:var(--school-app-calendar);--scale:1;
   --cal-line:#c7cdd2;--cal-weekday-bg:#f0f2f4;--cal-other-month:#f4f5f5;--cal-invalid:#f4f6f8;
-  --cal-personal:#e5f3e3;--cal-school:#fff3bd;--cal-both-line:#73816f;
+  --cal-personal:#e5f3e3;--cal-school:#fff3bd;--cal-book-panel:#fffef8;--cal-both-line:#73816f;
   --cal-hover:#91b6e7;--cal-selected:#4a86d1;
   --cal-ssd:#c62828;--cal-ped:#111111;--cal-meeting-ink:#25313a;
   --cal-director:#c32222;
@@ -129,6 +129,11 @@
 .cal-note-tagbar .school-tags{flex:1 1 200px;min-width:0;align-items:center}
 .cal-note-tagbar-empty{color:var(--school-ui-muted);font-size:13px}
 .cal-note-tagbar>button{flex:none;margin-left:auto}
+/* Fixed single-entry panel for the Βιβλίο Σχολικής Ζωής. */
+.cal-book-editor>.editor-label{margin-top:15px}
+.cal-book-entry{background:var(--cal-book-panel);padding-left:11px}
+.cal-book-entry.is-editing{background:transparent;padding-left:0}
+.cal-book-empty{color:var(--school-ui-muted);padding-top:4px}
 .cal-personal-editor .school-confirm-actions{justify-content:flex-end}
 @media(max-width:560px){.cal-note{gap:3px;padding-right:5px}.cal-note-tools{flex-direction:column}.cal-note-grip{padding:5px 2px!important}.school-confirm.cal-personal-editor{height:75dvh}}
 .cal-editor > h2{text-align:center;font-size:23px;font-weight:700;color:#34424c;margin-bottom:4px}
@@ -238,7 +243,7 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v0.91</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v0.92</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="print" type="button" disabled>Εκτύπωση...</button>
@@ -274,12 +279,12 @@
 // Messages, requests and their time limits: schoolHost in _ui.js. Dates: SchoolDate in _data.js.
 // Data of the school year: calendarByYear[year] = {entries, ssdMeetings, pedagogicMeetings}, read and written
 // only through the Index (school-calendar:*). Staff from Προσωπικό (context.staff), programs from the
-// Σχολικά Προγράμματα (school-timetables:context, read only). Tags of the Προσωπικές Σημειώσεις: each note has
+// Σχολικά Προγράμματα (school-timetables:context, read only). Tags of the Προσωπικές Σημειώσεις and Βιβλίο Σχολικής Ζωής: each note has
 // tags:[{type, id}…]; the registry of the year (tagsByYear[year]) comes in context.tags and its changes are sent,
 // the whole registry, as tags in the same school-calendar:save (schoolTags of _ui.js, SchoolTags of _data.js).
 const $ = id => document.getElementById(id), esc = schoolEscape, post = schoolHost.post;
 const D = SchoolDate, T = SchoolTimetable, Selection = schoolListSelection, G = SchoolTags;
-const APP = 'school_calendar.html', NOTE_WORDS = {one: 'Προσωπική Σημείωση', many: 'Προσωπικές Σημειώσεις'};
+const APP = 'school_calendar.html', NOTE_WORDS = {one: 'Προσωπική Σημείωση', many: 'Προσωπικές Σημειώσεις'}, BOOK_WORDS = {one: 'Καταχώρηση Βιβλίου Σχολικής Ζωής', many: 'Καταχωρήσεις Βιβλίου Σχολικής Ζωής'};
 const MONTHS = ['Ιανουάριος','Φεβρουάριος','Μάρτιος','Απρίλιος','Μάιος','Ιούνιος','Ιούλιος','Αύγουστος','Σεπτέμβριος','Οκτώβριος','Νοέμβριος','Δεκέμβριος'];
 const MONTHS_GEN = ['Ιανουαρίου','Φεβρουαρίου','Μαρτίου','Απριλίου','Μαΐου','Ιουνίου','Ιουλίου','Αυγούστου','Σεπτεμβρίου','Οκτωβρίου','Νοεμβρίου','Δεκεμβρίου'];
 const DAYS = ['Δευτέρα','Τρίτη','Τετάρτη','Πέμπτη','Παρασκευή','Σάββατο','Κυριακή'];
@@ -314,15 +319,18 @@ function normalizeTags(value) {
 const tagData = (tags = tagRegistry) => ({tags, classes: context?.classes || [], staff: context?.staff || [], students: context?.students || []});
 // The use of a general tag: the notes of the page (notes: the notes of an open dialog, for its day) and the other
 // applications (context.tagUsage, from the saved data). → [{one, many, count}] for schoolTags.
-function tagUsageOf(id, dayKey, dayNotes) {
-  let count = 0;
+function tagUsageOf(id, dayKey, dayNotes, dayBook = null) {
+  let notes = 0, books = 0;
   for (const [key, entry] of Object.entries(cal.entries)) {
     if (key === dayKey) continue;
-    for (const note of entry.personalNotes || []) if ((note.tags || []).some(ref => ref.type === 'general' && ref.id === id)) count++;
+    for (const note of entry.personalNotes || []) if ((note.tags || []).some(ref => ref.type === 'general' && ref.id === id)) notes++;
+    if ((entry.schoolLifeBook?.tags || []).some(ref => ref.type === 'general' && ref.id === id)) books++;
   }
-  for (const note of dayNotes || []) if ((note.tags || []).some(ref => ref.type === 'general' && ref.id === id)) count++;
+  for (const note of dayNotes || []) if ((note.tags || []).some(ref => ref.type === 'general' && ref.id === id)) notes++;
+  const book = dayBook ?? getEntry(dayKey).schoolLifeBook;
+  if ((book?.tags || []).some(ref => ref.type === 'general' && ref.id === id)) books++;
   const others = ((context?.tagUsage || {})[id] || []).filter(item => item.app !== APP);
-  return [...(count ? [{...NOTE_WORDS, count}] : []), ...others];
+  return [...(notes ? [{...NOTE_WORDS, count:notes}] : []), ...(books ? [{...BOOK_WORDS, count:books}] : []), ...others];
 }
 function clone(value) { return structuredClone(value); }
 function isObject(value) { return !!value && typeof value === 'object' && !Array.isArray(value); }
@@ -337,8 +345,9 @@ const inYear = d => schoolYearFor(d) === startYear;
 const monthDelta = (d, n) => new Date(d.getFullYear(), d.getMonth() + n, 1, 12);
 const hasHtml = html => SchoolHtml.hasText(html);
 const sanitizeHtml = html => SchoolHtml.sanitize(html);
-function getEntry(k) { return cal.entries[k] || {personalNotes:[], schoolLifeBook:''}; }
+function getEntry(k) { return cal.entries[k] || {personalNotes:[], schoolLifeBook:{html:'',tags:[]}}; }
 const hasPersonal = notes => Array.isArray(notes) && notes.some(note => hasHtml(note.html));
+const hasBook = book => !!book && hasHtml(book.html);
 const noteId = () => crypto.randomUUID();
 // A cancelled confirmation inside a dialog: the dialog stays open and shows no error.
 const cancelled = () => Object.assign(Error('Η ενέργεια ακυρώθηκε.'), {name:'AbortError'});
@@ -370,8 +379,9 @@ function normalizeCalendar(value) {
   for (const [key, entry] of Object.entries(isObject(value?.entries) ? value.entries : {})) {
     if (!D.valid(key) || !isObject(entry)) continue;
     const personalNotes = (Array.isArray(entry.personalNotes) ? entry.personalNotes : []).filter(note => isObject(note) && typeof note.id === 'string' && typeof note.html === 'string').map(note => ({id:note.id, html:sanitizeHtml(note.html), tags:G.clean(note.tags)})).filter(note => hasHtml(note.html));
-    const schoolLifeBook = sanitizeHtml(entry.schoolLifeBook);
-    if (hasPersonal(personalNotes) || hasHtml(schoolLifeBook)) entries[key] = {personalNotes, schoolLifeBook};
+    const book = isObject(entry.schoolLifeBook) ? entry.schoolLifeBook : {};
+    const schoolLifeBook = {html:sanitizeHtml(book.html), tags:G.clean(book.tags)};
+    if (hasPersonal(personalNotes) || hasBook(schoolLifeBook)) entries[key] = {personalNotes, schoolLifeBook};
   }
   return {entries, ssdMeetings: normalizeMeetings(value?.ssdMeetings, true), pedagogicMeetings: normalizeMeetings(value?.pedagogicMeetings, false)};
 }
@@ -465,7 +475,7 @@ function meetingIcon(hasSsd, hasPed) {
 }
 // Colours, meeting icon and label of one day cell (month and school year).
 function decorateDay(cell, date, label) {
-  const key = dateKey(date), entry = getEntry(key), personal = hasPersonal(entry.personalNotes), school = hasHtml(entry.schoolLifeBook);
+  const key = dateKey(date), entry = getEntry(key), personal = hasPersonal(entry.personalNotes), school = hasBook(entry.schoolLifeBook);
   const hasSsd = !!cal.ssdMeetings[key], hasPed = !!cal.pedagogicMeetings[key];
   cell.dataset.key = key; cell.tabIndex = 0; cell.setAttribute('role', 'gridcell');
   cell.setAttribute('aria-label', `${label}${personal ? ' — προσωπικές σημειώσεις' : ''}${school ? ' — βιβλίο σχολικής ζωής' : ''}${hasSsd ? ' — συνεδρίαση Συλλόγου Διδασκόντων' : ''}${hasPed ? ' — παιδαγωγική συνάντηση' : ''}`);
@@ -580,7 +590,7 @@ async function openDayActions(date) {
   }
   selectedDate = date; render();
   const key = dateKey(date), entry = getEntry(key);
-  const has = [hasPersonal(entry.personalNotes), hasHtml(entry.schoolLifeBook), !!cal.ssdMeetings[key], !!cal.pedagogicMeetings[key]];
+  const has = [hasPersonal(entry.personalNotes), hasBook(entry.schoolLifeBook), !!cal.ssdMeetings[key], !!cal.pedagogicMeetings[key]];
   const choice = await schoolChoiceDialog({
     title: longDate(date), className: 'cal-day-actions',
     choices: [
@@ -828,32 +838,112 @@ async function editPersonalNotes(date) {
   // Changes of the registry reach the page with the notes; deleted general tags leave every note of the year.
   const kept = new Set(generalIds(result.registry)), removed = new Set(generalIds(tagRegistry).filter(id => !kept.has(id)));
   tagRegistry = result.registry;
-  if (removed.size) for (const other of Object.values(cal.entries)) for (const note of other.personalNotes || []) note.tags = (note.tags || []).filter(ref => !(ref.type === 'general' && removed.has(ref.id)));
+  if (removed.size) for (const other of Object.values(cal.entries)) {
+    for (const note of other.personalNotes || []) note.tags = (note.tags || []).filter(ref => !(ref.type === 'general' && removed.has(ref.id)));
+    if (other.schoolLifeBook?.tags) other.schoolLifeBook.tags = other.schoolLifeBook.tags.filter(ref => !(ref.type === 'general' && removed.has(ref.id)));
+  }
   const next = {...entry, personalNotes: result.notes};
-  if (!hasPersonal(next.personalNotes) && !hasHtml(next.schoolLifeBook)) delete cal.entries[key];
+  if (!hasPersonal(next.personalNotes) && !hasBook(next.schoolLifeBook)) delete cal.entries[key];
   else cal.entries[key] = next;
   render(); updateDirty();
 }
 async function editDay(date, field) {
   if (field === 'personalNotes') return editPersonalNotes(date);
   const key = dateKey(date), entry = getEntry(key);
-  const label = 'Βιβλίο Σχολικής Ζωής';
-  const body = document.createElement('div');
-  const editor = editorBox('schoolLifeBookEditor', label, entry.schoolLifeBook);
-  body.append(editor.section);
+  const original = clone(entry.schoolLifeBook), originalTags = clone(tagRegistry);
+  let book = clone(original), registry = clone(originalTags), editing = false;
+  let activeRich = null, activeTags = [], draftHtml = null;
+  const body = document.createElement('div'); body.className = 'cal-notes-list';
+  const heading = document.createElement('span'); heading.className = 'editor-label'; heading.textContent = 'Βιβλίο Σχολικής Ζωής';
+  const generalIds = tags => (tags?.general || []).map(item => item.id);
+  const closeEditor = () => { editing = false; activeRich = null; activeTags = []; draftHtml = null; };
+  const commitEditor = () => {
+    if (!editing || !activeRich) return;
+    const html = sanitizeHtml(activeRich.html);
+    book = hasHtml(html) ? {html, tags:clone(activeTags)} : {html:'', tags:[]};
+    closeEditor();
+  };
+  const renderBook = () => {
+    body.replaceChildren();
+    const row = document.createElement('div'); row.className = 'cal-note cal-book-entry';
+    if (editing) row.classList.add('is-editing');
+    const content = document.createElement('div'); content.className = 'cal-note-content';
+    if (editing) {
+      content.classList.add('cal-note-editor');
+      activeRich = schoolRichText.create({html:draftHtml ?? book.html, label:'Βιβλίο Σχολικής Ζωής', color:DEFAULT_FONT_COLOR, actions:[
+        {label:'Αποδοχή', title:'Αποδοχή αλλαγών καταχώρησης', accept:true, run:() => { commitEditor(); renderBook(); }},
+        {label:'Ακύρωση', title:'Ακύρωση αλλαγών καταχώρησης', run:() => { closeEditor(); renderBook(); }}
+      ]});
+      content.append(activeRich.element, tagBar());
+    } else if (hasBook(book)) {
+      const text = document.createElement('div'); text.className = 'cal-note-html'; text.innerHTML = sanitizeHtml(book.html);
+      content.append(text, schoolTags.chips(book.tags || [], tagData(registry)));
+    } else {
+      const empty = document.createElement('div'); empty.className = 'cal-book-empty';
+      empty.textContent = 'Δεν υπάρχει καταχώρηση στο Βιβλίο Σχολικής Ζωής για αυτή την ημέρα.';
+      content.append(empty);
+    }
+    row.append(content);
+    if (!editing) {
+      const tools = document.createElement('div'); tools.className = 'cal-note-tools';
+      const edit = document.createElement('button'); edit.type = 'button'; edit.innerHTML = schoolIcon('edit');
+      edit.title = hasBook(book) ? 'Επεξεργασία καταχώρησης' : 'Νέα καταχώρηση'; edit.setAttribute('aria-label', edit.title);
+      edit.addEventListener('click', () => { editing = true; activeTags = clone(book.tags || []); renderBook(); activeRich?.focus(); });
+      tools.append(edit);
+      if (hasBook(book)) {
+        const remove = document.createElement('button'); remove.type = 'button'; remove.innerHTML = schoolIcon('close');
+        remove.title = 'Διαγραφή καταχώρησης'; remove.setAttribute('aria-label', remove.title);
+        remove.addEventListener('click', async () => {
+          if (!await schoolConfirm('Να διαγραφεί η καταχώρηση του Βιβλίου Σχολικής Ζωής;', {title:'Διαγραφή καταχώρησης', accept:'Διαγραφή'})) return;
+          book = {html:'', tags:[]}; renderBook();
+        });
+        tools.append(remove);
+      }
+      row.append(tools);
+    }
+    body.append(row);
+  };
+  const chooseTags = async () => {
+    if (!editing) return;
+    const result = await schoolTags.pick({title:'Ετικέτες Βιβλίου Σχολικής Ζωής', refs:activeTags, data:tagData(registry),
+      usage:id => tagUsageOf(id, key, entry.personalNotes, {html:activeRich?.html || '', tags:activeTags}), limits:context?.limits});
+    if (!result || !editing) return;
+    const kept = new Set(generalIds(result.tags)), removed = new Set(generalIds(registry).filter(id => !kept.has(id)));
+    registry = result.tags; activeTags = result.refs;
+    book.tags = (book.tags || []).filter(ref => !(ref.type === 'general' && removed.has(ref.id)));
+    draftHtml = activeRich ? activeRich.html : draftHtml;
+    renderBook(); body.querySelector('.cal-note-tagbar > button')?.focus();
+  };
+  const tagBar = () => {
+    const bar = document.createElement('div'); bar.className = 'cal-note-tagbar';
+    const chips = schoolTags.chips(activeTags, tagData(registry), {onRemove:ref => {
+      activeTags = activeTags.filter(tag => !G.same(tag, ref));
+      bar.replaceWith(tagBar()); body.querySelector('.cal-note-tagbar > button')?.focus();
+    }});
+    if (chips.childElementCount) bar.append(chips);
+    else { const none = document.createElement('span'); none.className = 'cal-note-tagbar-empty'; none.textContent = 'Χωρίς ετικέτες'; bar.append(none); }
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'ui-compact-button'; button.textContent = 'Ετικέτες…';
+    button.addEventListener('click', chooseTags); bar.append(button);
+    return bar;
+  };
   const result = await schoolChoiceDialog({
-    title: `${weekdayName(date)} ${D.format(key)}`, content: body, className: 'cal-editor', escape:false,
-    // The same buttons as the Προσωπικές Σημειώσεις. An empty text with «Ενημέρωση» removes the entry.
-    actions: [
-      {label:'Επαναφορά', run: () => { editor.rich.setHtml(entry.schoolLifeBook); editor.rich.focus(); throw cancelled(); }},
-      {label:'Ενημέρωση', accept:true, run:() => ({html:editor.rich.html})},
+    title:`${weekdayName(date)} ${D.format(key)}`, content:[heading, body], className:'cal-editor cal-book-editor', escape:false,
+    actions:[
+      {label:'Επαναφορά', run:() => { book = clone(original); registry = clone(originalTags); closeEditor(); renderBook(); throw cancelled(); }},
+      {label:'Ενημέρωση', accept:true, run:() => { commitEditor(); return {book, registry}; }},
       {label:'Ακύρωση'}
     ],
-    ready: () => editor.rich.focus()
+    ready:() => renderBook()
   });
   if (!result) return;
-  const next = {...entry, schoolLifeBook:result.html};
-  if (!hasPersonal(next.personalNotes) && !hasHtml(next.schoolLifeBook)) delete cal.entries[key];
+  const kept = new Set(generalIds(result.registry)), removed = new Set(generalIds(tagRegistry).filter(id => !kept.has(id)));
+  tagRegistry = result.registry;
+  if (removed.size) for (const other of Object.values(cal.entries)) {
+    for (const note of other.personalNotes || []) note.tags = (note.tags || []).filter(ref => !(ref.type === 'general' && removed.has(ref.id)));
+    if (other.schoolLifeBook?.tags) other.schoolLifeBook.tags = other.schoolLifeBook.tags.filter(ref => !(ref.type === 'general' && removed.has(ref.id)));
+  }
+  const next = {...entry, schoolLifeBook:result.book};
+  if (!hasPersonal(next.personalNotes) && !hasBook(next.schoolLifeBook)) delete cal.entries[key];
   else cal.entries[key] = next;
   render(); updateDirty();
 }
@@ -1222,7 +1312,7 @@ function preparePrint({start, end, school, personal}) {
   const out = $('printRoot');
   out.replaceChildren(); out.hidden = false;
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    const entry = getEntry(dateKey(d)), p = personal ? entry.personalNotes : [], s = school ? entry.schoolLifeBook : '', hasP = hasPersonal(p), hasS = hasHtml(s);
+    const entry = getEntry(dateKey(d)), p = personal ? entry.personalNotes : [], s = school ? entry.schoolLifeBook.html : '', hasP = hasPersonal(p), hasS = hasHtml(s);
     if (!hasP && !hasS) continue;
     const item = document.createElement('article'); item.className = 'print-item';
     const dateLine = document.createElement('div'); dateLine.className = 'print-date'; dateLine.textContent = `${weekdayName(d)} ${D.format(dateKey(d))}`;

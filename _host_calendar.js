@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Σχολικό Ημερολόγιο στο Κεντρικό Μενού (host)
- * Έκδοση αρχείου: 0.5
+ * Έκδοση αρχείου: 0.51
  * Όνομα κατά την εγκατάσταση: _host_calendar.js
  *
  * Κώδικας μόνο του host για το Σχολικό Ημερολόγιο (calendarByYear). Το φορτώνει το index.html μετά το
@@ -21,7 +21,7 @@
  *   install(bridge)                         σύνδεση με το index (πρωτόκολλο school-calendar:*)
  *
  * Στο .data:
- *   calendarByYear[year] = {entries:{'YYYY-MM-DD':{personalNotes:[{id,html,tags}], schoolLifeBook}}, ssdMeetings:{'YYYY-MM-DD':{…}},
+ *   calendarByYear[year] = {entries:{'YYYY-MM-DD':{personalNotes:[{id,html,tags}], schoolLifeBook:{html,tags}}}, ssdMeetings:{'YYYY-MM-DD':{…}},
  *                           pedagogicMeetings:{'YYYY-MM-DD':{…}}}
  *   calendarSettings = {zoom}   έξω από το calendarByYear, ώστε να ισχύει για όλα τα σχολικά έτη. Δεν μετρά
  *                               ως αλλαγή δεδομένων: γράφεται όπως το lastViewByYear (βλέπε install).
@@ -154,7 +154,7 @@
     if (!isObject(entries)) throw Error('Μη έγκυρες σημειώσεις Ημερολογίου.');
     for (const [key, entry] of Object.entries(entries)) {
       checkDate(key, year, 'σημειώσεων');
-      if (!isObject(entry) || !Array.isArray(entry.personalNotes ?? []) || !isText(entry.schoolLifeBook ?? '', LIMITS.html))
+      if (!isObject(entry) || !Array.isArray(entry.personalNotes ?? []) || !isObject(entry.schoolLifeBook ?? {}) || !isText(entry.schoolLifeBook?.html ?? '', LIMITS.html))
         throw Error('Μη έγκυρες σημειώσεις στις ' + formatDate(key) + '.');
       const list = entry.personalNotes ?? [];
       if (list.length > LIMITS.notes) throw Error('Υπερβολικά πολλές σημειώσεις στις ' + formatDate(key) + '.');
@@ -172,8 +172,15 @@
         }
         personalNotes.push({id:note.id, html:note.html, tags});
       }
-      const schoolLifeBook = entry.schoolLifeBook || '';
-      if (personalNotes.length || schoolLifeBook) out.entries[key] = {personalNotes, schoolLifeBook};
+      const book = entry.schoolLifeBook || {};
+      let bookTags = [];
+      if (book.tags != null && !(Array.isArray(book.tags) && !book.tags.length)) {
+        const H = hostTags();
+        if (!H) throw Error(missingTags);
+        bookTags = H.validateRefs(book.tags, known, 'στο Βιβλίο Σχολικής Ζωής της ' + formatDate(key), APP);
+      }
+      const schoolLifeBook = {html:book.html || '', tags:book.html ? bookTags : []};
+      if (personalNotes.length || schoolLifeBook.html) out.entries[key] = {personalNotes, schoolLifeBook};
     }
     for (const [field, ssd] of [['ssdMeetings', true], ['pedagogicMeetings', false]]) {
       const meetings = calendar[field] ?? {};

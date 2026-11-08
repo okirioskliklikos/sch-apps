@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Ετικέτες στο Κεντρικό Μενού (host)
- * Έκδοση αρχείου: 0.01
+ * Έκδοση αρχείου: 0.02
  * Όνομα κατά την εγκατάσταση: _host_tags.js
  *
  * Κώδικας μόνο του host για τις ετικέτες (tagsByYear). Το φορτώνει το index.html μετά το _data.js και το
@@ -58,6 +58,16 @@
         const value = isObject(data?.calendarByYear) ? data.calendarByYear[year] : null, out = [];
         for (const entry of Object.values(isObject(value?.entries) ? value.entries : {})) {
           for (const note of Array.isArray(entry?.personalNotes) ? entry.personalNotes : []) if (isObject(note)) out.push(note);
+        }
+        return out;
+      }
+    }),
+    Object.freeze({
+      app: 'school_calendar.html', one: 'Καταχώρηση Βιβλίου Σχολικής Ζωής', many: 'Καταχωρήσεις Βιβλίου Σχολικής Ζωής',
+      items(data, year) {
+        const value = isObject(data?.calendarByYear) ? data.calendarByYear[year] : null, out = [];
+        for (const entry of Object.values(isObject(value?.entries) ? value.entries : {})) {
+          if (isObject(entry?.schoolLifeBook) && entry.schoolLifeBook.html) out.push(entry.schoolLifeBook);
         }
         return out;
       }
