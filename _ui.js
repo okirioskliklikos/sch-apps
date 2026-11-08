@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.23
+ * Έκδοση αρχείου: 0.24
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -1245,7 +1245,7 @@
       element.querySelector('input').focus();
     };
     const defaults = Tags.DEFAULT_COLORS;
-    for (const [key, label] of [['classes', 'Τμήματα'], ['staff', 'Εκπαιδευτικοί'], ['students', 'Μαθητές']]) {
+    for (const [key, label] of [['staff', 'Εκπαιδευτικοί'], ['classes', 'Τμήματα'], ['students', 'Μαθητές']]) {
       const line = document.createElement('div'); line.className = 'school-tag-manager-color';
       const name = document.createElement('span'); name.textContent = label;
       const note = document.createElement('span'); note.className = 'ui-helper';
