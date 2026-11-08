@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.26
+ * Έκδοση αρχείου: 0.27
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -559,10 +559,9 @@
           drag.ghost = ghost; dialog.append(ghost); dialog.classList.add('school-color-picker-dragging');
           try { drag.source.setPointerCapture(event.pointerId); } catch {}
         }
-        // Just above the pointer (or the finger), so that the slot under it stays visible.
-        const width = drag.ghost.offsetWidth, height = drag.ghost.offsetHeight;
-        drag.ghost.style.left = (event.clientX - width / 2) + 'px';
-        drag.ghost.style.top = (event.clientY - height - 18) + 'px';
+        // Under the pointer, but not all of it: the tip of the pointer sits a little inside its top left corner.
+        drag.ghost.style.left = (event.clientX - 12) + 'px';
+        drag.ghost.style.top = (event.clientY - 10) + 'px';
         const under = document.elementFromPoint(event.clientX, event.clientY)?.closest('.school-color-picker-choice');
         dropTarget(under && under.parentNode === customList ? under : null);
       });
