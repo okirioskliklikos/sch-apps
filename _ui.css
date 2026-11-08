@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινό περιβάλλον χρήστη
- * Έκδοση αρχείου: 0.37
+ * Έκδοση αρχείου: 0.38
  * Όνομα κατά την εγκατάσταση: _ui.css
  */
 
@@ -406,6 +406,8 @@ fieldset.ui-fields{margin:0;padding:0;min-width:0;border:0}
 .school-tag-manager-list:empty{display:none}
 .school-tag-manager-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px}
 .school-tag-manager-row input{width:100%;box-sizing:border-box;min-width:0}
+/* Match the 36px colour and remove buttons; the dialog font has a taller line box. */
+.school-confirm .school-tag-manager-row input[type=text]{height:var(--school-ui-control-height);padding-block:0;line-height:var(--school-ui-control-line-height)}
 .school-tag-manager-row .ui-validation-error{grid-column:2/4;margin-top:-2px}
 .school-confirm .school-tag-manager .school-color-trigger{width:48px;padding:4px 5px}
 .school-confirm .school-tag-manager-remove{display:inline-flex;align-items:center;justify-content:center;width:var(--school-ui-control-height);height:var(--school-ui-control-height);padding:0;color:#536575}
