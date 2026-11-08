@@ -12,7 +12,7 @@
   φτιάχνονται από το σύντομο όνομα των δασκάλων («[Α1] - …», classesFromStaff). Με το .data δοκιμής, οι
   έλεγχοι των νέων ετικετών (v2) παίρνουν το Προσωπικό από αυτό, γιατί το CSV του Ολοημέρου έχει τα σύντομα
   ονόματα του Προσωπικού.
-  Έκδοση αρχείου: 0.28
+  Έκδοση αρχείου: 0.30
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -678,26 +678,40 @@ function hostCalendarChecks() {
   const meeting = extra => ({startTime: '13:20', endTime: '14:00', subject: 'Θέμα', directorId: 's3', directorName: 'Δ', present: ['s1'], absent: ['s2'], absenceReasons: {'s2': 'leavePending'}, scheduleAutoReasons: {}, leaveAutoIds: ['s2'], ...extra});
   const base = {format: 'school-shared-data', formatVersion: 1, school: {name: 'Σχολείο', year},
     staffByYear: {[year]: [{id: 's1', code: 'Α1'}, {id: 's2', code: 'Α2'}, {id: 's3', code: 'ΔΘ', role: 'director'}]},
-    calendarByYear: {'2025-2026': {entries: {'2026-01-10': {personalNotes: [{id: 'n0', html: 'παλιό'}], schoolLifeBook: ''}}, ssdMeetings: {}, pedagogicMeetings: {}}}};
+    calendarByYear: {'2025-2026': {entries: {'2026-01-10': {personalNotes: [{id: 'n0', html: 'παλιό'}], schoolLifeBook: {html:'', tags:[]}}}, ssdMeetings: {}, pedagogicMeetings: {}}}};
   const notes = (...htmls) => htmls.map((html, index) => ({id: 'n' + (index + 1), html}));
-  const calendar = {entries: {'2026-11-10': {personalNotes: notes('<b>σημ.</b>', 'δεύτερη'), schoolLifeBook: '<p>Σχολική ζωή</p>'}, '2026-11-11': {personalNotes: [], schoolLifeBook: ''}},
+  const calendar = {entries: {'2026-11-10': {personalNotes: notes('<b>σημ.</b>', 'δεύτερη'), schoolLifeBook: {html:'<p>Σχολική ζωή</p>', tags:[]}}, '2026-11-11': {personalNotes: [], schoolLifeBook: {html:'', tags:[]}}},
     ssdMeetings: {'2026-11-12': meeting({actNumber: 1}), '2026-12-01': meeting({actNumber: 2})}, pedagogicMeetings: {'2026-11-20': meeting()}};
   const saved = C.applySave(base, {calendar});
   equal('Αποθήκευση: γράφει μόνο το calendarByYear του έτους, τα άλλα έτη μένουν', [Object.keys(saved.calendarByYear).sort(), saved.calendarByYear['2025-2026'].entries['2026-01-10'].personalNotes[0].html], [['2025-2026', year], 'παλιό']);
   equal('Οι κενές σημειώσεις δεν κρατιούνται', Object.keys(saved.calendarByYear[year].entries), ['2026-11-10']);
-  equal('Τα δύο πεδία σημειώσεων αποθηκεύονται ανεξάρτητα, οι προσωπικές με τη σειρά τους', saved.calendarByYear[year].entries['2026-11-10'], {personalNotes: notes('<b>σημ.</b>', 'δεύτερη').map(note => ({...note, tags: []})), schoolLifeBook: '<p>Σχολική ζωή</p>'});
-  equal('Μόνο προσωπικές σημειώσεις: διατηρείται η ημέρα', Object.keys(C.validateCalendar({entries: {'2026-11-13': {personalNotes: notes('Π'), schoolLifeBook: ''}}}, year, []).entries), ['2026-11-13']);
-  equal('Μόνο Βιβλίο Σχολικής Ζωής: διατηρείται η ημέρα', Object.keys(C.validateCalendar({entries: {'2026-11-13': {personalNotes: [], schoolLifeBook: 'Β'}}}, year, []).entries), ['2026-11-13']);
-  equal('Προσωπική σημείωση με κενό html δεν κρατιέται', C.validateCalendar({entries: {'2026-11-13': {personalNotes: [{id: 'a', html: ''}, {id: 'b', html: 'Β'}], schoolLifeBook: ''}}}, year, []).entries['2026-11-13'].personalNotes, [{id: 'b', html: 'Β', tags: []}]);
+  equal('Τα δύο πεδία σημειώσεων αποθηκεύονται ανεξάρτητα, οι προσωπικές με τη σειρά τους', saved.calendarByYear[year].entries['2026-11-10'], {personalNotes: notes('<b>σημ.</b>', 'δεύτερη').map(note => ({...note, tags: []})), schoolLifeBook: {html:'<p>Σχολική ζωή</p>', tags:[]}});
+  equal('Μόνο προσωπικές σημειώσεις: διατηρείται η ημέρα', Object.keys(C.validateCalendar({entries: {'2026-11-13': {personalNotes: notes('Π'), schoolLifeBook: {html:'', tags:[]}}}}, year, []).entries), ['2026-11-13']);
+  equal('Μόνο Βιβλίο Σχολικής Ζωής: διατηρείται η ημέρα', Object.keys(C.validateCalendar({entries: {'2026-11-13': {personalNotes: [], schoolLifeBook: {html:'Β', tags:[]}}}}, year, []).entries), ['2026-11-13']);
+  equal('Προσωπική σημείωση με κενό html δεν κρατιέται', C.validateCalendar({entries: {'2026-11-13': {personalNotes: [{id: 'a', html: ''}, {id: 'b', html: 'Β'}], schoolLifeBook: {html:'', tags:[]}}}}, year, []).entries['2026-11-13'].personalNotes, [{id: 'b', html: 'Β', tags: []}]);
+  equal('Βιβλίο Σχολικής Ζωής χωρίς tags: αποθηκεύεται με κενή λίστα',
+    C.validateCalendar({entries: {'2026-11-14': {personalNotes: [], schoolLifeBook: {html:'Πράξη'}}}}, year, []).entries['2026-11-14'].schoolLifeBook,
+    {html:'Πράξη', tags:[]});
+  equal('Κενό Βιβλίο με ετικέτες: δεν διατηρεί την ημέρα, ούτε αποθηκεύει ετικέτες',
+    Object.keys(C.validateCalendar({entries: {'2026-11-14': {personalNotes: [], schoolLifeBook: {html:'', tags:[{type:'general', id:'g1'}]}}}}, year, []).entries), []);
+  equal('Κενό Βιβλίο με προσωπική σημείωση: το Βιβλίο καθαρίζεται, η ημέρα μένει',
+    C.validateCalendar({entries: {'2026-11-14': {personalNotes: notes('Π'), schoolLifeBook: {html:'', tags:[{type:'general', id:'g1'}]}}}}, year, []).entries['2026-11-14'].schoolLifeBook,
+    {html:'', tags:[]});
   equal('Ο λόγος «Αναμονή άδειας» γίνεται δεκτός', saved.calendarByYear[year].pedagogicMeetings['2026-11-20'].absenceReasons['s2'], 'leavePending');
   check('Το αρχικό data δεν αλλάζει', !base.calendarByYear[year]);
   const rejects = (label, value, text) => { try { C.applySave(base, {calendar: value}); record('fail', label, 'έγινε δεκτό'); } catch (error) { check(label, error.message.includes(text), error.message); } };
-  rejects('Ημερομηνία έξω από το έτος: απορρίπτεται', {entries: {'2027-09-01': {personalNotes: notes('x'), schoolLifeBook: ''}}}, 'έξω από το σχολικό έτος');
-  rejects('Μη έγκυρη ημερομηνία: απορρίπτεται', {entries: {'2026-02-30': {personalNotes: notes('x'), schoolLifeBook: ''}}}, 'Μη έγκυρη ημερομηνία');
-  rejects('Προσωπικές σημειώσεις ως κείμενο (όχι πίνακας): απορρίπτεται', {entries: {'2026-11-13': {personalNotes: 'x', schoolLifeBook: ''}}}, 'Μη έγκυρες σημειώσεις');
-  rejects('Δύο προσωπικές σημειώσεις με το ίδιο id: απορρίπτεται', {entries: {'2026-11-13': {personalNotes: [{id: 'a', html: 'x'}, {id: 'a', html: 'y'}], schoolLifeBook: ''}}}, 'διπλή προσωπική σημείωση');
-  rejects('Προσωπική σημείωση χωρίς id: απορρίπτεται', {entries: {'2026-11-13': {personalNotes: [{id: '', html: 'x'}], schoolLifeBook: ''}}}, 'διπλή προσωπική σημείωση');
-  rejects('Πάνω από ' + C.LIMITS.notes + ' προσωπικές σημειώσεις σε μία ημέρα: απορρίπτεται', {entries: {'2026-11-13': {personalNotes: Array.from({length: C.LIMITS.notes + 1}, (_, index) => ({id: 'n' + index, html: 'x'})), schoolLifeBook: ''}}}, 'Υπερβολικά πολλές σημειώσεις');
+  rejects('Ημερομηνία έξω από το έτος: απορρίπτεται', {entries: {'2027-09-01': {personalNotes: notes('x'), schoolLifeBook: {html:'', tags:[]}}}}, 'έξω από το σχολικό έτος');
+  rejects('Μη έγκυρη ημερομηνία: απορρίπτεται', {entries: {'2026-02-30': {personalNotes: notes('x'), schoolLifeBook: {html:'', tags:[]}}}}, 'Μη έγκυρη ημερομηνία');
+  rejects('Προσωπικές σημειώσεις ως κείμενο (όχι πίνακας): απορρίπτεται', {entries: {'2026-11-13': {personalNotes: 'x', schoolLifeBook: {html:'', tags:[]}}}}, 'Μη έγκυρες σημειώσεις');
+  rejects('Δύο προσωπικές σημειώσεις με το ίδιο id: απορρίπτεται', {entries: {'2026-11-13': {personalNotes: [{id: 'a', html: 'x'}, {id: 'a', html: 'y'}], schoolLifeBook: {html:'', tags:[]}}}}, 'διπλή προσωπική σημείωση');
+  rejects('Προσωπική σημείωση χωρίς id: απορρίπτεται', {entries: {'2026-11-13': {personalNotes: [{id: '', html: 'x'}], schoolLifeBook: {html:'', tags:[]}}}}, 'διπλή προσωπική σημείωση');
+  rejects('Πάνω από ' + C.LIMITS.notes + ' προσωπικές σημειώσεις σε μία ημέρα: απορρίπτεται', {entries: {'2026-11-13': {personalNotes: Array.from({length: C.LIMITS.notes + 1}, (_, index) => ({id: 'n' + index, html: 'x'})), schoolLifeBook: {html:'', tags:[]}}}}, 'Υπερβολικά πολλές σημειώσεις');
+  rejects('Παλιά μορφή Βιβλίου Σχολικής Ζωής ως απλό HTML: απορρίπτεται χωρίς migration',
+    {entries: {'2026-11-13': {personalNotes: [], schoolLifeBook: '<p>Παλιά μορφή</p>'}}}, 'Μη έγκυρες σημειώσεις');
+  rejects('Βιβλίο με μη έγκυρο html: απορρίπτεται',
+    {entries: {'2026-11-13': {personalNotes: [], schoolLifeBook: {html:12, tags:[]}}}}, 'Μη έγκυρες σημειώσεις');
+  rejects('Βιβλίο με HTML πάνω από το όριο: απορρίπτεται',
+    {entries: {'2026-11-13': {personalNotes: [], schoolLifeBook: {html:'x'.repeat(C.LIMITS.html + 1), tags:[]}}}}, 'Μη έγκυρες σημειώσεις');
   rejects('Λάθος ώρα συνεδρίασης: απορρίπτεται', {ssdMeetings: {'2026-11-12': meeting({actNumber: 1, startTime: '25:00'})}}, 'HH:MM');
   rejects('Λήξη πριν από την έναρξη: απορρίπτεται', {pedagogicMeetings: {'2026-11-12': meeting({startTime: '14:00', endTime: '13:20'})}}, 'ώρα λήξης');
   rejects('Διπλός αριθμός πράξης στο έτος: απορρίπτεται', {ssdMeetings: {'2026-11-12': meeting({actNumber: 3}), '2026-12-01': meeting({actNumber: 3})}}, 'υπάρχει στις 12/11/2026 και στις 01/12/2026');
@@ -921,8 +935,8 @@ function hostTagsChecks() {
   const lost = G.resolve({type: 'student', id: 'xx'}, data);
   equal('Ετικέτα που δεν βρίσκεται: «?», missing', [lost.label, lost.missing], ['?', true]);
   const refs = [{type: 'student', id: 'm1'}, {type: 'staff', id: 's1'}, {type: 'general', id: 'g1'}, {type: 'student', id: 'm2'}, {type: 'class', id: 'ce'}, {type: 'class', id: 'c2'}, {type: 'staff', id: 's2'}, {type: 'general', id: 'g2'}, {type: 'student', id: 'm3'}, {type: 'general', id: 'g1'}];
-  equal('Σειρά: γενικές αλφαβητικά, τμήματα, εκπαιδευτικοί με τη σειρά του Προσωπικού, μαθητές ανά τμήμα και αλφαβητικά, χωρίς διπλές',
-    G.sort(refs, data).map(ref => ref.id), ['g2', 'g1', 'c2', 'ce', 's2', 's1', 'm3', 'm2', 'm1']);
+  equal('Σειρά: εκπαιδευτικοί με τη σειρά του Προσωπικού, τμήματα, μαθητές ανά τμήμα και αλφαβητικά, γενικές αλφαβητικά, χωρίς διπλές',
+    G.sort(refs, data).map(ref => ref.id), ['s2', 's1', 'c2', 'ce', 'm3', 'm2', 'm1', 'g2', 'g1']);
   equal('Σύγκριση ονομάτων: χωρίς τόνους, κενά και διάκριση πεζών–κεφαλαίων', [G.nameKey('Αγωγή  Υγείας') === G.nameKey('αγωγη υγειας'), G.nameKey('Α') === G.nameKey('Β')], [true, false]);
   check('same: ίδιο είδος και id', G.same({type: 'class', id: 'c1'}, {type: 'class', id: 'c1'}) && !G.same({type: 'class', id: 'c1'}, {type: 'staff', id: 'c1'}));
 
@@ -962,18 +976,43 @@ function hostTagsChecks() {
   if (!Cal) { record('fail', 'Λείπει το _host_calendar.js'); return; }
   const note = (id, tagList, html = 'σημ. ' + id) => ({id, html, tags: tagList});
   const calendar = {entries: {
-    '2026-11-10': {personalNotes: [note('n1', [{type: 'general', id: 'g1'}, {type: 'class', id: 'c1'}, {type: 'staff', id: 's1'}, {type: 'student', id: 'm1'}]), note('n2', [{type: 'general', id: 'g1'}, {type: 'general', id: 'g1'}])], schoolLifeBook: ''},
-    '2026-11-11': {personalNotes: [{id: 'n3', html: 'χωρίς tags'}, note('n4', [{type: 'class', id: 'c1'}], '')], schoolLifeBook: ''}}};
+    '2026-11-10': {personalNotes: [note('n1', [{type: 'general', id: 'g1'}, {type: 'class', id: 'c1'}, {type: 'staff', id: 's1'}, {type: 'student', id: 'm1'}]), note('n2', [{type: 'general', id: 'g1'}, {type: 'general', id: 'g1'}])], schoolLifeBook: {html:'', tags:[]}},
+    '2026-11-11': {personalNotes: [{id: 'n3', html: 'χωρίς tags'}, note('n4', [{type: 'class', id: 'c1'}], '')], schoolLifeBook: {html:'', tags:[]}}}};
   const saved = Cal.applySave(base, {calendar});
   equal('Ημερολόγιο: οι ετικέτες κρατιούνται, χωρίς διπλές· σημείωση χωρίς tags → []· σημείωση χωρίς κείμενο δεν κρατιέται, ακόμη κι αν έχει ετικέτες',
     [saved.calendarByYear[year].entries['2026-11-10'].personalNotes.map(item => item.tags.length), saved.calendarByYear[year].entries['2026-11-11'].personalNotes], [[4, 1], [{id: 'n3', html: 'χωρίς tags', tags: []}]]);
+  const bookRefs = [{type:'general', id:'g1'}, {type:'class', id:'c1'}, {type:'staff', id:'s1'}, {type:'student', id:'m1'}];
+  const withBook = clone(calendar);
+  withBook.entries['2026-11-10'].schoolLifeBook = {html:'<p>Συμβάν</p>', tags:[...bookRefs, bookRefs[0]]};
+  withBook.entries['2026-11-11'].schoolLifeBook = {html:'', tags:[{type:'general', id:'g1'}]};
+  const savedBook = Cal.applySave(base, {calendar:withBook});
+  equal('Βιβλίο Σχολικής Ζωής: αποθήκευση HTML και ετικετών όλων των κατηγοριών χωρίς διπλές',
+    savedBook.calendarByYear[year].entries['2026-11-10'].schoolLifeBook, {html:'<p>Συμβάν</p>', tags:bookRefs});
+  equal('Κενό Βιβλίο: δεν αποθηκεύονται ετικέτες, οι προσωπικές σημειώσεις παραμένουν',
+    [savedBook.calendarByYear[year].entries['2026-11-11'].schoolLifeBook, savedBook.calendarByYear[year].entries['2026-11-11'].personalNotes.length],
+    [{html:'', tags:[]}, 1]);
+  equal('Ετικέτες Βιβλίου και προσωπικών σημειώσεων: ανεξάρτητες',
+    [savedBook.calendarByYear[year].entries['2026-11-10'].schoolLifeBook.tags.length,
+      savedBook.calendarByYear[year].entries['2026-11-10'].personalNotes.map(n => n.tags.length)], [4, [4, 1]]);
   check('Ημερολόγιο χωρίς tags στο μήνυμα: το μητρώο μένει όπως είναι', JSON.stringify(saved.tagsByYear[year]) === JSON.stringify(tags));
   const rejectsSave = (label, message, text) => { try { Cal.applySave(base, message); record('fail', label, 'έγινε δεκτό'); } catch (error) { check(label, error.message.includes(text), error.message); } };
-  rejectsSave('Σημείωση με ετικέτα που δεν υπάρχει: απορρίπτεται, με την ημερομηνία', {calendar: {entries: {'2026-11-12': {personalNotes: [note('n', [{type: 'staff', id: 'xx'}])], schoolLifeBook: ''}}}}, '12/11/2026');
+  rejectsSave('Σημείωση με ετικέτα που δεν υπάρχει: απορρίπτεται, με την ημερομηνία', {calendar: {entries: {'2026-11-12': {personalNotes: [note('n', [{type: 'staff', id: 'xx'}])], schoolLifeBook: {html:'', tags:[]}}}}}, '12/11/2026');
+  rejectsSave('Βιβλίο με ετικέτα εκπαιδευτικού που δεν υπάρχει: απορρίπτεται με την ημερομηνία',
+    {calendar:{entries:{'2026-11-12':{personalNotes:[], schoolLifeBook:{html:'Συμβάν', tags:[{type:'staff', id:'xx'}]}}}}}, '12/11/2026');
+  rejectsSave('Βιβλίο με μη έγκυρη λίστα ετικετών: απορρίπτεται',
+    {calendar:{entries:{'2026-11-12':{personalNotes:[], schoolLifeBook:{html:'Συμβάν', tags:'κείμενο'}}}}}, 'Μη έγκυρες ετικέτες');
+  rejectsSave('Βιβλίο με πάνω από το όριο ετικετών: απορρίπτεται',
+    {calendar:{entries:{'2026-11-12':{personalNotes:[], schoolLifeBook:{html:'Συμβάν', tags:many.slice(0, H.LIMITS.perItem + 1).map(t => ({type:'general', id:t.id}))}}}},
+      tags:{general:many}}, 'όριο των ' + H.LIMITS.perItem);
+  rejectsSave('Βιβλίο στην παλιά μορφή HTML: απορρίπτεται χωρίς migration',
+    {calendar:{entries:{'2026-11-12':{personalNotes:[], schoolLifeBook:'Συμβάν'}}}}, 'Μη έγκυρες σημειώσεις');
   rejectsSave('Μη έγκυρο μητρώο στο :save: απορρίπτεται', {calendar, tags: {general: [{id: 'g1', name: '', color: '#000000'}]}}, 'υποχρεωτικό');
   const removedTag = Cal.applySave(saved, {calendar: saved.calendarByYear[year], tags: {general: [tags.general[1]], colors: {}}});
   equal('Διαγραφή γενικής ετικέτας από το μητρώο: αντικαθίσταται το tagsByYear του έτους, τα άλλα έτη μένουν', [removedTag.tagsByYear[year].general.map(item => item.id), removedTag.tagsByYear['2025-2026'].general.length], [['g2'], 1]);
   equal('Οι σημειώσεις του :save που κρατούν ακόμη την ετικέτα που διαγράφεται: η ετικέτα φεύγει και από αυτές', JSON.stringify(removedTag.calendarByYear[year]).includes('"g1"'), false);
+  const removedBookTag = Cal.applySave(savedBook, {calendar:savedBook.calendarByYear[year], tags:{general:[tags.general[1]], colors:{}}});
+  equal('Η διαγραφή γενικής ετικέτας στο ίδιο :save καθαρίζει και τις ετικέτες του Βιβλίου',
+    removedBookTag.calendarByYear[year].entries['2026-11-10'].schoolLifeBook.tags.map(ref => ref.id), ['c1','s1','m1']);
   const withOther = clone(saved);
   // Μια σημείωση της σελίδας χωρίς την ετικέτα, ενώ στο αρχείο την έχουν: το host την αφαιρεί από όλα τα δεδομένα του έτους.
   const cleaned = clone(saved.calendarByYear[year]); for (const entry of Object.values(cleaned.entries)) for (const item of entry.personalNotes) item.tags = item.tags.filter(ref => ref.id !== 'g1');
@@ -982,10 +1021,33 @@ function hostTagsChecks() {
   const applied = clone(saved); const gone = H.applyRegistry(applied, year, {general: [tags.general[1]]});
   equal('applyRegistry: αφαιρεί τη γενική ετικέτα από όλες τις σημειώσεις του έτους', [gone, applied.calendarByYear[year].entries['2026-11-10'].personalNotes.map(item => item.tags.map(ref => ref.id))], [['g1'], [['c1', 's1', 'm1'], []]]);
 
+  const appliedBook = clone(savedBook);
+  const goneBook = H.applyRegistry(appliedBook, year, {general:[tags.general[1]]});
+  equal('applyRegistry: αφαιρεί γενική ετικέτα από το αποθηκευμένο Βιβλίο, χωρίς να πειράζει άλλες κατηγορίες',
+    [goneBook, appliedBook.calendarByYear[year].entries['2026-11-10'].schoolLifeBook.tags.map(ref => ref.id)], [['g1'], ['c1','s1','m1']]);
+
   // Χρήση και καθάρισμα
   const used = H.usage(saved, year);
   equal('Χρήση: ανά είδος και id, με την εφαρμογή και το πλήθος', [used.general.g1, used.class.c1?.[0]?.count, used.staff.s1?.[0]?.count, used.student.m1?.[0]?.count, used.general.g2],
     [[{app: 'school_calendar.html', one: 'Προσωπική Σημείωση', many: 'Προσωπικές Σημειώσεις', count: 2}], 1, 1, 1, undefined]);
+  const usedBook = H.usage(savedBook, year);
+  const bookUsage = {app:'school_calendar.html', one:'Καταχώρηση Βιβλίου Σχολικής Ζωής', many:'Καταχωρήσεις Βιβλίου Σχολικής Ζωής', count:1};
+  equal('Χρήση ετικετών Βιβλίου: ξεχωριστή καταχώρηση από τις Προσωπικές Σημειώσεις για κάθε κατηγορία',
+    [usedBook.general.g1, usedBook.class.c1, usedBook.staff.s1, usedBook.student.m1],
+    [[{app:'school_calendar.html', one:'Προσωπική Σημείωση', many:'Προσωπικές Σημειώσεις', count:2}, bookUsage],
+      [{app:'school_calendar.html', one:'Προσωπική Σημείωση', many:'Προσωπικές Σημειώσεις', count:1}, bookUsage],
+      [{app:'school_calendar.html', one:'Προσωπική Σημείωση', many:'Προσωπικές Σημειώσεις', count:1}, bookUsage],
+      [{app:'school_calendar.html', one:'Προσωπική Σημείωση', many:'Προσωπικές Σημειώσεις', count:1}, bookUsage]]);
+  const removedBookStaff = clone(savedBook), removedBookStudent = clone(savedBook), removedBookClass = clone(savedBook);
+  equal('Διαγραφή εκπαιδευτικού: η ετικέτα αφαιρείται και από το Βιβλίο',
+    [H.removeRefs(removedBookStaff, year, 'staff', ['s1']), removedBookStaff.calendarByYear[year].entries['2026-11-10'].schoolLifeBook.tags.map(r => r.id)],
+    [2, ['g1','c1','m1']]);
+  equal('Διαγραφή μαθητή: η ετικέτα αφαιρείται και από το Βιβλίο',
+    [H.removeRefs(removedBookStudent, year, 'student', ['m1']), removedBookStudent.calendarByYear[year].entries['2026-11-10'].schoolLifeBook.tags.map(r => r.id)],
+    [2, ['g1','c1','s1']]);
+  equal('Διαγραφή αναφοράς τμήματος: αφαιρείται και από το Βιβλίο',
+    [H.removeRefs(removedBookClass, year, 'class', ['c1']), removedBookClass.calendarByYear[year].entries['2026-11-10'].schoolLifeBook.tags.map(r => r.id)],
+    [2, ['g1','s1','m1']]);
   const removedStaff = clone(saved);
   equal('Διαγραφή εκπαιδευτικού: οι αναφορές του φεύγουν (removeRefs)', [H.removeRefs(removedStaff, year, 'staff', ['s1']), removedStaff.calendarByYear[year].entries['2026-11-10'].personalNotes[0].tags.map(ref => ref.id)], [1, ['g1', 'c1', 'm1']]);
   const removedStudent = clone(saved);
@@ -996,13 +1058,18 @@ function hostTagsChecks() {
   equal('Context του Ημερολογίου: μητρώο, χρήση γενικών, Τμήματα, Μαθητές, όρια', [context.tags.general.length, context.tagUsage.g1[0].count, context.classes.length, context.students.length, context.limits],
     [2, 2, 3, 3, {tags: H.LIMITS.general, tagsPerItem: H.LIMITS.perItem, warnRatio: H.LIMITS.warnRatio}]);
 
+  const bookContext = Cal.context(savedBook, 4);
+  equal('Context Ημερολογίου: το Βιβλίο και οι γενικές ετικέτες του εμφανίζονται χωριστά από τις σημειώσεις',
+    [bookContext.calendar.entries['2026-11-10'].schoolLifeBook.tags.length, bookContext.tagUsage.g1.map(row => [row.one, row.count])],
+    [4, [['Προσωπική Σημείωση', 2], ['Καταχώρηση Βιβλίου Σχολικής Ζωής', 1]]]);
+
   // Εκπαιδευτικοί και μαθητές ως ετικέτες: tagUsage στο school-staff:context και στο school-students:context, για την
   // προειδοποίηση πριν από την αφαίρεση. Το context του Προσωπικού το φτιάχνει το index.html με το
   // SchoolHostTags.usage(data, year).staff· ελέγχεται εδώ αυτό.
   const SEMEIOSI = {app: 'school_calendar.html', one: 'Προσωπική Σημείωση', many: 'Προσωπικές Σημειώσεις'};
   const counted = clone(saved);
-  counted.calendarByYear[year].entries['2026-11-12'] = {personalNotes: [note('n5', [{type: 'staff', id: 's1'}, {type: 'student', id: 'm1'}])], schoolLifeBook: ''};
-  counted.calendarByYear['2025-2026'] = {entries: {'2025-11-10': {personalNotes: [note('o1', [{type: 'staff', id: 's2'}, {type: 'student', id: 'm2'}])], schoolLifeBook: ''}}};
+  counted.calendarByYear[year].entries['2026-11-12'] = {personalNotes: [note('n5', [{type: 'staff', id: 's1'}, {type: 'student', id: 'm1'}])], schoolLifeBook: {html:'', tags:[]}};
+  counted.calendarByYear['2025-2026'] = {entries: {'2025-11-10': {personalNotes: [note('o1', [{type: 'staff', id: 's2'}, {type: 'student', id: 'm2'}])], schoolLifeBook: {html:'', tags:[]}}}};
   equal('tagUsage του Προσωπικού (usage(data, year).staff): ανά εκπαιδευτικό, με την εφαρμογή και το πλήθος· χωρίς όσους δεν είναι ετικέτα στο έτος (οι σημειώσεις άλλου έτους δεν μετρούν)',
     H.usage(counted, year).staff, {s1: [{...SEMEIOSI, count: 2}]});
   equal('tagUsage του Προσωπικού χωρίς Σχολικό Ημερολόγιο: κενό', H.usage(base, year).staff, {});
@@ -1020,6 +1087,11 @@ function hostTagsChecks() {
   equal('Context των Τμημάτων: tagUsage ανά τμήμα', K.context(saved, 1).tagUsage.c1?.[0]?.count, 1);
   const rejectsClasses = (label, list, text) => { try { K.applySave(saved, {classes: list}); record('fail', label, 'έγινε δεκτό'); } catch (error) { check(label, error.message.includes(text), error.message); } };
   rejectsClasses('Αφαίρεση τμήματος που χρησιμοποιείται ως ετικέτα: απορρίπτεται', classes.filter(item => item.id !== 'c1'), 'χρήση ως ετικέτα σε 1 Προσωπική Σημείωση');
+  const bookClassUse = K.context(savedBook, 1).tagUsage.c1;
+  equal('Τμήματα: χρήση και σε Βιβλίο και σε Προσωπική Σημείωση', bookClassUse.map(row => [row.one, row.count]),
+    [['Προσωπική Σημείωση', 1], ['Καταχώρηση Βιβλίου Σχολικής Ζωής', 1]]);
+  try { K.applySave(savedBook, {classes:classes.filter(item => item.id !== 'c1')}); record('fail', 'Αφαίρεση τμήματος που χρησιμοποιείται στο Βιβλίο: απορρίπτεται', 'έγινε δεκτό'); }
+  catch (error) { check('Αφαίρεση τμήματος που χρησιμοποιείται στο Βιβλίο: απορρίπτεται', error.message.includes('ετικέτα'), error.message); }
   const taggedEntaxi = clone(saved); taggedEntaxi.calendarByYear[year].entries['2026-11-10'].personalNotes[1].tags.push({type: 'class', id: 'ce'});
   try { K.applySave(taggedEntaxi, {classes: classes.map(item => item.id === 'ce' ? {...generalClass('Γ1'), id: 'ce'} : item)}); record('fail', 'Αλλαγή είδους τμήματος που χρησιμοποιείται ως ετικέτα: απορρίπτεται', 'έγινε δεκτό'); }
   catch (error) { check('Αλλαγή είδους τμήματος που χρησιμοποιείται ως ετικέτα: απορρίπτεται', error.message.includes('ετικέτα'), error.message); }
