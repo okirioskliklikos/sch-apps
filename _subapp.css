@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινή διάταξη υποεφαρμογών
- * Έκδοση αρχείου: 0.35
+ * Έκδοση αρχείου: 0.36
  * Όνομα κατά την εγκατάσταση: _subapp.css
  */
 
@@ -200,7 +200,7 @@ aside h2{font-size:17px;margin:0 0 10px}
 .section-empty button{font-weight:650}
 .toolbar-group{display:inline-flex;gap:2px;padding:2px;border:1px solid #cfcfcf;border-radius:7px;background:#f7f7f7}
 /* Toolbar separator: one look for .sep and .toolbar-separator. */
-.sep,.toolbar-separator{display:inline-block;flex:none;width:1px;height:26px;margin:0 4px;background:var(--school-ui-control-border);vertical-align:middle}
+.sep,.toolbar-separator{display:inline-block;flex:none;width:0;height:26px;margin:0 4px;border-left:1px solid var(--school-ui-control-border);vertical-align:middle}
 .sidebar-add{width:100%;display:block;margin-top:8px;box-sizing:border-box;font-weight:700}
 .sidebar-divider{border:0;border-top:1px solid #cfcfcf;width:70%;margin:18px auto 0}
 .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:20px;flex-wrap:wrap}
