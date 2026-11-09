@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Σχολικό Ημερολόγιο v0.95</title>
+<title>Σχολικό Ημερολόγιο v0.96</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -132,7 +132,8 @@
 .cal-note-tagbar-empty{color:var(--school-ui-muted);font-size:13px}
 .cal-note-tagbar>button{flex:none;margin-left:auto}
 /* Fixed single-entry panel for the Βιβλίο Σχολικής Ζωής. */
-.cal-book-editor>.editor-label{margin-top:15px}
+.cal-book-editor>.cal-notes-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:15px;margin-bottom:6px}
+.cal-editor .cal-notes-heading>.editor-label{margin-bottom:0}
 /* The same height in view and in editing, so that the dialog does not jump (editor with toolbar and tag bar, also
    when the toolbar wraps on a narrow screen). */
 .cal-book-editor>.cal-notes-list{min-height:260px}
@@ -250,7 +251,7 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v0.95</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v0.96</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="print" type="button" disabled>Εκτύπωση...</button>
@@ -869,7 +870,7 @@ async function editDay(date, field) {
   if (field === 'personalNotes') return editPersonalNotes(date);
   const key = dateKey(date), entry = getEntry(key);
   const original = clone(entry.schoolLifeBook), originalTags = clone(tagRegistry);
-  let book = clone(original), registry = clone(originalTags), editing = false;
+  let book = clone(original), registry = clone(originalTags), editing = false, editingEnabled = !hasBook(original);
   let activeRich = null, activeTags = [], draftHtml = null;
   const body = document.createElement('div'); body.className = 'cal-notes-list';
   const heading = document.createElement('span'); heading.className = 'editor-label'; heading.textContent = 'Βιβλίο Σχολικής Ζωής';
@@ -882,6 +883,8 @@ async function editDay(date, field) {
     closeEditor();
   };
   const renderBook = () => {
+    editToggle.setAttribute('aria-pressed', String(editingEnabled));
+    editToggle.disabled = editing;
     body.replaceChildren();
     const row = document.createElement('div'); row.className = 'cal-note cal-book-entry';
     if (editing) row.classList.add('is-editing');
@@ -902,7 +905,7 @@ async function editDay(date, field) {
       content.append(empty);
     }
     row.append(content);
-    if (!editing) {
+    if (!editing && editingEnabled) {
       const tools = document.createElement('div'); tools.className = 'cal-note-tools';
       const edit = document.createElement('button'); edit.type = 'button'; edit.innerHTML = schoolIcon('edit');
       edit.title = hasBook(book) ? 'Επεξεργασία καταχώρησης' : 'Νέα καταχώρηση'; edit.setAttribute('aria-label', edit.title);
@@ -944,8 +947,14 @@ async function editDay(date, field) {
     button.addEventListener('click', chooseTags); bar.append(button);
     return bar;
   };
+  const headingRow = document.createElement('div'); headingRow.className = 'cal-notes-heading';
+  const editToggle = document.createElement('button'); editToggle.type = 'button'; editToggle.className = 'ui-toggle';
+  editToggle.textContent = 'Επεξεργασία'; editToggle.setAttribute('aria-controls', 'calSchoolLifeBookList');
+  editToggle.addEventListener('click', () => { if (editing) return; editingEnabled = !editingEnabled; renderBook(); });
+  body.id = 'calSchoolLifeBookList';
+  headingRow.append(heading, editToggle);
   const result = await schoolChoiceDialog({
-    title:`${weekdayName(date)} ${D.format(key)}`, content:[heading, body], className:'cal-editor cal-book-editor', escape:false,
+    title:`${weekdayName(date)} ${D.format(key)}`, content:[headingRow, body], className:'cal-editor cal-book-editor', escape:false,
     actions:[
       {label:'Επαναφορά', run:() => { book = clone(original); registry = clone(originalTags); closeEditor(); renderBook(); throw cancelled(); }},
       {label:'Ενημέρωση', accept:true, run:() => { commitEditor(); return {book, registry}; }},
