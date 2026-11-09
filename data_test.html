@@ -12,7 +12,7 @@
   φτιάχνονται από το σύντομο όνομα των δασκάλων («[Α1] - …», classesFromStaff). Με το .data δοκιμής, οι
   έλεγχοι των νέων ετικετών (v2) παίρνουν το Προσωπικό από αυτό, γιατί το CSV του Ολοημέρου έχει τα σύντομα
   ονόματα του Προσωπικού.
-  Έκδοση αρχείου: 0.30
+  Έκδοση αρχείου: 0.31
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -241,6 +241,18 @@ function basics() {
   try { T.timedHours({hours: [{name: 'Πρώτη', longName: 'πρωί', category: 'morning'}]}); } catch (error) { message = error.message; }
   check('Ώρα χωρίς «HH:MM-HH:MM» σταματά με μήνυμα', message.includes('«Πρώτη»') && message.includes('Ώρες Διδασκαλίας'), message);
   equal('Ομάδες ωρών: early 1, morning 6, meal 1, afternoon 2, extended 2, break 5', Object.fromEntries(Object.entries(T.hourGroups(HOURS_V2)).map(([k, v]) => [k, v.length])), {early: 1, morning: 6, meal: 1, afternoon: 2, extended: 2, break: 5});
+  // Οι νέες ετικέτες ωρών έχουν αγκύλες· ο εισαγωγέας δέχεται και παλιό CSV χωρίς αγκύλες.
+  const bracketedHours = clone(HOURS_V2);
+  bracketedHours.hours.forEach(hour => { if (hour.fetTag) hour.fetTag = '[' + hour.fetTag + ']'; });
+  equal('Οι ετικέτες ωρών με αγκύλες διαβάζονται από το κοινό μοντέλο', T.oloimeroHours(bracketedHours).filter(hour => hour.fetTag).map(hour => hour.fetTag),
+    ['[ΩΡΑ_ΠΖ_1]', '[ΩΡΑ_ΓΕΥΜΑ_1]', '[ΩΡΑ_ΟΛΟ_1]', '[ΩΡΑ_ΟΛΟ_2]', '[ΩΡΑ_ΟΛΟ_3]', '[ΩΡΑ_ΟΛΟ_4]']);
+  const testStaff = [{id: 's', code: 'Α1', shortName: '[Α1] - Δασκάλα', serviceType: 'classroom', branch: 'ΠΕ70'}];
+  const sampleCsv = tag => '"Students Sets","Subject","Teachers","Activity Tags"\n"Α1","Μελέτη","[Α1] - Δασκάλα","[Ολοήμερο]+[ΗΜ_ΔΕΥΤΕΡΑ]+' + tag + '"\n';
+  for (const [label, tag] of [['νέα', '[ΩΡΑ_ΟΛΟ_1]'], ['παλιά', 'ΩΡΑ_ΟΛΟ_1']]) {
+    const imported = T.analyzeOloimeroImport({csvText: sampleCsv(tag), staff: testStaff, classes: [generalClass('Α1', {homeroomStaffId: 's'})], teachingHours: bracketedHours});
+    check('Εισαγωγή CSV με ' + label + ' ετικέτα ώρας και νέες Ώρες Διδασκαλίας', imported.ok && imported.counts.activities === 1, messages(imported));
+  }
+
 
   const periods = [
     {id: 'a', name: 'Α περίοδος', from: '2026-09-11', to: '2026-11-15'},

@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων
- * Έκδοση αρχείου: 0.22
+ * Έκδοση αρχείου: 0.23
  * Όνομα κατά την εγκατάσταση: _data.js
  *
  * Φορτώνεται από όσες υποεφαρμογές διαβάζουν ή γράφουν CSV, FET, ημερομηνίες ή προγράμματα, μετά
@@ -1276,7 +1276,9 @@
     try { hours = oloimeroHours(input.teachingHours); } catch (error) { return stop(error.message); }
     const sets = tagSets(input.teachingHours);
     if (!sets.dayTags.size || !hours.some(item => item.fetTag)) return stop('Οι Ώρες Διδασκαλίας δεν έχουν ετικέτες FET ημερών ή ωρών Ολοημέρου. Συμπλήρωσέ τες πρώτα στις «Ώρες Διδασκαλίας».');
-    const hourByTag = new Map(hours.filter(item => item.fetTag).map(item => [item.fetTag, item]));
+    // Συμβατότητα με CSV που δημιουργήθηκαν πριν αποκτήσουν αγκύλες οι ετικέτες ωρών.
+    const hourTagKey = tag => String(tag || '').trim().replace(/^\[(ΩΡΑ_[^\]]+)\]$/, '$1');
+    const hourByTag = new Map(hours.filter(item => item.fetTag).map(item => [hourTagKey(item.fetTag), item]));
     let rows;
     try { rows = oloimeroRowsFromCsv(input.csvText); } catch (error) { return stop(error.message); }
     if (!rows.length) return stop('Το CSV του Ολοήμερου δεν έχει δραστηριότητες.');
@@ -1284,7 +1286,7 @@
     // Ημέρα και ώρα από τις ετικέτες· θέση στον πίνακα με τη σειρά των γραμμών.
     const placed = [], skipped = [], slots = new Map();
     for (const row of rows) {
-      const day = sets.dayTags.get(row.tags.find(tag => sets.dayTags.has(tag))), hour = hourByTag.get(row.tags.find(tag => hourByTag.has(tag)));
+      const day = sets.dayTags.get(row.tags.find(tag => sets.dayTags.has(tag))), hour = hourByTag.get(hourTagKey(row.tags.find(tag => hourByTag.has(hourTagKey(tag)))));
       if (!day || !hour) { skipped.push(row); continue; }
       const key = hour.hour.id + '|' + day, slot = slots.get(key) || 0;
       slots.set(key, slot + 1);
