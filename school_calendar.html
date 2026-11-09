@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Σχολικό Ημερολόγιο v0.94</title>
+<title>Σχολικό Ημερολόγιο v0.95</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -89,7 +89,9 @@
 /* Notes editor */
 .school-confirm.cal-editor{width:min(950px,calc(100vw - 32px))}
 .school-confirm.cal-personal-editor{height:75dvh;min-height:min(60dvh,calc(100dvh - 16px));max-height:min(85dvh,calc(100dvh - 16px));display:flex;flex-direction:column;overflow:hidden}
-.cal-personal-editor>.editor-label{flex:none;margin-top:15px}
+.cal-personal-editor>.cal-notes-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex:none;margin-top:15px;margin-bottom:6px}
+.cal-notes-heading>.editor-label{margin-bottom:0}
+.cal-notes-heading>.ui-toggle{flex:none}
 .cal-personal-editor>.cal-notes-list{flex:1;min-height:0;overflow-y:auto;padding:3px 5px 8px 2px}
 .cal-personal-editor>.school-confirm-actions{flex:none;margin-top:12px}
 .cal-personal-editor>.school-choice-error{flex:none}
@@ -248,7 +250,7 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v0.94</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v0.95</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="print" type="button" disabled>Εκτύπωση...</button>
@@ -625,7 +627,7 @@ async function editPersonalNotes(date) {
   const original = clone(entry.personalNotes), originalTags = clone(tagRegistry);
   // registry: the registry of tags in this dialog; it reaches the page with «Ενημέρωση» (with the notes).
   // activeTags: the tags of the open note; «Αποδοχή» keeps them, «Ακύρωση» brings them back.
-  let notes = clone(original), activeId = null, activeRich = null, activeTags = [], registry = clone(originalTags), draftHtml = null;
+  let notes = clone(original), editingEnabled = !original.length, activeId = null, activeRich = null, activeTags = [], registry = clone(originalTags), draftHtml = null;
   const body = document.createElement('div'); body.className = 'cal-notes-list';
   const closeEditor = () => { activeId = null; activeRich = null; activeTags = []; draftHtml = null; };
   // A note without text is not kept, even when it has tags.
@@ -745,6 +747,8 @@ async function editPersonalNotes(date) {
   // and «+ Προσθήκη» is inactive: the open note first ends with «Αποδοχή» or «Ακύρωση» (or «Ενημέρωση»).
   const renderNotes = () => {
     const locked = activeId !== null;
+    editToggle.setAttribute('aria-pressed', String(editingEnabled));
+    editToggle.disabled = locked;
     body.replaceChildren();
     for (const note of notes) {
       const row = document.createElement('div'); row.className = 'cal-note'; row.dataset.noteId = note.id;
@@ -752,7 +756,7 @@ async function editPersonalNotes(date) {
       const grip = document.createElement('button'); grip.type = 'button'; grip.className = 'cal-note-grip';
       grip.textContent = '⠿'; grip.title = 'Σύρε για αλλαγή σειράς'; grip.setAttribute('aria-label', 'Μετακίνηση σημείωσης'); grip.draggable = !locked; grip.disabled = locked;
       grip.addEventListener('dragstart', event => {
-        if (dragging || activeId !== null) { event.preventDefault(); return; }
+        if (dragging || activeId !== null || !editingEnabled) { event.preventDefault(); return; }
         const rect = row.getBoundingClientRect();
         const placeholder = document.createElement('div');
         placeholder.className = 'cal-note cal-note-placeholder';
@@ -797,7 +801,9 @@ async function editPersonalNotes(date) {
             notes = notes.filter(item => item.id !== note.id); renderNotes();
           }, locked));
       }
-      row.append(grip, content, tools);
+      if (editingEnabled) row.append(grip);
+      row.append(content);
+      if (editingEnabled) row.append(tools);
       body.append(row);
     }
     if (!notes.length && activeId === null) {
@@ -813,11 +819,18 @@ async function editPersonalNotes(date) {
     const add = document.createElement('button'); add.type = 'button'; add.className = 'cal-note-add';
     add.textContent = '＋ Προσθήκη σημείωσης';
     add.disabled = locked;
-    add.addEventListener('click', () => openEditor(noteId())); body.append(add);
+    add.addEventListener('click', () => openEditor(noteId()));
+    if (editingEnabled) body.append(add);
   };
   const heading = document.createElement('span'); heading.className = 'editor-label'; heading.textContent = 'Προσωπικές Σημειώσεις';
+  const headingRow = document.createElement('div'); headingRow.className = 'cal-notes-heading';
+  const editToggle = document.createElement('button'); editToggle.type = 'button'; editToggle.className = 'ui-toggle';
+  editToggle.textContent = 'Επεξεργασία'; editToggle.setAttribute('aria-controls', 'calPersonalNotesList');
+  editToggle.addEventListener('click', () => { if (activeId !== null) return; editingEnabled = !editingEnabled; renderNotes(); });
+  body.id = 'calPersonalNotesList';
+  headingRow.append(heading, editToggle);
   const result = await schoolChoiceDialog({
-    title: `${weekdayName(date)} ${D.format(key)}`, content: [heading, body], className: 'cal-editor cal-personal-editor', escape:false,
+    title: `${weekdayName(date)} ${D.format(key)}`, content: [headingRow, body], className: 'cal-editor cal-personal-editor', escape:false,
     actions: [
       {label:'Επαναφορά', run: () => { notes = clone(original); registry = clone(originalTags); closeEditor(); renderNotes(); throw cancelled(); }},
       {label:'Ενημέρωση', accept:true, run: () => { commitEditor(); return {notes, registry}; }},
