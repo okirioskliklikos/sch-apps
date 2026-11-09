@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ολοήμερο Designer v1.84</title>
+<title>Ολοήμερο Designer v1.85</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -146,7 +146,7 @@ main.ol-without-design :is(#board,#boardTimeOverlayAnchor,.board-zoom-controls,.
 table{border-collapse:collapse;background:var(--school-ui-surface);table-layout:fixed;user-select:none;box-sizing:border-box}
 td{
   border:1px solid var(--ol-grid-line);padding:5px;vertical-align:top;position:relative;
-  background:var(--school-ui-surface);min-width:10px;box-sizing:border-box
+  background:var(--school-ui-surface);min-width:10px;box-sizing:border-box;cursor:default
 }
 td.structure-cell{background:var(--ol-neutral-bg);font-weight:700;text-align:center;vertical-align:middle;user-select:none}
 td.day-heading{font-size:18px}
@@ -186,9 +186,11 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
   min-height:29px;margin-top:0;display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:center;gap:4px
 }
 .card{
-  border-radius:8px;padding:7px 9px;margin:0;display:block;width:100%;text-align:center;
-  font-weight:650;border:1px solid rgba(0,0,0,.2);cursor:grab;user-select:none
+  border-radius:8px;padding:7px 9px;margin:0;display:flex;align-items:center;justify-content:center;position:relative;
+  width:100%;text-align:center;font-weight:650;border:1px solid rgba(0,0,0,.2);cursor:grab;user-select:none
 }
+.card-name{min-width:0;width:100%;text-align:center}
+.card .teacher-over-warning{position:absolute;right:6px;margin-left:0;padding-left:0}
 .subject-text{
   display:block;width:100%;box-sizing:border-box;margin:0;padding:4px 6px;z-index:6;
   text-align:center;line-height:1.2;white-space:nowrap;overflow-wrap:normal;word-break:normal;hyphens:manual;cursor:grab;
@@ -200,13 +202,12 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
   background:var(--school-ui-surface);border:1px solid var(--ol-tag-border);border-radius:5px
 }
 .union-text{border-style:dashed;background:var(--ol-neutral-bg)}
+/* The text of a heading (day, hour) */
 .cell-text{
   position:absolute;inset:5px;box-sizing:border-box;padding:3px 4px;white-space:pre-wrap;
-  overflow-wrap:anywhere;user-select:none;cursor:default;display:flex;flex-direction:column;align-items:stretch
+  overflow-wrap:anywhere;user-select:none;cursor:default;display:flex;flex-direction:column;align-items:stretch;
+  justify-content:center;text-align:center;font-weight:700
 }
-.cell-text.valign-top{justify-content:flex-start}
-.cell-text.valign-middle{justify-content:center}
-.cell-text.valign-bottom{justify-content:flex-end}
 .cell-html{display:block;width:100%;white-space:pre-wrap;text-align:inherit}
 
 /* Pointer drag of board items (own mechanism, so Ctrl+drop copies reliably in Chrome) */
@@ -590,7 +591,7 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
 <body>
 
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΟΛ</span></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v1.84</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΟΛ</span></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v1.85</span></span></button></h1></div>
   <select id="program" aria-label="Σχέδιο" hidden></select>
   <span class="ol-menu">
     <button id="planMenuButton" type="button" aria-haspopup="true" aria-expanded="false" disabled>Σχέδιο</button>
@@ -605,7 +606,7 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
       <button id="manageDrafts" type="button">Διαχείριση προσχεδίων…</button>
     </span>
   </span>
-  <span id="saveControl" class="save-control">
+  <span class="save-control">
     <button id="saveData" class="save-main" type="button" disabled>Αποθήκευση</button>
     <button id="saveMenuButton" class="save-menu-button" type="button" aria-haspopup="true" aria-expanded="false" title="Περισσότερες επιλογές αποθήκευσης" disabled aria-label="Περισσότερες επιλογές αποθήκευσης"></button>
     <span id="saveMenu" class="save-menu" hidden><button id="exportCsv" type="button">Εξαγωγή CSV για το FET…</button></span>
@@ -614,7 +615,7 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
   <button id="openDesign" type="button" disabled>Διαμόρφωση...</button>
 
   <span class="sep"></span>
-  <span id="undoControl" class="save-control undo-control">
+  <span class="save-control undo-control">
     <button id="undoPlacement" type="button" disabled title="Αναίρεση της τελευταίας αλλαγής">↶ Αναίρεση</button>
     <button id="undoMenuButton" class="save-menu-button" type="button" aria-haspopup="true" aria-expanded="false" title="Περισσότερες επιλογές αναίρεσης" disabled aria-label="Περισσότερες επιλογές αναίρεσης"></button>
     <span id="undoMenu" class="save-menu" hidden><button id="undoAll" type="button" disabled>Αναίρεση όλων</button></span>
@@ -696,7 +697,7 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
 
   <span class="status" id="status" role="status" aria-live="polite">Έτοιμο</span>
 
-  <div id="usageSummary" class="board-usage-summary" aria-label="Σύνοψη ωρών" aria-live="polite">
+  <div class="board-usage-summary" aria-label="Σύνοψη ωρών" aria-live="polite">
     <div class="usage-summary-row"><span class="usage-summary-label">Δάσκαλοι:</span><span id="generalistUsage" class="usage-summary-value">0/0</span></div>
     <div class="usage-summary-row"><span class="usage-summary-label">Ειδικότητες:</span><span id="specialtyUsage" class="usage-summary-value">0/0</span></div>
     <div class="usage-summary-row" hidden><span class="usage-summary-label">Άλλοι:</span><span id="otherUsage" class="usage-summary-value">0/0</span></div>
@@ -745,7 +746,6 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
     <label>Τμήματα που συνενώνονται</label>
     <div id="unionClasses" class="subapp-check-list"></div>
     <p class="hint">Μια τάξη έχει πάντα τα τμήματα που υπάρχουν τώρα στα «Τμήματα».</p>
-    <p id="unionLegacy" class="hint" hidden></p>
   </div>
 </template>
 
@@ -790,20 +790,19 @@ const OTHER_TEACHER_COLOR="#bfe3ff";
 const quoted=value=>`«${value}»`;
 const byName=(a,b)=>String(a).localeCompare(String(b),"el",{numeric:true,sensitivity:"base"});
 
-// Dialogs come from _ui.js. Here confirmations wait in the shared queue and alert() is replaced by it.
+// Dialogs come from _ui.js. Here confirmations wait in the shared queue; messages use schoolMessage.
 const schoolConfirmShared=window.schoolConfirm;
 window.schoolConfirm=(message,options={})=>schoolConfirmShared(message,{...options,queue:true});
-window.alert=message=>{void window.schoolMessage(message)};
+const showMessage=message=>{void schoolMessage(message)};
 
 // Files of the Designer, through the Index (school-oloimero:file): the CSV to import, the .fet file for
-// Μαθήματα and Τμήματα, and the CSV for FET that is exported.
+// Μαθήματα, and the CSV for FET that is exported.
 const oloimeroFile=(action,payload={})=>schoolHost.request("school-oloimero:file",{action,...payload});
 const cancelled=error=>error?.name==="AbortError"||/ακυρώθηκε/.test(String(error?.message||""));
 
 let context=null;              // the last context of the host (school-timetables:context)
 let staffDirectory=[];         // Προσωπικό, in the order of the «Σύντομο Όνομα» list
 let staffById=new Map();
-let teachingHours={hours:[],tags:{},dayTags:{}};
 let hourTimes=new Map();       // hour id → {start, end}
 let hoursError="";
 let PERIOD_DEFINITIONS=[];
@@ -817,7 +816,7 @@ const CATEGORY_META={
 
 // The rows of the board: the hours of Ώρες Διδασκαλίας with Πρωινή Ζώνη, Γεύμα, Ολοήμερο or Διευρυμένο.
 function configureDefinitionsFromCommonData(hoursData){
-  teachingHours=hoursData&&typeof hoursData==="object"?structuredClone(hoursData):{hours:[],tags:{},dayTags:{}};
+  const teachingHours=hoursData&&typeof hoursData==="object"?hoursData:{hours:[],tags:{},dayTags:{}};
   hourTimes=new Map();hoursError="";
   let timed=[];
   try{timed=T.oloimeroHours(teachingHours)}catch(error){hoursError=error.message}
@@ -871,22 +870,22 @@ function requiredTimeColumnWidth(design){
   return Math.max(110,longest*9+28);
 }
 
-// The board geometry; replaced by applyScheduleDesign() before the first render.
+// The board geometry; replaced by layoutBoard() (applyModel) before the first render.
 let state={rows:6,cols:5,cells:{},merges:{},colWidths:[],rowHeights:[]};
 let scheduleDesign=normalizeDesign(null);
 
 let teachers=[];
 let subjects=[];
-// Συνενώσεις of the user: {id, name, grades:['Α'…'Στ'], classIds:[id…], subsets, otherStudents}. subsets and
-// otherStudents exist only in an older design that was converted; they are kept as they are.
+// Συνενώσεις of the user: {id, name, grades:['Α'…'Στ'], classIds:[id…]}.
 let unions=[];
 // Τάξεις and Τμήματα of the sidebar that are hidden (source.hidden); the cells show them anyway.
 let hiddenGrades=new Set(),hiddenClasses=new Set();
 // New classes of CSV imports, not saved yet: saved with «Αποθήκευση» (newClasses), only those still used.
 let pageNewClasses=[];
 
-function normalizedSharedStyle(v,fallbackItem=null){
-  const src=(v && typeof v==="object") ? v : (fallbackItem||{});
+// The style of a section of the sidebar (teacher, subject, department, union), shared by all its items.
+function normalizedSharedStyle(v){
+  const src=(v && typeof v==="object") ? v : {};
   return {
     fontSize:Math.max(8,Math.min(48,Number(src.fontSize)||16)),
     bold:src.bold!==false,
@@ -901,15 +900,14 @@ let categoryStyles={
   union:normalizedSharedStyle(null)
 };
 
-function syncSharedStylesToItems(){
-  teachers.forEach(x=>Object.assign(x,categoryStyles.teacher));
-  subjects.forEach(x=>Object.assign(x,categoryStyles.subject));
-  unions.forEach(x=>Object.assign(x,categoryStyles.union));
+// The style of a name (sidebar, board) from the style of its section.
+function applyNameStyle(element,style){
+  element.style.fontSize=style.fontSize+"px";
+  element.style.fontWeight=style.bold?"700":"400";
+  element.style.fontStyle=style.italic?"italic":"normal";
 }
 
 const sidebarHighlights=new Set();
-let editingTeacher=null;
-let editingSubject=null;
 let editingSectionStyle=null;
 
 // Items already on the board move with our own pointer mechanism (Ctrl copies), because Ctrl+drop with
@@ -1009,27 +1007,30 @@ function enableProgramPointerDrag(sourceElement,payload){
   sourceElement.addEventListener("pointerdown",event=>beginProgramPointerDrag(sourceElement,payload,event));
 }
 
-function removePointerDraggedItem(drag){
-  const source=cellObj(drag.sourceKey);
+// Removes an item from a cell (double click, or a drag that ends outside the board). type: "teacher",
+// "subject", or the type of a student item ("grade", "class", "union").
+const REMOVED_STATUS={
+  teacher:"Ο εκπαιδευτικός αφαιρέθηκε από το κελί",subject:"Το μάθημα αφαιρέθηκε από το κελί",
+  grade:"Η τάξη αφαιρέθηκε από το κελί",class:"Το τμήμα αφαιρέθηκε από το κελί",union:"Η συνένωση αφαιρέθηκε από το κελί"
+};
+function removeCellItem(cellKey,type,id){
+  const cell=cellObj(cellKey);
   let removed=false;
-  if(drag.type==="move"){
-    const index=source.cards.indexOf(drag.id);
-    if(index!==-1){source.cards.splice(index,1);removed=true}
-  }else if(drag.type==="movesubject"){
-    if(source.subjectId===drag.id){source.subjectId=null;removed=true}
-  }else if(drag.type==="movelower"){
-    const index=source.lowerItems.findIndex(item=>item.type===drag.itemType && item.id===drag.id);
-    if(index!==-1){source.lowerItems.splice(index,1);removed=true}
+  if(type==="teacher"){
+    const index=cell.cards.indexOf(id);
+    if(index!==-1){cell.cards.splice(index,1);removed=true}
+  }else if(type==="subject"){
+    if(cell.subjectId===id){cell.subjectId=null;removed=true}
+  }else{
+    const index=cell.lowerItems.findIndex(item=>item.type===type && item.id===id);
+    if(index!==-1){cell.lowerItems.splice(index,1);removed=true}
   }
   if(!removed)return;
   commit();
   renderAll();
-  setStatus(
-    drag.type==="move" ? "Η τοποθέτηση του εκπαιδευτικού αφαιρέθηκε" :
-    drag.type==="movesubject" ? "Το μάθημα αφαιρέθηκε από το κελί" :
-    LOWER_REMOVED_STATUS[drag.itemType]
-  );
+  setStatus(REMOVED_STATUS[type]);
 }
+const dragItemType=drag=>drag.type==="move"?"teacher":drag.type==="movesubject"?"subject":drag.itemType;
 
 function applyProgramPointerDrop(drag,targetKey,copyInsteadOfMove){
   if(!drag || !targetKey || drag.sourceKey===targetKey)return;
@@ -1038,51 +1039,36 @@ function applyProgramPointerDrop(drag,targetKey,copyInsteadOfMove){
   let pairWasSwapped=false;
   let pairWasMoved=false;
   let itemWasCopied=false;
+  const takeTeacher=()=>{const index=source.cards.indexOf(drag.id);if(index!==-1)source.cards.splice(index,1)};
 
   if(drag.type==="move"){
     if(copyInsteadOfMove){
       target.cards=[drag.id];
-      target.text="";
       itemWasCopied=true;
     }else if(source.subjectId && !hasTeacherOrSubject(target)){
-      const sourceSubject=source.subjectId;
-      const index=source.cards.indexOf(drag.id);
-      if(index!==-1)source.cards.splice(index,1);
+      // The teacher goes together with the subject of the cell.
+      takeTeacher();
+      target.cards=[drag.id];
+      target.subjectId=source.subjectId;
       source.subjectId=null;
-      target.cards=[drag.id];
-      target.subjectId=sourceSubject;
-      target.text="";
       pairWasMoved=true;
-    }else if(!source.subjectId && target.cards.length===0){
-      const index=source.cards.indexOf(drag.id);
-      if(index!==-1)source.cards.splice(index,1);
+    }else if(!source.subjectId && !target.cards.length){
+      takeTeacher();
       target.cards=[drag.id];
-      target.text="";
-    }else if(hasTeacherOrSubject(target)){
+    }else{
       swapTeacherSubjectPair(source,target);
       pairWasSwapped=true;
-    }else{
-      const index=source.cards.indexOf(drag.id);
-      if(index!==-1)source.cards.splice(index,1);
-      target.cards=[drag.id];
-      target.text="";
     }
   }else if(drag.type==="movesubject"){
     if(copyInsteadOfMove){
       target.subjectId=drag.id;
-      target.text="";
       itemWasCopied=true;
-    }else if(source.cards.length===0 && !target.subjectId){
-      if(source.subjectId===drag.id)source.subjectId=null;
-      target.subjectId=drag.id;
-      target.text="";
-    }else if(hasTeacherOrSubject(target)){
+    }else if(hasTeacherOrSubject(target) && (source.cards.length || target.subjectId)){
       swapTeacherSubjectPair(source,target);
       pairWasSwapped=true;
     }else{
       if(source.subjectId===drag.id)source.subjectId=null;
       target.subjectId=drag.id;
-      target.text="";
     }
   }else if(drag.type==="movelower"){
     const itemType=drag.itemType;
@@ -1095,7 +1081,6 @@ function applyProgramPointerDrop(drag,targetKey,copyInsteadOfMove){
     if(!target.lowerItems.some(item=>item.type===itemType && item.id===drag.id)){
       target.lowerItems.push({type:itemType,id:drag.id});
     }
-    target.text="";
   }
 
   commit();
@@ -1149,7 +1134,7 @@ document.addEventListener("pointerup",event=>{
   }else if(hoverCell || overBoard){
     setStatus("Οι επικεφαλίδες του πίνακα δεν δέχονται τοποθετήσεις");
   }else{
-    removePointerDraggedItem(drag);
+    removeCellItem(drag.sourceKey,dragItemType(drag),drag.id);
   }
 },{capture:true});
 
@@ -1197,8 +1182,7 @@ let boardPanStartScrollLeft=0;
 let boardPanStartScrollTop=0;
 
 boardWrap.addEventListener("mousedown",e=>{
-  // Pan μόνο από κενό χώρο γύρω από τον πίνακα.
-  // Δεν παρεμβαίνουμε σε κελιά, resize handles ή zoom controls.
+  // Panning only from the empty space around the board, not from cells, the zoom controls or the summary.
   if(e.button!==0)return;
   if(e.target.closest("#board"))return;
   if(e.target.closest("#emptyProjectDrop"))return;
@@ -1309,7 +1293,7 @@ let dirty=false,busy=false;
 // The cells of the board, by their place: [hourId|day index|slot, {cards, subjectId, lowerItems, activityId}].
 function capturePlacementSnapshot(){
   const entries=[];
-  const layout=designLayout(scheduleDesign);
+  const layout=slotLayout();
   layout.slotRoots.forEach((cellKey,semanticKey)=>{
     const cell=normalizeCell(state.cells[cellKey]);
     if(!cell.cards.length && !cell.subjectId && !cell.lowerItems.length)return;
@@ -1327,10 +1311,10 @@ function restorePlacementCells(snapshot){
   let entries=[];
   try{entries=JSON.parse(snapshot||"[]")}catch{entries=[]}
   const saved=new Map(Array.isArray(entries)?entries:[]);
-  const layout=designLayout(scheduleDesign);
+  const layout=slotLayout();
   layout.slotRoots.forEach((cellKey,semanticKey)=>{
     const cell=cellObj(cellKey);
-    cell.cards=[];cell.subjectId=null;cell.lowerItems=[];cell.text="";cell.activityId=null;
+    cell.cards=[];cell.subjectId=null;cell.lowerItems=[];cell.activityId=null;
     const value=saved.get(semanticKey);
     if(!value)return;
     cell.cards=Array.isArray(value.cards)?[...value.cards]:[];
@@ -1343,7 +1327,7 @@ function restorePlacementCells(snapshot){
 // Every complete cell is an activity of the program and keeps its id; a copy or a new cell gets a new one.
 function ensureActivityIds(){
   const seen=new Set();
-  designLayout(scheduleDesign).slotRoots.forEach(cellKey=>{
+  slotLayout().slotRoots.forEach(cellKey=>{
     const cell=normalizeCell(state.cells[cellKey]);
     if(!cellContainsData(cell)){cell.activityId=null;return}
     if(!cell.activityId&&!cellHasCompleteActivity(cell))return;
@@ -1366,17 +1350,16 @@ function captureModel(){
 }
 function layoutBoard(){
   const layout=designLayout(scheduleDesign);
-  state={rows:layout.rows,cols:layout.cols,cells:layout.cells,merges:layout.merges,colWidths:layout.colWidths,rowHeights:layout.rowHeights,design:scheduleDesign};
+  state={rows:layout.rows,cols:layout.cols,cells:layout.cells,merges:layout.merges,colWidths:layout.colWidths,rowHeights:layout.rowHeights};
 }
 function applyModel(model){
-  studentsCache=new Map();
+  resetBoardStats();
   categoryStyles=Object.fromEntries(["teacher","subject","department","union"].map(section=>[section,normalizedSharedStyle(model?.styles?.[section])]));
   teachers=(model?.teachers||[]).map(teacherRecord);
   subjects=(model?.subjects||[]).map(item=>({id:item.id,name:item.name}));
   unions=(model?.unions||[]).map(normalizedUnion).filter(Boolean);
   hiddenGrades=new Set((model?.hidden?.grades||[]).map(normalizedGrade).filter(Boolean));
   hiddenClasses=new Set((model?.hidden?.classes||[]).filter(id=>typeof id==="string"&&id));
-  syncSharedStylesToItems();
   scheduleDesign=designFromSource(model?.design);
   layoutBoard();
   restorePlacementCells(model?.cells);
@@ -1395,6 +1378,7 @@ function restoreSession(snapshot){
 }
 // Called after every change of the session: keeps the snapshot for «Αναίρεση».
 function commit(){
+  resetBoardStats();
   ensureActivityIds();
   const snapshot=captureSession();
   if(snapshot!==currentSnapshot){
@@ -1441,30 +1425,39 @@ const esc=schoolEscape;
 const GRADE_ORDER=["Α","Β","Γ","Δ","Ε","Στ"];
 const gradeLabel=grade=>`${grade}'`;
 const normalizedGrade=value=>{const text=String(value??"").trim().replace(/['΄’]/g,"");const grade=text.toLocaleUpperCase("el-GR")==="ΣΤ"?"Στ":text.toLocaleUpperCase("el-GR");return GRADE_ORDER.includes(grade)?grade:""};
-const allClasses=()=>[...(Array.isArray(context?.classes)?context.classes:[]),...pageNewClasses];
-const classGradeList=()=>SchoolClasses.grades(allClasses()).map(entry=>({...entry,grade:normalizedGrade(entry.grade)})).filter(entry=>entry.grade);
-const classById=id=>allClasses().find(item=>item&&item.id===id)||null;
-const classGrade=record=>normalizedGrade(SchoolClasses.key(record).replace(/\d+$/,""));
+// Kept while the classes of the context and the new classes of the page stay the same arrays (both are
+// replaced, never changed in place), since cells look up their classes many times in every rendering.
+let classesMemo={saved:null,added:null,list:[],byId:new Map()};
+function classesNow(){
+  const saved=context?.classes;
+  if(classesMemo.saved!==saved||classesMemo.added!==pageNewClasses){
+    const list=[...(Array.isArray(saved)?saved:[]),...pageNewClasses];
+    classesMemo={saved,added:pageNewClasses,list,byId:new Map(list.filter(item=>item&&item.id).map(item=>[item.id,item]))};
+  }
+  return classesMemo;
+}
+const allClasses=()=>classesNow().list;
+// SchoolClasses.grades gives only Τάξεις with classes of Γενική Παιδεία, with grade «Α»…«Στ».
+const classGradeList=()=>SchoolClasses.grades(allClasses());
+const classById=id=>classesNow().byId.get(id)||null;
+// The Τάξη of a class of Γενική Παιδεία («Α»…«Στ»); "" for any other class.
+const classGrade=record=>record&&SchoolClasses.isGeneral(record)?normalizedGrade(record.grade):"";
 const isNewClass=id=>pageNewClasses.some(item=>item.id===id);
-const LOWER_REMOVED_STATUS={grade:"Η τάξη αφαιρέθηκε από το κελί",class:"Το τμήμα αφαιρέθηκε από το κελί",union:"Η συνένωση αφαιρέθηκε από το κελί"};
 
-// A Συνένωση as plain data (also the form of source.unions).
+// A Συνένωση as plain data, in the form of source.unions (subsets and otherStudents are always empty).
 function unionData(item){
-  return {id:item.id,name:item.name,grades:[...item.grades],classIds:[...item.classIds],
-    subsets:(item.subsets||[]).map(subset=>({name:subset.name,classId:subset.classId||null})),otherStudents:[...(item.otherStudents||[])]};
+  return {id:item.id,name:item.name,grades:[...item.grades],classIds:[...item.classIds],subsets:[],otherStudents:[]};
 }
 function normalizedUnion(item){
   const id=String(item?.id??"").trim(),name=String(item?.name??"").trim();
   if(!id||!name)return null;
   return {id,name,
     grades:[...new Set((Array.isArray(item.grades)?item.grades:[]).map(normalizedGrade).filter(Boolean))],
-    classIds:[...new Set((Array.isArray(item.classIds)?item.classIds:[]).filter(value=>typeof value==="string"&&value))],
-    subsets:(Array.isArray(item.subsets)?item.subsets:[]).filter(subset=>subset&&String(subset.name??"").trim()).map(subset=>({name:String(subset.name).trim(),classId:typeof subset.classId==="string"&&subset.classId?subset.classId:null})),
-    otherStudents:(Array.isArray(item.otherStudents)?item.otherStudents:[]).map(value=>String(value??"").trim()).filter(Boolean)};
+    classIds:[...new Set((Array.isArray(item.classIds)?item.classIds:[]).filter(value=>typeof value==="string"&&value))]};
 }
-// What a Συνένωση contains, for the sidebar and the dialog.
+// What a Συνένωση contains, for the sidebar.
 function unionParts(union){
-  return [...union.grades.map(gradeLabel),...union.classIds.map(id=>classById(id)?.name||"?"),...union.subsets.map(subset=>subset.name),...union.otherStudents];
+  return [...union.grades.map(gradeLabel),...union.classIds.map(id=>classById(id)?.name||"?")];
 }
 
 // Name, style and place in the cell of a student item; null when it does not exist (e.g. a deleted Συνένωση).
@@ -1516,12 +1509,6 @@ function normalizeCell(v){
       ).map(item=>({type:item.type,id:item.id}))
     : [];
   sortCellLowerItems(v);
-  v.text=typeof v.text==="string"?v.text:"";
-  v.fmt=v.fmt||{};
-  v.fmt.align=v.fmt.align||"left";
-  v.fmt.size=v.fmt.size||16;
-  v.fmt.bold=!!v.fmt.bold;
-  v.fmt.italic=!!v.fmt.italic;
   return v;
 }
 function cellObj(k){
@@ -1574,10 +1561,10 @@ function designLayout(design){
   const cells={};
   const slotRoots=new Map();
 
+  // A heading of the board (hour, day, or an hour without cells that day): text only, no placements.
   const labelCell=(text,role,size)=>normalizeCell({
     cards:[],subjectId:null,lowerItems:[],
-    text,locked:true,structureRole:role,
-    fmt:{align:"center",valign:"middle",size,bold:true,italic:false}
+    text,labelSize:size,locked:true,structureRole:role
   });
 
   cells[key(0,0)]=labelCell("Ώρα","corner",15);
@@ -1617,8 +1604,7 @@ function designLayout(design){
     baseWidths.push(Math.max(10,dayWidth*(boundaries[i+1].value-boundaries[i].value)));
   }
 
-  // Η στήλη των ωρών μένει σε μία γραμμή και προσαρμόζεται
-  // αυτόματα στο μεγαλύτερο όνομα ώρας.
+  // The column of the hours stays on one line and fits the longest name of an hour.
   const colWidths=[requiredTimeColumnWidth(design)];
   WEEK_DAYS.forEach(()=>colWidths.push(...baseWidths));
 
@@ -1630,51 +1616,38 @@ function designLayout(design){
   };
 }
 
+// A copy of a cell with placements (never a heading), for a new design of the board.
 function cloneCellForSchedule(value){
-  const copy=normalizeCell(JSON.parse(JSON.stringify(value||{})));
-  delete copy.locked;
-  delete copy.structureRole;
-  return copy;
+  return normalizeCell(JSON.parse(JSON.stringify(value||{})));
 }
 
 function cellContainsData(value){
   if(!value)return false;
   const cell=normalizeCell(value);
-  return !!(
-    cell.cards.length ||
-    cell.subjectId ||
-    cell.lowerItems.length ||
-    String(cell.text||"").trim()
-  );
+  return !!(cell.cards.length || cell.subjectId || cell.lowerItems.length);
 }
 
-function stateHasUserData(sourceState=state){
-  return Object.values(sourceState.cells||{}).some(v=>{
-    if(v?.locked)return false;
-    return cellContainsData(v);
-  });
+function stateHasUserData(){
+  return Object.values(state.cells).some(value=>!value?.locked&&cellContainsData(value));
 }
 
-async function applyScheduleDesign(nextDesign,{confirmLoss=true,render=true,preserve=true}={}){
+// A new design of the board (Σχεδιασμός): the cells keep their content where their place still exists; when
+// cells with content would be lost, the user confirms first. → false when the user cancels.
+async function applyScheduleDesign(nextDesign){
   const normalized=normalizeDesign(nextDesign);
   const nextLayout=designLayout(normalized);
   const preserved=new Map();
   let willLoseData=false;
 
-  if(preserve && state.design){
-    const oldLayout=designLayout(normalizeDesign(state.design));
-    oldLayout.slotRoots.forEach((oldKey,semanticKey)=>{
-      const value=state.cells[oldKey];
-      if(!value || !cellContainsData(value))return;
-      const nextKey=nextLayout.slotRoots.get(semanticKey);
-      if(nextKey)preserved.set(nextKey,cloneCellForSchedule(value));
-      else willLoseData=true;
-    });
-  }else if(preserve && stateHasUserData()){
-    willLoseData=true;
-  }
+  slotLayout().slotRoots.forEach((oldKey,semanticKey)=>{
+    const value=state.cells[oldKey];
+    if(!value || !cellContainsData(value))return;
+    const nextKey=nextLayout.slotRoots.get(semanticKey);
+    if(nextKey)preserved.set(nextKey,cloneCellForSchedule(value));
+    else willLoseData=true;
+  });
 
-  if(willLoseData && confirmLoss){
+  if(willLoseData){
     const ok=await schoolConfirm(
       "Η νέα σχεδίαση αφαιρεί κελιά που περιέχουν δεδομένα.\n\n"+
       "Οι τοποθετήσεις σε αυτά τα κελιά θα χαθούν. Συνέχεια;"
@@ -1683,39 +1656,65 @@ async function applyScheduleDesign(nextDesign,{confirmLoss=true,render=true,pres
   }
 
   preserved.forEach((value,k)=>{nextLayout.cells[k]=value});
-
-  state={
-    rows:nextLayout.rows,
-    cols:nextLayout.cols,
-    cells:nextLayout.cells,
-    merges:nextLayout.merges,
-    colWidths:nextLayout.colWidths,
-    rowHeights:nextLayout.rowHeights,
-    design:normalized
-  };
   scheduleDesign=normalized;
+  state={rows:nextLayout.rows,cols:nextLayout.cols,cells:nextLayout.cells,merges:nextLayout.merges,
+    colWidths:nextLayout.colWidths,rowHeights:nextLayout.rowHeights};
   commit();
-  if(render)renderAll();
+  renderAll();
   return true;
 }
 
-function teacherCount(id){
-  let n=0;
-  for(const v of Object.values(state.cells)) n+=normalizeCell(v).cards.filter(x=>x===id).length;
-  return n;
+// The geometry of the board for the design shown (the places of the cells, column widths and row heights),
+// kept while the design stays the same object. Read only: layoutBoard() and applyScheduleDesign() build their own
+// layout, because its cells become the cells of the board.
+let slotLayoutMemo={design:null,layout:null};
+function slotLayout(){
+  if(slotLayoutMemo.design!==scheduleDesign)slotLayoutMemo={design:scheduleDesign,layout:designLayout(scheduleDesign)};
+  return slotLayoutMemo.layout;
 }
 
-function teacherUsageDayIndexes(id){
-  const days=new Set();
-  const layout=designLayout(scheduleDesign);
-  layout.slotRoots.forEach((cellKey,semanticKey)=>{
+// Counts and conflicts of the board, computed in one pass and kept until the next change (commit, applyModel)
+// or rendering, so the sidebar, the board and the summary do not count again for every item.
+let statsMemo=null;
+function boardStats(){
+  if(statsMemo)return statsMemo;
+  const stats={teacherUses:new Map(),teacherDays:new Map(),subjectUses:new Map(),unionUses:new Map(),
+    gradeUses:new Map(),classUses:new Map(),slots:0,complete:0,conflicts:findScheduleConflicts()};
+  const add=(map,id)=>map.set(id,(map.get(id)||0)+1);
+  slotLayout().slotRoots.forEach((cellKey,semanticKey)=>{
     const cell=normalizeCell(state.cells[cellKey]);
-    if(!cell.cards.includes(id))return;
+    stats.slots++;
+    if(cellHasCompleteActivity(cell))stats.complete++;
     const dayIndex=Number(semanticKey.split("|")[1]);
-    if(Number.isInteger(dayIndex))days.add(dayIndex);
+    for(const id of cell.cards){
+      add(stats.teacherUses,id);
+      if(!stats.teacherDays.has(id))stats.teacherDays.set(id,new Set());
+      if(Number.isInteger(dayIndex))stats.teacherDays.get(id).add(dayIndex);
+    }
+    if(cell.subjectId)add(stats.subjectUses,cell.subjectId);
+    if(!cell.lowerItems.length)return;
+    // A Τάξη counts the cells where it is, alone or in a Συνένωση; a Τμήμα the cells where its students are.
+    const grades=new Set();
+    for(const item of cell.lowerItems){
+      if(item.type==="grade")grades.add(item.id);
+      else if(item.type==="union"){
+        add(stats.unionUses,item.id);
+        unions.find(union=>union.id===item.id)?.grades.forEach(grade=>grades.add(grade));
+      }
+    }
+    grades.forEach(grade=>add(stats.gradeUses,grade));
+    new Set(cellStudents(cell).classes).forEach(id=>add(stats.classUses,id));
   });
-  return [...days].sort((a,b)=>a-b);
+  return statsMemo=stats;
 }
+function resetBoardStats(){statsMemo=null;studentsCache=new Map()}
+
+const teacherCount=id=>boardStats().teacherUses.get(id)||0;
+const teacherUsageDayIndexes=id=>[...(boardStats().teacherDays.get(id)||[])].sort((a,b)=>a-b);
+const subjectCount=id=>boardStats().subjectUses.get(id)||0;
+const unionUsageCount=id=>boardStats().unionUses.get(id)||0;
+// The cells of a Τάξη or a Τμήμα (see cellMatchesSidebarItem).
+const departmentCount=(type,id)=>(type==="grade"?boardStats().gradeUses:boardStats().classUses).get(id)||0;
 
 function teacherAvailableHours(t){
   return Math.max(0,Math.floor(Number(t?.availableHours)||0));
@@ -1738,14 +1737,6 @@ function teacherSidebarStatusHtml(t,uses=teacherCount(t.id)){
   return "";
 }
 
-
-function subjectCount(id){
-  let n=0;
-  for(const v of Object.values(state.cells)){
-    if(normalizeCell(v).subjectId===id)n++;
-  }
-  return n;
-}
 
 function sidebarHighlightKey(type,id){
   return `${type}:${id}`;
@@ -1791,7 +1782,7 @@ function cellMatchesSidebarHighlights(cell){
 }
 
 function scrollBoardToFirstSidebarItem(type,id){
-  const layout=designLayout(scheduleDesign);
+  const layout=slotLayout();
   let firstDay=null;
 
   layout.slotRoots.forEach((cellKey,semanticKey)=>{
@@ -1826,29 +1817,12 @@ const SIDEBAR_DELETE_ICON=schoolIcon("close");
 
 
 
-// The cells of a Τάξη or a Τμήμα (see cellMatchesSidebarItem).
-function departmentCount(type,id){
-  let n=0;
-  for(const v of Object.values(state.cells)){
-    if(cellMatchesSidebarItem(normalizeCell(v),type,id))n++;
-  }
-  return n;
-}
-
-function unionUsageCount(id){
-  let n=0;
-  for(const v of Object.values(state.cells)){
-    n+=normalizeCell(v).lowerItems.filter(item=>item.type==="union" && item.id===id).length;
-  }
-  return n;
-}
-
 function findScheduleConflicts(){
   const conflicts=new Map();
   const teacherConflictIds=new Set();
   const groups=new Map();
   const teacherZonesByDay=new Map();
-  const layout=designLayout(scheduleDesign);
+  const layout=slotLayout();
 
   layout.slotRoots.forEach((cellKey,semanticKey)=>{
     const [periodId,dayIndex]=semanticKey.split("|");
@@ -1967,10 +1941,7 @@ function renderSidebarSection(type){
       </span>
       <span class="sidebar-link-row"><span class="sidebar-meta-text">${section.meta(record)}</span></span>`;
 
-    const nameEl=d.querySelector(".name");
-    nameEl.style.fontSize=style.fontSize+"px";
-    nameEl.style.fontWeight=style.bold?"700":"400";
-    nameEl.style.fontStyle=style.italic?"italic":"normal";
+    applyNameStyle(d.querySelector(".name"),style);
     d.addEventListener("dragstart",e=>{
       if(e.target.closest("button")){
         e.preventDefault();
@@ -2007,10 +1978,7 @@ function renderClassesSection(){
     d.draggable=true;
     d.innerHTML=`<span class="name">${esc(row.name)}</span>
       <span class="sidebar-link-row"><span class="sidebar-meta-text">${sidebarUsageText(departmentCount(row.type,row.id))}${row.isNew?" · νέο τμήμα":""}</span></span>`;
-    const nameEl=d.querySelector(".name");
-    nameEl.style.fontSize=style.fontSize+"px";
-    nameEl.style.fontWeight=style.bold?"700":"400";
-    nameEl.style.fontStyle=style.italic?"italic":"normal";
+    applyNameStyle(d.querySelector(".name"),style);
     d.addEventListener("dragstart",e=>e.dataTransfer.setData("text/plain",`${row.type}:${row.id}`));
     d.addEventListener("dblclick",()=>toggleSidebarHighlight(row.type,row.id,row.name));
     container.appendChild(d);
@@ -2027,7 +1995,7 @@ function renderTeachers(){
     return;
   }
 
-  const teacherConflictIds=findScheduleConflicts().teacherIds||new Set();
+  const teacherConflictIds=boardStats().conflicts.teacherIds;
 
   teachers.forEach(t=>{
     const d=document.createElement("div");
@@ -2060,10 +2028,7 @@ function renderTeachers(){
       <small>${usageText}</small>
       <span class="teacher-days" title="${esc(usageDayTitle)}">${esc(usageDayText)}</span>`;
 
-    const teacherNameEl=d.querySelector(".name");
-    teacherNameEl.style.fontSize=categoryStyles.teacher.fontSize+"px";
-    teacherNameEl.style.fontWeight=categoryStyles.teacher.bold?"700":"400";
-    teacherNameEl.style.fontStyle=categoryStyles.teacher.italic?"italic":"normal";
+    applyNameStyle(d.querySelector(".name"),categoryStyles.teacher);
     d.addEventListener("dragstart",e=>{
       if(e.target.closest("button")){
         e.preventDefault();
@@ -2092,37 +2057,6 @@ function effectiveRoot(k){
   return state.merges[k]?.root||k;
 }
 
-function safeCellHtml(raw){
-  const template=document.createElement("template");
-  template.innerHTML=String(raw||"");
-
-  const allowed=new Set(["SUP","SUB","B","STRONG","I","EM","U","BR"]);
-
-  function clean(parent){
-    [...parent.childNodes].forEach(node=>{
-      if(node.nodeType===Node.ELEMENT_NODE){
-        if(!allowed.has(node.tagName)){
-          const text=document.createTextNode(node.textContent||"");
-          node.replaceWith(text);
-          return;
-        }
-        [...node.attributes].forEach(attr=>node.removeAttribute(attr.name));
-        clean(node);
-      }
-    });
-  }
-
-  clean(template.content);
-  return template.innerHTML;
-}
-
-function applyTextFormat(el,f){
-  el.style.textAlign=f.align;
-  el.style.fontSize=f.size+"px";
-  el.style.fontWeight=f.bold?"700":"400";
-  el.style.fontStyle=f.italic?"italic":"normal";
-}
-
 function hasTeacherOrSubject(obj){
   return !!(obj.cards.length || obj.subjectId);
 }
@@ -2134,8 +2068,6 @@ function swapTeacherSubjectPair(source,target){
   source.subjectId=target.subjectId;
   target.cards=sourceCards;
   target.subjectId=sourceSubject;
-  source.text="";
-  target.text="";
 }
 
 let textMeasureContext=null;
@@ -2169,8 +2101,7 @@ function preferredCellWidth(obj){
     return info ? measuredLabelWidth(info.name,categoryStyles[info.style],16) : 0;
   }).filter(Boolean);
 
-  // Έως τρεις ετικέτες στην ίδια σειρά· οι περισσότερες αναδιπλώνονται
-  // σε επόμενη σειρά και αναλαμβάνει η αυτόματη αύξηση ύψους.
+  // Up to three student items on one line; more wrap to the next line, and the row grows to fit them.
   if(tagWidths.length){
     let widestTagRow=0;
     for(let i=0;i<tagWidths.length;i+=3){
@@ -2183,14 +2114,10 @@ function preferredCellWidth(obj){
   return Math.min(520,Math.max(...candidates));
 }
 
+// Widens columns so the content of every cell fits. Starts every time from the widths of the design, so a
+// column can become narrower again when its content gets shorter or is removed.
 function autoGrowBoardColumns(){
-  const previousWidths=state.colWidths.slice(0,state.cols).map(Number);
-  if(state.design){
-    // Ξεκινάμε κάθε φορά από τη βασική γεωμετρία του Σχεδιασμού.
-    // Έτσι, όταν ένα μάθημα χωρά όμορφα σε δύο γραμμές ή αφαιρεθεί,
-    // η στήλη μπορεί να μικρύνει ξανά αντί να κρατά παλιό κενό.
-    state.colWidths=designLayout(scheduleDesign).colWidths.slice();
-  }
+  state.colWidths=slotLayout().colWidths.slice();
   const handled=new Set();
 
   for(const [k,value] of Object.entries(state.cells)){
@@ -2212,9 +2139,6 @@ function autoGrowBoardColumns(){
       state.colWidths[c+i]=Math.round(((Number(state.colWidths[c+i])||150)+extra)*100)/100;
     }
   }
-  const currentWidths=state.colWidths.slice(0,state.cols).map(Number);
-  return currentWidths.length!==previousWidths.length ||
-    currentWidths.some((width,index)=>Math.abs(width-(previousWidths[index]||0))>0.01);
 }
 
 function scheduleRowAutoFit(){
@@ -2223,13 +2147,10 @@ function scheduleRowAutoFit(){
   requestAnimationFrame(()=>{
     rowAutoFitPending=false;
     let changed=false;
-    const baseHeights=state.design
-      ? designLayout(scheduleDesign).rowHeights
-      : Array.from({length:state.rows},(_,r)=>r===0?34:74);
+    const baseHeights=slotLayout().rowHeights;
 
     [...board.querySelectorAll("tr")].forEach((tr,r)=>{
-      // Επανυπολογισμός από το βασικό ύψος, ώστε η γραμμή να μπορεί
-      // τόσο να μεγαλώσει όσο και να ξαναμικρύνει όταν περισσεύει χώρος.
+      // From the height of the design, so a row can grow and also become shorter again.
       let needed=Number(baseHeights[r])||(r===0?34:74);
       tr.querySelectorAll(".cell-content-stack").forEach(stack=>{
         const children=[...stack.children];
@@ -2250,20 +2171,17 @@ function scheduleRowAutoFit(){
       }
     });
 
-    if(changed){
-      commit();
-      renderBoard();
-    }
+    if(changed)renderBoard();
   });
 }
 
+// Column widths and row heights are not part of a design: they follow the content, so they are not a change.
 function renderBoard(){
-  if(autoGrowBoardColumns())commit();
-  const conflictCells=findScheduleConflicts();
-  // Το tbody περιέχει μόνο τις γραμμές.
+  autoGrowBoardColumns();
+  const conflictCells=boardStats().conflicts;
+  // The tbody has only the rows; the colgroup belongs to the table.
   board.innerHTML="";
 
-  // Το colgroup ανήκει στο TABLE, όχι στο tbody.
   const oldColgroup=boardTable.querySelector("colgroup");
   if(oldColgroup)oldColgroup.remove();
 
@@ -2271,8 +2189,7 @@ function renderBoard(){
     .slice(0,state.cols)
     .reduce((sum,w)=>sum+(Number(w)||150),0);
 
-  // Το συνολικό πλάτος του πραγματικού TABLE είναι απολύτως σταθερό
-  // και εξαρτάται μόνο από τα αποθηκευμένα πλάτη των στηλών.
+  // The width of the table depends only on the widths of the columns.
   boardTable.style.width=totalBoardWidth+"px";
   boardTable.style.minWidth=totalBoardWidth+"px";
   boardTable.style.maxWidth=totalBoardWidth+"px";
@@ -2347,21 +2264,16 @@ function renderBoard(){
         if(obj.structureRole==="time")td.classList.add("time-heading");
       }
 
+      // A cell with any placement keeps all three positions (teacher, subject, students) above its last item,
+      // even when one of them is missing.
       const hasLower=obj.lowerItems.length>0;
-      const hasStructured=!!(obj.cards.length || obj.subjectId || hasLower);
       let teacherSlot=null, subjectSlot=null, lowerSlot=null;
-
-      if(hasStructured){
+      if(obj.cards.length || obj.subjectId || hasLower){
         const stack=document.createElement("div");
         stack.className="cell-content-stack";
-
-        // If a lower level exists, keep all preceding positions reserved,
-        // even when Teacher or Subject is missing.
-        if(obj.cards.length || obj.subjectId || hasLower){
-          teacherSlot=document.createElement("div");
-          teacherSlot.className="teacher-slot";
-          stack.appendChild(teacherSlot);
-        }
+        teacherSlot=document.createElement("div");
+        teacherSlot.className="teacher-slot";
+        stack.appendChild(teacherSlot);
         if(obj.subjectId || hasLower){
           subjectSlot=document.createElement("div");
           subjectSlot.className="subject-slot";
@@ -2373,29 +2285,28 @@ function renderBoard(){
           lowerSlot.dataset.printShort=obj.lowerItems.map(lowerItemDisplayName).filter(Boolean).join(", ");
           stack.appendChild(lowerSlot);
         }
-
         td.appendChild(stack);
       }
+      // Items on the board: double click removes them; they move with the pointer mechanism.
+      const removable=(element,type,id)=>{
+        element.addEventListener("dblclick",e=>{
+          e.preventDefault();
+          e.stopPropagation();
+          removeCellItem(k,type,id);
+        });
+      };
 
-      for(let i=0;i<obj.cards.length;i++){
-        const id=obj.cards[i];
+      for(const id of obj.cards){
         const t=teachers.find(x=>x.id===id);
         if(!t)continue;
 
         const card=document.createElement("span");
         card.className="card";
-        card.style.display="flex";
-        card.style.alignItems="center";
-        card.style.justifyContent="center";
-        card.style.width="100%";
-        card.style.position="relative";
         card.dataset.printShort=teacherPrintShortName(t);
 
         const teacherName=document.createElement("span");
+        teacherName.className="card-name";
         teacherName.textContent=t.name;
-        teacherName.style.minWidth="0";
-        teacherName.style.width="100%";
-        teacherName.style.textAlign="center";
         card.appendChild(teacherName);
 
         const uses=teacherCount(t.id);
@@ -2404,66 +2315,35 @@ function renderBoard(){
           warning.className="teacher-over-warning";
           warning.textContent="!";
           warning.title=`Υπέρβαση διαθέσιμων ωρών: ${uses}/${teacherAvailableHours(t)}`;
-          warning.style.position="absolute";
-          warning.style.right="6px";
-          warning.style.marginLeft="0";
-          warning.style.paddingLeft="0";
           card.appendChild(warning);
         }
         card.style.background=t.color;
         card.style.color=schoolColor.ink(t.color);
-        card.style.fontSize=categoryStyles.teacher.fontSize+"px";
-        card.style.fontWeight=categoryStyles.teacher.bold?"700":"400";
-        card.style.fontStyle=categoryStyles.teacher.italic?"italic":"normal";
-        card.draggable=false;
+        applyNameStyle(card,categoryStyles.teacher);
         card.title="Σύρε σε κενό κελί για μετακίνηση μαζί με το μάθημα ή σε συμπληρωμένο κελί για ανταλλαγή του ζευγαριού. Με Ctrl αντιγράφεται μόνο ο εκπαιδευτικός. Διπλό κλικ για αφαίρεση.";
-
-        card.addEventListener("dblclick",e=>{
-          e.preventDefault();
-          e.stopPropagation();
-          const source=cellObj(k);
-          const index=source.cards.indexOf(id);
-          if(index!==-1)source.cards.splice(index,1);
-          commit();
-          renderAll();
-          setStatus("Ο εκπαιδευτικός αφαιρέθηκε από το κελί");
-        });
-
-        enableProgramPointerDrag(card,{type:"move",sourceKey:k,index:i,id});
-
-        (teacherSlot||td).appendChild(card);
+        removable(card,"teacher",id);
+        enableProgramPointerDrag(card,{type:"move",sourceKey:k,id});
+        teacherSlot.appendChild(card);
       }
 
-      if(obj.subjectId){
-        const sub=subjects.find(x=>x.id===obj.subjectId);
-        if(sub){
-          const st=document.createElement("div");
-          st.className="subject-text";
-          st.textContent=sub.name;
-          st.dataset.printShort=subjectPrintShortName(sub.name);
-          st.style.fontSize=categoryStyles.subject.fontSize+"px";
-          st.style.fontWeight=categoryStyles.subject.bold?"700":"400";
-          st.style.fontStyle=categoryStyles.subject.italic?"italic":"normal";
-          st.draggable=false;
-          st.title="Σύρε σε άλλο κελί για ανταλλαγή του ζευγαριού εκπαιδευτικός + μάθημα. Με Ctrl αντιγράφεται μόνο το μάθημα στο νέο κελί. Διπλό κλικ για αφαίρεση.";
-          st.addEventListener("mousedown",e=>e.stopPropagation());
-          st.addEventListener("click",e=>e.stopPropagation());
-          st.addEventListener("dblclick",e=>{
-            e.preventDefault();
-            e.stopPropagation();
-            if(cellObj(k).subjectId===sub.id)cellObj(k).subjectId=null;
-            commit();
-            renderAll();
-            setStatus("Το μάθημα αφαιρέθηκε από το κελί");
-          });
-          enableProgramPointerDrag(st,{type:"movesubject",sourceKey:k,id:sub.id});
-          (subjectSlot||td).appendChild(st);
-        }
+      const sub=obj.subjectId?subjects.find(x=>x.id===obj.subjectId):null;
+      if(sub){
+        const st=document.createElement("div");
+        st.className="subject-text";
+        st.textContent=sub.name;
+        st.dataset.printShort=subjectPrintShortName(sub.name);
+        applyNameStyle(st,categoryStyles.subject);
+        st.title="Σύρε σε άλλο κελί για ανταλλαγή του ζευγαριού εκπαιδευτικός + μάθημα. Με Ctrl αντιγράφεται μόνο το μάθημα στο νέο κελί. Διπλό κλικ για αφαίρεση.";
+        st.addEventListener("mousedown",e=>e.stopPropagation());
+        st.addEventListener("click",e=>e.stopPropagation());
+        removable(st,"subject",sub.id);
+        enableProgramPointerDrag(st,{type:"movesubject",sourceKey:k,id:sub.id});
+        subjectSlot.appendChild(st);
       }
 
-      obj.lowerItems.forEach((item,itemIndex)=>{
+      for(const item of obj.lowerItems){
         const info=lowerItemInfo(item);
-        if(!info)return;
+        if(!info)continue;
         const isUnion=item.type==="union";
 
         const tag=document.createElement("div");
@@ -2471,42 +2351,24 @@ function renderBoard(){
         tag.textContent=info.name;
         // Τάξεις and Τμήματα are short already («Β'», «Α1»); a Συνένωση gets a short name.
         tag.dataset.printShort=isUnion?fourLetterPrintName(info.name):info.name;
-        const style=categoryStyles[info.style];
-        tag.style.fontSize=style.fontSize+"px";
-        tag.style.fontWeight=style.bold?"700":"400";
-        tag.style.fontStyle=style.italic?"italic":"normal";
-        tag.draggable=false;
+        applyNameStyle(tag,categoryStyles[info.style]);
         tag.title="Σύρε σε άλλο κελί για μετακίνηση, με Ctrl για αντιγραφή ή έξω από τον πίνακα για διαγραφή. Διπλό κλικ για αφαίρεση.";
         tag.addEventListener("mousedown",e=>e.stopPropagation());
         tag.addEventListener("click",e=>e.stopPropagation());
-        tag.addEventListener("dblclick",e=>{
-          e.preventDefault();
-          e.stopPropagation();
-          const source=cellObj(k);
-          const index=source.lowerItems.findIndex(x=>x.type===item.type && x.id===item.id);
-          if(index!==-1)source.lowerItems.splice(index,1);
-          commit();
-          renderAll();
-          setStatus(LOWER_REMOVED_STATUS[item.type]);
-        });
-        enableProgramPointerDrag(tag,{
-          type:"movelower",
-          itemType:item.type,
-          sourceKey:k,
-          itemIndex,
-          id:item.id
-        });
-        (lowerSlot||td).appendChild(tag);
-      });
+        removable(tag,item.type,item.id);
+        enableProgramPointerDrag(tag,{type:"movelower",itemType:item.type,sourceKey:k,id:item.id});
+        lowerSlot.appendChild(tag);
+      }
 
-      if(obj.cards.length===0 && !obj.subjectId && obj.lowerItems.length===0){
+      // A heading: its text, in the size of its kind (day, hour).
+      if(isLocked){
         const txt=document.createElement("div");
-        txt.className="cell-text valign-"+(obj.fmt.valign||"top");
-        const htmlWrap=document.createElement("span");
-        htmlWrap.className="cell-html";
-        htmlWrap.innerHTML=safeCellHtml(obj.text);
-        txt.appendChild(htmlWrap);
-        applyTextFormat(txt,obj.fmt);
+        txt.className="cell-text";
+        const label=document.createElement("span");
+        label.className="cell-html";
+        label.textContent=obj.text||"";
+        txt.appendChild(label);
+        txt.style.fontSize=(obj.labelSize||16)+"px";
         td.appendChild(txt);
       }
 
@@ -2542,7 +2404,6 @@ function renderBoard(){
         else if(kind==="grade"||kind==="class"||kind==="union"){
           if(!target.lowerItems.some(item=>item.type===kind && item.id===id))target.lowerItems.push({type:kind,id});
         }else return;
-        target.text="";
         commit();renderAll();
       });
 
@@ -2581,7 +2442,7 @@ function renderBoardTimeOverlay(){
 }
 
 function renderAll(){
-  studentsCache=new Map();
+  resetBoardStats();
   const showBoard=!!current&&isReady();
   mainEl.classList.toggle("ol-without-design",!showBoard);
   asideEl.hidden=!showBoard;
@@ -2612,12 +2473,7 @@ function updateUsageSummary(){
     available[kind]+=teacherAvailableHours(teacher);
   });
 
-  const layout=designLayout(scheduleDesign);
-  const programCells=[...new Set(layout.slotRoots.values())];
-  const completedCells=programCells.reduce((count,cellKey)=>
-    count+(cellHasCompleteActivity(normalizeCell(state.cells[cellKey]))?1:0),0
-  );
-  const teacherConflictIds=findScheduleConflicts().teacherIds||new Set();
+  const stats=boardStats(),teacherConflictIds=stats.conflicts.teacherIds;
 
   for(const [kind,meta] of Object.entries(SUMMARY_KINDS)){
     const value=document.querySelector(meta.value),row=value.closest(".usage-summary-row");
@@ -2631,17 +2487,17 @@ function updateUsageSummary(){
   document.querySelector("#combinedTeacherUsage").textContent=`${totalUsed}/${totalAvailable}`;
 
   const programValue=document.querySelector("#programUsage");
-  programValue.textContent=`${completedCells}/${programCells.length}`;
+  programValue.textContent=`${stats.complete}/${stats.slots}`;
   const programRow=programValue.closest(".usage-summary-row");
-  const programComplete=programCells.length>0 && completedCells===programCells.length;
+  const programComplete=stats.slots>0 && stats.complete===stats.slots;
   programRow.classList.toggle("status-error",!programComplete);
   programRow.title=!programComplete?"Κλικ για μετάβαση στο πρώτο ελλιπές κελί":"";
 }
 
 function firstSummaryProblemDay(kind){
-  const layout=designLayout(scheduleDesign);
-  const conflicts=findScheduleConflicts();
-  const teacherConflictIds=conflicts.teacherIds||new Set();
+  const layout=slotLayout();
+  const conflicts=boardStats().conflicts;
+  const teacherConflictIds=conflicts.teacherIds;
   let firstDay=null;
 
   layout.slotRoots.forEach((cellKey,semanticKey)=>{
@@ -2693,7 +2549,7 @@ const SECTION_STYLE_META={
 };
 let sectionManagerOrder=[];
 let sectionManagerTeacherIds=new Set();
-let sectionManagerShown=new Set();   // Τάξεις και Τμήματα: «grade:Β» / «class:<id>» that show in the sidebar
+let sectionManagerShown=new Set();   // Τάξεις and Τμήματα: «grade:Β» / «class:<id>» that show in the sidebar
 let sectionManagerSelectedId=null;
 
 function recordsForSection(section){
@@ -2837,7 +2693,6 @@ function applySectionStyle(section){
     if(section==="union")unions=ordered;
   }
 
-  syncSharedStylesToItems();
   commit();
   renderAll();
   setStatus(`Εφαρμόστηκε κοινή μορφοποίηση: ${SECTION_STYLE_META[section].title}`);
@@ -2846,7 +2701,6 @@ function applySectionStyle(section){
 function openTeacher(id=null){
   const t=id?teachers.find(x=>x.id===id):null;
   if(!t)return;
-  editingTeacher=id;
   void formDialog({
     title:"Ρυθμίσεις εκπαιδευτικού",template:"#teacherTemplate",
     prepare:()=>{
@@ -2868,7 +2722,6 @@ function openTeacher(id=null){
       if(!Number.isInteger(value)||value<0||value>maximum){input.focus();throw Error(`Οι διαθέσιμες ώρες πρέπει να είναι ακέραιος από 0 έως ${maximum}.`)}
       t.color=document.querySelector("#teacherColor").value;
       t.availableHours=value;
-      Object.assign(t,categoryStyles.teacher);
       commit();
       renderAll();
       setStatus("Οι αλλαγές του εκπαιδευτικού εφαρμόστηκαν αμέσως");
@@ -2919,7 +2772,7 @@ function teacherPrintShortName(teacher){
 // (school-oloimero:file, reference 'fet'). Only names that the design does not have yet are offered.
 async function chooseFetReference(){
   let last=null;
-  try{last=await oloimeroFile("last",{reference:"fet"})}catch(error){alert(error.message);return null}
+  try{last=await oloimeroFile("last",{reference:"fet"})}catch(error){showMessage(error.message);return null}
   return schoolChoiceDialog({
     title:"Αρχείο FET",
     content:"Από ποιο αρχείο .fet να προστεθούν;",
@@ -2939,7 +2792,7 @@ async function addSubjectsFromFet(){
   const file=await chooseFetReference();
   if(!file)return;
   let reference;
-  try{reference=parseFetReferenceData(file.text)}catch(error){alert("Το αρχείο FET δεν μπορεί να διαβαστεί.\n\n"+(error?.message||String(error)));return}
+  try{reference=parseFetReferenceData(file.text)}catch(error){showMessage("Το αρχείο FET δεν μπορεί να διαβαστεί.\n\n"+(error?.message||String(error)));return}
   const existing=new Set(subjects.map(item=>normalizedEntityName(item.name)));
   const missing=[];
   for(const item of reference.subjects){
@@ -2948,7 +2801,7 @@ async function addSubjectsFromFet(){
     existing.add(name);missing.push(item);
   }
   if(!missing.length){
-    alert(`Όλα τα μαθήματα του FET ${quoted(file.name)} υπάρχουν ήδη στο σχέδιο.`);
+    showMessage(`Όλα τα μαθήματα του FET ${quoted(file.name)} υπάρχουν ήδη στο σχέδιο.`);
     return;
   }
   const list=document.createElement("div");list.className="subapp-import-list";
@@ -2976,7 +2829,7 @@ async function addSubjectsFromFet(){
     actions:[{label:"Ακύρωση"},{label:"Προσθήκη επιλεγμένων",accept:true,run:()=>missing.filter((_,index)=>boxes[index].checked)}]
   });
   if(!chosen)return;
-  chosen.forEach(item=>subjects.push({id:crypto.randomUUID(),name:item.name,...categoryStyles.subject}));
+  chosen.forEach(item=>subjects.push({id:crypto.randomUUID(),name:item.name}));
   if(chosen.length){commit();renderAll()}
   setStatus(chosen.length?`Προστέθηκαν ${chosen.length} μαθήματα από το FET`:"Δεν επιλέχθηκε κάτι για προσθήκη");
 }
@@ -2985,7 +2838,7 @@ document.querySelector("#importSubjects").addEventListener("click",()=>void addS
 document.querySelector("#newSubject").addEventListener("click",()=>openSubject());
 document.querySelector("#newUnion").addEventListener("click",()=>openUnion());
 
-// A name of a subject: required, and not the same as another one of the list.
+// A name of a subject or a Συνένωση: required, and not the same as another one of the list.
 function checkedName(input,records,id,what){
   const name=input.value.trim();
   if(!name){input.focus();throw Error(`Συμπλήρωσε όνομα ${what}.`)}
@@ -2993,7 +2846,7 @@ function checkedName(input,records,id,what){
   return name;
 }
 // Subject: one name field.
-function openNameDialog({title,label,records,id,what,style,status,add}){
+function openNameDialog({title,label,records,id,what,status,add}){
   const record=id?records().find(x=>x.id===id):null;
   void formDialog({
     title,template:"#nameTemplate",
@@ -3003,8 +2856,8 @@ function openNameDialog({title,label,records,id,what,style,status,add}){
     },
     apply:()=>{
       const name=checkedName(document.querySelector("#itemName"),records(),id,what);
-      if(record){record.name=name;Object.assign(record,categoryStyles[style])}
-      else add({id:crypto.randomUUID(),name,...categoryStyles[style]});
+      if(record)record.name=name;
+      else add({id:crypto.randomUUID(),name});
       commit();
       renderAll();
       setStatus(status);
@@ -3015,9 +2868,6 @@ function openNameDialog({title,label,records,id,what,style,status,add}){
 // A Συνένωση: Τάξεις and Τμήματα of «Τμήματα» (only Γενική Παιδεία). A Τάξη has always the classes that exist now.
 function openUnion(id=null){
   const u=id?unions.find(x=>x.id===id):null;
-  // What an older, converted design may have besides Τάξεις and Τμήματα: kept as it is.
-  const legacyClassIds=(u?.classIds||[]).filter(classId=>!classGrade(classById(classId)));
-  const legacy=[...legacyClassIds.map(classId=>classById(classId)?.name||"?"),...(u?.subsets||[]).map(subset=>subset.name),...(u?.otherStudents||[])];
   void formDialog({
     title:u?"Επεξεργασία συνένωσης":"Νέα συνένωση",template:"#unionTemplate",
     prepare:()=>{
@@ -3031,30 +2881,23 @@ function openUnion(id=null){
       };
       // The Τάξεις of «Τμήματα», and any other Τάξη the Συνένωση has already.
       const gradeNames=GRADE_ORDER.filter(grade=>grades.some(entry=>entry.grade===grade)||u?.grades.includes(grade));
-      if(!gradeNames.length){gradeBox.innerHTML='<div class="hint">Δεν υπάρχουν τμήματα στα «Τμήματα» του σχολικού έτους.</div>'}
+      const none='<div class="hint">Δεν υπάρχουν τμήματα στα «Τμήματα» του σχολικού έτους.</div>';
+      if(!gradeNames.length)gradeBox.innerHTML=none;
       gradeNames.forEach(grade=>check(gradeBox,grade,gradeLabel(grade),!!u?.grades.includes(grade)));
-      if(!grades.length)classBox.innerHTML='<div class="hint">Δεν υπάρχουν τμήματα στα «Τμήματα» του σχολικού έτους.</div>';
+      if(!grades.length)classBox.innerHTML=none;
       grades.forEach(entry=>entry.classes.forEach(record=>check(classBox,record.id,String(record.name||"?"),!!u?.classIds.includes(record.id))));
-      const note=document.querySelector("#unionLegacy");
-      note.hidden=!legacy.length;
-      note.textContent=legacy.length?`Η συνένωση έχει από παλαιότερο σχέδιο και τα ${legacy.map(quoted).join(", ")}, που κρατιούνται όπως είναι.`:"";
     },
     apply:()=>{
-      const input=document.querySelector("#unionName"),name=input.value.trim();
-      if(!name){input.focus();throw Error("Συμπλήρωσε όνομα συνένωσης.")}
-      if(unions.some(record=>record.id!==id&&normalizedEntityName(record.name)===normalizedEntityName(name))){input.focus();throw Error(`Υπάρχει ήδη ${quoted(name)}.`)}
+      const input=document.querySelector("#unionName");
+      const name=checkedName(input,unions,id,"συνένωσης");
       // A name that is one Τάξη or one Τμήμα would become that Τάξη or Τμήμα when the CSV is imported again.
       if(T.oloimeroCells(allClasses()).single(name)){input.focus();throw Error(`Το ${quoted(name)} είναι όνομα τάξης ή τμήματος. Δώσε στη συνένωση άλλο όνομα.`)}
       const checked=selector=>[...document.querySelectorAll(`${selector} input[type=checkbox]:checked`)].map(x=>x.value);
       const grades=GRADE_ORDER.filter(grade=>checked("#unionGrades").includes(grade));
-      const classIds=[...checked("#unionClasses"),...legacyClassIds];
-      if(!grades.length&&!classIds.length&&!legacy.length)throw Error("Επίλεξε τουλάχιστον μία τάξη ή ένα τμήμα για τη συνένωση.");
-      if(u){
-        u.name=name;u.grades=grades;u.classIds=classIds;
-        Object.assign(u,categoryStyles.union);
-      }else{
-        unions.push({id:crypto.randomUUID(),name,grades,classIds,subsets:[],otherStudents:[],...categoryStyles.union});
-      }
+      const classIds=checked("#unionClasses");
+      if(!grades.length&&!classIds.length)throw Error("Επίλεξε τουλάχιστον μία τάξη ή ένα τμήμα για τη συνένωση.");
+      if(u){u.name=name;u.grades=grades;u.classIds=classIds}
+      else unions.push({id:crypto.randomUUID(),name,grades,classIds});
       commit();
       renderAll();
       setStatus("Οι αλλαγές της συνένωσης εφαρμόστηκαν αμέσως");
@@ -3083,8 +2926,7 @@ async function deleteUnion(id){
 
 
 function openSubject(id=null){
-  editingSubject=id;
-  openNameDialog({title:id?"Επεξεργασία μαθήματος":"Νέο μάθημα",label:"Όνομα μαθήματος",records:()=>subjects,id,what:"μαθήματος",style:"subject",
+  openNameDialog({title:id?"Επεξεργασία μαθήματος":"Νέο μάθημα",label:"Όνομα μαθήματος",records:()=>subjects,id,what:"μαθήματος",
     status:"Οι αλλαγές του μαθήματος εφαρμόστηκαν αμέσως",add:record=>subjects.push(record)});
 }
 
@@ -3174,7 +3016,6 @@ function designExceptionToggled(e){
 }
 
 async function applyDesignForm(){
-  const zoneTags={...scheduleDesign.zoneTags};
   const periods=[];
   for(const def of scheduleDesign.periods){
     const countInput=document.querySelector(`[data-design-count="${def.id}"]`);
@@ -3202,7 +3043,7 @@ async function applyDesignForm(){
     periods.push({...def,count:rawCount,exceptionsEnabled,dayCounts});
   }
 
-  if(!await applyScheduleDesign({zoneTags,dayTags:{...scheduleDesign.dayTags},periods}))throw keepOpen();
+  if(!await applyScheduleDesign({periods}))throw keepOpen();
   setStatus("Η σχεδίαση του πίνακα εφαρμόστηκε");
 }
 
@@ -3218,8 +3059,7 @@ function teacherFromStaff(person,previous={}){
   return {
     id:`staff:${person.id}`,staffId:person.id,name:person.shortName||person.name||person.code||"?",fullName:person.name||"",maxHours,
     color:schoolColor.normalize(previous.color,T.oloimeroTeacherColor(person)),
-    availableHours:Math.min(maxHours,Math.max(0,Math.floor(Number(previous.availableHours)||0))),
-    ...categoryStyles.teacher
+    availableHours:Math.min(maxHours,Math.max(0,Math.floor(Number(previous.availableHours)||0)))
   };
 }
 function teacherRecord(item){
@@ -3227,10 +3067,9 @@ function teacherRecord(item){
   if(person)return teacherFromStaff(person,item);
   const name=String(item?.name||"").trim()||"?";
   return {
-    id:`name:${name}`,staffId:null,name,fullName:"",maxHours:99,unmatched:true,
+    id:`name:${name}`,staffId:null,name,fullName:"",maxHours:99,
     color:schoolColor.normalize(item?.color,OTHER_TEACHER_COLOR),
-    availableHours:Math.min(99,Math.max(0,Math.floor(Number(item?.availableHours)||0))),
-    ...categoryStyles.teacher
+    availableHours:Math.min(99,Math.max(0,Math.floor(Number(item?.availableHours)||0)))
   };
 }
 // The order of the sidebar: Προσωπικό in the order of its «Σύντομο Όνομα» list, then names without a match.
@@ -3253,7 +3092,7 @@ function baseOf(program){
 // without a valid place goes to the first free cell of its hour and day. The design gets more cells where it
 // has fewer than the activities need.
 function modelFromProgram(program){
-  // Designs are in source.version 2 (the Index converts older files when it opens them).
+  // Designs are in source.version 2 (the Index does not open files in an older format).
   const source=program?.source?.type==="oloimero-designer"&&program.source.version===2?program.source:{};
   const text=value=>String(value??"").trim();
   const named=list=>(Array.isArray(list)?list:[]).filter(item=>item&&text(item.id)&&text(item.name)).map(item=>({id:text(item.id),name:text(item.name)}));
@@ -3376,9 +3215,7 @@ function buildProgram(base,model,classes=allClasses()){
   const teacherById=new Map(model.teachers.map(item=>[item.id,item]));
   const subjectById=new Map(model.subjects.map(item=>[item.id,item]));
   const classIds=new Set(classes.map(item=>item.id));
-  const unions=(model.unions||[]).map(item=>({...unionData(item),
-    classIds:item.classIds.filter(id=>classIds.has(id)),
-    subsets:(item.subsets||[]).map(subset=>({name:subset.name,classId:subset.classId&&classIds.has(subset.classId)?subset.classId:null}))}));
+  const unions=(model.unions||[]).map(item=>({...unionData(item),classIds:item.classIds.filter(id=>classIds.has(id))}));
   const unionIds=new Set(unions.map(item=>item.id));
   const activities=[],placements={},pendingCells=[];
   for(const [semanticKey,cell] of JSON.parse(model.cells||"[]")){
@@ -3430,7 +3267,7 @@ function namedClassIds(program){
   const cells=list=>(list||[]).forEach(item=>{if(item?.type==="class")ids.add(item.id)});
   Object.values(source.placements||{}).forEach(place=>cells(place?.students));
   (source.pending||[]).forEach(item=>cells(item?.students));
-  (source.unions||[]).forEach(union=>{(union.classIds||[]).forEach(id=>ids.add(id));(union.subsets||[]).forEach(subset=>{if(subset.classId)ids.add(subset.classId)})});
+  (source.unions||[]).forEach(union=>(union.classIds||[]).forEach(id=>ids.add(id)));
   return ids;
 }
 
@@ -3557,9 +3394,10 @@ function savedTarget(){
   if(periodId!=null&&periodOf(periodId)){const program=savedOfPeriod(periodId);return program?{programId:program.id}:{periodId}}
   return defaultTarget();
 }
+const confirmDiscard=message=>schoolConfirm(message||"Υπάρχουν μη αποθηκευμένες αλλαγές. Να απορριφθούν;",{title:"Μη αποθηκευμένες αλλαγές",accept:"Απόρριψη αλλαγών"});
 async function discardIfDirty(message){
   if(!dirty)return true;
-  if(!await schoolConfirm(message||"Υπάρχουν μη αποθηκευμένες αλλαγές. Να απορριφθούν;",{title:"Μη αποθηκευμένες αλλαγές",accept:"Απόρριψη αλλαγών"}))return false;
+  if(!await confirmDiscard(message))return false;
   loadClean(savedTarget());
   return true;
 }
@@ -3643,7 +3481,7 @@ function updateButtons(){
   set("#redoPlacement",busy||!redoStack.length);
   set("#undoMenuButton",busy||!dirty);
   set("#undoAll",busy||!dirty);
-  if(busy||!dirty)closeUndoMenu();
+  if(busy||!dirty)closeMenu("#undoMenuButton","#undoMenu");
   programSelect.disabled=busy||!ready;
   mainEl.classList.toggle("busy",busy);
 }
@@ -3678,19 +3516,25 @@ function renderNoDesign(){
     paragraph("Οι περίοδοι δημιουργούνται στα «Σχολικά Προγράμματα».","ui-helper"));
 }
 
-// Warnings near the limits of the host (from 90%): programs of the year, with every draft, and activities.
+// Warnings near the limits of the host (context.limits, from warnRatio): programs of the year, with every
+// draft, and activities of the design.
 function renderNotices(){
   const box=document.querySelector("#olNotices"),items=[];
-  if(context&&current){
-    const limits={programs:200,activities:2000,warnRatio:0.9,...(context.limits||{})};
-    const near=(count,limit)=>count>=Math.ceil(limit*limits.warnRatio);
+  const limits=context?.limits;
+  if(current&&limits){
+    const check=(count,limit,over,near)=>{
+      if(!limit)return;
+      if(count>limit)items.push(["error",over]);
+      else if(limits.warnRatio&&count>=Math.ceil(limit*limits.warnRatio))items.push(["warning",near]);
+    };
     const programs=(Number(context.programCount)||savedPrograms().length)+effectivePrograms().length-savedPrograms().length;
-    if(programs>limits.programs)items.push(["error",`Το σχολικό έτος θα είχε ${programs} προγράμματα (μαζί με τα προσχέδια όλων των εφαρμογών), πάνω από το όριο των ${limits.programs}. Η αποθήκευση δεν θα γίνει· διάγραψε προσχέδια που δεν χρειάζονται.`]);
-    else if(near(programs,limits.programs))items.push(["warning",`Το σχολικό έτος έχει ${programs} από τα ${limits.programs} προγράμματα που επιτρέπονται, μαζί με τα προσχέδια. Καλό είναι να διαγραφούν προσχέδια που δεν χρειάζονται.`]);
-    let activities=0;
-    designLayout(scheduleDesign).slotRoots.forEach(cellKey=>{if(cellHasCompleteActivity(normalizeCell(state.cells[cellKey])))activities++});
-    if(activities>limits.activities)items.push(["error",`Το σχέδιο έχει ${activities} δραστηριότητες, πάνω από το όριο των ${limits.activities}. Η αποθήκευση δεν θα γίνει.`]);
-    else if(near(activities,limits.activities))items.push(["warning",`Το σχέδιο έχει ${activities} από τις ${limits.activities} δραστηριότητες που επιτρέπονται σε ένα πρόγραμμα.`]);
+    check(programs,limits.programs,
+      `Το σχολικό έτος θα είχε ${programs} προγράμματα (μαζί με τα προσχέδια όλων των εφαρμογών), πάνω από το όριο των ${limits.programs}. Η αποθήκευση δεν θα γίνει· διάγραψε προσχέδια που δεν χρειάζονται.`,
+      `Το σχολικό έτος έχει ${programs} από τα ${limits.programs} προγράμματα που επιτρέπονται, μαζί με τα προσχέδια. Καλό είναι να διαγραφούν προσχέδια που δεν χρειάζονται.`);
+    const activities=boardStats().complete;
+    check(activities,limits.activities,
+      `Το σχέδιο έχει ${activities} δραστηριότητες, πάνω από το όριο των ${limits.activities}. Η αποθήκευση δεν θα γίνει.`,
+      `Το σχέδιο έχει ${activities} από τις ${limits.activities} δραστηριότητες που επιτρέπονται σε ένα πρόγραμμα.`);
   }
   box.replaceChildren(...items.map(([type,text])=>{const p=document.createElement("p");p.className=`ui-validation-${type}`;p.textContent=text;return p}));
 }
@@ -3699,7 +3543,7 @@ function renderNotices(){
 programSelect.addEventListener("change",async()=>{
   const value=programSelect.value;
   if(!value||value===selectionValue())return;
-  if(dirty&&!await schoolConfirm("Υπάρχουν μη αποθηκευμένες αλλαγές. Να απορριφθούν;",{title:"Μη αποθηκευμένες αλλαγές",accept:"Απόρριψη αλλαγών"})){programSelect.value=selectionValue();return}
+  if(dirty&&!await confirmDiscard()){programSelect.value=selectionValue();return}
   const [kind,id]=[value.slice(0,value.indexOf(":")),value.slice(value.indexOf(":")+1)];
   if(kind==="period"){const program=savedOfPeriod(id);loadClean(program?{programId:program.id}:{periodId:id})}
   else loadClean({programId:id});
@@ -3760,13 +3604,13 @@ async function newDesignForPeriod(){
 async function importCsv({periodId=null,dropped=null}={}){
   closeMenus();
   if(busy||!isReady())return;
-  if(!context.staff?.length){alert("Συμπλήρωσε πρώτα το Προσωπικό του σχολικού έτους στο «Προσωπικό».");return}
+  if(!context.staff?.length){showMessage("Συμπλήρωσε πρώτα το Προσωπικό του σχολικού έτους στο «Προσωπικό».");return}
   if(!await discardIfDirty(discardMessage()))return;
   const importer=T.importer(KIND,"csv"),spec=importer.files[0];
   const request=action=>oloimeroFile(action,{kind:KIND,importer:importer.id,file:spec.key});
   let last=null;
   if(dropped)last={name:dropped.name};
-  else try{last=await request("last")}catch(error){alert(error.message);return}
+  else try{last=await request("last")}catch(error){showMessage(error.message);return}
   const period=periodId?periodOf(periodId):null;
   const draftName=name=>String(name||"").replace(/\.csv$/i,"").trim()||`Προσχέδιο ${D.format(D.today())}`;
   let program=null,imported=null;
@@ -3780,7 +3624,7 @@ async function importCsv({periodId=null,dropped=null}={}){
       analyze:loaded=>importer.analyze(loaded,{staff:context.staff,classes:allClasses(),classLimit:context.limits?.classes,teachingHours:context.teachingHours}),
       build:(analysis,options)=>{imported=analysis;return importer.build(analysis,{unmatched:options.unmatched,kind:KIND,periodId:period?period.id:null,name:period?"":draftName(analysis.csvName)})}
     });
-  }catch(error){if(!cancelled(error))alert(error?.message||String(error));return}
+  }catch(error){if(!cancelled(error))showMessage(error?.message||String(error));return}
   if(!program)return;
   const created=imported?.newClasses||[];
   pageNewClasses=[...pageNewClasses,...structuredClone(created)];
@@ -3790,6 +3634,16 @@ async function importCsv({periodId=null,dropped=null}={}){
   commit();renderAll();
   setStatus(`Εισήχθησαν ${program.activities.length} δραστηριότητες από το ${quoted(program.source.csvName||"CSV")}`+
     (created.length?` και τα νέα τμήματα ${created.map(item=>item.name).join(", ")}`:"")+" — αποθηκεύονται με την «Αποθήκευση»");
+}
+
+// A period that already has a design gets another one: the user chooses to keep the old one as a draft or to
+// delete it (schoolReplaceProgram). → the choice, or null when the user cancels.
+const askReplaceOccupant=(title,period)=>schoolReplaceProgram({title,
+  message:`Η περίοδος ${quoted(period?.name||"")} έχει ήδη σχέδιο Ολοημέρου. Τι να γίνει με αυτό; Με «Πλήρης αντικατάσταση» διαγράφεται κατά την «Αποθήκευση».`,
+  suggestedName:`Ολοήμερο ${period?.name||""} – αντικαταστάθηκε ${D.format(D.today())}`});
+// The pending change for the old design of the period, after the user's choice.
+function replaceOccupant(program,choice,now){
+  pending.set(program.id,choice.mode==="draft"?{op:"put",program:{...structuredClone(program),periodId:null,name:choice.name,updatedAt:now}}:{op:"delete"});
 }
 
 // «Αντιγραφή από άλλη περίοδο…»: the design of another period, as stored, into the period selected now.
@@ -3812,14 +3666,11 @@ async function copyFromPeriod(){
   if(!chosen)return;
   if(!await discardIfDirty(discardMessage()))return;
   const replacing=savedOfPeriod(periodId);
-  let choice=null;
-  if(replacing){
-    choice=await schoolReplaceProgram({title:"Αντιγραφή από άλλη περίοδο",message:`Η περίοδος ${quoted(target?.name||"")} έχει ήδη σχέδιο Ολοημέρου. Τι να γίνει με αυτό; Με «Πλήρης αντικατάσταση» διαγράφεται κατά την «Αποθήκευση».`,suggestedName:`Ολοήμερο ${target?.name||""} – αντικαταστάθηκε ${D.format(D.today())}`});
-    if(!choice)return;
-  }
+  const choice=replacing?await askReplaceOccupant("Αντιγραφή από άλλη περίοδο",target):null;
+  if(replacing&&!choice)return;
   const source=savedOfPeriod(chosen),now=nowIso();
   if(!source)return;
-  if(replacing)pending.set(replacing.id,choice.mode==="draft"?{op:"put",program:{...structuredClone(replacing),periodId:null,name:choice.name,updatedAt:now}}:{op:"delete"});
+  if(replacing)replaceOccupant(replacing,choice,now);
   current={id:crypto.randomUUID(),periodId,name:"",createdAt:now,updatedAt:now,csvName:"",importedAt:"",isNew:true};
   selectedPeriodId=periodId;
   applyModel(withNewActivityIds(modelFromProgram(source)));
@@ -3850,18 +3701,15 @@ async function assignToPeriod(){
   if(!chosen?.periodId)return;
   const {periodId}=chosen;
   const period=periodOf(periodId),occupant=designOfPeriod(periodId,effectivePrograms());
-  let choice=null;
-  if(occupant){
-    choice=await schoolReplaceProgram({title:"Ανάθεση σε περίοδο",message:`Η περίοδος ${quoted(period.name)} έχει ήδη σχέδιο Ολοημέρου. Τι να γίνει με αυτό; Με «Πλήρης αντικατάσταση» διαγράφεται κατά την «Αποθήκευση».`,suggestedName:`Ολοήμερο ${period.name} – αντικαταστάθηκε ${D.format(D.today())}`});
-    if(!choice)return;
-  }
+  const choice=occupant?await askReplaceOccupant("Ανάθεση σε περίοδο",period):null;
+  if(occupant&&!choice)return;
   const now=nowIso(),name=current.name;
   // Preserve the original draft with its id, name and contents. A new, independent program is assigned to the period.
   // New or modified drafts must be written together with the assigned program on «Αποθήκευση».
   if(currentChanged())pending.set(current.id,{op:"put",program:buildProgram({...current,updatedAt:now},captureModel())});
   if(occupant){
     const old=programForId(occupant.id);
-    if(old)pending.set(occupant.id,choice.mode==="draft"?{op:"put",program:{...structuredClone(old),periodId:null,name:choice.name,updatedAt:now}}:{op:"delete"});
+    if(old)replaceOccupant(old,choice,now);
   }
   current={...current,id:crypto.randomUUID(),periodId,isNew:true,createdAt:now,updatedAt:now};
   selectedPeriodId=periodId;
@@ -3991,7 +3839,7 @@ async function saveDesigns(){
   const ops=[...pending].map(([id,change])=>change.op==="delete"?{op:"delete",id}:{op:"put",program:structuredClone(change.program)});
   let put=null;
   const changed=current&&currentChanged();
-  if(changed&&current.periodId==null&&!String(current.name||"").trim()){alert("Το προσχέδιο χρειάζεται όνομα. Δώσ' το από τη «Διαχείριση προσχεδίων…».");return}
+  if(changed&&current.periodId==null&&!String(current.name||"").trim()){showMessage("Το προσχέδιο χρειάζεται όνομα. Δώσ' το από τη «Διαχείριση προσχεδίων…».");return}
   if(changed)ops.push({op:"put",program:buildProgram({...current,updatedAt:nowIso()},captureModel())});
   if(!ops.length){loadClean(savedTarget());return}
   // New classes of imports: only those that a program of this save still names. The programs are built
@@ -4026,7 +3874,7 @@ async function saveDesigns(){
     loadClean(current&&savedProgram(current.id)?{programId:current.id}:defaultTarget());
     setStatus("Οι αλλαγές αποθηκεύτηκαν στο κοινό αρχείο .data"+(newClasses.length?` · νέα τμήματα στα «Τμήματα»: ${newClasses.map(item=>item.name).join(", ")}`:""));
   }catch(error){
-    alert("Η αποθήκευση δεν έγινε.\n\n"+(error?.message||String(error)));
+    showMessage("Η αποθήκευση δεν έγινε.\n\n"+(error?.message||String(error)));
   }finally{setBusy(false);renderAll()}
 }
 
@@ -4048,7 +3896,7 @@ async function exportCsv(){
       (dirty?"\n\nΤο CSV έχει ό,τι δείχνει ο πίνακας, μαζί με τις μη αποθηκευμένες αλλαγές.":""),
       {title:"Εξαγωγή CSV για το FET"}
     );
-  }catch(error){if(!cancelled(error))alert("Το CSV δεν αποθηκεύτηκε.\n\n"+(error?.message||String(error)))}
+  }catch(error){if(!cancelled(error))showMessage("Το CSV δεν αποθηκεύτηκε.\n\n"+(error?.message||String(error)))}
 }
 
 // ---- Dropping a CSV on the board: import into a new draft ----
@@ -4057,7 +3905,7 @@ async function exportCsv(){
 // is read here.
 async function importDroppedFile(file){
   clearProjectFileDragState();
-  if(!file||!/\.csv$/i.test(file.name||"")){alert("Μπορείς να αφήσεις εδώ ένα αρχείο CSV του Ολοημέρου.");return}
+  if(!file||!/\.csv$/i.test(file.name||"")){showMessage("Μπορείς να αφήσεις εδώ ένα αρχείο CSV του Ολοημέρου.");return}
   await importCsv({dropped:{name:file.name,text:file.text}});
 }
 
@@ -4098,7 +3946,7 @@ document.addEventListener("drop",async e=>{
 schoolHost.on("school-oloimero:dropped-file",message=>void importDroppedFile(message.result));
 schoolHost.on("school-oloimero:dropped-file-error",message=>{
   clearProjectFileDragState();
-  alert("Το αρχείο CSV δεν μπορεί να ανοιχτεί.\n\n"+(message.error||"Άγνωστο σφάλμα."));
+  showMessage("Το αρχείο CSV δεν μπορεί να ανοιχτεί.\n\n"+(message.error||"Άγνωστο σφάλμα."));
 });
 
 function applySelectedPrintMode(){
@@ -4201,16 +4049,12 @@ schoolHost.on("school-timetables:context",message=>{if(!dirty&&!busy)receive(mes
 
 // ---- Header menus and buttons ----
 const MENUS=[["#planMenuButton","#planMenu"],["#saveMenuButton","#saveMenu"],["#undoMenuButton","#undoMenu"]];
-function closeMenus(except=null){
-  for(const [buttonSelector,menuSelector] of MENUS){
-    if(menuSelector===except)continue;
-    document.querySelector(menuSelector).hidden=true;
-    document.querySelector(buttonSelector).setAttribute("aria-expanded","false");
-  }
+function closeMenu(buttonSelector,menuSelector){
+  document.querySelector(menuSelector).hidden=true;
+  document.querySelector(buttonSelector).setAttribute("aria-expanded","false");
 }
-function closeUndoMenu(){
-  document.querySelector("#undoMenu").hidden=true;
-  document.querySelector("#undoMenuButton").setAttribute("aria-expanded","false");
+function closeMenus(except=null){
+  for(const [buttonSelector,menuSelector] of MENUS)if(menuSelector!==except)closeMenu(buttonSelector,menuSelector);
 }
 for(const [buttonSelector,menuSelector] of MENUS){
   document.querySelector(buttonSelector).addEventListener("click",event=>{
