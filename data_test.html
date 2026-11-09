@@ -12,7 +12,7 @@
   φτιάχνονται από το σύντομο όνομα των δασκάλων («[Α1] - …», classesFromStaff). Με το .data δοκιμής, οι
   έλεγχοι των νέων ετικετών (v2) παίρνουν το Προσωπικό από αυτό, γιατί το CSV του Ολοημέρου έχει τα σύντομα
   ονόματα του Προσωπικού.
-  Έκδοση αρχείου: 0.31
+  Έκδοση αρχείου: 0.34
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -74,7 +74,7 @@ async function decodedText(file) {
   try { return new TextDecoder('utf-8', {fatal: true}).decode(bytes); } catch { return new TextDecoder('windows-1253').decode(bytes); }
 }
 // Προαιρετικό: ένα κοινό αρχείο .data χωρίς κωδικό, με Προσωπικό και Ώρες Διδασκαλίας (για τους ελέγχους του host).
-const DATA_LABEL = 'κοινό αρχείο .data χωρίς κωδικό (προαιρετικό, για τον host)';
+const DATA_LABEL = 'porfyriada_2026-2027.data (προαιρετικό, χωρίς κωδικό, για τον host)';
 const texts = {};
 let dataName = '';
 
@@ -129,7 +129,7 @@ function teachingHours(tags) {
 }
 const HOURS_OLD = teachingHours({early: 'ΩΡΑ_ΟΛΟ_ΠΖ', meal: 'ΩΡΑ_ΟΛΟ_1', h1: 'ΩΡΑ_ΟΛΟ_2', h2: 'ΩΡΑ_ΟΛΟ_3', h3: 'ΩΡΑ_ΟΛΟ_4', h4: 'ΩΡΑ_ΟΛΟ_5',
   days: {mon: 'ΜΕΡΑ_ΟΛΟ_Δευτέρα', tue: 'ΜΕΡΑ_ΟΛΟ_Τρίτη', wed: 'ΜΕΡΑ_ΟΛΟ_Τετάρτη', thu: 'ΜΕΡΑ_ΟΛΟ_Πέμπτη', fri: 'ΜΕΡΑ_ΟΛΟ_Παρασκευή'}});
-const HOURS_V2 = teachingHours({early: 'ΩΡΑ_ΠΖ_1', meal: 'ΩΡΑ_ΓΕΥΜΑ_1', h1: 'ΩΡΑ_ΟΛΟ_1', h2: 'ΩΡΑ_ΟΛΟ_2', h3: 'ΩΡΑ_ΟΛΟ_3', h4: 'ΩΡΑ_ΟΛΟ_4',
+const HOURS_V2 = teachingHours({early: '[ΩΡΑ_ΠΖ_1]', meal: '[ΩΡΑ_ΓΕΥΜΑ_1]', h1: '[ΩΡΑ_ΟΛΟ_1]', h2: '[ΩΡΑ_ΟΛΟ_2]', h3: '[ΩΡΑ_ΟΛΟ_3]', h4: '[ΩΡΑ_ΟΛΟ_4]',
   days: {mon: '[ΗΜ_ΔΕΥΤΕΡΑ]', tue: '[ΗΜ_ΤΡΙΤΗ]', wed: '[ΗΜ_ΤΕΤΑΡΤΗ]', thu: '[ΗΜ_ΠΕΜΠΤΗ]', fri: '[ΗΜ_ΠΑΡΑΣΚΕΥΗ]'}});
 const CLASSES = ['Α1', 'Α2', 'Β1', 'Β2', 'Γ1', 'Γ2', 'Δ1', 'Δ2', 'Ε1', 'Ε2', 'Στ1', 'Στ2'];
 
@@ -243,7 +243,6 @@ function basics() {
   equal('Ομάδες ωρών: early 1, morning 6, meal 1, afternoon 2, extended 2, break 5', Object.fromEntries(Object.entries(T.hourGroups(HOURS_V2)).map(([k, v]) => [k, v.length])), {early: 1, morning: 6, meal: 1, afternoon: 2, extended: 2, break: 5});
   // Οι νέες ετικέτες ωρών έχουν αγκύλες· ο εισαγωγέας δέχεται και παλιό CSV χωρίς αγκύλες.
   const bracketedHours = clone(HOURS_V2);
-  bracketedHours.hours.forEach(hour => { if (hour.fetTag) hour.fetTag = '[' + hour.fetTag + ']'; });
   equal('Οι ετικέτες ωρών με αγκύλες διαβάζονται από το κοινό μοντέλο', T.oloimeroHours(bracketedHours).filter(hour => hour.fetTag).map(hour => hour.fetTag),
     ['[ΩΡΑ_ΠΖ_1]', '[ΩΡΑ_ΓΕΥΜΑ_1]', '[ΩΡΑ_ΟΛΟ_1]', '[ΩΡΑ_ΟΛΟ_2]', '[ΩΡΑ_ΟΛΟ_3]', '[ΩΡΑ_ΟΛΟ_4]']);
   const testStaff = [{id: 's', code: 'Α1', shortName: '[Α1] - Δασκάλα', serviceType: 'classroom', branch: 'ΠΕ70'}];
@@ -1529,7 +1528,7 @@ function run() {
     const wrong = importer.analyze({csv: {name: 'wrong.csv', text: wrongTags}}, {staff, classes, teachingHours: HOURS_V2});
     check('CSV με ετικέτες ωρών που δεν έχουν οι Ώρες Διδασκαλίας: η εισαγωγή σταματά', !wrong.ok && has(wrong.errors, 'ετικέτες των Ωρών Διδασκαλίας'), wrong.errors.join('\n'));
     {
-      const lines = texts.design.split('\n'), index = lines.findIndex(line => line.includes('[ΗΜ_ΤΡΙΤΗ]+ΩΡΑ_ΟΛΟ_2'));
+      const lines = texts.design.split('\n'), index = lines.findIndex(line => line.includes('[ΗΜ_ΤΡΙΤΗ]+[ΩΡΑ_ΟΛΟ_2]'));
       lines[index] = lines[index].replace('ΩΡΑ_ΟΛΟ_2', 'ΩΡΑ_ΑΓΝΩΣΤΗ');
       const one = importer.analyze({csv: {name: 'one.csv', text: lines.join('\n')}}, {staff, classes, teachingHours: HOURS_V2});
       check('Μία γραμμή χωρίς γνωστή ετικέτα ώρας: προειδοποίηση με τη γραμμή, οι υπόλοιπες εισάγονται', one.ok && one.counts.activities === 68 && has(one.warnings, 'γραμμές ' + (index + 1)), messages(one));
