@@ -12,7 +12,7 @@
   φτιάχνονται από το σύντομο όνομα των δασκάλων («[Α1] - …», classesFromStaff). Με το .data δοκιμής, οι
   έλεγχοι των νέων ετικετών (v2) παίρνουν το Προσωπικό από αυτό, γιατί το CSV του Ολοημέρου έχει τα σύντομα
   ονόματα του Προσωπικού.
-  Έκδοση αρχείου: 0.35
+  Έκδοση αρχείου: 0.36
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -686,7 +686,7 @@ function hostCalendarChecks() {
   const C = window.SchoolHostCalendar;
   if (!C) { record('fail', 'Λείπει το _host_calendar.js'); return; }
   const year = '2026-2027';
-  const meeting = extra => ({startTime: '13:20', endTime: '14:00', subject: 'Θέμα', directorId: 's3', directorName: 'Δ', present: ['s1'], absent: ['s2'], absenceReasons: {'s2': 'leavePending'}, scheduleAutoReasons: {}, leaveAutoIds: ['s2'], ...extra});
+  const meeting = extra => ({startTime: '13:20', endTime: '14:00', subject: {html: '<p>Κείμενο</p>', tags: []}, directorId: 's3', directorName: 'Δ', present: ['s1'], absent: ['s2'], absenceReasons: {'s2': 'leavePending'}, scheduleAutoReasons: {}, leaveAutoIds: ['s2'], ...extra});
   const base = {format: 'school-shared-data', formatVersion: 1, school: {name: 'Σχολείο', year},
     staffByYear: {[year]: [{id: 's1', code: 'Α1'}, {id: 's2', code: 'Α2'}, {id: 's3', code: 'ΔΘ', role: 'director'}]},
     calendarByYear: {'2025-2026': {entries: {'2026-01-10': {personalNotes: [{id: 'n0', html: 'παλιό'}], schoolLifeBook: {html:'', tags:[]}}}, ssdMeetings: {}, pedagogicMeetings: {}}}};
@@ -708,6 +708,13 @@ function hostCalendarChecks() {
   equal('Κενό Βιβλίο με προσωπική σημείωση: το Βιβλίο καθαρίζεται, η ημέρα μένει',
     C.validateCalendar({entries: {'2026-11-14': {personalNotes: notes('Π'), schoolLifeBook: {html:'', tags:[{type:'general', id:'g1'}]}}}}, year, []).entries['2026-11-14'].schoolLifeBook,
     {html:'', tags:[]});
+  equal('Κείμενο συνεδρίασης: αποθηκεύεται ως {html, tags}', saved.calendarByYear[year].ssdMeetings['2026-11-12'].subject, {html: '<p>Κείμενο</p>', tags: []});
+  equal('Συνεδρίαση χωρίς κείμενο ή χωρίς tags: κενό κείμενο / κενή λίστα',
+    [C.validateCalendar({pedagogicMeetings: {'2026-11-20': meeting({subject: undefined})}}, year, base.staffByYear[year]).pedagogicMeetings['2026-11-20'].subject,
+      C.validateCalendar({pedagogicMeetings: {'2026-11-20': meeting({subject: {html: 'Κ'}})}}, year, base.staffByYear[year]).pedagogicMeetings['2026-11-20'].subject],
+    [{html: '', tags: []}, {html: 'Κ', tags: []}]);
+  equal('Κενό κείμενο συνεδρίασης με ετικέτες: δεν αποθηκεύονται ετικέτες',
+    C.validateCalendar({pedagogicMeetings: {'2026-11-20': meeting({subject: {html: '', tags: [{type: 'general', id: 'g1'}]}})}}, year, base.staffByYear[year]).pedagogicMeetings['2026-11-20'].subject, {html: '', tags: []});
   equal('Ο λόγος «Αναμονή άδειας» γίνεται δεκτός', saved.calendarByYear[year].pedagogicMeetings['2026-11-20'].absenceReasons['s2'], 'leavePending');
   check('Το αρχικό data δεν αλλάζει', !base.calendarByYear[year]);
   const rejects = (label, value, text) => { try { C.applySave(base, {calendar: value}); record('fail', label, 'έγινε δεκτό'); } catch (error) { check(label, error.message.includes(text), error.message); } };
@@ -723,6 +730,9 @@ function hostCalendarChecks() {
     {entries: {'2026-11-13': {personalNotes: [], schoolLifeBook: {html:12, tags:[]}}}}, 'Μη έγκυρες σημειώσεις');
   rejects('Βιβλίο με HTML πάνω από το όριο: απορρίπτεται',
     {entries: {'2026-11-13': {personalNotes: [], schoolLifeBook: {html:'x'.repeat(C.LIMITS.html + 1), tags:[]}}}}, 'Μη έγκυρες σημειώσεις');
+  rejects('Κείμενο συνεδρίασης ως απλό κείμενο (παλιά μορφή): απορρίπτεται', {ssdMeetings: {'2026-11-12': meeting({actNumber: 1, subject: 'Θέμα'})}}, 'Μη έγκυρο κείμενο');
+  rejects('Κείμενο συνεδρίασης με μη έγκυρο html: απορρίπτεται', {pedagogicMeetings: {'2026-11-12': meeting({subject: {html: 12, tags: []}})}}, 'Μη έγκυρο κείμενο');
+  rejects('Κείμενο συνεδρίασης με HTML πάνω από το όριο: απορρίπτεται', {pedagogicMeetings: {'2026-11-12': meeting({subject: {html: 'x'.repeat(C.LIMITS.html + 1), tags: []}})}}, 'Μη έγκυρο κείμενο');
   rejects('Λάθος ώρα συνεδρίασης: απορρίπτεται', {ssdMeetings: {'2026-11-12': meeting({actNumber: 1, startTime: '25:00'})}}, 'HH:MM');
   rejects('Λήξη πριν από την έναρξη: απορρίπτεται', {pedagogicMeetings: {'2026-11-12': meeting({startTime: '14:00', endTime: '13:20'})}}, 'ώρα λήξης');
   rejects('Διπλός αριθμός πράξης στο έτος: απορρίπτεται', {ssdMeetings: {'2026-11-12': meeting({actNumber: 3}), '2026-12-01': meeting({actNumber: 3})}}, 'υπάρχει στις 12/11/2026 και στις 01/12/2026');
@@ -1073,6 +1083,31 @@ function hostTagsChecks() {
   equal('Context Ημερολογίου: το Βιβλίο και οι γενικές ετικέτες του εμφανίζονται χωριστά από τις σημειώσεις',
     [bookContext.calendar.entries['2026-11-10'].schoolLifeBook.tags.length, bookContext.tagUsage.g1.map(row => [row.one, row.count])],
     [4, [['Προσωπική Σημείωση', 2], ['Καταχώρηση Βιβλίου Σχολικής Ζωής', 1]]]);
+
+  // Ετικέτες στο κείμενο των συνεδριάσεων (ΣΣΔ και Παιδαγωγική Συνάντηση)
+  const meetingRefs = [{type: 'general', id: 'g1'}, {type: 'class', id: 'c1'}, {type: 'staff', id: 's1'}, {type: 'student', id: 'm1'}];
+  const meetingOf = (tagList, extra = {}) => ({startTime: '13:20', endTime: '14:00', subject: {html: '<p>Πρακτικό</p>', tags: tagList}, directorId: '', directorName: '', present: ['s1'], absent: [], absenceReasons: {}, scheduleAutoReasons: {}, leaveAutoIds: [], ...extra});
+  const withMeetings = clone(calendar);
+  withMeetings.ssdMeetings = {'2026-11-12': meetingOf([...meetingRefs, meetingRefs[0]], {actNumber: 1})};
+  withMeetings.pedagogicMeetings = {'2026-11-13': meetingOf([{type: 'general', id: 'g1'}]), '2026-11-14': meetingOf([{type: 'general', id: 'g1'}], {subject: {html: '', tags: [{type: 'general', id: 'g1'}]}})};
+  const savedMeetings = Cal.applySave(base, {calendar: withMeetings});
+  equal('Συνεδριάσεις: το κείμενο κρατά τις ετικέτες όλων των κατηγοριών χωρίς διπλές· κενό κείμενο χωρίς ετικέτες',
+    [savedMeetings.calendarByYear[year].ssdMeetings['2026-11-12'].subject, savedMeetings.calendarByYear[year].pedagogicMeetings['2026-11-14'].subject],
+    [{html: '<p>Πρακτικό</p>', tags: meetingRefs}, {html: '', tags: []}]);
+  rejectsSave('Συνεδρίαση με ετικέτα που δεν υπάρχει: απορρίπτεται, με την ημερομηνία',
+    {calendar: {pedagogicMeetings: {'2026-11-15': meetingOf([{type: 'student', id: 'xx'}])}}}, '15/11/2026');
+  const meetingUsage = H.usage(savedMeetings, year);
+  equal('Χρήση: οι ΣΣΔ και οι Παιδαγωγικές Συναντήσεις μετρούν χωριστά (κείμενο χωρίς html δεν μετρά)',
+    [meetingUsage.general.g1.map(row => [row.one, row.count]), meetingUsage.class.c1.map(row => [row.many, row.count])],
+    [[['Προσωπική Σημείωση', 2], ['Συνεδρίαση ΣΣΔ', 1], ['Παιδαγωγική Συνάντηση', 1]], [['Προσωπικές Σημειώσεις', 1], ['Συνεδριάσεις ΣΣΔ', 1]]]);
+  const removedMeetingTag = Cal.applySave(savedMeetings, {calendar: savedMeetings.calendarByYear[year], tags: {general: [tags.general[1]], colors: {}}});
+  equal('Διαγραφή γενικής ετικέτας: φεύγει και από το κείμενο των συνεδριάσεων',
+    [removedMeetingTag.calendarByYear[year].ssdMeetings['2026-11-12'].subject.tags.map(ref => ref.id), removedMeetingTag.calendarByYear[year].pedagogicMeetings['2026-11-13'].subject.tags],
+    [['c1', 's1', 'm1'], []]);
+  const removedMeetingStudent = clone(savedMeetings);
+  equal('Διαγραφή μαθητή: η ετικέτα του φεύγει και από τις συνεδριάσεις (removeRefs)',
+    [H.removeRefs(removedMeetingStudent, year, 'student', ['m1']), removedMeetingStudent.calendarByYear[year].ssdMeetings['2026-11-12'].subject.tags.map(ref => ref.id)],
+    [2, ['g1', 'c1', 's1']]);
 
   // Εκπαιδευτικοί και μαθητές ως ετικέτες: tagUsage στο school-staff:context και στο school-students:context, για την
   // προειδοποίηση πριν από την αφαίρεση. Το context του Προσωπικού το φτιάχνει το index.html με το

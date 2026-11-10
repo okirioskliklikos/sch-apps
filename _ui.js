@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.29
+ * Έκδοση αρχείου: 0.30
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -12,6 +12,7 @@
  *   window.schoolColorPicker, window.schoolColor   επιλογέας χρώματος και βοηθητικά χρώματος
  *   window.schoolRichText                          κείμενο με μορφοποίηση (μπάρα και πεδίο)
  *   window.schoolTags                              ετικέτες: chips, επιλογέας, διαχείριση (χρειάζεται το _data.js)
+ *   window.schoolTaggedText                        πλαίσιο κειμένου με μορφοποίηση και ετικέτες (χρειάζεται το _data.js)
  *   window.schoolHost                              επικοινωνία υποεφαρμογής ↔ Κεντρικού Μενού
  *   window.schoolEscape                            ασφαλές κείμενο μέσα σε HTML
  *   window.schoolIcon                              κοινά εικονίδια SVG
@@ -28,7 +29,7 @@
  * Κουμπιά κάτω δεξιά σε κάθε διάλογο: τέρμα δεξιά η «Ακύρωση», αριστερά της η προεπιλεγμένη ενέργεια
  * (αποδοχή) και πιο αριστερά οι υπόλοιπες. Κάτω αριστερά δεν μπαίνουν κουμπιά.
  * Η εμφάνιση των διαλόγων ορίζεται στο _ui.css (.school-confirm, .school-choice-*, .school-import-*,
- *   .school-color-picker, .school-richtext-*, .school-tag*)
+ *   .school-color-picker, .school-richtext-*, .school-tag*, .school-tagged-text*)
  * και του κουμπιού «☰» στο _subapp.css.
  */
 (() => {
@@ -1388,6 +1389,164 @@
   }
   const schoolTags = Object.freeze({chips: tagChips, chip: tagChip, pick: tagPick, manage: tagManage, usageText: tagUsageText});
 
+  // ---- Κείμενο με μορφοποίηση και ετικέτες (window.schoolTaggedText) ----
+  // Ένα πλαίσιο με μορφοποιημένο κείμενο και ετικέτες, που αλλάζει μέσα στη θέση του. Προβολή: το κείμενο (ή το
+  // emptyText), από κάτω οι ετικέτες ως chips και δεξιά το μολυβάκι και, όταν υπάρχει κείμενο, το «×». Επεξεργασία:
+  // schoolRichText με «Αποδοχή» / «Ακύρωση» στη μπάρα και από κάτω η γραμμή ετικετών (chips με «×», «Χωρίς ετικέτες»,
+  // «Ετικέτες…» με τον επιλογέα και τη «Διαχείριση ετικετών…»). Χρειάζεται το _data.js.
+  //   schoolTaggedText.create(options) → {element, value, editing, edit(focus), commit(), cancel(), refresh(), focus()}
+  //     value        {html, tags}: η αρχική τιμή
+  //     editing      true: ανοίγει κατευθείαν σε επεξεργασία (π.χ. νέα σημείωση)
+  //     label        aria-label του πεδίου· color: το αρχικό χρώμα του «A» (schoolRichText)
+  //     texts        {empty, edit, create, remove, accept, cancel, removeConfirm, removeTitle, pickTitle}
+  //     tags         {data() → {tags, classes, staff, students}, usage(id, current) → [{one, many, count}],
+  //                  limits, onRegistry(registry, removedIds)}: το μητρώο του διαλόγου το κρατά η εφαρμογή· current
+  //                  είναι η ανοιχτή τιμή {html, tags}, για να μετρηθεί στη χρήση
+  //     tools        true (προεπιλογή): φαίνονται το μολυβάκι και το «×»· locked() → true: ανενεργά (π.χ. όσο
+  //                  αλλάζει άλλο στοιχείο)
+  //     before       στοιχείο μπροστά από το κείμενο στην προβολή (π.χ. λαβή μετακίνησης)
+  //     resizable    true: το πλαίσιο μεγαλώνει από κάτω δεξιά, και κρατά το ύψος του σε προβολή και επεξεργασία
+  //     className    επιπλέον κλάσεις του πλαισίου
+  //     onChange(value, {removed})  μετά την «Αποδοχή» ή τη διαγραφή («×»)
+  //     onEditing(editing)          όταν ανοίγει ή κλείνει η επεξεργασία
+  //   Ένα κείμενο χωρίς ορατό κείμενο δίνει {html:'', tags:[]}, ακόμη κι αν είχε ετικέτες. Οι γενικές ετικέτες που
+  //   διαγράφονται στη «Διαχείριση ετικετών…» φεύγουν και από αυτό το πλαίσιο· από τα άλλα στοιχεία τις βγάζει η
+  //   εφαρμογή στο onRegistry. Η εμφάνιση είναι στο _ui.css (.school-tagged-text*), με τα χρώματα
+  //   --school-tagged-text-bg (πλαίσιο) και --school-tagged-text-editor-bg (πεδίο).
+  function createTaggedText(options = {}) {
+    const Tags = tagsLib();
+    const texts = {empty: '', edit: 'Επεξεργασία', create: 'Νέο κείμενο', remove: 'Διαγραφή', accept: 'Αποδοχή αλλαγών', cancel: 'Ακύρωση αλλαγών',
+      removeConfirm: '', removeTitle: 'Διαγραφή', pickTitle: 'Ετικέτες', ...(options.texts || {})};
+    const tagOptions = options.tags || {};
+    const tagData = () => (typeof tagOptions.data === 'function' ? tagOptions.data() : tagOptions.data) || {};
+    const hasText = html => window.SchoolHtml ? window.SchoolHtml.hasText(html) : !!String(html ?? '').replace(/<[^>]*>/g, '').trim();
+    const normal = value => {
+      const html = cleanHtml(value?.html ?? '');
+      return hasText(html) ? {html, tags: Tags.clean(value?.tags)} : {html: '', tags: []};
+    };
+    const generalIds = tags => (tags?.general || []).map(item => item.id);
+    let value = normal(options.value), editing = false, rich = null, activeTags = [], height = null;
+    const box = document.createElement('div');
+    box.className = 'school-tagged-text' + (options.className ? ' ' + options.className : '') + (options.resizable ? ' is-resizable' : '');
+    const locked = () => typeof options.locked === 'function' ? !!options.locked() : !!options.locked;
+    const showTools = () => typeof options.tools === 'function' ? !!options.tools() : options.tools !== false;
+    // The height the user gave to a resizable box, kept between view and editing.
+    const sizedPart = () => box.querySelector(editing ? '.school-richtext-editor' : '.school-tagged-text-body');
+    // The height is kept as the height of the text area, without paddings and borders, because the field of the
+    // editor has more padding than the text in view.
+    const frame = part => { const style = getComputedStyle(part); return ['paddingTop', 'paddingBottom', 'borderTopWidth', 'borderBottomWidth'].reduce((sum, key) => sum + (parseFloat(style[key]) || 0), 0); };
+    const keepHeight = () => { const part = options.resizable && sizedPart(); if (part && part.style.height) height = part.getBoundingClientRect().height - frame(part); };
+    const applyHeight = () => { const part = options.resizable && sizedPart(); if (part && height) part.style.height = (height + frame(part)) + 'px'; };
+    const setEditing = next => { if (editing === next) return; editing = next; options.onEditing?.(editing); };
+
+    const chooseTags = async () => {
+      if (!editing) return;
+      const current = {html: rich ? rich.html : value.html, tags: activeTags};
+      const data = tagData();
+      const result = await tagPick({title: texts.pickTitle, refs: activeTags, data, usage: id => tagOptions.usage ? tagOptions.usage(id, current) : [], limits: tagOptions.limits});
+      if (!result || !editing) return;
+      const kept = new Set(generalIds(result.tags)), removed = generalIds(data.tags).filter(id => !kept.has(id));
+      activeTags = result.refs;
+      if (removed.length) value = {...value, tags: value.tags.filter(ref => !(ref.type === 'general' && removed.includes(ref.id)))};
+      tagOptions.onRegistry?.(result.tags, removed);
+      replaceTagBar();
+    };
+    const tagBar = () => {
+      const bar = document.createElement('div'); bar.className = 'school-tagged-text-tagbar';
+      const chips = tagChips(activeTags, tagData(), {onRemove: ref => { activeTags = activeTags.filter(tag => !Tags.same(tag, ref)); replaceTagBar(); }});
+      if (chips.childElementCount) bar.append(chips);
+      else { const none = document.createElement('span'); none.className = 'school-tagged-text-tagbar-empty'; none.textContent = 'Χωρίς ετικέτες'; bar.append(none); }
+      const button = document.createElement('button'); button.type = 'button'; button.className = 'ui-compact-button'; button.textContent = 'Ετικέτες…';
+      button.addEventListener('click', chooseTags);
+      bar.append(button);
+      return bar;
+    };
+    // Only the tag bar is drawn again, so the text written so far stays in the editor.
+    const replaceTagBar = () => {
+      const old = box.querySelector('.school-tagged-text-tagbar');
+      if (!old) return;
+      old.replaceWith(tagBar());
+      box.querySelector('.school-tagged-text-tagbar > button')?.focus();
+    };
+    const iconButton = (label, icon, click) => {
+      const button = document.createElement('button'); button.type = 'button'; button.className = 'school-tagged-text-tool';
+      button.innerHTML = schoolIcon(icon); button.title = label; button.setAttribute('aria-label', label);
+      button.disabled = locked(); button.addEventListener('click', click);
+      return button;
+    };
+    const render = () => {
+      box.classList.toggle('is-editing', editing);
+      box.classList.remove('has-before');
+      box.replaceChildren();
+      if (editing) {
+        const content = document.createElement('div'); content.className = 'school-tagged-text-content school-tagged-text-editor';
+        content.append(rich.element, tagBar());
+        box.append(content);
+        applyHeight();
+        return;
+      }
+      const before = !!options.before && showTools();
+      box.classList.toggle('has-before', before);
+      if (before) box.append(options.before);
+      const content = document.createElement('div'); content.className = 'school-tagged-text-content';
+      const body = document.createElement('div'); body.className = 'school-tagged-text-body';
+      if (value.html) { body.classList.add('school-tagged-text-html'); body.innerHTML = cleanHtml(value.html); }
+      else { body.classList.add('school-tagged-text-empty'); body.textContent = texts.empty; }
+      content.append(body);
+      box.append(content);
+      if (showTools()) {
+        const tools = document.createElement('div'); tools.className = 'school-tagged-text-tools';
+        tools.append(iconButton(value.html ? texts.edit : texts.create, 'edit', () => { if (!locked()) edit(true); }));
+        if (value.html) tools.append(iconButton(texts.remove, 'close', async () => {
+          if (locked() || editing) return;
+          if (texts.removeConfirm && !await schoolConfirm(texts.removeConfirm, {title: texts.removeTitle, accept: 'Διαγραφή'})) return;
+          value = {html: '', tags: []};
+          render();
+          options.onChange?.(value, {removed: true});
+        }));
+        box.append(tools);
+      }
+      const chips = tagChips(value.tags, tagData());
+      if (chips.childElementCount) {
+        const footer = document.createElement('div'); footer.className = 'school-tagged-text-tags';
+        footer.append(chips); box.append(footer);
+      }
+      applyHeight();
+    };
+    const close = () => { keepHeight(); rich = null; activeTags = []; setEditing(false); render(); };
+    function edit(focus = true) {
+      if (editing) return;
+      keepHeight();
+      activeTags = structuredClone(value.tags);
+      rich = createRichText({html: value.html, label: options.label, color: options.color, actions: [
+        {label: 'Αποδοχή', title: texts.accept, accept: true, run: () => commit()},
+        {label: 'Ακύρωση', title: texts.cancel, run: () => cancel()}
+      ]});
+      setEditing(true);
+      render();
+      if (focus) rich.focus();
+    }
+    // «Αποδοχή»: keeps the text and the tags (a text without visible text is empty, also without tags).
+    function commit() {
+      if (!editing || !rich) return false;
+      value = normal({html: rich.html, tags: activeTags});
+      close();
+      options.onChange?.(value, {removed: false});
+      return true;
+    }
+    function cancel() { if (editing) close(); }
+    if (options.editing) edit(false); else render();
+    return {
+      element: box,
+      get value() { return structuredClone(value); },
+      get editing() { return editing; },
+      edit, commit, cancel,
+      refresh() { if (!editing) render(); else replaceTagBar(); },
+      focus() { if (rich) rich.focus(); else box.querySelector('.school-tagged-text-tools button')?.focus(); }
+    };
+  }
+  const schoolTaggedText = Object.freeze({create: createTaggedText});
+
   window.schoolMessage = schoolMessage;
   window.schoolConfirm = schoolConfirm;
   window.schoolChoiceDialog = schoolChoiceDialog;
@@ -1401,4 +1560,5 @@
   window.schoolListSelection = schoolListSelection;
   window.schoolHost = schoolHost;
   window.schoolTags = schoolTags;
+  window.schoolTaggedText = schoolTaggedText;
 })();

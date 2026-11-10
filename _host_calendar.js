@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Σχολικό Ημερολόγιο στο Κεντρικό Μενού (host)
- * Έκδοση αρχείου: 0.6
+ * Έκδοση αρχείου: 0.7
  * Όνομα κατά την εγκατάσταση: _host_calendar.js
  *
  * Κώδικας μόνο του host για το Σχολικό Ημερολόγιο (calendarByYear). Το φορτώνει το index.html μετά το
@@ -27,8 +27,10 @@
  *                               ως αλλαγή δεδομένων: γράφεται όπως το lastViewByYear (βλέπε install).
  * Οι εκπαιδευτικοί των συνεδριάσεων αναφέρονται με το id τους στο Προσωπικό (present, absent, absenceReasons,
  * scheduleAutoReasons, leaveAutoIds, directorId), όπως στα προγράμματα: αλλαγή κωδικού ή ονόματος δεν τους επηρεάζει.
- * Ετικέτες των Προσωπικών Σημειώσεων και του Βιβλίου Σχολικής Ζωής: tags:[{type, id}…] σε κάθε προσωπική σημείωση
- * και στην καταχώρηση του Βιβλίου κάθε ημέρας (ή κενή λίστα), ανεξάρτητα, με τους ελέγχους του _host_tags.js
+ * Το κείμενο μιας συνεδρίασης (Κείμενο Συνεδρίασης / Συνάντησης) είναι subject:{html, tags}, όπως το schoolLifeBook.
+ * Ετικέτες των Προσωπικών Σημειώσεων, του Βιβλίου Σχολικής Ζωής και των συνεδριάσεων: tags:[{type, id}…] σε κάθε
+ * προσωπική σημείωση, στην καταχώρηση του Βιβλίου κάθε ημέρας και στο κείμενο κάθε συνεδρίασης (ή κενή λίστα),
+ * ανεξάρτητα, με τους ελέγχους του _host_tags.js
  * (φορτώνεται μετά από αυτό· το χρησιμοποιεί τη στιγμή της κλήσης). Το school-calendar:save δέχεται και προαιρετικό
  * tags, το μητρώο ετικετών του έτους, που αντικαθιστά το tagsByYear[year] στην ίδια αποθήκευση.
  */
@@ -39,7 +41,7 @@
 
   const APP = 'school_calendar.html';
   // Όρια: πιάνουν λάθη εφαρμογών, όχι πραγματικά δεδομένα (ένα σχολικό έτος έχει έως 366 ημέρες).
-  const LIMITS = Object.freeze({notes: 366, html: 200000, subject: 20000, name: 300, id: 200, people: 300});
+  const LIMITS = Object.freeze({notes: 366, html: 200000, name: 300, id: 200, people: 300});
   const ZOOM = Object.freeze({min: 70, max: 150, step: 10, fallback: 100});
   const REASONS = Object.freeze(['leave', 'leavePending', 'lesson', 'otherSchool', 'other']);
   const AUTO_REASONS = Object.freeze(['lesson', 'otherSchool']);
@@ -72,7 +74,7 @@
   }
 
   // school-calendar:context: το Προσωπικό και το Ημερολόγιο του έτους, και το ζουμ. Για τις ετικέτες των
-  // Προσωπικών Σημειώσεων και του Βιβλίου Σχολικής Ζωής: το μητρώο (tags), η χρήση των γενικών ετικετών
+  // Προσωπικών Σημειώσεων, του Βιβλίου Σχολικής Ζωής και των συνεδριάσεων: το μητρώο (tags), η χρήση των γενικών ετικετών
   // (tagUsage), τα Τμήματα, οι Μαθητές και τα όρια (limits).
   function context(data, revision) {
     const year = data.school.year, H = hostTags();
@@ -119,20 +121,33 @@
     }
     return out;
   }
-  function validateMeeting(meeting, key, ssd, ids) {
+  // Ετικέτες ενός στοιχείου (σημείωση, Βιβλίο, κείμενο συνεδρίασης): κενή λίστα χωρίς το _host_tags.js.
+  function validTags(tags, known, where) {
+    if (tags == null || (Array.isArray(tags) && !tags.length)) return [];
+    const H = hostTags();
+    if (!H) throw Error(missingTags);
+    return H.validateRefs(tags, known, where, APP);
+  }
+  // Το κείμενο μιας συνεδρίασης: {html, tags}, όπως το schoolLifeBook. Χωρίς κείμενο μένει κενό, χωρίς ετικέτες.
+  function validateSubject(subject, when, ssd, known) {
+    if (subject == null) return {html: '', tags: []};
+    if (!isObject(subject) || !isText(subject.html ?? '', LIMITS.html)) throw Error('Μη έγκυρο κείμενο στη συνεδρίαση της ' + when + '. Βεβαιώσου ότι το school_calendar.html είναι η τελευταία έκδοση.');
+    const html = subject.html || '';
+    return {html, tags: html ? validTags(subject.tags, known, (ssd ? 'στη συνεδρίαση ΣΣΔ' : 'στην παιδαγωγική συνάντηση') + ' της ' + when) : []};
+  }
+  function validateMeeting(meeting, key, ssd, ids, known) {
     const when = formatDate(key);
     if (!isObject(meeting)) throw Error('Μη έγκυρη συνεδρίαση στις ' + when + '.');
     if (!TIME.test(meeting.startTime || '') || !TIME.test(meeting.endTime || '')) throw Error('Μη έγκυρη ώρα στη συνεδρίαση της ' + when + ' (μορφή HH:MM).');
     if (!(meeting.startTime < meeting.endTime)) throw Error('Η ώρα λήξης της συνεδρίασης της ' + when + ' δεν είναι μετά την ώρα έναρξης.');
-    for (const field of ['subject', 'directorName']) {
-      if (meeting[field] != null && !isText(meeting[field], field === 'subject' ? LIMITS.subject : LIMITS.name)) throw Error('Μη έγκυρο κείμενο στη συνεδρίαση της ' + when + '.');
-    }
+    if (meeting.directorName != null && !isText(meeting.directorName, LIMITS.name)) throw Error('Μη έγκυρο κείμενο στη συνεδρίαση της ' + when + '.');
+    const subject = validateSubject(meeting.subject, when, ssd, known);
     if (meeting.directorId) checkPerson(meeting.directorId, ids, when);
     const present = idList(meeting.present, 'Παρόντες', when, ids), absent = idList(meeting.absent, 'Απόντες', when, ids);
     if (present.some(id => absent.includes(id))) throw Error('Ένας εκπαιδευτικός είναι και στους Παρόντες και στους Απόντες στη συνεδρίαση της ' + when + '.');
     const out = {
       startTime: meeting.startTime, endTime: meeting.endTime,
-      subject: meeting.subject || '', directorId: meeting.directorId || '', directorName: meeting.directorName || '',
+      subject, directorId: meeting.directorId || '', directorName: meeting.directorName || '',
       present, absent,
       absenceReasons: reasonMap(meeting.absenceReasons, REASONS, 'αιτιολογίες', when, ids),
       scheduleAutoReasons: reasonMap(meeting.scheduleAutoReasons, AUTO_REASONS, 'αυτόματες αιτιολογίες', when, ids),
@@ -166,21 +181,11 @@
           throw Error('Μη έγκυρη ή διπλή προσωπική σημείωση στις ' + formatDate(key) + '.');
         seen.add(note.id);
         if (!note.html) continue;
-        let tags = [];
-        if (note.tags != null && !(Array.isArray(note.tags) && !note.tags.length)) {
-          const H = hostTags();
-          if (!H) throw Error(missingTags);
-          tags = H.validateRefs(note.tags, known, 'στην προσωπική σημείωση της ' + formatDate(key), APP);
-        }
+        const tags = validTags(note.tags, known, 'στην προσωπική σημείωση της ' + formatDate(key));
         personalNotes.push({id:note.id, html:note.html, tags});
       }
       const book = entry.schoolLifeBook || {};
-      let bookTags = [];
-      if (book.tags != null && !(Array.isArray(book.tags) && !book.tags.length)) {
-        const H = hostTags();
-        if (!H) throw Error(missingTags);
-        bookTags = H.validateRefs(book.tags, known, 'στο Βιβλίο Σχολικής Ζωής της ' + formatDate(key), APP);
-      }
+      const bookTags = validTags(book.tags, known, 'στο Βιβλίο Σχολικής Ζωής της ' + formatDate(key));
       const schoolLifeBook = {html:book.html || '', tags:book.html ? bookTags : []};
       if (personalNotes.length || schoolLifeBook.html) out.entries[key] = {personalNotes, schoolLifeBook};
     }
@@ -189,7 +194,7 @@
       if (!isObject(meetings)) throw Error('Μη έγκυρες συνεδριάσεις Ημερολογίου.');
       for (const [key, meeting] of Object.entries(meetings)) {
         checkDate(key, year, ssd ? 'συνεδρίασης ΣΣΔ' : 'παιδαγωγικής συνάντησης');
-        out[field][key] = validateMeeting(meeting, key, ssd, ids);
+        out[field][key] = validateMeeting(meeting, key, ssd, ids, known);
       }
     }
     const acts = new Map();

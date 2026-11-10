@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινό περιβάλλον χρήστη
- * Έκδοση αρχείου: 0.44
+ * Έκδοση αρχείου: 0.45
  * Όνομα κατά την εγκατάσταση: _ui.css
  */
 
@@ -408,6 +408,65 @@ fieldset.ui-fields{margin:0;padding:0;min-width:0;border:0}
 }
 .school-tag .school-tag-remove:hover:not(:disabled),
 .school-confirm .school-tag .school-tag-remove:hover:not(:disabled){background:#00000015;border-color:transparent}
+
+/* Text with formatting and tags (window.schoolTaggedText in _ui.js): a framed box with the text, the tags under it
+   across the full width, and the edit / delete buttons on the right; in editing, the toolbar, the field and the tag
+   bar form one frame. Colours: --school-tagged-text-bg (box) and --school-tagged-text-editor-bg (field); by default
+   almost white and white. .is-resizable: fixed height (--school-tagged-text-height, 4 lines), resizable from the
+   bottom right corner, in view and in editing. */
+.school-tagged-text{
+  --school-tagged-text-pad-left:11px;--school-tagged-text-pad-right:11px;--school-tagged-text-pad-bottom:10px;--school-tagged-text-tags-pad-left:11px;
+  position:relative;display:flex;flex-wrap:wrap;align-items:flex-start;gap:9px;min-width:0;margin:0;
+  padding:10px var(--school-tagged-text-pad-right) var(--school-tagged-text-pad-bottom) var(--school-tagged-text-pad-left);
+  border:1px solid #d7dfe5;border-radius:9px;background:var(--school-tagged-text-bg,#fbfcfd)
+}
+.school-tagged-text.has-before{--school-tagged-text-pad-left:5px;--school-tagged-text-tags-pad-left:40px}
+.school-tagged-text.is-editing{display:block;padding:0;border-color:transparent;background:transparent;box-shadow:none}
+.school-tagged-text-content{flex:1;min-width:0;overflow-wrap:anywhere}
+.school-tagged-text-body{min-height:22px;padding-top:4px;line-height:1.5}
+.school-tagged-text-html p{margin:0 0 5px}
+.school-tagged-text-html :is(ul,ol){margin:4px 0;padding-left:26px}
+.school-tagged-text-html :is(ul,ol):first-child{margin-top:0}
+.school-tagged-text-html :is(p,ul,ol):last-child{margin-bottom:0}
+.school-tagged-text-empty{color:var(--school-ui-muted)}
+.school-tagged-text-tools{display:flex;flex:none;align-self:flex-start;gap:1px}
+.school-tagged-text-tools button.school-tagged-text-tool{
+  display:inline-flex;align-items:center;justify-content:center;min-width:30px;width:30px;height:30px;padding:4px;
+  border:1px solid transparent;border-radius:8px;background:transparent;color:#536575
+}
+.school-tagged-text-tools button.school-tagged-text-tool:hover:not(:disabled){background:#e8eff6;border-color:transparent}
+.school-tagged-text-tools button.school-tagged-text-tool:disabled{opacity:.35;cursor:default}
+.school-tagged-text-tools svg{width:18px;height:18px;stroke-width:1.8}
+/* Display-only tag strip across the full width of the box, separate from its text. */
+.school-tagged-text-tags{
+  flex:0 0 calc(100% + var(--school-tagged-text-pad-left) + var(--school-tagged-text-pad-right));min-width:0;
+  margin:8px calc(var(--school-tagged-text-pad-right) * -1) calc(var(--school-tagged-text-pad-bottom) * -1) calc(var(--school-tagged-text-pad-left) * -1);
+  padding:8px var(--school-tagged-text-pad-right) 8px var(--school-tagged-text-tags-pad-left);
+  border-top:1px solid #d6dee7;border-radius:0 0 8px 8px;background:#edf1f5
+}
+.school-tagged-text-editor .school-richtext{width:100%}
+.school-tagged-text-editor .school-richtext-editor{
+  --school-richtext-min-height:130px;--school-richtext-max-height:300px;
+  border-bottom:0;border-radius:0;background:var(--school-tagged-text-editor-bg,var(--school-ui-surface))
+}
+.school-tagged-text-tagbar{
+  display:flex;align-items:center;flex-wrap:wrap;gap:8px 10px;min-width:0;padding:8px 10px;
+  border:1px solid var(--school-ui-input-border);border-radius:0 0 8px 8px;background:#edf1f5
+}
+.school-tagged-text-tagbar .school-tags{flex:1 1 200px;min-width:0;align-items:center}
+.school-tagged-text-tagbar-empty{color:var(--school-ui-muted);font-size:13px}
+.school-tagged-text-tagbar>button{flex:none;margin-left:auto}
+.school-tagged-text.is-resizable{--school-tagged-text-height:6em}
+.school-tagged-text.is-resizable:not(.is-editing) .school-tagged-text-body{
+  height:calc(var(--school-tagged-text-height) + 4px);min-height:calc(3em + 4px);max-height:none;overflow:auto;resize:vertical
+}
+.school-tagged-text.is-resizable .school-tagged-text-editor .school-richtext-editor{
+  height:calc(var(--school-tagged-text-height) + 22px);min-height:calc(3em + 22px);max-height:none;resize:vertical
+}
+@media(max-width:560px){
+  .school-tagged-text{gap:3px;--school-tagged-text-pad-right:5px}
+  .school-tagged-text-tools{flex-direction:column}
+}
 .school-tag .school-tag-remove:focus-visible{outline:2px solid var(--school-ui-focus);outline-offset:1px}
 .school-confirm.school-tag-dialog{width:min(640px,calc(100vw - 32px))}
 .school-tag-picker{display:flex;flex-direction:column;gap:8px;margin-top:4px}

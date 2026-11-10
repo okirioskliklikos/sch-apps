@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Ετικέτες στο Κεντρικό Μενού (host)
- * Έκδοση αρχείου: 0.02
+ * Έκδοση αρχείου: 0.03
  * Όνομα κατά την εγκατάσταση: _host_tags.js
  *
  * Κώδικας μόνο του host για τις ετικέτες (tagsByYear). Το φορτώνει το index.html μετά το _data.js και το
@@ -49,6 +49,19 @@
   const newer = app => ' Βεβαιώσου ότι το ' + (app || 'index.html') + ' είναι η τελευταία έκδοση.';
 
   // ---- Πού κρατούν ετικέτες οι εφαρμογές ----
+  // Το κείμενο των συνεδριάσεων του Σχολικού Ημερολογίου (subject:{html, tags}), ανά είδος συνεδρίασης.
+  function meetingHolder(field, one, many) {
+    return Object.freeze({
+      app: 'school_calendar.html', one, many,
+      items(data, year) {
+        const value = isObject(data?.calendarByYear) ? data.calendarByYear[year] : null, out = [];
+        for (const meeting of Object.values(isObject(value?.[field]) ? value[field] : {})) {
+          if (isObject(meeting?.subject) && meeting.subject.html) out.push(meeting.subject);
+        }
+        return out;
+      }
+    });
+  }
   // items(data, year): τα στοιχεία του έτους που μπορεί να έχουν ετικέτες (τα ίδια τα αντικείμενα του data, ώστε το
   // καθάρισμα να τα αλλάζει), το καθένα με πεδίο tags.
   const HOLDERS = Object.freeze([
@@ -71,7 +84,9 @@
         }
         return out;
       }
-    })
+    }),
+    meetingHolder('ssdMeetings', 'Συνεδρίαση ΣΣΔ', 'Συνεδριάσεις ΣΣΔ'),
+    meetingHolder('pedagogicMeetings', 'Παιδαγωγική Συνάντηση', 'Παιδαγωγικές Συναντήσεις')
   ]);
 
   // ---- Μητρώο ----

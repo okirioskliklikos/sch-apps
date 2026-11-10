@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Σχολικό Ημερολόγιο v1.06</title>
+<title>Σχολικό Ημερολόγιο v1.07</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -95,49 +95,20 @@
 .cal-personal-editor>.cal-notes-list{flex:1;min-height:0;overflow-y:auto;padding:3px 5px 8px 2px}
 .cal-personal-editor>.school-confirm-actions{flex:none;margin-top:12px}
 .cal-personal-editor>.school-choice-error{flex:none}
-.cal-note{--cal-note-pad-left:11px;--cal-note-pad-right:11px;--cal-note-pad-bottom:10px;--cal-note-tags-pad-left:11px;position:relative;display:flex;align-items:flex-start;gap:9px;border:1px solid #d7dfe5;background:#fbfcfd;border-radius:9px;margin:0 0 10px;padding:10px var(--cal-note-pad-right) var(--cal-note-pad-bottom) var(--cal-note-pad-left);min-width:0}
-.cal-note:not(.is-editing){flex-wrap:wrap}
-.cal-note.has-note-tools{--cal-note-pad-left:5px;--cal-note-tags-pad-left:40px}
-.cal-note.is-editing{display:block;background:transparent;border-color:transparent;box-shadow:none;padding:0;margin:0 0 10px}
-.cal-note.is-editing .cal-note-grip,.cal-note.is-editing .cal-note-tools{display:none}
-.cal-note.is-editing .cal-note-content{width:100%}
-.cal-note-placeholder{box-sizing:border-box;border:2px dashed #8eadd1;background:var(--cal-drop-bg);border-radius:9px;pointer-events:none}
+/* Each personal note is a schoolTaggedText box (_ui.js, styles in _ui.css); here only the list, the drag & drop and
+   the colours of each section. */
+.cal-note{margin:0 0 10px}
+.cal-note-placeholder{box-sizing:border-box;margin:0 0 10px;border:2px dashed #8eadd1;background:var(--cal-drop-bg);border-radius:9px;pointer-events:none}
 .cal-note.is-drag-source{position:fixed;left:-10000px;top:-10000px;visibility:hidden;pointer-events:none;margin:0}
 .cal-note-grip{user-select:none;-webkit-user-select:none}
 .cal-note-grip{align-self:center;flex:none;cursor:grab!important;border:0!important;background:transparent!important;color:#8997a3!important;padding:8px 4px!important;font-size:22px;line-height:1;touch-action:none}
 .cal-note-grip:active{cursor:grabbing!important}
-.cal-note-grip:disabled,.cal-note-tools button:disabled{cursor:default!important;opacity:.35}
-.cal-note-tools button:disabled:hover{background:transparent!important}
-.cal-note-content{min-width:0;flex:1;overflow-wrap:anywhere}
-.cal-note-content .cal-note-html{line-height:1.5;min-height:22px;padding-top:4px}
-.cal-note-html p{margin:0 0 5px}
-.cal-note-html :is(ul,ol):first-child{margin-top:0}
-.cal-note-html p:last-child,.cal-note-html ul:last-child,.cal-note-html ol:last-child{margin-bottom:0}
-.cal-note-tools{display:flex;flex:none;gap:1px;align-self:flex-start;margin-top:0}
-.cal-note-tools button{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:30px;padding:4px!important;border-color:transparent!important;background:transparent!important;border-radius:8px;color:#536575}
-.cal-note-tools button:hover{background:#e8eff6!important}
-.cal-note-tools svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.cal-note-editor{overflow:visible}
-.cal-note-editor .school-richtext{width:100%}
-.cal-note-editor .school-richtext-editor{min-height:130px;max-height:300px}
+.cal-note-grip:disabled{cursor:default!important;opacity:.35}
 .cal-note-add{display:block;width:100%;border:1px dashed #a8b9c8!important;background:#f9fbfd!important;color:#365e83!important;text-align:center!important}
 .cal-note-empty{color:#697984;text-align:center;padding:30px 10px}
-/* Display-only tag strip across the full width of each note, separate from its text. */
-.cal-note-tags{
-  box-sizing:border-box;flex:0 0 calc(100% + var(--cal-note-pad-left) + var(--cal-note-pad-right));min-width:0;
-  margin:8px calc(var(--cal-note-pad-right) * -1) calc(var(--cal-note-pad-bottom) * -1) calc(var(--cal-note-pad-left) * -1);
-  padding:8px var(--cal-note-pad-right) 8px var(--cal-note-tags-pad-left);
-  border-top:1px solid #d6dee7;border-radius:0 0 8px 8px;background:#edf1f5
-}
-.cal-note-editor .school-richtext-editor{border-bottom:0;border-radius:0}
-.cal-note-tagbar{
-  display:flex;align-items:center;flex-wrap:wrap;gap:8px 10px;min-width:0;margin-top:0;padding:8px 10px;
-  border:1px solid var(--school-ui-input-border);border-radius:0 0 8px 8px;
-  background:#edf1f5
-}
-.cal-note-tagbar .school-tags{flex:1 1 200px;min-width:0;align-items:center}
-.cal-note-tagbar-empty{color:var(--school-ui-muted);font-size:13px}
-.cal-note-tagbar>button{flex:none;margin-left:auto}
+/* Βιβλίο Σχολικής Ζωής and ΣΣΔ: the box and the field of the editor have the very light yellow of the Βιβλίο;
+   Προσωπικές Σημειώσεις and Παιδαγωγική Συνάντηση keep the shared almost white box. */
+.cal-yellow{--school-tagged-text-bg:var(--cal-book-panel);--school-tagged-text-editor-bg:var(--cal-book-panel)}
 /* Fixed single-entry panel for the Βιβλίο Σχολικής Ζωής. */
 .cal-book-editor>.cal-notes-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:15px;margin-bottom:6px}
 .cal-editor .cal-notes-heading>.editor-label{margin-bottom:0}
@@ -145,12 +116,8 @@
    when the toolbar wraps on a narrow screen). */
 .cal-book-editor>.cal-notes-list{min-height:260px}
 @media(max-width:560px){.cal-book-editor>.cal-notes-list{min-height:295px}}
-.cal-book-entry{--cal-note-pad-left:11px;background:var(--cal-book-panel)}
-.cal-book-entry.is-editing{background:transparent;padding-left:0}
-.cal-book-entry.is-editing .school-richtext-editor{background:var(--cal-book-panel)}
-.cal-book-empty{color:var(--school-ui-muted);padding-top:4px}
 .cal-personal-editor .school-confirm-actions{justify-content:flex-end}
-@media(max-width:560px){.cal-note{gap:3px;padding-right:5px}.cal-note-tools{flex-direction:column}.cal-note-grip{padding:5px 2px!important}.school-confirm.cal-personal-editor{height:75dvh}}
+@media(max-width:560px){.cal-note-grip{padding:5px 2px!important}.school-confirm.cal-personal-editor{height:75dvh}}
 .cal-editor > h2{text-align:center;font-size:23px;font-weight:700;color:#34424c;margin-bottom:4px}
 .cal-editor .editor-section{margin-top:15px}
 .cal-editor .editor-label{display:block;font-weight:700;margin-bottom:6px}
@@ -179,8 +146,9 @@
 .ssd-date-time{justify-self:end;width:min(100%,500px);display:grid;grid-template-columns:max-content minmax(0,1fr);align-items:center;gap:7px 12px}
 .ssd-date-time label{margin:0;font-weight:700}
 .ssd-dialog .ssd-date-time input[type=text]{width:105px;max-width:100%;font-variant-numeric:tabular-nums}
-.ssd-subject label{margin:0 0 5px}
-.ssd-subject textarea{width:100%;resize:vertical;min-height:44px;max-height:340px;padding:8px;border:1px solid #b8c0c7;border-radius:7px;font:inherit}
+.ssd-subject-label{display:block;margin:0 0 5px;font-weight:650}
+/* Κείμενο Συνεδρίασης / Συνάντησης: 4 lines, resizable from the bottom right corner (schoolTaggedText, resizable). */
+.ssd-subject .school-tagged-text-body{max-height:60dvh}
 .ssd-attendance{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;flex:1;min-height:210px}
 .ssd-list-panel{display:flex;flex-direction:column;min-width:0;min-height:0;padding:10px;border:1px solid var(--cal-panel-border);border-radius:8px;background:var(--cal-list-bg)}
 .ssd-list-panel h3{margin:0 0 8px;font-size:15px}
@@ -268,7 +236,7 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v1.06</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v1.07</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="print" type="button" disabled>Εκτύπωση...</button>
@@ -304,12 +272,13 @@
 // Messages, requests and their time limits: schoolHost in _ui.js. Dates: SchoolDate in _data.js.
 // Data of the school year: calendarByYear[year] = {entries, ssdMeetings, pedagogicMeetings}, read and written
 // only through the Index (school-calendar:*). Staff from Προσωπικό (context.staff), programs from the
-// Σχολικά Προγράμματα (school-timetables:context, read only). Tags of the Προσωπικές Σημειώσεις and Βιβλίο Σχολικής Ζωής: each note has
-// tags:[{type, id}…]; the registry of the year (tagsByYear[year]) comes in context.tags and its changes are sent,
+// Σχολικά Προγράμματα (school-timetables:context, read only). Tags of the Προσωπικές Σημειώσεις, the Βιβλίο Σχολικής Ζωής
+// and the text of the meetings (subject:{html, tags}): each item has tags:[{type, id}…]; the registry of the year (tagsByYear[year]) comes in context.tags and its changes are sent,
 // the whole registry, as tags in the same school-calendar:save (schoolTags of _ui.js, SchoolTags of _data.js).
 const $ = id => document.getElementById(id), esc = schoolEscape, post = schoolHost.post;
 const D = SchoolDate, T = SchoolTimetable, Selection = schoolListSelection, G = SchoolTags;
 const APP = 'school_calendar.html', NOTE_WORDS = {one: 'Προσωπική Σημείωση', many: 'Προσωπικές Σημειώσεις'}, BOOK_WORDS = {one: 'Καταχώρηση Βιβλίου Σχολικής Ζωής', many: 'Καταχωρήσεις Βιβλίου Σχολικής Ζωής'};
+const MEETING_WORDS = {ssdMeetings: {one: 'Συνεδρίαση ΣΣΔ', many: 'Συνεδριάσεις ΣΣΔ'}, pedagogicMeetings: {one: 'Παιδαγωγική Συνάντηση', many: 'Παιδαγωγικές Συναντήσεις'}};
 const MONTHS = ['Ιανουάριος','Φεβρουάριος','Μάρτιος','Απρίλιος','Μάιος','Ιούνιος','Ιούλιος','Αύγουστος','Σεπτέμβριος','Οκτώβριος','Νοέμβριος','Δεκέμβριος'];
 const MONTHS_GEN = ['Ιανουαρίου','Φεβρουαρίου','Μαρτίου','Απριλίου','Μαΐου','Ιουνίου','Ιουλίου','Αυγούστου','Σεπτεμβρίου','Οκτωβρίου','Νοεμβρίου','Δεκεμβρίου'];
 const DAYS = ['Δευτέρα','Τρίτη','Τετάρτη','Πέμπτη','Παρασκευή','Σάββατο','Κυριακή'];
@@ -321,8 +290,8 @@ const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 const REASONS = [['leave','Σε άδεια'],['leavePending','Αναμονή άδειας'],['lesson','Σε μάθημα'],['otherSchool','Σε άλλο σχολείο'],['other','Για άλλους λόγους']];
 const REASON_KEYS = new Set(REASONS.map(([key]) => key)), LEAVE_REASONS = new Set(['leave','leavePending']), AUTO_REASONS = new Set(['lesson','otherSchool']);
 const MEETINGS = {
-  ssd: {field:'ssdMeetings', title:'Συνεδρίαση Συλλόγου Διδασκόντων (ΣΣΔ)', subject:'Θέμα Συνεδρίασης', name:'η συνεδρίαση ΣΣΔ', label:'Συνεδρίασης Συλλόγου Διδασκόντων'},
-  ped: {field:'pedagogicMeetings', title:'Παιδαγωγική Συνάντηση', subject:'Θέματα συνάντησης', name:'η Παιδαγωγική Συνάντηση', label:'Παιδαγωγικής Συνάντησης'}
+  ssd: {field:'ssdMeetings', title:'Συνεδρίαση Συλλόγου Διδασκόντων (ΣΣΔ)', subject:'Κείμενο Συνεδρίασης', empty:'Δεν υπάρχει κείμενο συνεδρίασης.', name:'η συνεδρίαση ΣΣΔ', label:'Συνεδρίασης Συλλόγου Διδασκόντων'},
+  ped: {field:'pedagogicMeetings', title:'Παιδαγωγική Συνάντηση', subject:'Κείμενο Συνάντησης', empty:'Δεν υπάρχει κείμενο συνάντησης.', name:'η Παιδαγωγική Συνάντηση', label:'Παιδαγωγικής Συνάντησης'}
 };
 
 let context = null, timetables = null;
@@ -342,20 +311,51 @@ function normalizeTags(value) {
 }
 // What the tags need for display: the registry, Τμήματα, Προσωπικό and Μαθητές of the year.
 const tagData = (tags = tagRegistry) => ({tags, classes: context?.classes || [], staff: context?.staff || [], students: context?.students || []});
-// The use of a general tag: the notes of the page (notes: the notes of an open dialog, for its day) and the other
-// applications (context.tagUsage, from the saved data). → [{one, many, count}] for schoolTags.
-function tagUsageOf(id, dayKey, dayNotes, dayBook = null) {
+// The use of a general tag: the items of the page and the other applications (context.tagUsage, from the saved data)
+// → [{one, many, count}] for schoolTags. open: the items of an open dialog, in place of the same items of the page
+// ({day, notes} or {day, book} for a day; {field, key, value} for a meeting), so that their current tags count.
+function tagUsageOf(id, open = {}) {
+  const uses = item => (item?.tags || []).some(ref => ref.type === 'general' && ref.id === id);
   let notes = 0, books = 0;
-  for (const [key, entry] of Object.entries(cal.entries)) {
-    if (key === dayKey) continue;
-    for (const note of entry.personalNotes || []) if ((note.tags || []).some(ref => ref.type === 'general' && ref.id === id)) notes++;
-    if ((entry.schoolLifeBook?.tags || []).some(ref => ref.type === 'general' && ref.id === id)) books++;
+  const days = new Set(Object.keys(cal.entries));
+  if (open.day) days.add(open.day);
+  for (const key of days) {
+    const entry = cal.entries[key] || {};
+    const list = key === open.day && open.notes ? open.notes : entry.personalNotes || [];
+    for (const note of list) if (uses(note)) notes++;
+    if (uses(key === open.day && open.book ? open.book : entry.schoolLifeBook)) books++;
   }
-  for (const note of dayNotes || []) if ((note.tags || []).some(ref => ref.type === 'general' && ref.id === id)) notes++;
-  const book = dayBook ?? getEntry(dayKey).schoolLifeBook;
-  if ((book?.tags || []).some(ref => ref.type === 'general' && ref.id === id)) books++;
+  const meetings = Object.keys(MEETING_WORDS).map(field => {
+    const keys = new Set(Object.keys(cal[field] || {}));
+    if (open.field === field) keys.add(open.key);
+    let count = 0;
+    for (const key of keys) if (uses(open.field === field && open.key === key ? open.value : cal[field][key]?.subject)) count++;
+    return count ? [{...MEETING_WORDS[field], count}] : [];
+  }).flat();
   const others = ((context?.tagUsage || {})[id] || []).filter(item => item.app !== APP);
-  return [...(notes ? [{...NOTE_WORDS, count:notes}] : []), ...(books ? [{...BOOK_WORDS, count:books}] : []), ...others];
+  return [...(notes ? [{...NOTE_WORDS, count:notes}] : []), ...(books ? [{...BOOK_WORDS, count:books}] : []), ...meetings, ...others];
+}
+// The general tags deleted in the «Διαχείριση ετικετών» of a dialog leave every item of the year (notes, Βιβλίο,
+// meetings) when the dialog ends with «Ενημέρωση»; the registry of the dialog becomes the registry of the page.
+function withoutGeneral(refs, removed) { return (refs || []).filter(ref => !(ref.type === 'general' && removed.has(ref.id))); }
+function acceptRegistry(registry) {
+  const kept = new Set((registry?.general || []).map(item => item.id));
+  const removed = new Set((tagRegistry.general || []).map(item => item.id).filter(id => !kept.has(id)));
+  tagRegistry = registry;
+  if (!removed.size) return;
+  for (const entry of Object.values(cal.entries)) {
+    for (const note of entry.personalNotes || []) note.tags = withoutGeneral(note.tags, removed);
+    if (entry.schoolLifeBook) entry.schoolLifeBook.tags = withoutGeneral(entry.schoolLifeBook.tags, removed);
+  }
+  for (const field of Object.keys(MEETING_WORDS)) for (const meeting of Object.values(cal[field] || {})) if (meeting.subject) meeting.subject.tags = withoutGeneral(meeting.subject.tags, removed);
+}
+// A schoolTaggedText of a dialog: the registry of the dialog (registry.get / registry.set), the shared colour of the
+// text and the limits of the tags.
+function taggedText(options, registry, usage) {
+  return schoolTaggedText.create({color: DEFAULT_FONT_COLOR, ...options, tags: {
+    data: () => tagData(registry.get()), limits: context?.limits, usage,
+    onRegistry: (next, removed) => registry.set(next, new Set(removed))
+  }});
 }
 function clone(value) { return structuredClone(value); }
 function isObject(value) { return !!value && typeof value === 'object' && !Array.isArray(value); }
@@ -380,6 +380,11 @@ const cancelled = () => Object.assign(Error('Η ενέργεια ακυρώθη�
 // disappears when the user leaves the field to press the button, the button moves up and the click is lost.
 const clearErrorOnInput = dialog => dialog.addEventListener('input', () => { const error = dialog.querySelector('.school-choice-error'); if (error) error.textContent = ''; });
 
+// A text with formatting and tags ({html, tags}): without visible text it is empty, also without tags.
+function normalizeText(value) {
+  const html = isObject(value) ? sanitizeHtml(value.html) : '';
+  return hasHtml(html) ? {html, tags: G.clean(value.tags)} : {html: '', tags: []};
+}
 function normalizeMeetings(rows, ssd) {
   const out = {};
   const strings = list => Array.isArray(list) ? [...new Set(list.map(item => String(item ?? '')).filter(Boolean))] : [];
@@ -389,7 +394,7 @@ function normalizeMeetings(rows, ssd) {
     const meeting = {
       startTime: TIME.test(String(value.startTime || '')) ? value.startTime : DEFAULT_TIMES.start,
       endTime: TIME.test(String(value.endTime || '')) ? value.endTime : DEFAULT_TIMES.end,
-      subject: String(value.subject ?? ''), directorId: String(value.directorId ?? ''), directorName: String(value.directorName ?? ''),
+      subject: normalizeText(value.subject), directorId: String(value.directorId ?? ''), directorName: String(value.directorName ?? ''),
       present: strings(value.present), absent: strings(value.absent),
       absenceReasons: reasons(value.absenceReasons, REASON_KEYS), scheduleAutoReasons: reasons(value.scheduleAutoReasons, AUTO_REASONS),
       leaveAutoIds: strings(value.leaveAutoIds)
@@ -637,83 +642,43 @@ async function openDayActions(date) {
 
 // ---- Notes editor ----
 // One notes field: its label and its own formatting toolbar (schoolRichText of _ui.js).
-function editorBox(id, label, html) {
-  const section = document.createElement('section'); section.className = 'editor-section';
-  const title = document.createElement('span'); title.className = 'editor-label'; title.id = id + 'Label'; title.textContent = label;
-  const rich = schoolRichText.create({html, labelledBy: title.id, color: DEFAULT_FONT_COLOR});
-  rich.editor.id = id;
-  section.append(title, rich.element);
-  return {section, rich};
-}
 async function editPersonalNotes(date) {
   const key = dateKey(date), entry = getEntry(key);
   const original = clone(entry.personalNotes), originalTags = clone(tagRegistry);
   // registry: the registry of tags in this dialog; it reaches the page with «Ενημέρωση» (with the notes).
-  // activeTags: the tags of the open note; «Αποδοχή» keeps them, «Ακύρωση» brings them back.
-  let notes = clone(original), editingEnabled = !original.length, activeId = null, activeRich = null, activeTags = [], registry = clone(originalTags), draftHtml = null;
+  // active: the schoolTaggedText of the open note (also a new note, not yet in the list).
+  let notes = clone(original), editingEnabled = !original.length, activeId = null, active = null, registry = clone(originalTags);
   const body = document.createElement('div'); body.className = 'cal-notes-list';
-  const closeEditor = () => { activeId = null; activeRich = null; activeTags = []; draftHtml = null; };
-  // A note without text is not kept, even when it has tags.
-  const commitEditor = () => {
-    if (activeId === null || !activeRich) return;
-    const html = sanitizeHtml(activeRich.html);
-    if (hasHtml(html)) {
-      const note = notes.find(item => item.id === activeId);
-      if (note) { note.html = html; note.tags = clone(activeTags); }
-      else notes.push({id: activeId, html, tags: clone(activeTags)});
-    } else notes = notes.filter(item => item.id !== activeId);
-    closeEditor();
+  const registryAccess = {
+    get: () => registry,
+    // General tags deleted in «Διαχείριση ετικετών…» leave every note of the dialog (and, with «Ενημέρωση», every
+    // item of the year); the other notes are drawn again with the new registry.
+    set: (next, removed) => { registry = next; for (const note of notes) note.tags = withoutGeneral(note.tags, removed); renderNotes(); }
   };
-  const cancelEditor = () => { closeEditor(); renderNotes(); };
-  const acceptEditor = () => { commitEditor(); renderNotes(); };
-  const openEditor = (id, focus = true) => {
-    closeEditor(); activeId = id;
-    activeTags = clone(notes.find(item => item.id === id)?.tags || []);
-    renderNotes();
-    if (focus) activeRich?.focus();
-  };
-  const generalIds = tags => (tags?.general || []).map(item => item.id);
-  // «Ετικέτες…» of the open note: the shared picker, with «Διαχείριση ετικετών…». General tags deleted there leave
-  // every note of the dialog (and, with «Ενημέρωση», every note of the year).
-  const chooseTags = async () => {
-    if (activeId === null) return;
-    // The use of a tag counts the open note with its current tags (also a new note, not yet in the list).
-    const openId = activeId, openTags = clone(activeTags);
-    const usageNotes = [...notes.filter(note => note.id !== openId), {id: openId, tags: openTags}];
-    const result = await schoolTags.pick({title: 'Ετικέτες σημείωσης', refs: activeTags, data: tagData(registry), usage: id => tagUsageOf(id, key, usageNotes), limits: context?.limits});
-    if (!result || activeId === null) return;
-    const kept = new Set(generalIds(result.tags)), removed = new Set(generalIds(registry).filter(id => !kept.has(id)));
-    registry = result.tags; activeTags = result.refs;
-    for (const note of notes) note.tags = (note.tags || []).filter(ref => !(ref.type === 'general' && removed.has(ref.id)));
-    // The open editor is drawn again with the text the user has written so far.
-    draftHtml = activeRich ? activeRich.html : draftHtml;
-    renderNotes();
-    body.querySelector('.cal-note-tagbar button')?.focus();
-  };
-  // Under the editor of the open note: its tags and «Ετικέτες…».
-  const tagBar = () => {
-    const bar = document.createElement('div'); bar.className = 'cal-note-tagbar';
-    const chips = schoolTags.chips(activeTags, tagData(registry), {onRemove: ref => {
-      activeTags = activeTags.filter(tag => !G.same(tag, ref));
-      bar.replaceWith(tagBar());
-      body.querySelector('.cal-note-tagbar > button')?.focus();
-    }});
-    if (chips.childElementCount) bar.append(chips);
-    else { const none = document.createElement('span'); none.className = 'cal-note-tagbar-empty'; none.textContent = 'Χωρίς ετικέτες'; bar.append(none); }
-    const button = document.createElement('button'); button.type = 'button'; button.className = 'ui-compact-button'; button.textContent = 'Ετικέτες…';
-    button.addEventListener('click', chooseTags);
-    bar.append(button);
-    return bar;
-  };
-  // The open note: the shared editor, with «Αποδοχή» / «Ακύρωση» at the right end of its toolbar.
-  const noteEditor = (html, label, what) => schoolRichText.create({html, label, color: DEFAULT_FONT_COLOR, actions: [
-    {label: 'Αποδοχή', title: 'Αποδοχή ' + what, accept: true, run: () => acceptEditor()},
-    {label: 'Ακύρωση', title: 'Ακύρωση ' + what, run: () => cancelEditor()}
-  ]});
-  const makeButton = (label, icon, click, disabled) => {
-    const button = document.createElement('button'); button.type = 'button';
-    button.innerHTML = schoolIcon(icon); button.title = label; button.setAttribute('aria-label', label);
-    button.disabled = disabled; button.addEventListener('click', click); return button;
+  // The use of a tag counts the open note with its current tags.
+  const usage = (id, current) => tagUsageOf(id, {day: key, notes: [...notes.filter(note => note.id !== activeId), {id: activeId, tags: current.tags}]});
+  const noteItem = (note, isNew) => {
+    const what = isNew ? 'νέας σημείωσης' : 'αλλαγών σημείωσης';
+    const grip = document.createElement('button'); grip.type = 'button'; grip.className = 'cal-note-grip';
+    grip.textContent = '⠿'; grip.title = 'Σύρε για αλλαγή σειράς'; grip.setAttribute('aria-label', 'Μετακίνηση σημείωσης');
+    const item = taggedText({
+      value: note, label: isNew ? 'Νέα προσωπική σημείωση' : 'Προσωπική σημείωση', className: 'cal-note', before: grip,
+      texts: {edit: 'Επεξεργασία σημείωσης', remove: 'Διαγραφή σημείωσης', accept: 'Αποδοχή ' + what, cancel: 'Ακύρωση ' + what,
+        removeConfirm: 'Να διαγραφεί αυτή η προσωπική σημείωση;', removeTitle: 'Διαγραφή σημείωσης', pickTitle: 'Ετικέτες σημείωσης'},
+      tools: () => editingEnabled, locked: () => activeId !== null,
+      onEditing: editing => { activeId = editing ? note.id : null; active = editing ? item : null; renderNotes(); },
+      // A note without text is not kept, even when it has tags.
+      onChange: (value, {removed}) => {
+        if (removed || !value.html) notes = notes.filter(other => other.id !== note.id);
+        else {
+          const saved = notes.find(other => other.id === note.id);
+          if (saved) Object.assign(saved, value); else notes.push({id: note.id, ...value});
+        }
+        renderNotes();
+      }
+    }, registryAccess, usage);
+    item.element.dataset.noteId = note.id;
+    return {item, grip};
   };
   // During a drag, the note is outside the list and a same-sized placeholder moves among its siblings.
   // The array is updated only on drop; dragend/Escape restores the original order.
@@ -737,7 +702,7 @@ async function editPersonalNotes(date) {
   const positionPlaceholder = (clientY) => {
     if (!dragging || !dragging.placeholder.isConnected) return;
     const {placeholder} = dragging;
-    const siblings = [...body.querySelectorAll('.cal-note:not(.cal-note-placeholder):not(.is-drag-source)')];
+    const siblings = [...body.querySelectorAll('.cal-note:not(.is-drag-source)')];
     const next = siblings.find(row => clientY < row.getBoundingClientRect().top + row.getBoundingClientRect().height / 2);
     if (next) {
       if (placeholder.nextElementSibling !== next) body.insertBefore(placeholder, next);
@@ -769,6 +734,35 @@ async function editPersonalNotes(date) {
   const cancelDragOnEscape = event => { if (dragging && event.key === 'Escape') finishDrag(false); };
   document.addEventListener('dragover', trackDragPosition, true);
   document.addEventListener('keydown', cancelDragOnEscape);
+  const bindDrag = (row, grip, note, locked) => {
+    grip.draggable = !locked; grip.disabled = locked;
+    grip.addEventListener('dragstart', event => {
+      if (dragging || activeId !== null || !editingEnabled) { event.preventDefault(); return; }
+      const rect = row.getBoundingClientRect();
+      const placeholder = document.createElement('div');
+      placeholder.className = 'cal-note-placeholder';
+      placeholder.style.height = `${rect.height}px`;
+      placeholder.setAttribute('aria-hidden', 'true');
+      dragging = {row, placeholder, originalIndex: notes.findIndex(item => item.id === note.id), clientY: event.clientY, scrollFrame: null};
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', note.id);
+      // Use the entire rendered note (including its frame), not just the grip, as the drag image.
+      event.dataTransfer.setDragImage(row, event.clientX - rect.left, event.clientY - rect.top);
+      // Let Chromium capture the drag image before removing its source from the layout.
+      requestAnimationFrame(() => {
+        if (!dragging || dragging.row !== row) return;
+        body.insertBefore(placeholder, row);
+        row.classList.add('is-drag-source');
+        dragging.scrollFrame = requestAnimationFrame(scrollOnDrag);
+      });
+    });
+    // Native drag events remain available even when the pointer leaves the dialog.
+    // Some browsers report (0,0) at drag termination; ignore that synthetic position.
+    grip.addEventListener('drag', event => {
+      if (dragging && (event.clientX !== 0 || event.clientY !== 0)) trackDragPosition(event);
+    });
+    grip.addEventListener('dragend', () => finishDrag(false));
+  };
   // While a note is edited (or a new one is written), the other notes cannot be edited, deleted or moved,
   // and «+ Προσθήκη» is inactive: the open note first ends with «Αποδοχή» or «Ακύρωση» (or «Ενημέρωση»).
   const renderNotes = () => {
@@ -777,82 +771,19 @@ async function editPersonalNotes(date) {
     editToggle.disabled = locked;
     body.replaceChildren();
     for (const note of notes) {
-      const row = document.createElement('div'); row.className = 'cal-note'; row.dataset.noteId = note.id;
-      if (editingEnabled) row.classList.add('has-note-tools');
-      if (note.id === activeId) row.classList.add('is-editing');
-      const grip = document.createElement('button'); grip.type = 'button'; grip.className = 'cal-note-grip';
-      grip.textContent = '⠿'; grip.title = 'Σύρε για αλλαγή σειράς'; grip.setAttribute('aria-label', 'Μετακίνηση σημείωσης'); grip.draggable = !locked; grip.disabled = locked;
-      grip.addEventListener('dragstart', event => {
-        if (dragging || activeId !== null || !editingEnabled) { event.preventDefault(); return; }
-        const rect = row.getBoundingClientRect();
-        const placeholder = document.createElement('div');
-        placeholder.className = 'cal-note cal-note-placeholder';
-        placeholder.style.height = `${rect.height}px`;
-        placeholder.setAttribute('aria-hidden', 'true');
-        dragging = {
-          row, placeholder, originalIndex: notes.findIndex(item => item.id === note.id),
-          clientY: event.clientY, scrollFrame: null
-        };
-        event.dataTransfer.effectAllowed = 'move';
-        event.dataTransfer.setData('text/plain', note.id);
-        // Use the entire rendered note (including its frame), not just the grip, as the drag image.
-        event.dataTransfer.setDragImage(row, event.clientX - rect.left, event.clientY - rect.top);
-        // Let Chromium capture the drag image before removing its source from the layout.
-        requestAnimationFrame(() => {
-          if (!dragging || dragging.row !== row) return;
-          body.insertBefore(placeholder, row);
-          row.classList.add('is-drag-source');
-          dragging.scrollFrame = requestAnimationFrame(scrollOnDrag);
-        });
-      });
-      // Native drag events remain available even when the pointer leaves the dialog.
-      // Some browsers report (0,0) at drag termination; ignore that synthetic position.
-      grip.addEventListener('drag', event => {
-        if (dragging && (event.clientX !== 0 || event.clientY !== 0)) trackDragPosition(event);
-      });
-      grip.addEventListener('dragend', () => finishDrag(false));
-      const content = document.createElement('div'); content.className = 'cal-note-content';
-      let displayTags = null;
-      if (note.id === activeId) {
-        const rich = noteEditor(draftHtml ?? note.html, 'Προσωπική σημείωση', 'αλλαγών σημείωσης');
-        activeRich = rich; content.classList.add('cal-note-editor'); content.append(rich.element, tagBar());
-      } else {
-        const text = document.createElement('div'); text.className = 'cal-note-html'; text.innerHTML = sanitizeHtml(note.html);
-        content.append(text);
-        displayTags = schoolTags.chips(note.tags || [], tagData(registry));
-      }
-      const tools = document.createElement('div'); tools.className = 'cal-note-tools';
-      if (note.id !== activeId) {
-        tools.append(makeButton('Επεξεργασία σημείωσης', 'edit', () => { if (activeId === null) openEditor(note.id); }, locked),
-          makeButton('Διαγραφή σημείωσης', 'close', async () => {
-            if (activeId !== null) return;
-            if (!await schoolConfirm('Να διαγραφεί αυτή η προσωπική σημείωση;', {title:'Διαγραφή σημείωσης', accept:'Διαγραφή'})) return;
-            notes = notes.filter(item => item.id !== note.id); renderNotes();
-          }, locked));
-      }
-      if (editingEnabled) row.append(grip);
-      row.append(content);
-      if (editingEnabled) row.append(tools);
-      if (displayTags?.childElementCount) {
-        const footer = document.createElement('div'); footer.className = 'cal-note-tags';
-        footer.append(displayTags); row.append(footer);
-      }
-      body.append(row);
+      if (note.id === activeId && active) { body.append(active.element); continue; }
+      const {item, grip} = noteItem(note, false);
+      bindDrag(item.element, grip, note, locked);
+      body.append(item.element);
     }
     if (!notes.length && activeId === null) {
       const empty = document.createElement('div'); empty.className = 'cal-note-empty'; empty.textContent = 'Δεν υπάρχουν προσωπικές σημειώσεις για αυτή την ημέρα.'; body.append(empty);
     }
-    if (activeId !== null && !notes.some(note => note.id === activeId)) {
-      const row = document.createElement('div'); row.className = 'cal-note is-editing';
-      const content = document.createElement('div'); content.className = 'cal-note-content cal-note-editor';
-      activeRich = noteEditor(draftHtml ?? '', 'Νέα προσωπική σημείωση', 'νέας σημείωσης');
-      content.append(activeRich.element, tagBar());
-      row.append(content); body.append(row);
-    }
+    if (active && !notes.some(note => note.id === activeId)) body.append(active.element);
     const add = document.createElement('button'); add.type = 'button'; add.className = 'cal-note-add';
     add.textContent = '＋ Προσθήκη σημείωσης';
     add.disabled = locked;
-    add.addEventListener('click', () => openEditor(noteId()));
+    add.addEventListener('click', () => { if (activeId === null) noteItem({id: noteId(), html: '', tags: []}, true).item.edit(true); });
     if (editingEnabled) body.append(add);
   };
   const heading = document.createElement('span'); heading.className = 'editor-label'; heading.textContent = 'Προσωπικές Σημειώσεις';
@@ -865,8 +796,9 @@ async function editPersonalNotes(date) {
   const result = await schoolChoiceDialog({
     title: `${weekdayName(date)} ${D.format(key)}`, content: [headingRow, body], className: 'cal-editor cal-personal-editor', escape:false,
     actions: [
-      {label:'Επαναφορά', run: () => { notes = clone(original); registry = clone(originalTags); closeEditor(); renderNotes(); throw cancelled(); }},
-      {label:'Ενημέρωση', accept:true, run: () => { commitEditor(); return {notes, registry}; }},
+      {label:'Επαναφορά', run: () => { notes = clone(original); registry = clone(originalTags); activeId = null; active = null; renderNotes(); throw cancelled(); }},
+      // «Ενημέρωση» keeps also the changes of the open note.
+      {label:'Ενημέρωση', accept:true, run: () => { active?.commit(); return {notes, registry}; }},
       {label:'Ακύρωση'}
     ],
     ready: ({dialog}) => {
@@ -886,128 +818,47 @@ async function editPersonalNotes(date) {
   document.removeEventListener('dragover', trackDragPosition, true);
   document.removeEventListener('keydown', cancelDragOnEscape);
   if (!result) return;
-  // Changes of the registry reach the page with the notes; deleted general tags leave every note of the year.
-  const kept = new Set(generalIds(result.registry)), removed = new Set(generalIds(tagRegistry).filter(id => !kept.has(id)));
-  tagRegistry = result.registry;
-  if (removed.size) for (const other of Object.values(cal.entries)) {
-    for (const note of other.personalNotes || []) note.tags = (note.tags || []).filter(ref => !(ref.type === 'general' && removed.has(ref.id)));
-    if (other.schoolLifeBook?.tags) other.schoolLifeBook.tags = other.schoolLifeBook.tags.filter(ref => !(ref.type === 'general' && removed.has(ref.id)));
-  }
-  const next = {...entry, personalNotes: result.notes};
+  acceptRegistry(result.registry);
+  const next = {...getEntry(key), personalNotes: result.notes};
   if (!hasPersonal(next.personalNotes) && !hasBook(next.schoolLifeBook)) delete cal.entries[key];
   else cal.entries[key] = next;
   render(); updateDirty();
 }
+// Βιβλίο Σχολικής Ζωής: one entry per day, in a schoolTaggedText with the yellow of the Βιβλίο. The edit and
+// delete buttons are always visible.
 async function editDay(date, field) {
   if (field === 'personalNotes') return editPersonalNotes(date);
   const key = dateKey(date), entry = getEntry(key);
   const original = clone(entry.schoolLifeBook), originalTags = clone(tagRegistry);
-  let book = clone(original), registry = clone(originalTags), editing = false, editingEnabled = !hasBook(original);
-  let activeRich = null, activeTags = [], draftHtml = null;
+  let book = clone(original), registry = clone(originalTags), item = null;
   const body = document.createElement('div'); body.className = 'cal-notes-list';
-  const heading = document.createElement('span'); heading.className = 'editor-label'; heading.textContent = 'Βιβλίο Σχολικής Ζωής';
-  const generalIds = tags => (tags?.general || []).map(item => item.id);
-  const closeEditor = () => { editing = false; activeRich = null; activeTags = []; draftHtml = null; };
-  const commitEditor = () => {
-    if (!editing || !activeRich) return;
-    const html = sanitizeHtml(activeRich.html);
-    book = hasHtml(html) ? {html, tags:clone(activeTags)} : {html:'', tags:[]};
-    closeEditor();
-  };
-  const renderBook = () => {
-    editToggle.setAttribute('aria-pressed', String(editingEnabled));
-    editToggle.disabled = editing;
-    body.replaceChildren();
-    const row = document.createElement('div'); row.className = 'cal-note cal-book-entry';
-    if (editing) row.classList.add('is-editing');
-    const content = document.createElement('div'); content.className = 'cal-note-content';
-    let displayTags = null;
-    if (editing) {
-      content.classList.add('cal-note-editor');
-      activeRich = schoolRichText.create({html:draftHtml ?? book.html, label:'Βιβλίο Σχολικής Ζωής', color:DEFAULT_FONT_COLOR, actions:[
-        {label:'Αποδοχή', title:'Αποδοχή αλλαγών καταχώρησης', accept:true, run:() => { commitEditor(); renderBook(); }},
-        {label:'Ακύρωση', title:'Ακύρωση αλλαγών καταχώρησης', run:() => { closeEditor(); renderBook(); }}
-      ]});
-      content.append(activeRich.element, tagBar());
-    } else if (hasBook(book)) {
-      const text = document.createElement('div'); text.className = 'cal-note-html'; text.innerHTML = sanitizeHtml(book.html);
-      content.append(text);
-      displayTags = schoolTags.chips(book.tags || [], tagData(registry));
-    } else {
-      const empty = document.createElement('div'); empty.className = 'cal-book-empty';
-      empty.textContent = 'Δεν υπάρχει καταχώρηση στο Βιβλίο Σχολικής Ζωής για αυτή την ημέρα.';
-      content.append(empty);
-    }
-    row.append(content);
-    if (!editing && editingEnabled) {
-      const tools = document.createElement('div'); tools.className = 'cal-note-tools';
-      const edit = document.createElement('button'); edit.type = 'button'; edit.innerHTML = schoolIcon('edit');
-      edit.title = hasBook(book) ? 'Επεξεργασία καταχώρησης' : 'Νέα καταχώρηση'; edit.setAttribute('aria-label', edit.title);
-      edit.addEventListener('click', () => { editing = true; activeTags = clone(book.tags || []); renderBook(); activeRich?.focus(); });
-      tools.append(edit);
-      if (hasBook(book)) {
-        const remove = document.createElement('button'); remove.type = 'button'; remove.innerHTML = schoolIcon('close');
-        remove.title = 'Διαγραφή καταχώρησης'; remove.setAttribute('aria-label', remove.title);
-        remove.addEventListener('click', async () => {
-          if (!await schoolConfirm('Να διαγραφεί η καταχώρηση του Βιβλίου Σχολικής Ζωής;', {title:'Διαγραφή καταχώρησης', accept:'Διαγραφή'})) return;
-          book = {html:'', tags:[]}; renderBook();
-        });
-        tools.append(remove);
-      }
-      row.append(tools);
-    }
-    if (displayTags?.childElementCount) {
-      const footer = document.createElement('div'); footer.className = 'cal-note-tags';
-      footer.append(displayTags); row.append(footer);
-    }
-    body.append(row);
-  };
-  const chooseTags = async () => {
-    if (!editing) return;
-    const result = await schoolTags.pick({title:'Ετικέτες Βιβλίου Σχολικής Ζωής', refs:activeTags, data:tagData(registry),
-      usage:id => tagUsageOf(id, key, entry.personalNotes, {html:activeRich?.html || '', tags:activeTags}), limits:context?.limits});
-    if (!result || !editing) return;
-    const kept = new Set(generalIds(result.tags)), removed = new Set(generalIds(registry).filter(id => !kept.has(id)));
-    registry = result.tags; activeTags = result.refs;
-    book.tags = (book.tags || []).filter(ref => !(ref.type === 'general' && removed.has(ref.id)));
-    draftHtml = activeRich ? activeRich.html : draftHtml;
-    renderBook(); body.querySelector('.cal-note-tagbar > button')?.focus();
-  };
-  const tagBar = () => {
-    const bar = document.createElement('div'); bar.className = 'cal-note-tagbar';
-    const chips = schoolTags.chips(activeTags, tagData(registry), {onRemove:ref => {
-      activeTags = activeTags.filter(tag => !G.same(tag, ref));
-      bar.replaceWith(tagBar()); body.querySelector('.cal-note-tagbar > button')?.focus();
-    }});
-    if (chips.childElementCount) bar.append(chips);
-    else { const none = document.createElement('span'); none.className = 'cal-note-tagbar-empty'; none.textContent = 'Χωρίς ετικέτες'; bar.append(none); }
-    const button = document.createElement('button'); button.type = 'button'; button.className = 'ui-compact-button'; button.textContent = 'Ετικέτες…';
-    button.addEventListener('click', chooseTags); bar.append(button);
-    return bar;
-  };
-  const headingRow = document.createElement('div'); headingRow.className = 'cal-notes-heading';
-  const editToggle = document.createElement('button'); editToggle.type = 'button'; editToggle.className = 'ui-toggle';
-  editToggle.textContent = 'Επεξεργασία'; editToggle.setAttribute('aria-controls', 'calSchoolLifeBookList');
-  editToggle.addEventListener('click', () => { if (editing) return; editingEnabled = !editingEnabled; renderBook(); });
   body.id = 'calSchoolLifeBookList';
-  headingRow.append(heading, editToggle);
+  const heading = document.createElement('div'); heading.className = 'cal-notes-heading';
+  const label = document.createElement('span'); label.className = 'editor-label'; label.textContent = 'Βιβλίο Σχολικής Ζωής';
+  heading.append(label);
+  const registryAccess = {get: () => registry, set: next => { registry = next; }};
+  const renderBook = () => {
+    item = taggedText({
+      value: book, label: 'Βιβλίο Σχολικής Ζωής', className: 'cal-yellow',
+      texts: {empty: 'Δεν υπάρχει καταχώρηση στο Βιβλίο Σχολικής Ζωής για αυτή την ημέρα.', edit: 'Επεξεργασία καταχώρησης', create: 'Νέα καταχώρηση',
+        remove: 'Διαγραφή καταχώρησης', accept: 'Αποδοχή αλλαγών καταχώρησης', cancel: 'Ακύρωση αλλαγών καταχώρησης',
+        removeConfirm: 'Να διαγραφεί η καταχώρηση του Βιβλίου Σχολικής Ζωής;', removeTitle: 'Διαγραφή καταχώρησης', pickTitle: 'Ετικέτες Βιβλίου Σχολικής Ζωής'},
+      onChange: value => { book = value; }
+    }, registryAccess, (id, current) => tagUsageOf(id, {day: key, book: current}));
+    body.replaceChildren(item.element);
+  };
   const result = await schoolChoiceDialog({
-    title:`${weekdayName(date)} ${D.format(key)}`, content:[headingRow, body], className:'cal-editor cal-book-editor', escape:false,
+    title:`${weekdayName(date)} ${D.format(key)}`, content:[heading, body], className:'cal-editor cal-book-editor', escape:false,
     actions:[
-      {label:'Επαναφορά', run:() => { book = clone(original); registry = clone(originalTags); closeEditor(); renderBook(); throw cancelled(); }},
-      {label:'Ενημέρωση', accept:true, run:() => { commitEditor(); return {book, registry}; }},
+      {label:'Επαναφορά', run:() => { book = clone(original); registry = clone(originalTags); renderBook(); throw cancelled(); }},
+      {label:'Ενημέρωση', accept:true, run:() => { item?.commit(); return {book, registry}; }},
       {label:'Ακύρωση'}
     ],
-    ready:() => renderBook()
+    ready:() => { renderBook(); item.focus(); }
   });
   if (!result) return;
-  const kept = new Set(generalIds(result.registry)), removed = new Set(generalIds(tagRegistry).filter(id => !kept.has(id)));
-  tagRegistry = result.registry;
-  if (removed.size) for (const other of Object.values(cal.entries)) {
-    for (const note of other.personalNotes || []) note.tags = (note.tags || []).filter(ref => !(ref.type === 'general' && removed.has(ref.id)));
-    if (other.schoolLifeBook?.tags) other.schoolLifeBook.tags = other.schoolLifeBook.tags.filter(ref => !(ref.type === 'general' && removed.has(ref.id)));
-  }
-  const next = {...entry, schoolLifeBook:result.book};
+  acceptRegistry(result.registry);
+  const next = {...getEntry(key), schoolLifeBook:result.book};
   if (!hasPersonal(next.personalNotes) && !hasBook(next.schoolLifeBook)) delete cal.entries[key];
   else cal.entries[key] = next;
   render(); updateDirty();
@@ -1063,7 +914,7 @@ function applyLeaveAttendance(key, people, lists, reasons, leaveAutoIds, inServi
 }
 async function openMeeting(kind, date) {
   const spec = MEETINGS[kind], ssd = kind === 'ssd', key = dateKey(date), stored = cal[spec.field][key] || null, isEditing = !!stored;
-  const meeting = stored ? clone(stored) : {...(ssd ? {actNumber: nextActNumber()} : {}), subject:'', directorId:'', directorName:'', present:[], absent:[], absenceReasons:{}, scheduleAutoReasons:{}, leaveAutoIds:[], startTime: DEFAULT_TIMES.start, endTime: DEFAULT_TIMES.end};
+  const meeting = stored ? clone(stored) : {...(ssd ? {actNumber: nextActNumber()} : {}), subject:{html:'', tags:[]}, directorId:'', directorName:'', present:[], absent:[], absenceReasons:{}, scheduleAutoReasons:{}, leaveAutoIds:[], startTime: DEFAULT_TIMES.start, endTime: DEFAULT_TIMES.end};
   let pendingActRenumbering = null;
   const staffById = meetingStaff(), people = [...staffById.values()];
   const collator = new Intl.Collator('el', {sensitivity: 'base', numeric: true});
@@ -1089,9 +940,21 @@ async function openMeeting(kind, date) {
   const moves = {available:[['present','Παρόντες →'],['absent','Απόντες →']], present:[['available','← Διαθέσιμοι'],['absent','Απόντες →']], absent:[['available','← Διαθέσιμοι'],['present','← Παρόντες']]};
 
   const body = document.createElement('div'); body.className = 'ssd-body';
-  body.innerHTML = `<div class="ssd-meta"><div class="ssd-left-meta">${ssd ? `<div class="ssd-act"><strong>Αριθμός πράξης:</strong> <span data-role="act"></span></div>` : ''}<div class="ssd-director"><strong>${esc(directorTitleFor(directorName))}:</strong> <span>${esc(directorName)}</span></div></div><div class="ssd-date-time"><strong>Ημερομηνία:</strong><span>${esc(longDate(date))}</span><label for="ssdStartTime">Ώρα έναρξης:</label><input id="ssdStartTime" type="text" inputmode="numeric" autocomplete="off" maxlength="5" placeholder="HH:MM" value="${esc(meeting.startTime || DEFAULT_TIMES.start)}" aria-label="Ώρα έναρξης συνεδρίασης, 24ωρη μορφή"><label for="ssdEndTime">Ώρα λήξης:</label><input id="ssdEndTime" type="text" inputmode="numeric" autocomplete="off" maxlength="5" placeholder="HH:MM" value="${esc(meeting.endTime || DEFAULT_TIMES.end)}" aria-label="Ώρα λήξης συνεδρίασης, 24ωρη μορφή"></div></div><div class="ssd-error" data-role="serviceError" role="alert"></div><div class="ssd-subject"><label for="ssdSubject">${spec.subject}</label><textarea id="ssdSubject" rows="2">${esc(meeting.subject)}</textarea></div><div class="ssd-schedule"><button type="button" class="ui-toggle" data-role="compositionToggle" aria-expanded="false" aria-controls="ssdAttendance">${ssd ? 'Σύνθεση Συνεδρίασης' : 'Σύνθεση Συνάντησης'}</button><strong class="ssd-composition-summary" data-role="compositionSummary" role="status" aria-live="polite"></strong><button type="button" data-role="checkProgram" hidden>Έλεγχος από το πρόγραμμα</button></div><div class="ssd-attendance" id="ssdAttendance" hidden>${Object.keys(listTitle).map(name => `<section class="ssd-list-panel"><h3 data-title="${name}">${listTitle[name]} (0)</h3><div class="ssd-teacher-list" data-list="${name}" role="listbox" aria-multiselectable="true" aria-label="${listTitle[name]}" tabindex="0"></div><div class="ssd-list-controls">${moves[name].map(([to, label]) => `<button type="button" class="ssd-move" data-from="${name}" data-to="${to}">${label}</button>`).join('')}${name === 'available' ? '<button type="button" class="ssd-reset-all">← Διαθέσιμοι (Όλοι)</button>' : ''}</div></section>`).join('')}</div>`;
+  body.innerHTML = `<div class="ssd-meta"><div class="ssd-left-meta">${ssd ? `<div class="ssd-act"><strong>Αριθμός πράξης:</strong> <span data-role="act"></span></div>` : ''}<div class="ssd-director"><strong>${esc(directorTitleFor(directorName))}:</strong> <span>${esc(directorName)}</span></div></div><div class="ssd-date-time"><strong>Ημερομηνία:</strong><span>${esc(longDate(date))}</span><label for="ssdStartTime">Ώρα έναρξης:</label><input id="ssdStartTime" type="text" inputmode="numeric" autocomplete="off" maxlength="5" placeholder="HH:MM" value="${esc(meeting.startTime || DEFAULT_TIMES.start)}" aria-label="Ώρα έναρξης συνεδρίασης, 24ωρη μορφή"><label for="ssdEndTime">Ώρα λήξης:</label><input id="ssdEndTime" type="text" inputmode="numeric" autocomplete="off" maxlength="5" placeholder="HH:MM" value="${esc(meeting.endTime || DEFAULT_TIMES.end)}" aria-label="Ώρα λήξης συνεδρίασης, 24ωρη μορφή"></div></div><div class="ssd-error" data-role="serviceError" role="alert"></div><div class="ssd-subject"><span class="ssd-subject-label">${spec.subject}</span></div><div class="ssd-schedule"><button type="button" class="ui-toggle" data-role="compositionToggle" aria-expanded="false" aria-controls="ssdAttendance">${ssd ? 'Σύνθεση Συνεδρίασης' : 'Σύνθεση Συνάντησης'}</button><strong class="ssd-composition-summary" data-role="compositionSummary" role="status" aria-live="polite"></strong><button type="button" data-role="checkProgram" hidden>Έλεγχος από το πρόγραμμα</button></div><div class="ssd-attendance" id="ssdAttendance" hidden>${Object.keys(listTitle).map(name => `<section class="ssd-list-panel"><h3 data-title="${name}">${listTitle[name]} (0)</h3><div class="ssd-teacher-list" data-list="${name}" role="listbox" aria-multiselectable="true" aria-label="${listTitle[name]}" tabindex="0"></div><div class="ssd-list-controls">${moves[name].map(([to, label]) => `<button type="button" class="ssd-move" data-from="${name}" data-to="${to}">${label}</button>`).join('')}${name === 'available' ? '<button type="button" class="ssd-reset-all">← Διαθέσιμοι (Όλοι)</button>' : ''}</div></section>`).join('')}</div>`;
   const q = selector => body.querySelector(selector);
   const listOf = name => q(`[data-list="${name}"]`);
+  // Κείμενο Συνεδρίασης / Συνάντησης: text with formatting and tags (schoolTaggedText), 4 lines high and resizable;
+  // the ΣΣΔ with the yellow of the Βιβλίο Σχολικής Ζωής. registry: the registry of tags in this dialog, it reaches
+  // the page with «Ενημέρωση» / «Αποθήκευση».
+  let registry = clone(tagRegistry);
+  const what = ssd ? 'κειμένου συνεδρίασης' : 'κειμένου συνάντησης';
+  const subjectBox = taggedText({
+    value: meeting.subject, label: spec.subject, className: ssd ? 'cal-yellow' : '', resizable: true,
+    texts: {empty: spec.empty, edit: 'Επεξεργασία ' + what, create: 'Νέο ' + what.replace(/^κειμένου/, 'κείμενο'), remove: 'Διαγραφή ' + what,
+      accept: 'Αποδοχή αλλαγών ' + what, cancel: 'Ακύρωση αλλαγών ' + what,
+      removeConfirm: `Να διαγραφεί το ${spec.subject.toLocaleLowerCase('el')};`, removeTitle: 'Διαγραφή ' + what, pickTitle: 'Ετικέτες ' + what}
+  }, {get: () => registry, set: next => { registry = next; }}, (id, current) => tagUsageOf(id, {field: spec.field, key, value: current}));
+  q('.ssd-subject').append(subjectBox.element);
   const startInput = q('#ssdStartTime'), endInput = q('#ssdEndTime');
   const attendance = q('#ssdAttendance'), compositionToggle = q('[data-role="compositionToggle"]'), checkProgramButton = q('[data-role="checkProgram"]'), compositionSummary = q('[data-role="compositionSummary"]');
   compositionToggle.addEventListener('click', () => {
@@ -1301,6 +1164,8 @@ async function openMeeting(kind, date) {
     if (!TIME.test(startTime)) { startInput.focus(); throw Error('Συμπλήρωσε την ώρα έναρξης σε μορφή 24ωρης ώρας HH:MM.'); }
     if (!TIME.test(endTime)) { endInput.focus(); throw Error('Συμπλήρωσε την ώρα λήξης σε μορφή 24ωρης ώρας HH:MM.'); }
     if (endTime <= startTime) { endInput.focus(); throw Error('Η ώρα λήξης πρέπει να είναι μεταγενέστερη από την ώρα έναρξης.'); }
+    // «Ενημέρωση» / «Αποθήκευση» keeps also a text that is still open in the editor.
+    subjectBox.commit();
     const meetings = clone(cal[spec.field]);
     if (ssd && pendingActRenumbering) for (const [actKey, number] of pendingActRenumbering) if (actKey !== key && meetings[actKey]) meetings[actKey].actNumber = number;
     if (ssd) {
@@ -1309,14 +1174,14 @@ async function openMeeting(kind, date) {
     }
     const director = staffById.get(directorId);
     meetings[key] = {
-      ...(ssd ? {actNumber: meeting.actNumber} : {}), startTime, endTime, subject: q('#ssdSubject').value.trim(),
+      ...(ssd ? {actNumber: meeting.actNumber} : {}), startTime, endTime, subject: subjectBox.value,
       directorId, directorName: director?.name || directorName,
       present: displayOrder('present'), absent: displayOrder('absent'),
       absenceReasons: Object.fromEntries(lists.absent.filter(id => reasons[id]).map(id => [id, reasons[id]])),
       scheduleAutoReasons: Object.fromEntries([...autoReasons].filter(([id]) => lists.absent.includes(id))),
       leaveAutoIds: [...leaveAutoIds]
     };
-    return {meetings};
+    return {meetings, registry};
   };
   const result = await schoolChoiceDialog({
     title: spec.title, content: body, className: 'ssd-dialog', escape: false,
@@ -1324,7 +1189,7 @@ async function openMeeting(kind, date) {
       // Όλα κάτω δεξιά: «Διαγραφή», «Ενημέρωση»/«Αποθήκευση» (κύριο) και τέρμα δεξιά «Ακύρωση».
       {label: 'Διαγραφή', disabled: !isEditing, run: async () => {
         if (!await schoolConfirm(`Να διαγραφεί ${spec.name} της ${longDate(date)};`, {title:'Διαγραφή', accept:'Διαγραφή'})) throw cancelled();
-        const meetings = clone(cal[spec.field]); delete meetings[key]; return {meetings};
+        const meetings = clone(cal[spec.field]); delete meetings[key]; return {meetings, registry};
       }},
       {label: isEditing ? 'Ενημέρωση' : 'Αποθήκευση', accept: true, run: saveMeeting},
       {label: 'Ακύρωση'}
@@ -1335,11 +1200,12 @@ async function openMeeting(kind, date) {
       if (ssd) renderActNumber();
       compositionToggle.setAttribute('aria-pressed', 'false');
       renderLists(); refreshServiceError();
-      q('#ssdSubject').focus();
+      subjectBox.focus();
     }
   });
   if (!result) return;
   cal[spec.field] = result.meetings;
+  acceptRegistry(result.registry);
   render(); updateDirty();
 }
 
