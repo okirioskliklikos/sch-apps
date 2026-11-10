@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινό περιβάλλον χρήστη
- * Έκδοση αρχείου: 0.39
+ * Έκδοση αρχείου: 0.44
  * Όνομα κατά την εγκατάσταση: _ui.css
  */
 
@@ -382,10 +382,19 @@ fieldset.ui-fields{margin:0;padding:0;min-width:0;border:0}
 .school-tags{display:flex;flex-wrap:wrap;gap:4px 5px;min-width:0}
 .school-tags:empty{display:none}
 .school-tag{
-  display:inline-block;max-width:100%;box-sizing:border-box;padding:1px 9px;border:1px solid var(--school-tag-border,#cbd5e1);border-radius:999px;
+  display:inline-flex;align-items:center;gap:4px;max-width:100%;box-sizing:border-box;padding:1px 9px;border:1px solid var(--school-tag-border,#cbd5e1);border-radius:999px;
   background:var(--school-tag-bg,#e5e7eb);color:var(--school-tag-ink,#111);font-size:13px;line-height:20px;font-weight:500;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:middle
 }
+/* Εικονίδια τύπου ετικέτας, από τα τρία πρότυπα του χρήστη. Το currentColor ακολουθεί τα γράμματα. */
+.school-tag:is(.school-tag-student,.school-tag-staff,.school-tag-class)::before{
+  content:"";display:block;flex:none;width:15px;height:15px;background-color:currentColor;
+  -webkit-mask:var(--school-tag-icon) center / contain no-repeat;
+  mask:var(--school-tag-icon) center / contain no-repeat
+}
+.school-tag-student{--school-tag-icon:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%2273%2025%20255%20307%22%3E%3Cpath%20fill%3D%22black%22%20fill-rule%3D%22evenodd%22%20d%3D%22M177%2C248%20177%2C258%20179%2C263%20185%2C269%20195%2C272%20205%2C269%20213%2C259%20214%2C254%20213%2C248%20211%2C245%20207%2C243%20183%2C243%20179%2C245Z%20M73%2C310%2073%2C324%2075%2C328%2080%2C331%20310%2C331%20314%2C329%20317%2C324%20317%2C309%20314%2C295%20309%2C283%20301%2C271%20282%2C254%20264%2C246%20248%2C243%20241%2C243%20236%2C246%20232%2C268%20221%2C283%20210%2C290%20196%2C293%20180%2C290%20165%2C279%20157%2C265%20156%2C251%20153%2C245%20149%2C243%20142%2C243%20120%2C248%20105%2C256%2089%2C271%2078%2C290Z%20M187%2C25%20167%2C29%20147%2C38%20136%2C46%20127%2C55%20119%2C66%20112%2C80%20107%2C98%20106%2C152%20110%2C172%20117%2C188%20126%2C201%20137%2C212%20148%2C220%20172%2C230%20183%2C232%20205%2C232%20224%2C228%20240%2C221%20253%2C212%20268%2C196%20277%2C180%20282%2C165%20284%2C152%20284%2C122%20322%2C120%20327%2C114%20326%2C106%20321%2C102%20284%2C102%20280%2C85%20271%2C66%20263%2C55%20254%2C46%20243%2C38%20232%2C32%20217%2C27%20205%2C25Z%20M125%2C122%20126%2C121%20264%2C121%20265%2C122%20265%2C153%20263%2C163%20258%2C176%20250%2C188%20239%2C199%20222%2C209%20207%2C213%20183%2C213%20174%2C211%20160%2C205%20151%2C199%20140%2C188%20132%2C176%20127%2C163%20125%2C153Z%20M216%2C134%20210%2C140%20210%2C150%20213%2C154%20217%2C156%20224%2C155%20228%2C150%20228%2C140%20224%2C135Z%20M168%2C134%20162%2C140%20162%2C150%20166%2C155%20173%2C156%20176%2C155%20180%2C150%20180%2C140%20176%2C135Z%20M179%2C72%20190%2C60%20197%2C59%20201%2C61%20209%2C69%20211%2C73%20211%2C77%20209%2C81%20202%2C86%20195%2C84%20186%2C85%20180%2C80Z%22%2F%3E%3C%2Fsvg%3E")}
+.school-tag-staff{--school-tag-icon:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%2234%2045%20269%20213%22%3E%3Cpath%20fill%3D%22black%22%20fill-rule%3D%22evenodd%22%20d%3D%22M77%2C168%2077%2C205%2079%2C212%2083%2C218%20133%2C248%20145%2C254%20156%2C257%20174%2C257%20194%2C250%20244%2C221%20250%2C215%20253%2C208%20253%2C168%20186%2C207%20169%2C213%20153%2C211%2079%2C168Z%20M295%2C143%20279%2C153%20279%2C215%20273%2C222%20272%2C231%20274%2C236%20279%2C241%20284%2C243%20290%2C243%20295%2C241%20300%2C236%20302%2C230%20301%2C222%20295%2C215Z%20M34%2C119%2035%2C125%20159%2C197%20171%2C197%20178%2C194%20290%2C129%20296%2C124%20296%2C118%20290%2C113%20180%2C49%20171%2C45%20159%2C45%2044%2C111%2036%2C116Z%22%2F%3E%3C%2Fsvg%3E")}
+.school-tag-class{--school-tag-icon:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20310%20310%22%3E%3Cpath%20fill%3D%22black%22%20d%3D%22M153%2011%20293%20150H255V271H183V178H123V271H52V150H15Z%22%2F%3E%3C%2Fsvg%3E")}
 .school-tag.is-missing{background:#fff;color:var(--school-ui-muted);border-style:dashed;border-color:var(--school-ui-control-border)}
 /* Προαιρετικό × στα chips επεξεργασίας: κληρονομεί το χρώμα του chip και όχι στυλ κοινών κουμπιών. */
 .school-tag.is-removable{display:inline-flex;align-items:center;gap:4px;padding-right:3px;overflow:visible}

@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.28
+ * Έκδοση αρχείου: 0.29
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -1125,7 +1125,7 @@
   function tagChip(ref, data) {
     const info = tagsLib().resolve(ref, data);
     const chip = document.createElement('span');
-    chip.className = 'school-tag' + (info.missing ? ' is-missing' : '');
+    chip.className = 'school-tag' + (info.missing ? ' is-missing' : '') + (['student', 'staff', 'class'].includes(info.type) ? ' school-tag-' + info.type : '');
     chip.textContent = info.label;
     if (!info.missing) {
       const tones = tagTones(info.color);
