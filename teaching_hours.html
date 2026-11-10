@@ -1,4 +1,4 @@
-<!doctype html><html lang="el" class="subapp-page"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ώρες Διδασκαλίας v0.42</title><link rel="stylesheet" href="_ui.css">
+<!doctype html><html lang="el" class="subapp-page"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ώρες Διδασκαλίας v0.43</title><link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
 /* ΩΔ-specific geometry and break rows. Shared appearance: _ui.css / _subapp.css. */
@@ -29,8 +29,9 @@
 .tags-content>p{line-height:1.55}
 .tags-table th,.tags-table td{padding:8px 10px;line-height:1.35}
 .tags-table th{width:44%}
-.tags-table td{font-weight:400;color:#808080}
-.hour-fet-tag{color:#808080;display:block;padding:3px 6px;min-height:26px;line-height:1.25;white-space:nowrap}
+/* FET tags look read-only; #6b6b6b keeps a contrast of at least 4.5:1, also on a selected row. */
+.tags-table td{font-weight:400;color:#6b6b6b}
+.hour-fet-tag{color:#6b6b6b;display:block;padding:3px 6px;min-height:26px;line-height:1.25;white-space:nowrap}
 /* Category tags: 32px from the day tags. */
 .category-tags-heading{margin-top:32px}
 @media(min-width:851px){
@@ -47,7 +48,7 @@
  .hours-pane{min-height:400px;height:60dvh}
  .page-main{overflow:auto}
 }
-</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ώρες Διδασκαλίας — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΩΔ</span></span><span class="brand-text"><span>Ώρες Διδασκαλίας</span><span class="small version">v0.42</span></span></button></h1></div><button id="save" class="save-main" disabled>Αποθήκευση</button><button id="undo" disabled>Αναίρεση Όλων</button><button id="exportFet" disabled>Εξαγωγή σε FET...</button><div class="header-right"><span id="hoursSchoolYear" class="school-year-indicator" hidden><span>Σχολικό έτος:</span> <span id="hoursSchoolYearValue"></span></span></div></header><main id="root" class="page-main"><p class="subapp-connection">Άνοιξε τις «Ώρες Διδασκαλίας» από το Κεντρικό Μενού, αφού ανοίξεις το αρχείο πληροφοριών του σχολείου. Απαιτείται η τελευταία έκδοση του index.html.</p></main><script src="_ui.js"></script>
+</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ώρες Διδασκαλίας — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΩΔ</span></span><span class="brand-text"><span>Ώρες Διδασκαλίας</span><span class="small version">v0.43</span></span></button></h1></div><button id="save" class="save-main" disabled>Αποθήκευση</button><button id="undo" disabled>Αναίρεση Όλων</button><button id="exportFet" disabled>Εξαγωγή σε FET...</button><div class="header-right"><span id="hoursSchoolYear" class="school-year-indicator" hidden><span>Σχολικό έτος:</span> <span id="hoursSchoolYearValue"></span></span></div></header><main id="root" class="page-main"><p class="subapp-connection">Άνοιξε τις «Ώρες Διδασκαλίας» από το Κεντρικό Μενού, αφού ανοίξεις το αρχείο πληροφοριών του σχολείου. Απαιτείται η τελευταία έκδοση του index.html.</p></main><script src="_ui.js"></script>
 <script src="_data.js"></script>
 <script>
 // A category owns one shared activity tag. Hour names remain independent of tags.
