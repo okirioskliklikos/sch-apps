@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων
- * Έκδοση αρχείου: 0.23
+ * Έκδοση αρχείου: 0.24
  * Όνομα κατά την εγκατάσταση: _data.js
  *
  * Φορτώνεται από όσες υποεφαρμογές διαβάζουν ή γράφουν CSV, FET, ημερομηνίες ή προγράμματα, μετά
@@ -1695,6 +1695,13 @@
   }
 
 
+  // Αλφαβητική σειρά πλήρους ονόματος, ανεξάρτητα από το shortNameOrder.
+  function sortStaffAlphabetically(staff) {
+    const collator = new Intl.Collator('el', {sensitivity: 'base', numeric: true});
+    const name = person => String(person?.name || person?.shortName || '');
+    return [...(staff || [])].sort((a, b) => collator.compare(name(a), name(b)) || String(a?.id || '').localeCompare(String(b?.id || '')));
+  }
+
   // ---- Μαθητές (studentsByYear) ----
   // Ο Αριθμός Μητρώου δεν είναι ταυτότητα: σπάνια δύο μαθητές έχουν τον ίδιο. Ταυτότητα είναι μόνο το id.
   // Στις εισαγωγές, ίδιος μαθητής είναι αυτός με ίδιο Αριθμό Μητρώου ΚΑΙ ίδιο επώνυμο και όνομα (χωρίς τόνους,
@@ -1949,7 +1956,7 @@
     STAY_MINUTES, EARLY_ARRIVAL_MINUTES,
     parseTimeRange, hourTimes, timedHours, hourGroups,
     periodEnd, periodAt, programAt, programsAt, periodWarnings,
-    classSpelling, studentsIndex, expandStudents, studentsFromNames, studentsText, homeroomTeacher, isGeneralTeacher, sortStaff,
+    classSpelling, studentsIndex, expandStudents, studentsFromNames, studentsText, homeroomTeacher, isGeneralTeacher, sortStaff, sortStaffAlphabetically,
     conflicts, studentsClash, staffHours, unavailableTimes, availability, staffBusyAt, replaceStaff,
     analyzeOloimeroReplace, applyOloimeroReplace,
     OLOIMERO_CATEGORIES, OLOIMERO_MAX_SLOTS, oloimeroHours, oloimeroTeacherColor, oloimeroStudents,

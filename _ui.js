@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.27
+ * Έκδοση αρχείου: 0.28
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -1205,7 +1205,7 @@
       checkboxes.length = 0;
       const data = dataNow(), made = [];
       const general = [...(registry.general || [])].filter(tag => tag && tag.id).sort((a, b) => String(a.name).localeCompare(String(b.name), 'el', {sensitivity: 'base', numeric: true}));
-      const classes = C.sort(data.classes || []), staff = T.sortStaff(data.staff || []);
+      const classes = C.sort(data.classes || []), staff = T.sortStaffAlphabetically(data.staff || []);
       const sections = [
         ['staff', staff.filter(person => person?.id).map(person => ({type: 'staff', id: person.id}))],
         ['class', classes.map(record => ({type: 'class', id: record.id}))]
