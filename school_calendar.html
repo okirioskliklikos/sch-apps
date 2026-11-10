@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Σχολικό Ημερολόγιο v1.04</title>
+<title>Σχολικό Ημερολόγιο v1.05</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -161,7 +161,15 @@
 .school-confirm.ssd-dialog{width:min(1500px,calc(100vw - 16px));height:min(1024px,calc(100dvh - 16px));max-height:calc(100dvh - 16px);display:flex;flex-direction:column;overflow:hidden;padding:18px 20px}
 .ssd-dialog>.school-confirm-actions{flex:none;margin-top:12px}
 .school-confirm.ssd-dialog:not(.ssd-composition-open){height:auto}
-.ssd-schedule{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.ssd-schedule{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:8px}
+.ssd-schedule [data-role="compositionToggle"]{grid-column:1;justify-self:start}
+.ssd-composition-summary{grid-column:2;text-align:center;font-weight:700}
+.ssd-schedule [data-role="checkProgram"]{grid-column:3;justify-self:end}
+@media(max-width:760px){
+  .ssd-schedule{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .ssd-composition-summary{grid-column:1/-1;grid-row:2}
+  .ssd-schedule [data-role="checkProgram"]{grid-column:2;grid-row:1}
+}
 .ssd-schedule [hidden],.ssd-attendance[hidden]{display:none}
 .ssd-body{display:flex;flex:1;flex-direction:column;gap:6px;min-height:0;overflow:hidden}
 .ssd-meta{display:grid;grid-template-columns:minmax(200px,.8fr) minmax(260px,1fr);align-items:start;gap:7px 18px;padding:11px 13px;border:1px solid #d6dce0;border-radius:7px;background:#f7f9fa}
@@ -259,7 +267,7 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v1.04</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v1.05</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="print" type="button" disabled>Εκτύπωση...</button>
@@ -1077,14 +1085,14 @@ async function openMeeting(kind, date) {
   const moves = {available:[['present','Παρόντες →'],['absent','Απόντες →']], present:[['available','← Διαθέσιμοι'],['absent','Απόντες →']], absent:[['available','← Διαθέσιμοι'],['present','← Παρόντες']]};
 
   const body = document.createElement('div'); body.className = 'ssd-body';
-  body.innerHTML = `<div class="ssd-meta"><div class="ssd-left-meta">${ssd ? `<div class="ssd-act"><strong>Αριθμός πράξης:</strong> <span data-role="act"></span></div>` : ''}<div class="ssd-director"><strong>${esc(directorTitleFor(directorName))}:</strong> <span>${esc(directorName)}</span></div></div><div class="ssd-date-time"><strong>Ημερομηνία:</strong><span>${esc(longDate(date))}</span><label for="ssdStartTime">Ώρα έναρξης:</label><input id="ssdStartTime" type="text" inputmode="numeric" autocomplete="off" maxlength="5" placeholder="HH:MM" value="${esc(meeting.startTime || DEFAULT_TIMES.start)}" aria-label="Ώρα έναρξης συνεδρίασης, 24ωρη μορφή"><label for="ssdEndTime">Ώρα λήξης:</label><input id="ssdEndTime" type="text" inputmode="numeric" autocomplete="off" maxlength="5" placeholder="HH:MM" value="${esc(meeting.endTime || DEFAULT_TIMES.end)}" aria-label="Ώρα λήξης συνεδρίασης, 24ωρη μορφή"></div></div><div class="ssd-error" data-role="serviceError" role="alert"></div><div class="ssd-subject"><label for="ssdSubject">${spec.subject}</label><textarea id="ssdSubject" rows="2">${esc(meeting.subject)}</textarea></div><div class="ssd-schedule"><button type="button" class="ui-toggle" data-role="compositionToggle" aria-expanded="false" aria-controls="ssdAttendance">${ssd ? 'Σύνθεση Συνεδρίασης' : 'Σύνθεση Συνάντησης'}</button><button type="button" data-role="checkProgram" hidden>Έλεγχος από το πρόγραμμα</button></div><div class="ssd-attendance" id="ssdAttendance" hidden>${Object.keys(listTitle).map(name => `<section class="ssd-list-panel"><h3 data-title="${name}">${listTitle[name]} (0)</h3><div class="ssd-teacher-list" data-list="${name}" role="listbox" aria-multiselectable="true" aria-label="${listTitle[name]}" tabindex="0"></div><div class="ssd-list-controls">${moves[name].map(([to, label]) => `<button type="button" class="ssd-move" data-from="${name}" data-to="${to}">${label}</button>`).join('')}${name === 'available' ? '<button type="button" class="ssd-reset-all">← Διαθέσιμοι (Όλοι)</button>' : ''}</div></section>`).join('')}</div>`;
+  body.innerHTML = `<div class="ssd-meta"><div class="ssd-left-meta">${ssd ? `<div class="ssd-act"><strong>Αριθμός πράξης:</strong> <span data-role="act"></span></div>` : ''}<div class="ssd-director"><strong>${esc(directorTitleFor(directorName))}:</strong> <span>${esc(directorName)}</span></div></div><div class="ssd-date-time"><strong>Ημερομηνία:</strong><span>${esc(longDate(date))}</span><label for="ssdStartTime">Ώρα έναρξης:</label><input id="ssdStartTime" type="text" inputmode="numeric" autocomplete="off" maxlength="5" placeholder="HH:MM" value="${esc(meeting.startTime || DEFAULT_TIMES.start)}" aria-label="Ώρα έναρξης συνεδρίασης, 24ωρη μορφή"><label for="ssdEndTime">Ώρα λήξης:</label><input id="ssdEndTime" type="text" inputmode="numeric" autocomplete="off" maxlength="5" placeholder="HH:MM" value="${esc(meeting.endTime || DEFAULT_TIMES.end)}" aria-label="Ώρα λήξης συνεδρίασης, 24ωρη μορφή"></div></div><div class="ssd-error" data-role="serviceError" role="alert"></div><div class="ssd-subject"><label for="ssdSubject">${spec.subject}</label><textarea id="ssdSubject" rows="2">${esc(meeting.subject)}</textarea></div><div class="ssd-schedule"><button type="button" class="ui-toggle" data-role="compositionToggle" aria-expanded="false" aria-controls="ssdAttendance">${ssd ? 'Σύνθεση Συνεδρίασης' : 'Σύνθεση Συνάντησης'}</button><strong class="ssd-composition-summary" data-role="compositionSummary" role="status" aria-live="polite"></strong><button type="button" data-role="checkProgram" hidden>Έλεγχος από το πρόγραμμα</button></div><div class="ssd-attendance" id="ssdAttendance" hidden>${Object.keys(listTitle).map(name => `<section class="ssd-list-panel"><h3 data-title="${name}">${listTitle[name]} (0)</h3><div class="ssd-teacher-list" data-list="${name}" role="listbox" aria-multiselectable="true" aria-label="${listTitle[name]}" tabindex="0"></div><div class="ssd-list-controls">${moves[name].map(([to, label]) => `<button type="button" class="ssd-move" data-from="${name}" data-to="${to}">${label}</button>`).join('')}${name === 'available' ? '<button type="button" class="ssd-reset-all">← Διαθέσιμοι (Όλοι)</button>' : ''}</div></section>`).join('')}</div>`;
   const q = selector => body.querySelector(selector);
   const listOf = name => q(`[data-list="${name}"]`);
   const startInput = q('#ssdStartTime'), endInput = q('#ssdEndTime');
-  const attendance = q('#ssdAttendance'), compositionToggle = q('[data-role="compositionToggle"]'), checkProgramButton = q('[data-role="checkProgram"]');
+  const attendance = q('#ssdAttendance'), compositionToggle = q('[data-role="compositionToggle"]'), checkProgramButton = q('[data-role="checkProgram"]'), compositionSummary = q('[data-role="compositionSummary"]');
   compositionToggle.addEventListener('click', () => {
     const expanded = attendance.hidden;
-    attendance.hidden = !expanded; checkProgramButton.hidden = !expanded;
+    attendance.hidden = !expanded; checkProgramButton.hidden = !expanded; compositionSummary.hidden = expanded;
     compositionToggle.setAttribute('aria-expanded', String(expanded));
     compositionToggle.setAttribute('aria-pressed', String(expanded));
     body.closest('.ssd-dialog')?.classList.toggle('ssd-composition-open', expanded);
@@ -1116,6 +1124,7 @@ async function openMeeting(kind, date) {
     renderLists(); refreshServiceError();
   };
   const renderLists = () => {
+    compositionSummary.textContent = Object.keys(listTitle).map(name => `${listTitle[name]} (${displayOrder(name).length})`).join(' / ');
     for (const name of Object.keys(lists)) {
       const container = listOf(name), scroll = container.scrollTop, ids = displayOrder(name);
       q(`[data-title="${name}"]`).textContent = `${listTitle[name]} (${ids.length})`;
