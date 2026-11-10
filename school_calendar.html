@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Σχολικό Ημερολόγιο v0.96</title>
+<title>Σχολικό Ημερολόγιο v0.97</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -251,7 +251,7 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v0.96</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v0.97</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="print" type="button" disabled>Εκτύπωση...</button>
@@ -597,20 +597,25 @@ async function openDayActions(date) {
     return;
   }
   selectedDate = date; render();
-  const key = dateKey(date), entry = getEntry(key);
-  const has = [hasPersonal(entry.personalNotes), hasBook(entry.schoolLifeBook), !!cal.ssdMeetings[key], !!cal.pedagogicMeetings[key]];
-  const choice = await schoolChoiceDialog({
-    title: longDate(date), className: 'cal-day-actions',
-    choices: [
-      {label: 'Προσωπικές Σημειώσεις', value: 'personalNotes'},
-      {label: 'Βιβλίο Σχολικής Ζωής', value: 'schoolLifeBook'},
-      {label: 'Παιδαγωγική Συνάντηση', value: 'ped'},
-      {label: 'Συνεδρίαση Συλλόγου Διδασκόντων', value: 'ssd'}
-    ],
-    ready: ({dialog}) => dialog.querySelectorAll('.school-choice-options button').forEach((button, index) => button.classList.toggle('cal-has-data', has[[0, 1, 3, 2][index]]))
-  });
-  if (choice === 'personalNotes' || choice === 'schoolLifeBook') editDay(date, choice);
-  else if (choice === 'ssd' || choice === 'ped') openMeeting(choice, date);
+  const key = dateKey(date);
+  while (true) {
+    // On returning from an entry, refresh the indicators and show the same day's choices again.
+    const entry = getEntry(key);
+    const has = [hasPersonal(entry.personalNotes), hasBook(entry.schoolLifeBook), !!cal.ssdMeetings[key], !!cal.pedagogicMeetings[key]];
+    const choice = await schoolChoiceDialog({
+      title: longDate(date), className: 'cal-day-actions',
+      choices: [
+        {label: 'Προσωπικές Σημειώσεις', value: 'personalNotes'},
+        {label: 'Βιβλίο Σχολικής Ζωής', value: 'schoolLifeBook'},
+        {label: 'Παιδαγωγική Συνάντηση', value: 'ped'},
+        {label: 'Συνεδρίαση Συλλόγου Διδασκόντων', value: 'ssd'}
+      ],
+      ready: ({dialog}) => dialog.querySelectorAll('.school-choice-options button').forEach((button, index) => button.classList.toggle('cal-has-data', has[[0, 1, 3, 2][index]]))
+    });
+    if (choice === 'personalNotes' || choice === 'schoolLifeBook') await editDay(date, choice);
+    else if (choice === 'ssd' || choice === 'ped') await openMeeting(choice, date);
+    else break;
+  }
 }
 
 // ---- Notes editor ----
