@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>FET Timetable Editor v1.03</title>
+<title>FET Timetable Editor v1.04</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -145,7 +145,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="FET Timetable Editor — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>FT</span></span><span class="brand-text"><span>FET Timetable Editor</span><span class="small version">v1.03</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="FET Timetable Editor — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>FT</span></span><span class="brand-text"><span>FET Timetable Editor</span><span class="small version">v1.04</span></span></button></h1></div>
   <select id="period" aria-label="Περίοδος" disabled hidden></select>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <span class="sep" aria-hidden="true"></span>
@@ -548,7 +548,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     side.hidden = !showSide; root.classList.toggle('ft-single', !showSide);
     if (hoursError) { work.innerHTML = `<div class="subapp-empty subapp-empty-stack ft-empty"><p>${esc(hoursError)}</p></div>`; buttons(); return; }
     if (!context.periods?.length) {
-      work.innerHTML = '<div class="subapp-empty subapp-empty-stack ft-empty"><p>Δεν υπάρχουν περίοδοι για το σχολικό έτος.<br>Δημιούργησέ τες στα «Σχολικά Προγράμματα» και κάνε εκεί την εισαγωγή από FET.</p></div>';
+      work.innerHTML = '<div class="subapp-empty subapp-empty-stack ft-empty"><p>Δεν υπάρχουν περίοδοι για το σχολικό έτος.<br>Δημιούργησέ τες στις «Περιόδους Προγραμμάτων» και κάνε εκεί την εισαγωγή από FET.</p></div>';
       buttons(); return;
     }
     if (!program) { renderEmptyPeriod(work); buttons(); return; }
@@ -561,7 +561,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     work.innerHTML = `<p id="notice" class="subapp-notice" role="status"></p><div class="subapp-empty subapp-empty-stack ft-empty">
       <p>Η περίοδος ${esc(quoted(period?.name || ''))} δεν έχει ωρολόγιο.</p>
       <button id="copyPeriod" type="button" class="primary"${others.length ? '' : ' disabled'}>Αντιγραφή από άλλη περίοδο…</button>
-      <p class="ui-helper">${others.length ? '' : 'Καμία άλλη περίοδος δεν έχει ωρολόγιο. '}Η εισαγωγή από FET γίνεται στα «Σχολικά Προγράμματα».</p></div>`;
+      <p class="ui-helper">${others.length ? '' : 'Καμία άλλη περίοδος δεν έχει ωρολόγιο. '}Η εισαγωγή από FET γίνεται στις «Περιόδους Προγραμμάτων».</p></div>`;
     $('copyPeriod').onclick = copyFromPeriod;
   }
   function renderSide() {
@@ -869,7 +869,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     field.append(select);
     const chosen = await schoolChoiceDialog({
       title: 'Αντιγραφή ωρολογίου',
-      content: ['Το ωρολόγιο της περιόδου που θα επιλέξεις αντιγράφεται στην περίοδο ' + quoted(periodOf(periodId)?.name || '') + '. Αποθηκεύεται με την «Αποθήκευση». Αντικαταστάσεις εκπαιδευτικών γίνονται με την αντιγραφή περιόδου στα «Σχολικά Προγράμματα».', field],
+      content: ['Το ωρολόγιο της περιόδου που θα επιλέξεις αντιγράφεται στην περίοδο ' + quoted(periodOf(periodId)?.name || '') + '. Αποθηκεύεται με την «Αποθήκευση». Αντικαταστάσεις εκπαιδευτικών γίνονται με την αντιγραφή περιόδου στις «Περιόδους Προγραμμάτων».', field],
       actions: [{label: 'Ακύρωση'}, {label: 'Αντιγραφή', accept: true, run: () => select.value}]
     });
     const source = chosen && schoolProgramOf(chosen);

@@ -12,7 +12,7 @@
   φτιάχνονται από το σύντομο όνομα των δασκάλων («[Α1] - …», classesFromStaff). Με το .data δοκιμής, οι
   έλεγχοι των νέων ετικετών (v2) παίρνουν το Προσωπικό από αυτό, γιατί το CSV του Ολοημέρου έχει τα σύντομα
   ονόματα του Προσωπικού.
-  Έκδοση αρχείου: 0.37
+  Έκδοση αρχείου: 0.38
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -1224,10 +1224,10 @@ function hostChecks() {
   const put = program => ({op: 'put', program});
 
   // Περίοδοι
-  const d1 = accepts('«Σχολικά Προγράμματα»: δημιουργία περιόδου', trySave(base, {ops: [], periods: [periodA]}, PROG));
+  const d1 = accepts('«Περίοδοι Προγραμμάτων»: δημιουργία περιόδου', trySave(base, {ops: [], periods: [periodA]}, PROG));
   if (!d1) return;
   check('Το αρχικό data δεν αλλάζει (η αποθήκευση γίνεται σε αντίγραφο)', !base.timetablesByYear?.[year]);
-  rejects('FET Editor: δεν αλλάζει τη λίστα περιόδων', trySave(base, {ops: [], periods: [periodA]}, FET_APP), 'μόνο από την εφαρμογή «Σχολικά Προγράμματα»');
+  rejects('FET Editor: δεν αλλάζει τη λίστα περιόδων', trySave(base, {ops: [], periods: [periodA]}, FET_APP), 'μόνο από την εφαρμογή «Περίοδοι Προγραμμάτων»');
   rejects('Περίοδος που αρχίζει πριν από το σχολικό έτος (31/08/2026)', trySave(base, {ops: [], periods: [{...periodA, from: '2026-08-31'}]}, PROG), '01/09/2026–31/08/2027');
   rejects('Δύο περίοδοι με την ίδια ταυτότητα', trySave(base, {ops: [], periods: [periodA, {...periodB, id: 'pa'}]}, PROG), 'ίδια ταυτότητα');
   rejects('Περίοδος χωρίς όνομα', trySave(base, {ops: [], periods: [{...periodA, name: ' '}]}, PROG), 'χρειάζεται όνομα');
@@ -1280,7 +1280,7 @@ function hostChecks() {
   if (!d4) return;
   const ctxFet = H.context(d4, FET_APP, 7), ctxProg = H.context(d4, PROG, 7), ctxOlo = H.context(d4, OLO_APP, 7);
   equal('Context του FET Editor: τα προγράμματα περιόδων και το δικό του προσχέδιο', ctxFet.programs.map(p => p.id).sort(), ['draft-fet', 'prog-olo-a', 'prog-school-a']);
-  equal('Context του «Σχολικά Προγράμματα»: μόνο τα προγράμματα περιόδων', ctxProg.programs.map(p => p.id).sort(), ['prog-olo-a', 'prog-school-a']);
+  equal('Context των «Περιόδων Προγραμμάτων»: μόνο τα προγράμματα περιόδων', ctxProg.programs.map(p => p.id).sort(), ['prog-olo-a', 'prog-school-a']);
   equal('Context του Ολοήμερου: χωρίς το προσχέδιο του FET Editor', ctxOlo.programs.map(p => p.id).sort(), ['prog-olo-a', 'prog-school-a']);
   equal('draftCounts ανά είδος', ctxProg.draftCounts, {school: 1, oloimero: 0, individual: 0});
   check('Context: revision, school, year, staff, teachingHours, periods', ctxProg.revision === 7 && ctxProg.school.year === year && ctxProg.year === year && ctxProg.staff.length === staff.length && !!ctxProg.teachingHours?.hours?.length && ctxProg.periods.length === 1);
@@ -1306,9 +1306,9 @@ function hostChecks() {
     JSON.stringify(existingViews) === existingSnapshot);
   equal('Μη έγκυρη τιμή αγνοείται', H.lastView(H.withView(d4, year, 'oloimero', 'κάτι άλλο'), year, 'oloimero'), '');
   check('Η τελευταία επιλογή περνά αυτούσια από μια αποθήκευση προγράμματος', H.lastView(H.applySave(viewed, {ops: [put({...clone(programsOf(d4).find(p => p.id === 'draft-fet')), name: 'Άλλο όνομα'})]}, FET_APP), year, 'oloimero') === 'draft:abc');
-  rejects('«Σχολικά Προγράμματα»: δεν αλλάζει υπάρχον προσχέδιο', trySave(d4, {ops: [put({...clone(programsOf(d4).find(p => p.id === 'draft-fet')), name: 'Άλλο'})]}, PROG), 'μόνο από την εφαρμογή του είδους του');
-  rejects('«Σχολικά Προγράμματα»: δεν σβήνει υπάρχον προσχέδιο', trySave(d4, {ops: [{op: 'delete', id: 'draft-fet'}]}, PROG), 'μόνο από την εφαρμογή του είδους του');
-  rejects('«Σχολικά Προγράμματα»: δεν φτιάχνει νέο προσχέδιο', trySave(d4, {ops: [put({...clone(school), id: 'draft-prog', periodId: null, name: 'Νέο'})]}, PROG), 'μόνο από πρόγραμμα που ήταν σε περίοδο');
+  rejects('«Περίοδοι Προγραμμάτων»: δεν αλλάζει υπάρχον προσχέδιο', trySave(d4, {ops: [put({...clone(programsOf(d4).find(p => p.id === 'draft-fet')), name: 'Άλλο'})]}, PROG), 'μόνο από την εφαρμογή του είδους του');
+  rejects('«Περίοδοι Προγραμμάτων»: δεν σβήνει υπάρχον προσχέδιο', trySave(d4, {ops: [{op: 'delete', id: 'draft-fet'}]}, PROG), 'μόνο από την εφαρμογή του είδους του');
+  rejects('«Περίοδοι Προγραμμάτων»: δεν φτιάχνει νέο προσχέδιο', trySave(d4, {ops: [put({...clone(school), id: 'draft-prog', periodId: null, name: 'Νέο'})]}, PROG), 'μόνο από πρόγραμμα που ήταν σε περίοδο');
   rejects('Διαγραφή προγράμματος που δεν υπάρχει', trySave(d4, {ops: [{op: 'delete', id: 'no-such-program'}]}, FET_APP), 'δεν υπάρχει πια');
   const assigned = accepts('FET Editor: ανάθεση προσχεδίου στην Α περίοδο, το παλιό κρατιέται ως προσχέδιο', trySave(d4, {ops: [
     put({...clone(programsOf(d4).find(p => p.id === 'draft-fet')), periodId: 'pa'}),
@@ -1392,7 +1392,7 @@ function hostOloimeroChecks(H, d4, staff, hours, classes, {trySave, accepts, rej
   rejects('Μη έγκυρο hidden', trySave(d4, {ops: [put(withSource('olo-hid2', src => { src.hidden = {grades: ['Ζ'], classes: []}; }))]}, OLO_APP), '(hidden)');
   if (!d5) return null;
   equal('Context του FET Editor: βλέπει και τα προσχέδια του Ολοημέρου', H.context(d5, FET_APP, 1).programs.map(p => p.id).sort(), ['draft-fet', 'olo-draft', 'prog-olo-a', 'prog-school-a']);
-  check('Context του «Σχολικά Προγράμματα»: χωρίς το προσχέδιο του Ολοημέρου', !H.context(d5, H.PROGRAMS_APP, 1).programs.some(p => p.id === 'olo-draft'));
+  check('Context των «Περιόδων Προγραμμάτων»: χωρίς το προσχέδιο του Ολοημέρου', !H.context(d5, H.PROGRAMS_APP, 1).programs.some(p => p.id === 'olo-draft'));
   equal('Context του Ολοήμερου: το δικό του προσχέδιο, όχι του FET Editor', H.context(d5, OLO_APP, 1).programs.map(p => p.id).sort(), ['olo-draft', 'prog-olo-a', 'prog-school-a']);
   const saved = programsOf(d5).find(p => p.id === 'olo-draft'), old = programsOf(d5).find(p => p.id === 'prog-olo-a');
   const kept = accepts('FET Editor: ανάθεση του προσχεδίου Ολοημέρου στην περίοδο, το παλιό κρατιέται ως προσχέδιο', trySave(d5, {ops: [put({...clone(saved), periodId: 'pa', updatedAt: 'x'}), put({...clone(old), periodId: null, name: 'Ολοήμερο Α περιόδου – αντικαταστάθηκε'})]}, FET_APP));
@@ -1439,7 +1439,7 @@ function hostOloimeroChecks(H, d4, staff, hours, classes, {trySave, accepts, rej
   rejects('FET Editor: αντίγραφο με άλλο όνομα', trySave(d5, {ops: [put({...clone(saved), periodId: 'pa'}), {op: 'delete', id: 'prog-olo-a'}, copyOf({name: 'Άλλο όνομα'})]}, FET_APP), 'μόνο ως αντίγραφο');
   rejects('FET Editor: δύο αντίγραφα του ίδιου προσχεδίου', trySave(d5, {ops: [put({...clone(saved), periodId: 'pa'}), {op: 'delete', id: 'prog-olo-a'}, copyOf(), put({...clone(saved), id: 'olo-copy2', periodId: null})]}, FET_APP), 'μόνο ως αντίγραφο');
   rejects('FET Editor: αντίγραφο σχεδίου περιόδου (όχι προσχεδίου)', trySave(d5, {ops: [put({...clone(old), id: 'olo-copy', periodId: null, name: old.name || 'Αντίγραφο'})]}, FET_APP), 'μόνο ως αντίγραφο');
-  rejects('«Σχολικά Προγράμματα»: δεν αναθέτει προσχέδιο του Ολοημέρου', trySave(d5, {ops: [put({...clone(saved), periodId: 'pa'}), {op: 'delete', id: 'prog-olo-a'}]}, H.PROGRAMS_APP), 'μόνο από την εφαρμογή του είδους του');
+  rejects('«Περίοδοι Προγραμμάτων»: δεν αναθέτει προσχέδιο του Ολοημέρου', trySave(d5, {ops: [put({...clone(saved), periodId: 'pa'}), {op: 'delete', id: 'prog-olo-a'}]}, H.PROGRAMS_APP), 'μόνο από την εφαρμογή του είδους του');
   const designerCopy = accepts('Ολοήμερο Designer: ανάθεση νέου ανεξάρτητου σχεδίου με διατήρηση προσχεδίου',
     trySave(d5, {ops: [put({...clone(saved), id: 'olo-designer-period', periodId: 'pa'}), {op: 'delete', id: 'prog-olo-a'}]}, OLO_APP));
   if (designerCopy) {

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ολοήμερο Designer v1.87</title>
+<title>Ολοήμερο Designer v1.88</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -591,7 +591,7 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
 <body>
 
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΟΛ</span></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v1.87</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΟΛ</span></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v1.88</span></span></button></h1></div>
   <select id="program" aria-label="Σχέδιο" hidden></select>
   <span class="save-control">
     <button id="saveData" class="save-main" type="button" disabled>Αποθήκευση</button>
@@ -3508,12 +3508,12 @@ function renderNoDesign(){
       button("Αντιγραφή από άλλη περίοδο…",()=>void copyFromPeriod(),{disabled:!others})
     );
     noDesign.replaceChildren(paragraph(`Η περίοδος ${quoted(period.name)} (${D.format(period.from)} – ${D.format(T.periodEnd(period,context.year))}) δεν έχει σχέδιο Ολοημέρου.`),actions,
-      paragraph("Το CSV εισάγεται με τον ίδιο τρόπο και από τα «Σχολικά Προγράμματα».","ui-helper"));
+      paragraph("Το CSV εισάγεται με τον ίδιο τρόπο και από τις «Περιόδους Προγραμμάτων».","ui-helper"));
     return;
   }
   actions.append(button("Νέο προσχέδιο",()=>void newDraft(false),{primary:true}),button("Εισαγωγή από CSV…",()=>void importCsv()));
   noDesign.replaceChildren(paragraph("Δεν υπάρχουν σχέδια Ολοημέρου για το σχολικό έτος."),actions,
-    paragraph("Οι περίοδοι δημιουργούνται στα «Σχολικά Προγράμματα».","ui-helper"));
+    paragraph("Οι περίοδοι δημιουργούνται στις «Περιόδους Προγραμμάτων».","ui-helper"));
 }
 
 // Warnings near the limits of the host (context.limits, from warnRatio): programs of the year, with every

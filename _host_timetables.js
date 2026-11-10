@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Προγράμματα στο Κεντρικό Μενού (host)
- * Έκδοση αρχείου: 0.12
+ * Έκδοση αρχείου: 0.13
  * Όνομα κατά την εγκατάσταση: _host_timetables.js
  *
  * Κώδικας μόνο του host για τα προγράμματα (timetablesByYear). Το φορτώνει το index.html μετά το
@@ -41,7 +41,7 @@
   const T = window.SchoolTimetable, D = window.SchoolDate;
   if (!T || !D) throw Error('Το _host_timetables.js χρειάζεται το _data.js, φορτωμένο πριν από αυτό. Βεβαιώσου ότι το index.html είναι η τελευταία έκδοση.');
 
-  // Η εφαρμογή «Σχολικά Προγράμματα»: διαχειρίζεται τις περιόδους και τα προγράμματα περιόδων κάθε είδους.
+  // Η εφαρμογή «Περίοδοι Προγραμμάτων»: διαχειρίζεται τις περιόδους και τα προγράμματα περιόδων κάθε είδους.
   const PROGRAMS_APP = 'timetables.html';
   // Όρια πλήθους: πιάνουν λάθη εφαρμογών (π.χ. προσχέδια που αντιγράφονται ξανά και ξανά). Πάνω από το όριο η
   // αποθήκευση απορρίπτεται· από το 90% (WARN_RATIO) οι εφαρμογές δείχνουν προειδοποίηση, με τα όρια και τις
@@ -284,7 +284,7 @@
     checkJson(ops, 'Τα προγράμματα');
     const changesPeriods = message.periods !== undefined;
     if (changesPeriods) {
-      if (!rights.periods) throw Error('Οι περίοδοι αλλάζουν μόνο από την εφαρμογή «Σχολικά Προγράμματα».');
+      if (!rights.periods) throw Error('Οι περίοδοι αλλάζουν μόνο από την εφαρμογή «Περίοδοι Προγραμμάτων».');
       checkJson(message.periods, 'Οι περίοδοι');
       validatePeriods(message.periods, year);
     }
@@ -351,7 +351,7 @@
       }
       if (!may(program.kind)) throw Error('Η εφαρμογή δεν μπορεί να γράψει προγράμματα του είδους ' + quoted(kindLabel(program.kind)) + '.');
       if (existing && existing.kind !== program.kind) throw Error('Το είδος ενός προγράμματος δεν αλλάζει.');
-      if (rights.drafts === 'fromPeriod' && program.periodId == null && !(existing && existing.periodId != null)) throw Error('Η εφαρμογή «Σχολικά Προγράμματα» φτιάχνει προσχέδιο μόνο από πρόγραμμα που ήταν σε περίοδο.');
+      if (rights.drafts === 'fromPeriod' && program.periodId == null && !(existing && existing.periodId != null)) throw Error('Η εφαρμογή «Περίοδοι Προγραμμάτων» φτιάχνει προσχέδιο μόνο από πρόγραμμα που ήταν σε περίοδο.');
       result.set(id, program);
       puts.push(program);
     }
