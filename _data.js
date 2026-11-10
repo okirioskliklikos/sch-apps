@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων
- * Έκδοση αρχείου: 0.24
+ * Έκδοση αρχείου: 0.25
  * Όνομα κατά την εγκατάσταση: _data.js
  *
  * Φορτώνεται από όσες υποεφαρμογές διαβάζουν ή γράφουν CSV, FET, ημερομηνίες ή προγράμματα, μετά
@@ -1913,12 +1913,12 @@
     if (type === 'student') { const item = index.students.get(id); return item ? {type, label: studentTagLabel(item, index.classes), color, missing: false} : missing(color); }
     return missing('#ffffff');
   }
-  // Η κοινή σειρά: εκπαιδευτικοί, τμήματα, μαθητές, γενικές. Μέσα στην κάθε κατηγορία
-  // διατηρείται η αντίστοιχη ταξινόμηση. Όσες δεν βρίσκονται στο τέλος της κατηγορίας τους.
+  // Η κοινή σειρά: εκπαιδευτικοί (αλφαβητικά κατά πλήρες όνομα, όπως στον επιλογέα), τμήματα, μαθητές, γενικές.
+  // Μέσα στην κάθε κατηγορία διατηρείται η αντίστοιχη ταξινόμηση. Όσες δεν βρίσκονται στο τέλος της κατηγορίας τους.
   function sortTags(refs, data) {
     const index = tagIndex(data), list = cleanTagRefs(refs);
     const classOrder = new Map(sortClasses([...index.classes.values()]).map((item, position) => [item.id, position]));
-    const staffOrder = new Map(sortStaff([...index.staff.values()]).map((item, position) => [item.id, position]));
+    const staffOrder = new Map(sortStaffAlphabetically([...index.staff.values()]).map((item, position) => [item.id, position]));
     const far = Number.MAX_SAFE_INTEGER;
     const compare = (a, b) => {
       const ta = TAG_DISPLAY_ORDER.indexOf(a.type), tb = TAG_DISPLAY_ORDER.indexOf(b.type);

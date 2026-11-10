@@ -12,7 +12,7 @@
   φτιάχνονται από το σύντομο όνομα των δασκάλων («[Α1] - …», classesFromStaff). Με το .data δοκιμής, οι
   έλεγχοι των νέων ετικετών (v2) παίρνουν το Προσωπικό από αυτό, γιατί το CSV του Ολοημέρου έχει τα σύντομα
   ονόματα του Προσωπικού.
-  Έκδοση αρχείου: 0.34
+  Έκδοση αρχείου: 0.35
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -933,7 +933,7 @@ function hostTagsChecks() {
   if (!H) { record('fail', 'Λείπει το _host_tags.js'); return; }
   const year = '2026-2027';
   const classes = [{...generalClass('Β1'), id: 'c2'}, {...generalClass('Α1'), id: 'c1', name: 'Α-1'}, {id: 'ce', name: 'Τμήμα Ένταξης', homeroomStaffId: ''}];
-  const staff = [{id: 's1', code: 'Β1', shortName: '[Β1] - Β', name: 'Βασιλείου Μαρία', shortNameOrder: 1}, {id: 's2', code: 'Α1', shortName: '[Α1] - Α', name: 'Αλεξίου Νίκος', shortNameOrder: 0}];
+  const staff = [{id: 's1', code: 'Β1', shortName: '[Β1] - Β', name: 'Βασιλείου Μαρία', shortNameOrder: 0}, {id: 's2', code: 'Α1', shortName: '[Α1] - Α', name: 'Αλεξίου Νίκος', shortNameOrder: 1}];
   const students = [{id: 'm1', lastName: 'ΠΑΠΑΣ', firstName: 'Γιώργος', classId: 'c2'}, {id: 'm2', lastName: 'ΖΩΗ', firstName: 'Άννα', classId: 'c1'}, {id: 'm3', lastName: 'ΑΛΦΑ', firstName: 'Βήτα', classId: 'c1'}];
   const tags = {general: [{id: 'g1', name: 'Εκδρομή', color: '#ff0000'}, {id: 'g2', name: 'αγωγή υγείας', color: '#00ff00', extra: 1}], colors: {staff: '#123456'}, note: 'x'};
   const data = {tags, classes, staff, students};
@@ -946,7 +946,7 @@ function hostTagsChecks() {
   const lost = G.resolve({type: 'student', id: 'xx'}, data);
   equal('Ετικέτα που δεν βρίσκεται: «?», missing', [lost.label, lost.missing], ['?', true]);
   const refs = [{type: 'student', id: 'm1'}, {type: 'staff', id: 's1'}, {type: 'general', id: 'g1'}, {type: 'student', id: 'm2'}, {type: 'class', id: 'ce'}, {type: 'class', id: 'c2'}, {type: 'staff', id: 's2'}, {type: 'general', id: 'g2'}, {type: 'student', id: 'm3'}, {type: 'general', id: 'g1'}];
-  equal('Σειρά: εκπαιδευτικοί με τη σειρά του Προσωπικού, τμήματα, μαθητές ανά τμήμα και αλφαβητικά, γενικές αλφαβητικά, χωρίς διπλές',
+  equal('Σειρά: εκπαιδευτικοί αλφαβητικά κατά πλήρες όνομα (όχι με τη σειρά του Προσωπικού), τμήματα, μαθητές ανά τμήμα και αλφαβητικά, γενικές αλφαβητικά, χωρίς διπλές',
     G.sort(refs, data).map(ref => ref.id), ['s2', 's1', 'c2', 'ce', 'm3', 'm2', 'm1', 'g2', 'g1']);
   equal('Σύγκριση ονομάτων: χωρίς τόνους, κενά και διάκριση πεζών–κεφαλαίων', [G.nameKey('Αγωγή  Υγείας') === G.nameKey('αγωγη υγειας'), G.nameKey('Α') === G.nameKey('Β')], [true, false]);
   check('same: ίδιο είδος και id', G.same({type: 'class', id: 'c1'}, {type: 'class', id: 'c1'}) && !G.same({type: 'class', id: 'c1'}, {type: 'staff', id: 'c1'}));
