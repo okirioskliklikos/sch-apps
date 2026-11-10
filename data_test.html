@@ -12,7 +12,7 @@
   φτιάχνονται από το σύντομο όνομα των δασκάλων («[Α1] - …», classesFromStaff). Με το .data δοκιμής, οι
   έλεγχοι των νέων ετικετών (v2) παίρνουν το Προσωπικό από αυτό, γιατί το CSV του Ολοημέρου έχει τα σύντομα
   ονόματα του Προσωπικού.
-  Έκδοση αρχείου: 0.36
+  Έκδοση αρχείου: 0.37
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -273,7 +273,7 @@ function basics() {
   const timetables = {periods, programs: [{id: 'p1', kind: 'school', periodId: 'a'}, {id: 'p2', kind: 'oloimero', periodId: 'b'}, {id: 'p3', kind: 'school', periodId: null, name: 'Προσχέδιο'}]};
   equal('Πρόγραμμα σε ημερομηνία: school 01/10 → p1, school 12/11 → κανένα (δεν συνεχίζει)', [T.programAt(timetables, 'school', '2026-10-01')?.id, T.programAt(timetables, 'school', '2026-11-12')], ['p1', null]);
   equal('classSpelling: ΣΤ1, στ2, Στ 1, α1, Ά2, Ε10, Α\', Υποδοχή, Ζ1, κενό', ['ΣΤ1', 'στ2', 'Στ 1', 'α1', 'Ά2', 'Ε10', "Α'", 'Υποδοχή', 'Ζ1', ''].map(T.classSpelling), ['Στ1', 'Στ2', 'Στ1', 'Α1', 'Α2', 'Ε10', '', '', '', '']);
-  equal('Κατάλογος ειδών: μετρούν school, support, special', Object.keys(T.kinds).filter(T.countsInHours), ['school', 'support', 'special']);
+  equal('Κατάλογος ειδών: μετρούν school, individual', Object.keys(T.kinds).filter(T.countsInHours), ['school', 'individual']);
 }
 
 // Τμήματα (SchoolClasses): είδος, κλειδί, ταξινόμηση, τάξεις, μετονομασία και αντιστοίχιση ονομάτων (resolver).
@@ -366,7 +366,7 @@ function importerChecks(staff, classes) {
   start('2γ. Εισαγωγείς ανά είδος');
   const T = SchoolTimetable;
   check('Κάθε είδος έχει λίστα εισαγωγέων', Object.keys(T.kinds).every(kind => Array.isArray(T.kinds[kind].importers)));
-  equal('Εισαγωγείς ανά είδος', Object.fromEntries(Object.keys(T.kinds).map(kind => [kind, T.importers(kind).map(item => item.id)])), {school: ['fet'], oloimero: ['csv'], support: [], special: []});
+  equal('Εισαγωγείς ανά είδος', Object.fromEntries(Object.keys(T.kinds).map(kind => [kind, T.importers(kind).map(item => item.id)])), {school: ['fet'], oloimero: ['csv'], individual: []});
   const fet = T.importer('school', 'fet');
   equal('Αρχεία του εισαγωγέα FET', fet?.files.map(file => file.key + ':' + Object.values(file.accept).flat().join(',')), ['csv:.csv', 'fet:.fet']);
   equal('Αρχεία του εισαγωγέα του Ολοημέρου', T.importer('oloimero', 'csv')?.files.map(file => file.key + ':' + Object.values(file.accept).flat().join(',')), ['csv:.csv']);
@@ -1282,7 +1282,7 @@ function hostChecks() {
   equal('Context του FET Editor: τα προγράμματα περιόδων και το δικό του προσχέδιο', ctxFet.programs.map(p => p.id).sort(), ['draft-fet', 'prog-olo-a', 'prog-school-a']);
   equal('Context του «Σχολικά Προγράμματα»: μόνο τα προγράμματα περιόδων', ctxProg.programs.map(p => p.id).sort(), ['prog-olo-a', 'prog-school-a']);
   equal('Context του Ολοήμερου: χωρίς το προσχέδιο του FET Editor', ctxOlo.programs.map(p => p.id).sort(), ['prog-olo-a', 'prog-school-a']);
-  equal('draftCounts ανά είδος', ctxProg.draftCounts, {school: 1, oloimero: 0, support: 0, special: 0});
+  equal('draftCounts ανά είδος', ctxProg.draftCounts, {school: 1, oloimero: 0, individual: 0});
   check('Context: revision, school, year, staff, teachingHours, periods', ctxProg.revision === 7 && ctxProg.school.year === year && ctxProg.year === year && ctxProg.staff.length === staff.length && !!ctxProg.teachingHours?.hours?.length && ctxProg.periods.length === 1);
   equal('Context: τα Τμήματα του έτους και το όριό τους (για τους εισαγωγείς)', [ctxProg.classes.map(c => c.id), ctxProg.limits.classes], [classes.map(c => c.id), 50]);
   // Τελευταία επιλογή (lastViewByYear)
@@ -1324,7 +1324,7 @@ function hostChecks() {
     put({...clone(programsOf(d4).find(p => p.id === 'prog-olo-a')), periodId: null, name: 'Ολοήμερο Α περιόδου'})
   ]}, PROG));
   if (kept) {
-    equal('Μετά τη διαγραφή: προσχέδια ανά είδος', H.context(kept, PROG, 1).draftCounts, {school: 2, oloimero: 1, support: 0, special: 0});
+    equal('Μετά τη διαγραφή: προσχέδια ανά είδος', H.context(kept, PROG, 1).draftCounts, {school: 2, oloimero: 1, individual: 0});
     equal('Το Ολοήμερο βλέπει το δικό του προσχέδιο', H.context(kept, OLO_APP, 1).programs.map(p => p.id), ['prog-olo-a']);
   }
   const removedAll = accepts('Διαγραφή περιόδου, «διάγραψέ τα»', trySave(d4, {periods: [], ops: [{op: 'delete', id: 'prog-school-a'}, {op: 'delete', id: 'prog-olo-a'}]}, PROG));

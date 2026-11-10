@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων
- * Έκδοση αρχείου: 0.25
+ * Έκδοση αρχείου: 0.26
  * Όνομα κατά την εγκατάσταση: _data.js
  *
  * Φορτώνεται από όσες υποεφαρμογές διαβάζουν ή γράφουν CSV, FET, ημερομηνίες ή προγράμματα, μετά
@@ -250,8 +250,7 @@
   const KINDS = Object.freeze({
     school: Object.freeze({label: 'Ωρολόγιο', owner: 'fet_timetable_editor.html', ownerTitle: 'FET Timetable Editor', counts: true, importers: Object.freeze([fetImporter()])}),
     oloimero: Object.freeze({label: 'Ολοήμερο', owner: 'oloimero_designer.html', ownerTitle: 'Ολοήμερο Designer', counts: false, importers: Object.freeze([oloimeroImporter()])}),
-    support: Object.freeze({label: 'Ειδικό Βοηθητικό Προσωπικό', owner: null, ownerTitle: '', counts: true, importers: Object.freeze([])}),
-    special: Object.freeze({label: 'Ειδική Αγωγή', owner: null, ownerTitle: '', counts: true, importers: Object.freeze([])})
+    individual: Object.freeze({label: 'Ατομικά Προγράμματα', owner: null, ownerTitle: '', counts: true, importers: Object.freeze([])})
   });
   const countsInHours = kind => !!KINDS[kind]?.counts;
   // Οι εισαγωγείς ενός είδους, και ένας συγκεκριμένος εισαγωγέας (ή null).
