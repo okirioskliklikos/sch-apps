@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Σχολικό Ημερολόγιο v0.98</title>
+<title>Σχολικό Ημερολόγιο v0.99</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -95,7 +95,9 @@
 .cal-personal-editor>.cal-notes-list{flex:1;min-height:0;overflow-y:auto;padding:3px 5px 8px 2px}
 .cal-personal-editor>.school-confirm-actions{flex:none;margin-top:12px}
 .cal-personal-editor>.school-choice-error{flex:none}
-.cal-note{position:relative;display:flex;align-items:flex-start;gap:9px;border:1px solid #d7dfe5;background:#fbfcfd;border-radius:9px;margin:0 0 10px;padding:10px 11px 10px 5px;min-width:0}
+.cal-note{--cal-note-pad-left:11px;--cal-note-pad-right:11px;--cal-note-pad-bottom:10px;--cal-note-tags-pad-left:11px;position:relative;display:flex;align-items:flex-start;gap:9px;border:1px solid #d7dfe5;background:#fbfcfd;border-radius:9px;margin:0 0 10px;padding:10px var(--cal-note-pad-right) var(--cal-note-pad-bottom) var(--cal-note-pad-left);min-width:0}
+.cal-note:not(.is-editing){flex-wrap:wrap}
+.cal-note.has-note-tools{--cal-note-pad-left:5px;--cal-note-tags-pad-left:40px}
 .cal-note.is-editing{display:block;background:transparent;border-color:transparent;box-shadow:none;padding:0;margin:0 0 10px}
 .cal-note.is-editing .cal-note-grip,.cal-note.is-editing .cal-note-tools{display:none}
 .cal-note.is-editing .cal-note-content{width:100%}
@@ -120,8 +122,13 @@
 .cal-note-editor .school-richtext-editor{min-height:130px;max-height:300px}
 .cal-note-add{display:block;width:100%;border:1px dashed #a8b9c8!important;background:#f9fbfd!important;color:#365e83!important;text-align:center!important}
 .cal-note-empty{color:#697984;text-align:center;padding:30px 10px}
-/* Tags of a note: ordinary chips in display mode; the editing bar joins the rich-text editor. */
-.cal-note-content>.school-tags{margin-top:7px}
+/* Display-only tag strip across the full width of each note, separate from its text. */
+.cal-note-tags{
+  box-sizing:border-box;flex:0 0 calc(100% + var(--cal-note-pad-left) + var(--cal-note-pad-right));min-width:0;
+  margin:8px calc(var(--cal-note-pad-right) * -1) calc(var(--cal-note-pad-bottom) * -1) calc(var(--cal-note-pad-left) * -1);
+  padding:8px var(--cal-note-pad-right) 8px var(--cal-note-tags-pad-left);
+  border-top:1px solid #d6dee7;border-radius:0 0 8px 8px;background:#edf1f5
+}
 .cal-note-editor .school-richtext-editor{border-bottom:0;border-radius:0}
 .cal-note-tagbar{
   display:flex;align-items:center;flex-wrap:wrap;gap:8px 10px;min-width:0;margin-top:0;padding:8px 10px;
@@ -138,7 +145,7 @@
    when the toolbar wraps on a narrow screen). */
 .cal-book-editor>.cal-notes-list{min-height:260px}
 @media(max-width:560px){.cal-book-editor>.cal-notes-list{min-height:295px}}
-.cal-book-entry{background:var(--cal-book-panel);padding-left:11px}
+.cal-book-entry{--cal-note-pad-left:11px;background:var(--cal-book-panel)}
 .cal-book-entry.is-editing{background:transparent;padding-left:0}
 .cal-book-entry.is-editing .school-richtext-editor{background:var(--cal-book-panel)}
 .cal-book-empty{color:var(--school-ui-muted);padding-top:4px}
@@ -251,7 +258,7 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v0.98</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v0.99</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="print" type="button" disabled>Εκτύπωση...</button>
@@ -758,6 +765,7 @@ async function editPersonalNotes(date) {
     body.replaceChildren();
     for (const note of notes) {
       const row = document.createElement('div'); row.className = 'cal-note'; row.dataset.noteId = note.id;
+      if (editingEnabled) row.classList.add('has-note-tools');
       if (note.id === activeId) row.classList.add('is-editing');
       const grip = document.createElement('button'); grip.type = 'button'; grip.className = 'cal-note-grip';
       grip.textContent = '⠿'; grip.title = 'Σύρε για αλλαγή σειράς'; grip.setAttribute('aria-label', 'Μετακίνηση σημείωσης'); grip.draggable = !locked; grip.disabled = locked;
@@ -791,12 +799,14 @@ async function editPersonalNotes(date) {
       });
       grip.addEventListener('dragend', () => finishDrag(false));
       const content = document.createElement('div'); content.className = 'cal-note-content';
+      let displayTags = null;
       if (note.id === activeId) {
         const rich = noteEditor(draftHtml ?? note.html, 'Προσωπική σημείωση', 'αλλαγών σημείωσης');
         activeRich = rich; content.classList.add('cal-note-editor'); content.append(rich.element, tagBar());
       } else {
         const text = document.createElement('div'); text.className = 'cal-note-html'; text.innerHTML = sanitizeHtml(note.html);
-        content.append(text, schoolTags.chips(note.tags || [], tagData(registry)));
+        content.append(text);
+        displayTags = schoolTags.chips(note.tags || [], tagData(registry));
       }
       const tools = document.createElement('div'); tools.className = 'cal-note-tools';
       if (note.id !== activeId) {
@@ -810,6 +820,10 @@ async function editPersonalNotes(date) {
       if (editingEnabled) row.append(grip);
       row.append(content);
       if (editingEnabled) row.append(tools);
+      if (displayTags?.childElementCount) {
+        const footer = document.createElement('div'); footer.className = 'cal-note-tags';
+        footer.append(displayTags); row.append(footer);
+      }
       body.append(row);
     }
     if (!notes.length && activeId === null) {
@@ -894,6 +908,7 @@ async function editDay(date, field) {
     const row = document.createElement('div'); row.className = 'cal-note cal-book-entry';
     if (editing) row.classList.add('is-editing');
     const content = document.createElement('div'); content.className = 'cal-note-content';
+    let displayTags = null;
     if (editing) {
       content.classList.add('cal-note-editor');
       activeRich = schoolRichText.create({html:draftHtml ?? book.html, label:'Βιβλίο Σχολικής Ζωής', color:DEFAULT_FONT_COLOR, actions:[
@@ -903,7 +918,8 @@ async function editDay(date, field) {
       content.append(activeRich.element, tagBar());
     } else if (hasBook(book)) {
       const text = document.createElement('div'); text.className = 'cal-note-html'; text.innerHTML = sanitizeHtml(book.html);
-      content.append(text, schoolTags.chips(book.tags || [], tagData(registry)));
+      content.append(text);
+      displayTags = schoolTags.chips(book.tags || [], tagData(registry));
     } else {
       const empty = document.createElement('div'); empty.className = 'cal-book-empty';
       empty.textContent = 'Δεν υπάρχει καταχώρηση στο Βιβλίο Σχολικής Ζωής για αυτή την ημέρα.';
@@ -926,6 +942,10 @@ async function editDay(date, field) {
         tools.append(remove);
       }
       row.append(tools);
+    }
+    if (displayTags?.childElementCount) {
+      const footer = document.createElement('div'); footer.className = 'cal-note-tags';
+      footer.append(displayTags); row.append(footer);
     }
     body.append(row);
   };
