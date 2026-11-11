@@ -1,4 +1,4 @@
-<!doctype html><html lang="el" class="subapp-page"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Documents Templater v0.33</title><link rel="stylesheet" href="_ui.css">
+<!doctype html><html lang="el" class="subapp-page"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Documents Templater v0.34</title><link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <script src="_lib_jszip.min.js"></script>
 <style>
@@ -22,7 +22,7 @@
 .target-item:hover:not(.selected){background:#f1f1f1}
 .target-item input{flex:none;margin:0;cursor:pointer}
 .target-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
-.target-side{flex:none;font-size:11px;color:var(--school-ui-muted)}
+.target-side{flex:0 1 auto;max-width:55%;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--school-ui-muted)}
 .target-item.selected .target-side{color:var(--school-ui-primary-text)}
 .target-empty{margin:auto;padding:16px;text-align:center;font-size:13px;color:var(--school-ui-muted)}
 .target-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:8px}
@@ -106,6 +106,25 @@
 .dt-example-line+.dt-example-line{margin-top:3px}
 .dt-empty{padding:24px 12px;text-align:center;color:var(--school-ui-muted)}
 .dt-note-row td{color:var(--school-ui-muted)}
+/* Ready table of subjects: ticked lessons in the order of the form, dragged by the handle; then the two copies. */
+.dt-subjects{display:grid;gap:6px}
+.dt-subjects-head{display:flex;align-items:baseline;gap:10px}
+.school-confirm .dt-subjects p.dt-subjects-help{margin:0;color:var(--school-ui-muted);font-size:13px}
+.dt-subjects-list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:2px 12px}
+.dt-subject{display:flex;align-items:center;gap:4px;min-width:0;padding:1px 4px 1px 0;border:1px solid transparent;border-radius:6px;background:var(--school-ui-surface)}
+.dt-subject.off .dt-subject-name{color:var(--school-ui-muted)}
+.dt-subject.dragging{border-color:var(--school-ui-primary-border);background:var(--school-ui-primary-bg);box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.school-confirm button.dt-subject-handle,.school-confirm button.dt-subject-remove{flex:none;display:inline-flex;align-items:center;justify-content:center;width:24px;height:26px;min-height:0;padding:0;border:1px solid transparent;background:transparent;color:var(--school-ui-muted);font-size:13px;line-height:1;cursor:grab;touch-action:none}
+.school-confirm button.dt-subject-remove{cursor:pointer;font-size:16px}
+.school-confirm button.dt-subject-handle:hover,.school-confirm button.dt-subject-remove:hover{border-color:var(--school-ui-control-border);background:var(--school-ui-surface)}
+.dt-subject-label{flex:1;display:flex;align-items:center;gap:6px;min-width:0;cursor:pointer}
+.dt-subject-label input{flex:none;margin:0}
+.dt-subject-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dt-subject-blank{font-style:italic;color:var(--school-ui-muted)}
+.dt-subject-code{flex:none;font-size:12px;color:var(--school-ui-muted)}
+.dt-subjects-actions{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}
+.dt-subjects-actions .dt-field{margin:0}
+.dt-subjects-empty{font-size:13px;color:var(--school-ui-muted)}
 /* A field: dragged as plain text into Word or Excel; the copy icon shows when the pointer is over it (or on focus). */
 .dt-field{display:flex;align-items:center;gap:4px;width:max-content;max-width:100%;padding:1px 2px 1px 6px;border:1px solid transparent;border-radius:6px;cursor:grab}
 .dt-field+.dt-field,.dt-field-gap+.dt-field{margin-top:2px}
@@ -134,7 +153,7 @@
  .dt-table td.dt-col-help,.dt-table td.dt-col-example{grid-column:1 / -1}
  .dt-table td.dt-col-example:empty{display:none}
 }
-</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Documents Templater — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>DT</span></span><span class="brand-text"><span>Documents Templater</span><span class="small version">v0.33</span></span></button></h1></div><button id="reset" type="button" disabled>Αναίρεση Όλων</button><span class="sep" aria-hidden="true"></span><button id="openCatalog" type="button" title="Όλα τα πεδία από το κοινό αρχείο, για μεταφορά ή αντιγραφή στα πρότυπα">Πεδία…</button><div class="header-right"><button id="findFields" class="primary subapp-change-dot" type="button" disabled>Ανεύρεση πεδίων</button><button id="produce" class="success subapp-change-dot" type="button" disabled>Παραγωγή Εγγράφων</button></div></header>
+</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Documents Templater — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>DT</span></span><span class="brand-text"><span>Documents Templater</span><span class="small version">v0.34</span></span></button></h1></div><button id="reset" type="button" disabled>Αναίρεση Όλων</button><span class="sep" aria-hidden="true"></span><button id="openCatalog" type="button" title="Όλα τα πεδία από το κοινό αρχείο, για μεταφορά ή αντιγραφή στα πρότυπα">Πεδία…</button><div class="header-right"><button id="findFields" class="primary subapp-change-dot" type="button" disabled>Ανεύρεση πεδίων</button><button id="produce" class="success subapp-change-dot" type="button" disabled>Παραγωγή Εγγράφων</button></div></header>
 <main id="layout" class="subapp-wide-aside">
 <aside id="filesPane" aria-label="Στοιχεία σχολείου και αρχεία">
  <section id="schoolSection" class="side-section" aria-labelledby="schoolTitle" hidden>
@@ -233,19 +252,60 @@ window.TemplaterModel=(()=>{
   if(type==='str'){const v=c.getElementsByTagName('v')[0];return v?v.textContent:''}
   return '';
  }
- async function scanXlsx(zip,src,found,tokens){
+ // Cell addresses: «AC11» ↔ {row:11, col:29}. Excel's grid is A1–XFD1048576.
+ const MAX_ROW=1048576,MAX_COL=16384;
+ function colNumber(letters){let n=0;for(const ch of letters)n=n*26+ch.charCodeAt(0)-64;return n}
+ function colLetters(num){let s='';for(let n=num;n>0;n=Math.floor((n-1)/26))s=String.fromCharCode(65+(n-1)%26)+s;return s}
+ function parseRef(ref){const m=/^([A-Z]{1,3})(\d+)$/.exec(String(ref||''));return m?{row:Number(m[2]),col:colNumber(m[1])}:null}
+ const cellRef=(row,col)=>colLetters(col)+row;
+ const insideSheet=(row,col)=>row>=1&&row<=MAX_ROW&&col>=1&&col<=MAX_COL;
+ // The worksheets in the order of the workbook's tabs (not the order of the parts in the zip) → [{name, path}].
+ async function workbookSheets(zip){
+  const parts=Object.keys(zip.files).filter(p=>SHEET_PARTS.test(p)).sort((a,b)=>Number(/(\d+)\.xml$/.exec(a)[1])-Number(/(\d+)\.xml$/.exec(b)[1]));
+  const book=zip.file('xl/workbook.xml'),rels=zip.file('xl/_rels/workbook.xml.rels');
+  if(!book||!rels)return parts.map(path=>({name:path,path}));
+  const bookDoc=new DOMParser().parseFromString(await book.async('string'),'application/xml'),relDoc=new DOMParser().parseFromString(await rels.async('string'),'application/xml');
+  const targets=new Map(Array.from(relDoc.getElementsByTagName('Relationship')).map(r=>{const t=String(r.getAttribute('Target')||'');return [r.getAttribute('Id'),t.startsWith('/')?t.slice(1):'xl/'+t.replace(/^\.\//,'')]}));
+  const out=[];
+  for(const sheet of Array.from(bookDoc.getElementsByTagName('sheet'))){
+   const id=sheet.getAttribute('r:id')||sheet.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships','id');
+   const path=targets.get(id);if(path&&SHEET_PARTS.test(path)&&zip.file(path))out.push({name:String(sheet.getAttribute('name')||path),path});
+  }
+  for(const path of parts)if(!out.some(s=>s.path===path))out.push({name:path,path});
+  return out;
+ }
+ // A cell counts as empty only without text, number or formula.
+ function cellFilled(c,shared){
+  if(c.getElementsByTagName('f').length)return true;
+  if(cellText(c,shared)!=='')return true;
+  const v=c.getElementsByTagName('v')[0];return !!(v&&String(v.textContent||'')!=='');
+ }
+ // Every sheet keeps, for the templates with anchors, its name, the cells with fields (in reading order) and the
+ // addresses of the cells that are not empty.
+ async function scanXlsx(zip,src,found,tokens,sheets){
   const shared=await sharedStrings(zip);
-  for(const p of Object.keys(zip.files).filter(p=>SHEET_PARTS.test(p))){
-   const d=new DOMParser().parseFromString(await zip.file(p).async('string'),'application/xml');
-   for(const c of d.getElementsByTagName('c')){const value=cellText(c,shared);if(value)collect(value,src,found,tokens)}
+  for(const sheet of await workbookSheets(zip)){
+   const d=new DOMParser().parseFromString(await zip.file(sheet.path).async('string'),'application/xml');
+   const info={name:sheet.name,path:sheet.path,cells:[],filled:new Set()};
+   for(const c of d.getElementsByTagName('c')){
+    const ref=c.getAttribute('r'),pos=parseRef(ref);
+    if(cellFilled(c,shared)&&ref)info.filled.add(ref);
+    const value=cellText(c,shared);if(!value)continue;
+    const cellTokens=new Set();collect(value,src,found,cellTokens);
+    for(const raw of cellTokens)tokens.add(raw);
+    if(cellTokens.size&&pos)info.cells.push({ref,row:pos.row,col:pos.col,text:value,tokens:[...cellTokens]});
+   }
+   info.cells.sort((a,b)=>a.row-b.row||a.col-b.col);
+   sheets.push(info);
   }
  }
- // → {fields: Map of the manual fields, data: Map of the fields «@», tokens: Map(template file → [fields as written])}.
+ // → {fields: Map of the manual fields, data: Map of the fields «@», tokens: Map(template file → [fields as written]),
+ //    sheets: Map(XLSX template → [{name, path, cells, filled}])}.
  async function scanTemplates(templates){
-  const found={fields:new Map(),data:new Map(),tokens:new Map()};
+  const found={fields:new Map(),data:new Map(),tokens:new Map(),sheets:new Map()};
   for(const f of templates){
-   const tokens=new Set();
-   try{const zip=await JSZip.loadAsync(f);if(/\.docx$/i.test(f.name))await scanDocx(zip,f.name,found,tokens);else await scanXlsx(zip,f.name,found,tokens)}
+   const tokens=new Set(),sheets=[];
+   try{const zip=await JSZip.loadAsync(f);if(/\.docx$/i.test(f.name))await scanDocx(zip,f.name,found,tokens);else{await scanXlsx(zip,f.name,found,tokens,sheets);found.sheets.set(f,sheets)}}
    catch(error){error.fileName=f.name;throw error}
    found.tokens.set(f,[...tokens]);
   }
@@ -332,31 +392,57 @@ window.TemplaterModel=(()=>{
    if(!changed)break;
   }
  }
- function replaceXlsx(xml,shared,map,types){
-  const doc=new DOMParser().parseFromString(xml,'application/xml');if(doc.querySelector('parsererror'))return xml;
-  for(const c of Array.from(doc.getElementsByTagName('c'))){
-   const text=cellText(c,shared);if(!text)continue;
-   const full=text.match(/^\s*\{\{\s*([^{}]+?)\s*\}\}\s*$/);
-   let changed=false,fieldType='Text',numericWhole=false;
-   const replaced=text.replace(/\{\{\s*([^{}]+?)\s*\}\}/g,(all,raw)=>{
-    const p=parseToken(raw);if(!map.has(p.name))return all;
-    changed=true;fieldType=types.get(p.name)||p.type;numericWhole=!!full&&(fieldType==='Decimal'||fieldType==='Integer');
-    return String(map.get(p.name));
-   });
-   if(!changed)continue;
-   while(c.firstChild)c.removeChild(c.firstChild);
-   // A blank whole-cell field must be a genuinely empty cell, not an empty inline string.
-   if(full&&replaced.trim()===''){
-    c.removeAttribute('t');
-   }else if(numericWhole){
-    c.removeAttribute('t');const v=doc.createElementNS(c.namespaceURI,'v');v.textContent=replaced.trim().replace(',','.');c.appendChild(v);
-   }else{
-    c.setAttribute('t','inlineStr');
-    const is=doc.createElementNS(c.namespaceURI,'is'),t=doc.createElementNS(c.namespaceURI,'t');
-    if(/^\s|\s$/.test(replaced))t.setAttributeNS('http://www.w3.org/XML/1998/namespace','xml:space','preserve');
-    t.textContent=replaced;is.appendChild(t);c.appendChild(is);
-   }
+ // Writes the text of a cell with its fields replaced (only the content: the style «s» of the cell stays).
+ // force: write even when no field of the map is found (a copied cell of an anchored block).
+ function fillCell(doc,c,text,map,types,force=false){
+  const full=text.match(/^\s*\{\{\s*([^{}]+?)\s*\}\}\s*$/);
+  let changed=force,fieldType='Text',numericWhole=false;
+  const replaced=text.replace(/\{\{\s*([^{}]+?)\s*\}\}/g,(all,raw)=>{
+   const p=parseToken(raw);if(!map.has(p.name))return all;
+   changed=true;fieldType=types.get(p.name)||p.type;numericWhole=!!full&&(fieldType==='Decimal'||fieldType==='Integer');
+   return String(map.get(p.name));
+  });
+  if(!changed)return;
+  while(c.firstChild)c.removeChild(c.firstChild);
+  // A blank whole-cell field (or a blank copied text) must be a genuinely empty cell, not an empty inline string.
+  if(replaced.trim()===''&&(full||force)){
+   c.removeAttribute('t');
+  }else if(numericWhole&&/^[+-]?\d+(?:[.,]\d+)?$/.test(replaced.trim())){
+   c.removeAttribute('t');const v=doc.createElementNS(c.namespaceURI,'v');v.textContent=replaced.trim().replace(',','.');c.appendChild(v);
+  }else{
+   c.setAttribute('t','inlineStr');
+   const is=doc.createElementNS(c.namespaceURI,'is'),t=doc.createElementNS(c.namespaceURI,'t');
+   if(/^\s|\s$/.test(replaced))t.setAttributeNS('http://www.w3.org/XML/1998/namespace','xml:space','preserve');
+   t.textContent=replaced;is.appendChild(t);c.appendChild(is);
   }
+ }
+ // The cell «ref» of the sheet; a missing cell (or row) is created in its place, with no style of its own.
+ function sheetCell(doc,cells,ref){
+  if(cells.has(ref))return cells.get(ref);
+  const ns=doc.documentElement.namespaceURI,pos=parseRef(ref),data=doc.getElementsByTagNameNS(ns,'sheetData')[0];
+  if(!pos||!data)return null;
+  let row=Array.from(data.getElementsByTagNameNS(ns,'row')).find(r=>Number(r.getAttribute('r'))===pos.row);
+  if(!row){
+   row=doc.createElementNS(ns,'row');row.setAttribute('r',String(pos.row));
+   const next=Array.from(data.getElementsByTagNameNS(ns,'row')).find(r=>Number(r.getAttribute('r'))>pos.row);
+   data.insertBefore(row,next||null);
+  }
+  const c=doc.createElementNS(ns,'c');c.setAttribute('r',ref);
+  const next=Array.from(row.getElementsByTagNameNS(ns,'c')).find(x=>(parseRef(x.getAttribute('r'))?.col||0)>pos.col);
+  row.insertBefore(c,next||null);row.removeAttribute('spans');
+  cells.set(ref,c);return c;
+ }
+ // writes (templates with anchors): [{ref, text, map}] — the cells of the positions, each with the values of its
+ // teacher or class (or blank). The other cells take the common map.
+ function replaceXlsx(xml,shared,map,types,writes=null){
+  const doc=new DOMParser().parseFromString(xml,'application/xml');if(doc.querySelector('parsererror'))return xml;
+  const cells=new Map(Array.from(doc.getElementsByTagName('c')).map(c=>[c.getAttribute('r'),c]));
+  const planned=new Set((writes||[]).map(w=>w.ref));
+  for(const c of Array.from(doc.getElementsByTagName('c'))){
+   if(planned.has(c.getAttribute('r')))continue;
+   const text=cellText(c,shared);if(text)fillCell(doc,c,text,map,types);
+  }
+  for(const write of writes||[]){const c=sheetCell(doc,cells,write.ref);if(c)fillCell(doc,c,write.text,write.map,types,true)}
   refreshSimpleFormulaCaches(doc,shared);
   return new XMLSerializer().serializeToString(doc);
  }
@@ -368,13 +454,14 @@ window.TemplaterModel=(()=>{
   calc.setAttribute('calcMode','auto');calc.setAttribute('fullCalcOnLoad','1');calc.setAttribute('forceFullCalc','1');calc.setAttribute('calcId','0');
   zip.file('xl/workbook.xml',new XMLSerializer().serializeToString(doc));
  }
- async function generateOne(file,map,typeMap){
+ // sheetWrites (templates with anchors): Map(sheet part → writes of replaceXlsx).
+ async function generateOne(file,map,typeMap,sheetWrites=null){
   const zip=await JSZip.loadAsync(file);
   if(/\.docx$/i.test(file.name)){
    for(const p of Object.keys(zip.files).filter(p=>DOCX_PARTS.test(p)))zip.file(p,replaceTextRuns(await zip.file(p).async('string'),map));
   }else{
    const shared=await sharedStrings(zip);
-   for(const p of Object.keys(zip.files).filter(p=>SHEET_PARTS.test(p)))zip.file(p,replaceXlsx(await zip.file(p).async('string'),shared,map,typeMap));
+   for(const p of Object.keys(zip.files).filter(p=>SHEET_PARTS.test(p)))zip.file(p,replaceXlsx(await zip.file(p).async('string'),shared,map,typeMap,sheetWrites?.get(p)||null));
    await requestWorkbookRecalculation(zip);
   }
   return zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
@@ -392,7 +479,7 @@ window.TemplaterModel=(()=>{
   if(SchoolDate.valid(v))return SchoolDate.format(v);
   const iso=SchoolDate.parse(v);return iso?SchoolDate.format(iso):String(value??'');
  }
- return Object.freeze({DATA_MARK,parseCsv,loadCsvValues,buildValuesCsv,scanTemplates,generateOne,invalidValue,dateText});
+ return Object.freeze({DATA_MARK,parseCsv,loadCsvValues,buildValuesCsv,scanTemplates,generateOne,invalidValue,dateText,cellRef,insideSheet});
 })();
 
 (()=>{'use strict';
@@ -410,7 +497,7 @@ window.TemplaterModel=(()=>{
  const list=items=>items.map(quoted).join(', ');
  let files=[],selected=new Set(),anchor=null,fields=new Map(),values=new Map(),csvMatched=new Set(),scanned=false,dirty=false,busy=false;
  // dataFields: the fields «@» of the templates (name → {name, sources}); templateTokens: every field of each template as written.
- let dataFields=new Map(),templateTokens=new Map();
+ let dataFields=new Map(),templateTokens=new Map(),templateSheets=new Map();
  // input: the school-documents:context with an open shared file (else null); docCtx: SchoolDocumentFields.context of the period.
  // The choices of both tabs are kept together, and stay while «Στοιχεία σχολείου» is hidden.
  let input=null,docCtx=F?F.context({}):null,periodId='',activeTab='staff';
@@ -498,7 +585,8 @@ window.TemplaterModel=(()=>{
    const side=document.createElement('span');side.className='target-side';
    if(tab==='staff'){
     name.textContent=item.name||item.shortName||'';row.title=item.shortName||'';
-    side.textContent=classes.filter(record=>record.homeroomStaffId&&record.homeroomStaffId===item.id).map(record=>record.name).join(', ');
+    // The class of which the teacher is in charge; otherwise the short name.
+    side.textContent=classes.filter(record=>record.homeroomStaffId&&record.homeroomStaffId===item.id).map(record=>record.name).join(', ')||item.shortName||'';
    }else{
     name.textContent=item.name||'';const n=Number(counts[item.id])||0;side.textContent=countText(n,'μαθητής','μαθητές');
    }
@@ -546,28 +634,136 @@ window.TemplaterModel=(()=>{
  const dataTokens=file=>(templateTokens.get(file)||[]).filter(raw=>raw.trim().startsWith(MARK));
  const tokenName=raw=>String(raw).split(':')[0].trim();
  const recognize=token=>F?F.recognize(token,docCtx):{data:true,known:false,scope:'',type:'Text',needsPeriod:false,message:''};
- // → {total, filled, notes, kinds (template → templateKind), staffT, classT, jobs, missing, infos}
+ // ---- Πρότυπα XLSX με άγκυρες ----
+ // {{@Τμ.Άγκυρα}} / {{@Εκπ.Άγκυρα}} mark positions: all the chosen classes or teachers go into one workbook, one per
+ // position. The first anchor of a sheet with its own fields of that kind is the first block: those fields are copied
+ // to every other position at the same distance from its anchor (text only; the target keeps its format). A sheet with
+ // anchors only continues the previous group of the same kind. Groups of the same kind must have the same number of
+ // positions. More chosen than positions: another workbook, with all the sheets.
+ const ANCHOR_SCOPES=['class','staff'];
+ const SCOPE_OF={staff:'εκπαιδευτικού',class:'τμήματος'},SCOPE_MANY={staff:'εκπαιδευτικών',class:'τμημάτων'};
+ const anchorField=scope=>'{{'+MARK+(scope==='staff'?'Εκπ':'Τμ')+'.Άγκυρα}}';
+ const isXlsx=file=>ext(file)==='xlsx';
+ // The kind of a field «@»: staff, class or common, also for a field the catalogue does not know (by its prefix).
+ function tokenScope(raw){
+  if(!String(raw).trim().startsWith(MARK))return 'common';
+  const item=recognize(raw);if(item.scope==='staff'||item.scope==='class')return item.scope;if(item.scope)return 'common';
+  const key=fieldKey(tokenName(raw).slice(MARK.length));
+  return key.startsWith('ΕΚΠ.')?'staff':key.startsWith('ΤΜ.')?'class':'common';
+ }
+ const refsText=refs=>refs.length>6?refs.slice(0,6).join(', ')+` και ${refs.length-6} ακόμη`:refs.join(', ');
+ // → {groups:[{scope, sheets, source, capacity, names, positions:[{path, anchor, cells:[{ref, text}]}]}], errors, notes, capacity, positions, sheets}
+ function anchorPlan(file){
+  const plan={groups:[],errors:[],notes:[],capacity:{},positions:{staff:0,class:0},sheets:{staff:0,class:0}};
+  const last={staff:null,class:null};
+  for(const sheet of templateSheets.get(file)||[]){
+   const anchors={staff:[],class:[]},fieldCells={staff:[],class:[]},fieldNames={staff:new Set(),class:new Set()};
+   for(const cell of sheet.cells){
+    const kinds=new Set();
+    for(const raw of cell.tokens){
+     if(!raw.trim().startsWith(MARK))continue;
+     const item=recognize(raw);
+     if(item.anchor){if(!anchors[item.scope].includes(cell))anchors[item.scope].push(cell);continue}
+     const scope=tokenScope(raw);if(scope!=='common'){kinds.add(scope);fieldNames[scope].add(tokenName(raw))}
+    }
+    for(const scope of kinds)fieldCells[scope].push(cell);
+   }
+   const has=scope=>anchors[scope].length>0,where=`Η καρτέλα ${quoted(sheet.name)}`;
+   if(has('staff')&&has('class')){plan.errors.push(`${where} έχει άγκυρες εκπαιδευτικού και τμήματος· κάθε καρτέλα έχει άγκυρες ενός μόνο είδους.`);continue}
+   let bad=false;
+   for(const scope of ANCHOR_SCOPES)if(fieldCells[scope].length&&!has(scope)){
+    const names=[...fieldNames[scope]].map(name=>'{{'+name+'}}');
+    plan.errors.push(`${where} έχει πεδία ${SCOPE_OF[scope]} (${names.slice(0,3).join(', ')}${names.length>3?' …':''}) χωρίς ${anchorField(scope)}.`);bad=true;
+   }
+   const scope=ANCHOR_SCOPES.find(has);
+   if(bad||!scope)continue;
+   let group=null;
+   if(fieldCells[scope].length){
+    const origin=anchors[scope][0];
+    group={scope,sheets:[],capacity:0,positions:[],names:[...new Set(fieldCells[scope].flatMap(cell=>cell.tokens.filter(raw=>raw.trim().startsWith(MARK)).map(tokenName)))],
+     source:{name:sheet.name,cells:fieldCells[scope].map(cell=>({ref:cell.ref,dr:cell.row-origin.row,dc:cell.col-origin.col,text:cell.text}))}};
+    plan.groups.push(group);last[scope]=group;
+   }else if(last[scope])group=last[scope];
+   else{plan.notes.push(`${where} έχει μόνο άγκυρες ${SCOPE_OF[scope]}, χωρίς προηγούμενη καρτέλα με πεδία ${SCOPE_OF[scope]}· οι θέσεις της μένουν κενές.`);continue}
+   group.sheets.push({name:sheet.name,path:sheet.path,anchors:anchors[scope],filled:sheet.filled});group.capacity+=anchors[scope].length;
+   plan.positions[scope]+=anchors[scope].length;plan.sheets[scope]++;
+  }
+  for(const group of plan.groups){
+   let index=0;
+   for(const sheet of group.sheets)for(const anchor of sheet.anchors){
+    const cells=[],busy=[],outside=[];
+    for(const src of group.source.cells){
+     const row=anchor.row+src.dr,col=anchor.col+src.dc;
+     if(!M.insideSheet(row,col)){outside.push(src.ref);continue}
+     const ref=M.cellRef(row,col);
+     // The first position is the first block itself; elsewhere a cell that is not empty is not changed.
+     if(index>0&&sheet.filled.has(ref)){busy.push(ref);continue}
+     cells.push({ref,text:src.text});
+    }
+    const at=`Καρτέλα ${quoted(sheet.name)}, θέση ${index+1} (${anchor.ref})`;
+    if(busy.length)plan.notes.push(`${at}: ${busy.length===1?'το κελί '+busy[0]+' δεν είναι άδειο και δεν αλλάζει':'τα κελιά '+refsText(busy)+' δεν είναι άδεια και δεν αλλάζουν'}.`);
+    if(outside.length)plan.notes.push(`${at}: ${outside.length===1?'το πεδίο του κελιού '+outside[0]+' θα έβγαινε':'τα πεδία των κελιών '+refsText(outside)+' θα έβγαιναν'} έξω από το φύλλο και παραλείπ${outside.length===1?'εται':'ονται'}.`);
+    group.positions.push({path:sheet.path,anchor:anchor.ref,cells});index++;
+   }
+  }
+  for(const scope of ANCHOR_SCOPES){
+   const groups=plan.groups.filter(group=>group.scope===scope);if(!groups.length)continue;
+   plan.capacity[scope]=groups[0].capacity;
+   if(groups.some(group=>group.capacity!==groups[0].capacity))
+    plan.errors.push(`Οι καρτέλες ${SCOPE_MANY[scope]} δεν έχουν το ίδιο πλήθος θέσεων: ${groups.map(group=>group.sheets.map(sheet=>quoted(sheet.name)).join(' + ')+' '+group.capacity).join(', ')}. Μια καρτέλα με δικά της πεδία ξεκινά νέα ομάδα· κάθε ομάδα του ίδιου είδους χρειάζεται τις ίδιες θέσεις.`);
+  }
+  return plan;
+ }
+ // Workbooks of a template with anchors: as many as the kind that needs the most.
+ const anchorBooks=plan=>Math.max(1,...Object.entries(plan.capacity).map(([scope,cap])=>cap?Math.ceil(picked[scope].size/cap):1));
+ // The cells of the positions for one workbook → Map(sheet part → [{ref, text, map}]). ids: the chosen, in list order.
+ function anchorWrites(plan,book,ids,base,types){
+  const out=new Map();
+  for(const group of plan.groups){
+   const names=group.names.filter(name=>recognize(name).known);
+   for(const name of names)types.set(name,recognize(name).type);
+   group.positions.forEach((position,index)=>{
+    const id=ids[group.scope][book*group.capacity+index];
+    const own=id&&F?F.values(names,{type:group.scope,id},docCtx):new Map(names.map(name=>[name,'']));
+    const map=new Map([...base,...own]);
+    if(!out.has(position.path))out.set(position.path,[]);
+    for(const cell of position.cells)out.get(position.path).push({ref:cell.ref,text:cell.text,map});
+   });
+  }
+  return out;
+ }
+ const bookName=(name,book,books)=>{if(books<2)return name;const match=/^(.*?)(\.[^.]+)?$/.exec(name);return match[1]+' - '+(book+1)+(match[2]||'')};
+
+ // → {total, filled, notes, anchorNotes, kinds (template → templateKind), plans (anchored XLSX → anchorPlan), staffT,
+ //    classT, jobs, missing, infos, positions}
  function dataStatus(){
-  const templates=files.filter(isTemplate),names=new Map(),notes=new Map(),kinds=new Map();
+  const templates=files.filter(isTemplate),names=new Map(),notes=new Map(),kinds=new Map(),plans=new Map(),anchorNotes=[];
   for(const file of templates){
-   const tokens=dataTokens(file);
-   kinds.set(file,F?F.templateKind(templateTokens.get(file)||[],docCtx):{kind:tokens.length?'common':'none',staff:[],class:[]});
+   const tokens=dataTokens(file),all=templateTokens.get(file)||[];
+   // An anchor in a DOCX is not used: the kind of the template comes from its other fields.
+   const docxAnchors=!isXlsx(file)?tokens.filter(raw=>recognize(raw).anchor):[];
+   kinds.set(file,F?F.templateKind(docxAnchors.length?all.filter(raw=>!docxAnchors.includes(raw)):all,docCtx):{kind:tokens.length?'common':'none',staff:[],class:[]});
+   if(isXlsx(file)&&kinds.get(file).kind==='anchored')plans.set(file,anchorPlan(file));
    for(const raw of tokens){
     const name=tokenName(raw);if(!names.has(name))names.set(name,recognize(name));
     const item=recognize(raw);
-    if(item.message){const note=notes.get(raw)||{raw,message:item.message,filled:item.known,files:new Set()};note.files.add(file.name);notes.set(raw,note)}
+    const message=docxAnchors.includes(raw)?'Οι άγκυρες χρησιμοποιούνται μόνο σε πρότυπα XLSX· εδώ γράφει κενό.':item.message;
+    if(message){const key=raw+'\n'+message,note=notes.get(key)||{raw,message,filled:item.known,files:new Set()};note.files.add(file.name);notes.set(key,note)}
    }
+   for(const line of plans.get(file)?.notes||[])anchorNotes.push({text:line,file:file.name});
   }
   const items=[...names.values()],filled=items.filter(item=>item.known).length;
-  const staffT=templates.filter(file=>kinds.get(file).kind==='staff'),classT=templates.filter(file=>kinds.get(file).kind==='class');
+  const needs=scope=>templates.filter(file=>kinds.get(file).kind===scope||(plans.get(file)?.capacity[scope]!==undefined));
+  const staffT=needs('staff'),classT=needs('class');
   const mixed=templates.filter(file=>kinds.get(file).kind==='mixed');
   const needsPeriod=items.some(item=>item.known&&item.needsPeriod);
-  const missing=[],infos=[];
+  const missing=[],infos=[],positions=[];
   if(names.size){
    if(!F)missing.push('Δεν φορτώθηκαν τα πεδία από το κοινό αρχείο. Βεβαιώσου ότι το _data.js είναι η τελευταία έκδοση.');
    else if(!input)missing.push('Τα πεδία «@» συμπληρώνονται από το κοινό αρχείο: άνοιξέ το από την αρχική σελίδα του Κεντρικού Μενού.');
    else{
-    for(const file of mixed){const kind=kinds.get(file);missing.push(`Το πρότυπο ${quoted(file.name)} έχει μαζί πεδία εκπαιδευτικού (${list(kind.staff.slice(0,3))}${kind.staff.length>3?' …':''}) και τμήματος (${list(kind.class.slice(0,3))}${kind.class.length>3?' …':''}). Χώρισέ το σε δύο πρότυπα.`)}
+    for(const file of mixed){const kind=kinds.get(file);missing.push(`Το πρότυπο ${quoted(file.name)} έχει μαζί πεδία εκπαιδευτικού (${list(kind.staff.slice(0,3))}${kind.staff.length>3?' …':''}) και τμήματος (${list(kind.class.slice(0,3))}${kind.class.length>3?' …':''}). Χώρισέ το σε δύο πρότυπα, ή βάλε άγκυρες σε πρότυπο XLSX.`)}
+    for(const [file,plan] of plans)for(const error of plan.errors)missing.push(`Πρότυπο ${quoted(file.name)}: ${error}`);
     if(needsPeriod&&!docCtx?.period)missing.push(periods().length?'Διάλεξε περίοδο.':'Το σχολικό έτος δεν έχει περιόδους· τα πρότυπα έχουν πεδία της περιόδου ή του Ωρολογίου.');
     if(staffT.length&&!picked.staff.size)missing.push(`Διάλεξε εκπαιδευτικούς για ${staffT.length===1?'το πρότυπο':'τα πρότυπα'} ${list(staffT.map(file=>file.name))}.`);
     if(classT.length&&!picked.class.size)missing.push(`Διάλεξε τμήματα για ${classT.length===1?'το πρότυπο':'τα πρότυπα'} ${list(classT.map(file=>file.name))}.`);
@@ -575,8 +771,15 @@ window.TemplaterModel=(()=>{
     if(docCtx?.slotError&&[...names.keys()].some(name=>/\.(Πρ|Ώρες)\.|^@Ώρα\./.test(name)))infos.push('Ώρες Διδασκαλίας: '+docCtx.slotError);
    }
   }
-  const jobs=templates.reduce((sum,file)=>sum+(kinds.get(file).kind==='staff'?picked.staff.size:kinds.get(file).kind==='class'?picked.class.size:1),0);
-  return {total:names.size,filled,notes:[...notes.values()],kinds,staffT,classT,jobs,missing,infos};
+  // Positions of the templates with anchors, and how many workbooks they give.
+  for(const [file,plan] of plans){
+   const parts=ANCHOR_SCOPES.filter(scope=>plan.positions[scope]).map(scope=>`${plan.positions[scope]} ${plan.positions[scope]===1?'θέση':'θέσεις'} ${SCOPE_MANY[scope]} (${plan.sheets[scope]===1?'1 καρτέλα':plan.sheets[scope]+' καρτέλες'})`);
+   if(!parts.length)continue;
+   const books=anchorBooks(plan);
+   positions.push(`${quoted(file.name)}: ${parts.join(', ')}· ${books===1?'θα παραχθεί 1 βιβλίο':'θα παραχθούν '+books+' βιβλία'}.`);
+  }
+  const jobs=templates.reduce((sum,file)=>sum+(plans.has(file)?anchorBooks(plans.get(file)):kinds.get(file).kind==='staff'?picked.staff.size:kinds.get(file).kind==='class'?picked.class.size:1),0);
+  return {total:names.size,filled,notes:[...notes.values()],anchorNotes,kinds,plans,staffT,classT,jobs,missing,infos,positions};
  }
  function bulletList(lines){const ul=document.createElement('ul');for(const line of lines){const li=document.createElement('li');if(line instanceof Node)li.append(line);else li.textContent=line;ul.append(li)}return ul}
  function para(text,className=''){const p=document.createElement('p');if(className)p.className=className;p.textContent=text;return p}
@@ -588,16 +791,19 @@ window.TemplaterModel=(()=>{
   const head=document.createElement('p');head.className='data-summary-head';
   head.textContent=`Πεδία από το κοινό αρχείο: ${status.total}`+(input&&F?` · θα συμπληρωθούν ${status.filled===status.total?'όλα':status.filled===1?'το 1':'τα '+status.filled}.`:'.');
   box.append(head);
+  // Templates with anchors: positions found per kind and workbooks to produce.
+  for(const line of status.positions)box.append(para(line));
   if(status.missing.length){box.append(para('Για την παραγωγή λείπει:','data-summary-label data-summary-missing'),bulletList(status.missing))}
   else{box.append(para(status.jobs===1?'Θα παραχθεί 1 έγγραφο.':`Θα παραχθούν ${status.jobs} έγγραφα.`))}
   if(status.infos.length)box.append(bulletList(status.infos));
-  if(status.notes.length){
+  if(status.notes.length||status.anchorNotes.length){
+   const several=files.filter(isTemplate).length>1;
    box.append(para('Πεδία που θέλουν έλεγχο:','data-summary-label'));
-   box.append(bulletList(status.notes.map(note=>{
+   box.append(bulletList([...status.notes.map(note=>{
     const span=document.createElement('span'),code=document.createElement('code');code.textContent='{{'+note.raw+'}}';
-    span.append(code,' — '+note.message+(note.filled?'':' Δεν συμπληρώνεται.')+(files.filter(isTemplate).length>1?' ('+[...note.files].join(', ')+')':''));
+    span.append(code,' — '+note.message+(note.filled?'':' Δεν συμπληρώνεται.')+(several?' ('+[...note.files].join(', ')+')':''));
     return span;
-   })));
+   }),...status.anchorNotes.map(note=>note.text+(several?' ('+note.file+')':''))]));
   }
  }
 
@@ -634,7 +840,7 @@ window.TemplaterModel=(()=>{
   });
   updateButtons();
  }
- function clearScan(message){scanned=false;fields=new Map();dataFields=new Map();templateTokens=new Map();csvMatched.clear();renderSchool();renderFieldsPlaceholder(message)}
+ function clearScan(message){scanned=false;fields=new Map();dataFields=new Map();templateTokens=new Map();templateSheets=new Map();csvMatched.clear();renderSchool();renderFieldsPlaceholder(message)}
  function addFiles(list){
   let added=0;const rejected=[];
   for(const f of list){
@@ -755,10 +961,10 @@ window.TemplaterModel=(()=>{
   if(templates.length&&libraryMissing())return;
   setBusy(true);notice('Σάρωση αρχείων…');
   try{
-   const found=templates.length?await M.scanTemplates(templates):{fields:new Map(),data:new Map(),tokens:new Map()},csvMap=await M.loadCsvValues(csvFiles);
+   const found=templates.length?await M.scanTemplates(templates):{fields:new Map(),data:new Map(),tokens:new Map(),sheets:new Map()},csvMap=await M.loadCsvValues(csvFiles);
    // Only CSV: its rows are the fields (all Text). Rows «@…» are fields of the shared file and are not filled by hand.
    if(!templates.length)for(const name of csvMap.keys())if(!name.startsWith(MARK))found.fields.set(name,{name,type:'Text',sources:new Set(csvFiles.map(f=>f.name))});
-   fields=found.fields;dataFields=found.data;templateTokens=found.tokens;csvMatched.clear();let changed=false;
+   fields=found.fields;dataFields=found.data;templateTokens=found.tokens;templateSheets=found.sheets||new Map();csvMatched.clear();let changed=false;
    for(const [name,f] of fields)if(csvMap.has(name)){
     const value=f.type==='Date'?M.dateText(csvMap.get(name)):csvMap.get(name);
     if(values.get(name)!==value)changed=true;values.set(name,value);csvMatched.add(name);
@@ -811,9 +1017,11 @@ window.TemplaterModel=(()=>{
   const staffIds=staffList().map(p=>p.id).filter(id=>picked.staff.has(id)),classIds=classList().map(r=>r.id).filter(id=>picked.class.has(id));
   const jobs=[];
   for(const file of templates){
-   const kind=status.kinds.get(file).kind;
-   const targets=kind==='staff'?staffIds.map(id=>({type:'staff',id})):kind==='class'?classIds.map(id=>({type:'class',id})):[null];
+   const kind=status.kinds.get(file).kind,plan=status.plans.get(file);
    const names=[...new Set(dataTokens(file).map(tokenName))].filter(name=>recognize(name).known);
+   // A template with anchors: one workbook for all the chosen (more when they do not fit in its positions).
+   if(plan){const books=anchorBooks(plan);for(let book=0;book<books;book++)jobs.push({file,target:null,names,anchored:{plan,book,books}});continue}
+   const targets=kind==='staff'?staffIds.map(id=>({type:'staff',id})):kind==='class'?classIds.map(id=>({type:'class',id})):[null];
    for(const target of targets)jobs.push({file,target,names});
   }
   setBusy(true);notice('Συμπλήρωση των εγγράφων…');
@@ -823,7 +1031,9 @@ window.TemplaterModel=(()=>{
     const map=new Map(manual),typeMap=new Map(manualTypes);
     if(job.names.length&&F){for(const [name,value] of F.values(job.names,job.target,docCtx)){map.set(name,value);typeMap.set(name,recognize(name).type)}}
     if(jobs.length>1)notice(`Συμπλήρωση των εγγράφων… (${generated.length+1} από ${jobs.length})`);
-    generated.push({name:F?F.fileName(job.file.name,job.target,docCtx):job.file.name,blob:await M.generateOne(job.file,map,typeMap)});
+    const writes=job.anchored?anchorWrites(job.anchored.plan,job.anchored.book,{staff:staffIds,class:classIds},map,typeMap):null;
+    const name=job.anchored?bookName(job.file.name,job.anchored.book,job.anchored.books):F?F.fileName(job.file.name,job.target,docCtx):job.file.name;
+    generated.push({name,blob:await M.generateOne(job.file,map,typeMap,writes)});
    }
    const names=F?F.uniqueNames(generated.map(g=>g.name)):generated.map(g=>g.name);
    generated.forEach((g,i)=>{g.name=names[i]});
@@ -858,6 +1068,19 @@ window.TemplaterModel=(()=>{
  const catalogView={open:new Set(['common']),staff:'',class:''};
  let catalogShown=false;
  const READY_GROUPS={staffProgram:'staff',classProgram:'class'};
+ // The ready table of subjects («Ώρες εκπαιδευτικού» / «Ώρες τμήματος»): the order of the lessons and of the blank
+ // lines, and the ticked lessons, common to teacher and class, kept while the Documents Templater is open.
+ // Keys: 'c:<code>' for a lesson, 'b:<n>' for a blank line. Lessons not in the Ωρολόγιο of the period are hidden, not forgotten.
+ const SUBJECT_GROUPS={staffHours:'staff',classHours:'class'};
+ const subjectView={order:[],on:new Set(),blanks:0};
+ function subjectKeys(subjects){
+  for(const item of subjects){const key='c:'+item.code;if(!subjectView.order.includes(key))subjectView.order.push(key)}
+  const codes=new Set(subjects.map(item=>'c:'+item.code));
+  return subjectView.order.filter(key=>key.startsWith('b:')||codes.has(key));
+ }
+ // The ready table as text with tabs (Excel) and HTML without styles or borders (Word), with no headings.
+ function subjectText(rows){return rows.map(row=>row.join('\t')).join('\r\n')}
+ function subjectHtml(rows){return '<meta charset="utf-8"><table>'+rows.map(row=>'<tr>'+row.map(text=>'<td>'+schoolEscape(text)+'</td>').join('')+'</tr>').join('')+'</table>'}
  const PROGRAM_GROUPS=new Set(['staffProgram','staffHours','classProgram','classHours','subjects']);
  const TYPE_SHORT={Text:'Κείμενο',Integer:'Ακέραιος',Date:'Ημερομηνία',Table:'Πίνακας'};
  const plainUpper=v=>(window.SchoolText?SchoolText.withoutTones(String(v??'')):String(v??'')).toLocaleUpperCase('el');
@@ -1002,6 +1225,102 @@ window.TemplaterModel=(()=>{
   };
   const staticLine=example=>example?exampleLine('π.χ. '+example,'dt-example-static'):exampleLine('—','dt-example-static');
 
+  // The editor of the ready table of subjects: one row of the group table, over its four columns.
+  function subjectEditor(kind,title){
+   const tr=el('tr','dt-subjects-row'),td=el('td');td.colSpan=4;tr.append(td);
+   const box=el('div','dt-subjects');td.append(box);
+   const head=el('div','dt-subjects-head');head.append(el('strong','',title),el('span','dt-type',TYPE_SHORT.Table));box.append(head);
+   const subjects=catalog.subjects||[];
+   if(!input||!docCtx?.program||!subjects.length){
+    box.append(el('p','dt-subjects-help',!input?'Ο πίνακας φτιάχνεται από τα μαθήματα του Ωρολογίου: χρειάζεται ανοιχτό κοινό αρχείο.':!docCtx?.period?'Χρειάζεται περίοδο με Ωρολόγιο: διάλεξέ την στα «Στοιχεία σχολείου».':!docCtx.program?`Η περίοδος ${quoted(docCtx.period.name||'')} δεν έχει Ωρολόγιο· διάλεξε περίοδο με Ωρολόγιο.`:'Το Ωρολόγιο της περιόδου δεν έχει μαθήματα με κωδικό στο FET.'));
+    return tr;
+   }
+   box.append(el('p','dt-subjects-help','Για έντυπα με μία γραμμή ανά μάθημα. Τσέκαρε τα μαθήματα του εντύπου και βάλ\' τα στη σειρά του με σύρσιμο από τη λαβή (ή Alt+↑/↓)· η «Κενή γραμμή» είναι για σειρές του εντύπου χωρίς μάθημα στο FET. «Ημέρες»: μία γραμμή ανά μάθημα, με στήλες Δε–Πα (επικόλληση στο κελί της Δευτέρας του πρώτου μαθήματος)'+(kind==='class'?'· «Διδάσκοντες»: μία στήλη με όσους διδάσκουν κάθε μάθημα. Οι δύο αντιγραφές είναι χωριστές, ώστε μια στήλη ανάμεσά τους (π.χ. με τύπο) να μη σβήνεται.':'.')));
+   const byCode=new Map(subjects.map(item=>['c:'+item.code,item])),keys=subjectKeys(subjects);
+   const listBox=el('ol','dt-subjects-list');listBox.setAttribute('aria-label','Μαθήματα του πίνακα');
+   const move=(key,delta)=>{
+    const order=subjectView.order,visible=subjectKeys(subjects),at=visible.indexOf(key),to=at+delta;
+    if(at<0||to<0||to>=visible.length)return;
+    const a=order.indexOf(key),b=order.indexOf(visible[to]);order.splice(a,1);order.splice(b,0,key);
+    rerender(kind+'|'+key+'|handle');
+   };
+   for(const key of keys){
+    const item=byCode.get(key),blank=key.startsWith('b:'),on=blank||subjectView.on.has(key.slice(2));
+    const li=el('li','dt-subject'+(on?'':' off'));li.dataset.key=key;
+    const handle=el('button','dt-subject-handle');handle.type='button';handle.textContent='⋮⋮';handle.dataset.focus=kind+'|'+key+'|handle';
+    handle.title='Σύρε για αλλαγή σειράς (ή Alt+↑/↓)';handle.setAttribute('aria-label','Μετακίνηση: '+(blank?'Κενή γραμμή':item.name)+' (Alt+↑/↓)');
+    handle.addEventListener('keydown',event=>{if(event.altKey&&(event.key==='ArrowUp'||event.key==='ArrowDown')){event.preventDefault();move(key,event.key==='ArrowUp'?-1:1)}});
+    handle.addEventListener('pointerdown',event=>startSubjectDrag(event,li,listBox,kind,key));
+    li.append(handle);
+    if(blank){
+     li.append(el('span','dt-subject-name dt-subject-blank','Κενή γραμμή'));
+     const remove=el('button','dt-subject-remove');remove.type='button';remove.textContent='×';remove.title='Αφαίρεση της κενής γραμμής';remove.setAttribute('aria-label','Αφαίρεση της κενής γραμμής');
+     remove.onclick=()=>{subjectView.order.splice(subjectView.order.indexOf(key),1);rerender(kind+'|add')};
+     li.append(remove);
+    }else{
+     const label=el('label','dt-subject-label'),check=el('input');check.type='checkbox';check.checked=on;check.dataset.focus=kind+'|'+key+'|check';
+     check.onchange=()=>{if(check.checked)subjectView.on.add(item.code);else subjectView.on.delete(item.code);rerender(kind+'|'+key+'|check')};
+     label.append(check,el('span','dt-subject-name',item.name),el('span','dt-subject-code',item.code));
+     li.append(label);
+    }
+    listBox.append(li);
+   }
+   box.append(listBox);
+   const rows=keys.filter(key=>key.startsWith('b:')||subjectView.on.has(key.slice(2))).map(key=>key.startsWith('b:')?null:key.slice(2));
+   const table=F.subjectTable(kind,rows,docCtx);
+   const actions=el('div','dt-subjects-actions');
+   const add=el('button','ui-compact-button');add.type='button';add.textContent='+ Κενή γραμμή';add.dataset.focus=kind+'|add';
+   add.onclick=()=>{subjectView.order.push('b:'+(++subjectView.blanks));rerender(kind+'|add')};
+   actions.append(add);
+   const lessons=rows.filter(Boolean).length;
+   if(!lessons)actions.append(el('span','dt-subjects-empty','Τσέκαρε τουλάχιστον ένα μάθημα.'));
+   else{
+    const count=rows.length===1?'1 γραμμή':rows.length+' γραμμές';
+    actions.append(fieldChip({text:subjectText(table.days),html:subjectHtml(table.days),label:`«Ημέρες» (${count})`,display:`Ημέρες (${count})`,className:'ready',status}));
+    if(table.teachers)actions.append(fieldChip({text:subjectText(table.teachers.map(text=>[text])),html:subjectHtml(table.teachers.map(text=>[text])),label:`«Διδάσκοντες» (${count})`,display:`Διδάσκοντες (${count})`,className:'ready',status}));
+   }
+   box.append(actions);
+   return tr;
+  }
+  // Drag by the handle (pointer events): the row follows the pointer vertically; on release the order is kept.
+  function startSubjectDrag(event,li,listBox,kind,key){
+   if(event.button!==0||!event.isPrimary)return;
+   event.preventDefault();
+   // Listened on the document: moving the row in the list would drop a pointer capture of its handle.
+   const pointer=event.pointerId;
+   li.classList.add('dragging');
+   const onMove=moveEvent=>{
+    if(moveEvent.pointerId!==pointer)return;
+    // The list runs in columns, row by row: the row goes before or after the nearest other row.
+    let near=null,best=Infinity;
+    for(const node of listBox.children){
+     if(node===li)continue;
+     const r=node.getBoundingClientRect(),dx=Math.max(r.left-moveEvent.clientX,0,moveEvent.clientX-r.right),dy=Math.max(r.top-moveEvent.clientY,0,moveEvent.clientY-r.bottom),d=dx*dx+dy*dy*4;
+     if(d<best){best=d;near=node}
+    }
+    if(!near)return;
+    const r=near.getBoundingClientRect(),before=moveEvent.clientY<r.top||(moveEvent.clientY<=r.bottom&&moveEvent.clientX<r.left+r.width/2);
+    listBox.insertBefore(li,before?near:near.nextSibling);
+   };
+   const finish=cancel=>{
+    document.removeEventListener('pointermove',onMove);document.removeEventListener('pointerup',onUp);document.removeEventListener('pointercancel',onCancel);document.removeEventListener('keydown',onKey,true);
+    li.classList.remove('dragging');
+    if(cancel){rerender(kind+'|'+key+'|handle');return}
+    // The new order of the visible rows; the lessons that are hidden (not in this Ωρολόγιο) go after them.
+    const visible=[...listBox.children].map(node=>node.dataset.key),hidden=subjectView.order.filter(k=>!visible.includes(k));
+    subjectView.order=[...visible,...hidden];
+    rerender(kind+'|'+key+'|handle');
+   };
+   const onUp=upEvent=>{if(upEvent.pointerId===pointer)finish(false)},onCancel=cancelEvent=>{if(cancelEvent.pointerId===pointer)finish(true)};
+   const onKey=keyEvent=>{if(keyEvent.key==='Escape'){keyEvent.preventDefault();keyEvent.stopPropagation();finish(true)}};
+   document.addEventListener('pointermove',onMove);document.addEventListener('pointerup',onUp);document.addEventListener('pointercancel',onCancel);document.addEventListener('keydown',onKey,true);
+  }
+  // A change of the ready table of subjects: draw again, keeping the scroll and the focus.
+  function rerender(focus){
+   render(true);
+   body.querySelector(`[data-focus="${CSS.escape(focus)}"]`)?.focus({preventScroll:true});
+  }
+
   function groupModel(group,query){
    const scope=group.key.startsWith('staff')?'staff':group.key.startsWith('class')?'class':'common';
    const targetId=scope==='common'?'':catalogView[scope];
@@ -1024,6 +1343,12 @@ window.TemplaterModel=(()=>{
      rows.push(rowElement({field,type:TYPE_SHORT.Table,help,example:''}));
     }
    }
+   // The ready table of subjects, first in «Ώρες εκπαιδευτικού» / «Ώρες τμήματος».
+   if(SUBJECT_GROUPS[group.key]){
+    const kind=SUBJECT_GROUPS[group.key],title='Έτοιμος πίνακας μαθημάτων '+(kind==='staff'?'εκπαιδευτικού':'τμήματος');
+    const hay=plainUpper([title,'πίνακας μαθημάτων ημέρες διδάσκοντες ποιες ώρες',group.label].join(' '));
+    if(!searching||matches(hay))rows.push(subjectEditor(kind,title));
+   }
    const items=[];
    for(const field of group.fields){
     const names=field.pattern?field.names:[field.name];
@@ -1041,7 +1366,7 @@ window.TemplaterModel=(()=>{
     const all=[...items.flatMap(entry=>[...entry.names,...entry.specific]),...subjects.flatMap(entry=>entry.names)];
     if(all.length)values=F.values(all,target,docCtx);
    }
-   const total=group.fields.length+(READY_GROUPS[group.key]?1:0)+(group.key==='subjects'?(catalog.subjects||[]).length:0);
+   const total=group.fields.length+(READY_GROUPS[group.key]?1:0)+(SUBJECT_GROUPS[group.key]?1:0)+(group.key==='subjects'?(catalog.subjects||[]).length:0);
    for(const {field,names,specific} of items){
     const chips=[];
     if(field.pattern&&!names.length)chips.push(el('span','dt-field-template',braces(field.name)));
