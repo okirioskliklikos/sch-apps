@@ -6,13 +6,13 @@
 <title>Έλεγχος _data.js και των _host_*.js</title>
 <!--
   Σελίδα ελέγχου του _data.js, του _host_timetables.js, του _host_calendar.js, του _host_classes.js, του
-  _host_students.js και του _host_tags.js, εκτός σουίτας: δεν μπαίνει στο Κεντρικό Μενού και δεν ακολουθεί τις συμβάσεις των
+  _host_students.js και του _host_tags.js, και τα πεδία εγγράφων (SchoolDocumentFields), εκτός σουίτας: δεν μπαίνει στο Κεντρικό Μενού και δεν ακολουθεί τις συμβάσεις των
   υποεφαρμογών. Μπαίνει στον ίδιο φάκελο με αυτά τα αρχεία και ανοίγει μόνη της.
   Τα προγράμματα είναι στη νέα μορφή τμημάτων (formatVersion:2, τμήματα με id). Τα τμήματα των ελέγχων
   φτιάχνονται από το σύντομο όνομα των δασκάλων («[Α1] - …», classesFromStaff). Με το .data δοκιμής, οι
   έλεγχοι των νέων ετικετών (v2) παίρνουν το Προσωπικό από αυτό, γιατί το CSV του Ολοημέρου έχει τα σύντομα
   ονόματα του Προσωπικού.
-  Έκδοση αρχείου: 0.38
+  Έκδοση αρχείου: 0.39
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -1161,6 +1161,123 @@ function dataFileChecks() {
   check('Κάθε σχέδιο του Ολοημέρου εξάγεται σε CSV για το FET, χωρίς ελλιπή', exports.length > 0 && exports.every(([count, csv]) => csv.exported === count && !csv.incomplete), JSON.stringify(exports.map(([count, csv]) => [count, csv.exported, csv.incomplete])));
 }
 
+// ---- Πεδία εγγράφων (SchoolDocumentFields) ----
+function documentFieldsChecks() {
+  start('13. Πεδία εγγράφων: SchoolDocumentFields');
+  const F = window.SchoolDocumentFields;
+  // Μικρό σχολείο δοκιμής: δύο τμήματα, τρεις εκπαιδευτικοί, μία δίωρη, Γαλλικά/Γερμανικά την ίδια ώρα, ένας χωρίς αντιστοίχιση.
+  const classes = [{id: 'k1', name: 'Ε1', grade: 'Ε', number: 1, homeroomStaffId: 's1'}, {id: 'k2', name: 'Στ1', grade: 'Στ', number: 1, homeroomStaffId: ''}, {id: 'k3', name: 'Τμήμα Ένταξης', homeroomStaffId: ''}];
+  const staff = [
+    {id: 's1', code: 'Ε1', shortName: '[Ε1] - Δασκάλα', name: 'Μάρκου Παρασκευή', role: 'teacher', serviceType: 'classroom', branch: 'ΠΕ70', requiredHours: 24, schoolHours: 23, startDate: '2026-09-01', endDate: '', shortNameOrder: 0},
+    {id: 's2', code: 'ΔΘ', shortName: '[ΔΘ] - Διευθύντρια', name: 'Γεωργίου Ελένη', role: 'director', serviceType: 'classroom', branch: 'ΠΕ70', requiredHours: 10, schoolHours: 10, startDate: '2026-09-01', endDate: '', shortNameOrder: 1},
+    {id: 's3', code: 'ΠΕ07Α', shortName: '[ΠΕ07] - Γερμανικά', name: 'Κρητικού Ερασμία', role: 'deputy', serviceType: 'specialty', branch: 'ΠΕ07', requiredHours: 21, schoolHours: 12, startDate: '2026-09-15', endDate: '2027-06-21', shortNameOrder: 2}
+  ];
+  const t = (day, start, end) => ({day, start, end});
+  const program = {id: 'p1', formatVersion: 2, kind: 'school', periodId: 'per1', name: '', activities: [
+    {id: 'a1', subject: 'Γλώσσα', staff: ['s1'], unmatched: [], classes: ['k1'], subsets: [], otherStudents: [], room: 'Αίθουσα 3', times: [t(1, '10:00', '10:45'), t(1, '10:45', '11:30')]},
+    {id: 'a2', subject: 'Γλώσσα', staff: ['s1'], unmatched: [], classes: ['k1'], subsets: [], otherStudents: [], room: '', times: [t(2, '08:15', '09:00')]},
+    {id: 'a3', subject: 'Γαλλικά', staff: [], unmatched: ['[ΠΕ05] - Γαλλικά'], classes: ['k1'], subsets: ['Ε1-Γαλ'], otherStudents: [], room: '', times: [t(3, '08:15', '09:00')]},
+    {id: 'a4', subject: 'Γερμανικά', staff: ['s3'], unmatched: [], classes: ['k1'], subsets: ['Ε1-Γερ'], otherStudents: [], room: '', times: [t(3, '08:15', '09:00')]},
+    {id: 'a5', subject: 'Πρωϊνή Ζώνη', staff: ['s1'], unmatched: [], classes: ['k1', 'k2'], subsets: [], otherStudents: [], room: '', times: [t(1, '07:15', '08:00')]},
+    {id: 'a6', subject: 'Ολοήμερο', staff: ['s3'], unmatched: [], classes: ['k2'], subsets: [], otherStudents: [], room: '', times: [t(4, '14:10', '14:55'), t(4, '15:55', '16:40')]}
+  ], source: {type: 'fet', subjects: [{name: 'Γλώσσα', longName: 'Νεοελληνική Γλώσσα', code: 'ΓΛ'}, {name: 'Γαλλικά', longName: 'Γαλλικά', code: 'ΓΑΛ'}, {name: 'Γερμανικά', longName: 'Γερμανικά', code: 'ΓΕΡ'}, {name: 'Ολοήμερο', longName: 'Ολοήμερο', code: ''}]}};
+  const input = {school: {name: '1<sup>o</sup> ΔΣ Δοκιμής &amp; Χ', year: '2026-2027'}, year: '2026-2027', staff, classes, teachingHours: HOURS_V2,
+    periods: [{id: 'per1', name: 'Α περίοδος', from: '2026-09-10', to: ''}], programs: [program], studentCounts: {k1: 21}};
+  const c = F.context(input, {periodId: 'per1', today: '2026-11-11'});
+  equal('Ώρες του πλέγματος ανά ζώνη, από τις Ώρες Διδασκαλίας', c.slots.map(slot => slot.key), ['ΠΖ1', '1', '2', '3', '4', '5', '6', 'ΓΕΥΜΑ1', 'ΟΛΟ1', 'ΟΛΟ2', 'ΟΛΟ3', 'ΟΛΟ4']);
+  equal('Ζώνες: Ολοήμερο και Διευρυμένο χωριστά, με κοινή αρίθμηση ΟΛΟ', c.slots.filter(slot => slot.key.startsWith('ΟΛΟ')).map(slot => slot.zone), ['Ολοήμερο', 'Ολοήμερο', 'Διευρυμένο', 'Διευρυμένο']);
+  equal('Το διάλειμμα δεν έχει ώρα πλέγματος, αλλά είναι γραμμή του έτοιμου πίνακα', c.rows.filter(row => row.type === 'break').map(row => row.time), ['08:00–08:15', '09:40–10:00', '11:30–11:45', '12:25–12:35', '13:15–13:20']);
+  const common = F.values(['@Σχολείο', '@Σχολικό Έτος', '@Περίοδος', '@Περίοδος Από', '@Περίοδος Έως', '@Διευθυντής', '@Υποδιευθυντής', '@Σήμερα', '@Ώρα.ΠΖ1', '@Ώρα.ΟΛΟ4', '@Μάθημα.ΓΛ', '@Μάθημα.ΓΛ.Πλήρες'], null, c);
+  equal('Κοινά πεδία (ημερομηνίες dd/mm/yyyy, κενό «έως» → 15/06)', [...common.values()], ['1o ΔΣ Δοκιμής & Χ', '2026-2027', 'Α περίοδος', '10/09/2026', '15/06/2027', 'Γεωργίου Ελένη', 'Κρητικού Ερασμία', '11/11/2026', '07:15–08:00', '16:45–17:30', 'Γλώσσα', 'Νεοελληνική Γλώσσα']);
+  const teacher = F.values(['@Εκπ.Ονοματεπώνυμο', '@Εκπ.Ιδιότητα', '@Εκπ.Είδος Υπηρεσίας', '@Εκπ.Ωράριο Σχολείου', '@Εκπ.Τμήμα', '@Εκπ.Πρ.Δε.3', '@Εκπ.Πρ.Δε.3.Αίθουσα', '@Εκπ.Πρ.Δε.ΠΖ1', '@Εκπ.Πρ.Δε.ΠΖ1.Τμήμα', '@Εκπ.Πρ.Τε.1',
+    '@Εκπ.Ώρες', '@Εκπ.Ώρες.ΠΖ', '@Εκπ.Ώρες.Δε', '@Εκπ.Ώρες.Μάθημα.ΓΛ', '@Εκπ.Ώρες.Μάθημα.ΓΛ.Δε', '@Εκπ.Ώρες.Μάθημα.ΓΛ.Δε.Ποιες', '@Τμ.Όνομα'], {type: 'staff', id: 's1'}, c);
+  equal('Εκπαιδευτικός: στοιχεία, κελιά «Γλώσσα (Ε1)», ώρες, δίωρη «3+4»· τα πεδία Τμ. μένουν κενά', [...teacher.values()],
+    ['Μάρκου Παρασκευή', 'Εκπαιδευτικός', 'Δάσκαλος', '23', 'Ε1', 'Γλώσσα (Ε1)', 'Αίθουσα 3', "Πρωϊνή Ζώνη (Ε1, Στ1)", 'Ε1, Στ1', '', '4', '1', '3', '3', '2', '3+4', '']);
+  const deputy = F.values(['@Εκπ.Ιδιότητα', '@Εκπ.Ανάληψη Υπηρεσίας', '@Εκπ.Αποχώρηση', '@Εκπ.Τμήμα', '@Εκπ.Ώρες.Ολοήμερο', '@Εκπ.Ώρες.Διευρυμένο'], {type: 'staff', id: 's3'}, c);
+  equal('Υποδιευθυντής χωρίς τμήμα, ημερομηνίες υπηρεσίας, Ολοήμερο και Διευρυμένο χωριστά', [...deputy.values()], ['Υποδιευθυντής', '15/09/2026', '21/06/2027', '', '1', '1']);
+  const klass = F.values(['@Τμ.Όνομα', '@Τμ.Τάξη', '@Τμ.Υπεύθυνος', '@Τμ.Μαθητές', '@Τμ.Πρ.Τε.1', '@Τμ.Πρ.Τε.1.Εκπαιδευτικός Σύντομο', '@Τμ.Πρ.Δε.3.Εκπαιδευτικός', '@Τμ.Ώρες', '@Τμ.Ώρες.Τε', '@Τμ.Ώρες.Μάθημα.ΓΛ', '@Τμ.Εκπαιδευτικός.Μάθημα.ΓΛ', '@Τμ.Εκπαιδευτικός.Μάθημα.ΓΑΛ', '@Εκπ.Ονοματεπώνυμο'], {type: 'class', id: 'k1'}, c);
+  equal('Τμήμα: δύο μαθήματα στην ίδια ώρα με « / », χωρίς αντιστοίχιση με το όνομα του αρχείου, η ώρα μετρά μία φορά', [...klass.values()],
+    ['Ε1', "Ε'", 'Μάρκου Παρασκευή', '21', 'Γαλλικά ([ΠΕ05] - Γαλλικά) / Γερμανικά (Κρητικού Ερασμία)', '[ΠΕ05] - Γαλλικά / [ΠΕ07] - Γερμανικά', 'Μάρκου Παρασκευή', '5', '1', '3', 'Μάρκου Παρασκευή', '[ΠΕ05] - Γαλλικά', '']);
+  equal('Τμήμα «Στ1»: τάξη «Στ\'», 0 μαθητές· άλλο τμήμα χωρίς τάξη', [...F.values(['@Τμ.Τάξη', '@Τμ.Μαθητές'], {type: 'class', id: 'k2'}, c).values(), ...F.values(['@Τμ.Τάξη'], {type: 'class', id: 'k3'}, c).values()], ["Στ'", '0', '']);
+  const none = F.context(input, {periodId: 'καμία'});
+  equal('Χωρίς περίοδο: τα πεδία του προγράμματος μένουν κενά, τα στοιχεία συμπληρώνονται', [...F.values(['@Εκπ.Ώρες', '@Εκπ.Πρ.Δε.1', '@Εκπ.Κλάδος', '@Περίοδος'], {type: 'staff', id: 's1'}, none).values()], ['', '', 'ΠΕ70', '']);
+  const recognize = token => { const item = F.recognize(token, c); return [item.data, item.known, item.scope, item.type, item.message]; };
+  equal('Αναγνώριση: γνωστό πεδίο, με ή χωρίς «:Integer»', [recognize('@Εκπ.Ώρες'), recognize('@Εκπ.Ώρες:Integer')], [[true, true, 'staff', 'Integer', ''], [true, true, 'staff', 'Integer', '']]);
+  check('Λάθος τύπος: προειδοποίηση', F.recognize('@Εκπ.Ώρες:Date', c).message.includes('Integer'), F.recognize('@Εκπ.Ώρες:Date', c).message);
+  equal('«Μήπως εννοείς» για γραφή χωρίς τόνους ή με άλλα πεζά–κεφαλαία· δεν συμπληρώνεται', [F.recognize('@σχολειο', c).message, F.recognize('@Εκπ.Πρ.δε.ολο1', c).message, F.recognize('@Εκπ.Ονοματεπωνυμο', c).known],
+    ['Μήπως εννοείς «{{@Σχολείο}}»;', 'Μήπως εννοείς «{{@Εκπ.Πρ.Δε.ΟΛΟ1}}»;', false]);
+  check('Ώρα που δεν υπάρχει στις Ώρες Διδασκαλίας', F.recognize('@Εκπ.Πρ.Δε.ΟΛΟ7', c).message.includes('«ΟΛΟ7»'), F.recognize('@Εκπ.Πρ.Δε.ΟΛΟ7', c).message);
+  check('Κωδικός μαθήματος που δεν υπάρχει στο Ωρολόγιο', F.recognize('@Μάθημα.ΧΧ', c).message.includes('«ΧΧ»'), F.recognize('@Μάθημα.ΧΧ', c).message);
+  check('Μάθημα χωρίς κωδικό στο FET δεν έχει πεδία', !F.recognize('@Μάθημα.Ολοήμερο', c).known);
+  check('Ημέρα που δεν υπάρχει', F.recognize('@Τμ.Πρ.Σα.1', c).message.includes('«Σα»'));
+  equal('Χωρίς «@»: χειροκίνητο πεδίο· υπόδειξη μόνο για όνομα του καταλόγου με Εκπ./Τμ./Ώρα./Μάθημα.', [F.recognize('Σχολείο', c).message, F.recognize('Εκπ.Κλάδος', c).data, F.recognize('Εκπ.Κλάδος', c).message.includes('{{@Εκπ.Κλάδος}}')], ['', false, true]);
+  check('Χωρίς Ώρες Διδασκαλίας και Ωρολόγιο: ώρες και κωδικοί δεκτοί με σωστή μορφή', F.recognize('@Εκπ.Πρ.Δε.ΟΛΟ7', F.context({})).known && F.recognize('@Μάθημα.ΧΧ', F.context({})).known);
+  equal('Είδος προτύπου', [F.templateKind(['Αρ. Πρωτοκόλλου'], c).kind, F.templateKind(['@Σχολείο', 'Αρ. Πρωτοκόλλου'], c).kind, F.templateKind(['@Σχολείο', '@Εκπ.Τμήμα'], c).kind, F.templateKind(['@Τμ.Υπεύθυνος', '@Τμ.Όνομα'], c).kind, F.templateKind(['@Εκπ.Ονοματεπώνυμο', '@Τμ.Όνομα'], c)],
+    ['none', 'common', 'staff', 'class', {kind: 'mixed', staff: ['@Εκπ.Ονοματεπώνυμο'], class: ['@Τμ.Όνομα']}]);
+  const table = F.readyTable('class', c);
+  equal('Έτοιμος πίνακας: ώρες με τα πεδία τους και διαλείμματα', [table.days.length, table.rows.length, table.rows[0].time, table.rows[0].cells[4], table.rows[1]], [5, 17, '{{@Ώρα.ΠΖ1}}', '{{@Τμ.Πρ.Πα.ΠΖ1}}', {type: 'break', time: '08:00–08:15', text: 'Διάλειμμα'}]);
+  equal('Ονόματα εγγράφων, με « (2)» σε ίδιο όνομα', F.uniqueNames([F.fileName('Βεβαίωση.docx', {type: 'staff', id: 's1'}, c), F.fileName('βεβαίωση.docx', {type: 'staff', id: 's1'}, c), F.fileName('Πρόγραμμα.xlsx', {type: 'class', id: 'k2'}, c), F.fileName('Κοινό.docx', null, c)]),
+    ['Βεβαίωση - Μάρκου Παρασκευή.docx', 'βεβαίωση - Μάρκου Παρασκευή (2).docx', 'Πρόγραμμα - Στ1.xlsx', 'Κοινό.docx']);
+  const catalog = F.catalog(c), grid = catalog.groups.find(group => group.key === 'staffProgram').fields[0];
+  equal('Κατάλογος: το πλέγμα ως μία γραμμή-μοτίβο με το πρώτο και το τελευταίο πεδίο', [grid.name, grid.names.length, grid.names.includes('@Εκπ.Πρ.Τε.3')], ['@Εκπ.Πρ.Δε.ΠΖ1 … @Εκπ.Πρ.Πα.ΟΛΟ4', 60, true]);
+  check('Κατάλογος: κάθε πεδίο έχει τύπο, εξήγηση και παράδειγμα· κάθε όνομα αναγνωρίζεται', catalog.groups.every(group => group.fields.every(field => field.type && field.help && 'example' in field && (field.pattern ? field.names : [field.name]).every(name => F.recognize(name, c).known))));
+  equal('Κατάλογος χωρίς context: μοτίβα με «<ώρα>» και «<κωδικός>»', [F.catalog().groups.find(group => group.key === 'staffProgram').fields[0].name, F.catalog().groups.find(group => group.key === 'subjects').fields[0].name], ['@Εκπ.Πρ.<ημέρα>.<ώρα>', '@Μάθημα.<κωδικός>']);
+
+  // Με το .data δοκιμής: το Ωρολόγιο της δεύτερης περιόδου (v2) και της πρώτης (παλιά αρχεία).
+  if (!texts.data) return skip('Πεδία εγγράφων με το .data δοκιμής', 'Λείπει το .data δοκιμής.');
+  const box = JSON.parse(texts.data);
+  if (box?.encryption !== 'none') return skip('Πεδία εγγράφων με το .data δοκιμής', 'Το .data έχει κωδικό.');
+  const file = box.payload, year = file.school.year, timetables = file.timetablesByYear?.[year] || {periods: [], programs: []};
+  const studentCounts = {};
+  for (const student of file.studentsByYear?.[year]?.students || []) studentCounts[student.classId] = (studentCounts[student.classId] || 0) + 1;
+  const real = {school: file.school, year, staff: file.staffByYear[year], classes: file.classesByYear[year].classes, teachingHours: file.teachingHoursByYear[year], periods: timetables.periods,
+    programs: timetables.programs.filter(item => item.kind === 'school' && item.periodId), studentCounts};
+  const byName = name => real.classes.find(record => record.name === name), byCode = code => real.staff.find(person => person.code === code);
+  for (const period of timetables.periods) {
+    const ctx = F.context(real, {periodId: period.id});
+    if (!ctx.program) { skip('Περίοδος «' + period.name + '»', 'Δεν έχει Ωρολόγιο.'); continue; }
+    const hours = SchoolTimetable.staffHours(ctx.program);
+    check('«' + period.name + '»: οι ώρες κάθε εκπαιδευτικού είναι ίδιες με το staffHours', real.staff.every(person => F.values(['@Εκπ.Ώρες'], {type: 'staff', id: person.id}, ctx).get('@Εκπ.Ώρες') === String(hours.get(person.id) || 0)));
+    check('«' + period.name + '»: οι ώρες ανά ζώνη και ανά ημέρα αθροίζουν στο σύνολο', [...real.staff.map(person => ({type: 'staff', id: person.id})), ...real.classes.map(record => ({type: 'class', id: record.id}))].every(target => {
+      const P = target.type === 'staff' ? '@Εκπ' : '@Τμ', names = [P + '.Ώρες', ...F.ZONES.map(zone => P + '.Ώρες.' + zone.key), ...F.DAYS.map(day => P + '.Ώρες.' + day.key)];
+      const v = F.values(names, target, ctx), num = name => Number(v.get(name));
+      return F.ZONES.reduce((sum, zone) => sum + num(P + '.Ώρες.' + zone.key), 0) === num(P + '.Ώρες') && F.DAYS.reduce((sum, day) => sum + num(P + '.Ώρες.' + day.key), 0) === num(P + '.Ώρες');
+    }));
+    const e1 = byName('Ε1'), german = ctx.program.activities.filter(activity => activity.subject === 'Γερμανικά' && activity.classes.includes(e1.id));
+    // Γαλλικά του Ε1 σε ώρα που το Ε1 έχει και Γερμανικά.
+    const french = ctx.program.activities.find(activity => activity.subject === 'Γαλλικά' && activity.classes.includes(e1.id) && german.some(other => other.times.some(time => time.day === activity.times[0].day && time.start === activity.times[0].start)));
+    if (!french) skip('«' + period.name + '»: Γαλλικά και Γερμανικά του Ε1', 'Δεν βρέθηκαν την ίδια ώρα.');
+    else {
+      const time = french.times[0], day = F.DAYS.find(item => item.day === time.day).key, slot = ctx.slots.find(item => item.start === time.start).key;
+      const cell = F.values(['@Τμ.Πρ.' + day + '.' + slot], {type: 'class', id: e1.id}, ctx).get('@Τμ.Πρ.' + day + '.' + slot);
+      check('«' + period.name + '»: Γαλλικά και Γερμανικά του Ε1 στο ίδιο κελί με « / »', /Γαλλικά \(.+\) \/ Γερμανικά \(.+\)|Γερμανικά \(.+\) \/ Γαλλικά \(.+\)/.test(cell), cell);
+      const classHours = Number(F.values(['@Τμ.Ώρες'], {type: 'class', id: e1.id}, ctx).get('@Τμ.Ώρες'));
+      const distinct = new Set(ctx.program.activities.filter(activity => activity.classes.includes(e1.id)).flatMap(activity => activity.times.map(item => item.day + item.start))).size;
+      equal('«' + period.name + '»: οι ώρες του Ε1 μετρούν κάθε ώρα μία φορά', classHours, distinct);
+    }
+    const double = ctx.program.activities.find(activity => activity.times.length === 2 && activity.staff.length === 1 && activity.times[0].day === activity.times[1].day && ctx.subjects.some(subject => subject.name === activity.subject));
+    if (double) {
+      const code = ctx.subjects.find(subject => subject.name === double.subject).code, day = F.DAYS.find(item => item.day === double.times[0].day).key;
+      const which = F.values(['@Εκπ.Ώρες.Μάθημα.' + code + '.' + day + '.Ποιες'], {type: 'staff', id: double.staff[0]}, ctx).get('@Εκπ.Ώρες.Μάθημα.' + code + '.' + day + '.Ποιες');
+      const keys = double.times.map(item => ctx.slots.find(slot => slot.start === item.start).key);
+      check('«' + period.name + '»: δίωρη στο «.Ποιες» (' + double.subject + ')', keys.every(key => which.split('+').includes(key)), which);
+    }
+    equal('«' + period.name + '»: το «Στ1» γράφεται «Στ1» και η τάξη «Στ\'»', [...F.values(['@Τμ.Όνομα', '@Τμ.Τάξη'], {type: 'class', id: byName('Στ1').id}, ctx).values()], ['Στ1', "Στ'"]);
+    const unmatched = ctx.program.activities.find(activity => activity.unmatched.length && activity.classes.length);
+    if (unmatched) {
+      const time = unmatched.times[0], day = F.DAYS.find(item => item.day === time.day).key, slot = ctx.slots.find(item => time.start < item.end && item.start < time.end).key;
+      const cell = F.values(['@Τμ.Πρ.' + day + '.' + slot], {type: 'class', id: unmatched.classes[0]}, ctx).get('@Τμ.Πρ.' + day + '.' + slot);
+      check('«' + period.name + '»: εκπαιδευτικός χωρίς αντιστοίχιση με το όνομα του αρχείου (' + unmatched.unmatched[0] + ')', cell.includes(unmatched.unmatched[0]), cell);
+    }
+    const debug = real.staff.find(person => compareKeyLocal(person.shortName).includes('DEBUG'));
+    if (debug) equal('«' + period.name + '»: εκπαιδευτικός χωρίς δραστηριότητα έχει 0 ώρες', F.values(['@Εκπ.Ώρες'], {type: 'staff', id: debug.id}, ctx).get('@Εκπ.Ώρες'), '0');
+    const catalogReal = F.catalog(ctx);
+    check('«' + period.name + '»: κάθε όνομα του καταλόγου αναγνωρίζεται και παίρνει τιμή χωρίς λάθος', catalogReal.groups.every(group => group.fields.every(field => (field.pattern ? field.names : [field.name]).every(name => F.recognize(name, ctx).known)))
+      && [{type: 'staff', id: byCode('Α1').id}, {type: 'class', id: e1.id}, null].every(target => F.values(catalogReal.groups.flatMap(group => group.fields.flatMap(field => field.pattern ? field.names : [field.name])), target, ctx).size > 0));
+  }
+}
+const compareKeyLocal = value => String(value ?? '').normalize('NFD').replace(/\p{M}+/gu, '').toUpperCase();
+
 // ---- Host (_host_timetables.js) ----
 const FET_APP = 'fet_timetable_editor.html', OLO_APP = 'oloimero_designer.html', STAFF_APP = 'school_staff.html';
 const clone = value => structuredClone(value);
@@ -1636,6 +1753,7 @@ function run() {
   attempt('Host: Μαθητές', hostStudentsChecks);
   attempt('Host: Ετικέτες', hostTagsChecks);
   attempt('Το .data δοκιμής', dataFileChecks);
+  attempt('Πεδία εγγράφων', documentFieldsChecks);
 
   const summary = document.createElement('div');
   summary.className = 'summary ' + (totals.fail ? 'fail' : 'ok');
