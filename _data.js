@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων
- * Έκδοση αρχείου: 0.32
+ * Έκδοση αρχείου: 0.33
  * Όνομα κατά την εγκατάσταση: _data.js
  *
  * Φορτώνεται από όσες υποεφαρμογές διαβάζουν ή γράφουν CSV, FET, ημερομηνίες ή προγράμματα, μετά
@@ -2012,7 +2012,7 @@
   ].map(Object.freeze));
   const DOC_CLASS = Object.freeze([
     {name: 'Όνομα', type: 'Text', help: 'Το όνομα του τμήματος από τα «Τμήματα».', example: 'Α1', get: (c, r) => String(r.name ?? '')},
-    {name: 'Τάξη', type: 'Text', help: 'Η τάξη (κενό σε τμήμα που δεν είναι Γενικής Παιδείας).', example: "Α'", get: (c, r) => isGeneralClass(r) ? GRADE_LABELS[gradeKey(r.grade)] || '' : ''},
+    {name: 'Τάξη', type: 'Text', help: 'Η τάξη, χωρίς απόστροφο (κενό σε τμήμα που δεν είναι Γενικής Παιδείας).', example: 'Α', get: (c, r) => isGeneralClass(r) ? gradeName(GRADES[gradeIndex(r.grade)]) : ''},
     {name: 'Υπεύθυνος', type: 'Text', help: 'Το πλήρες όνομα του υπευθύνου στα «Τμήματα».', example: 'Μάρκου Παρασκευή', get: (c, r) => r.homeroomStaffId ? staffName(c, r.homeroomStaffId) : ''},
     {name: 'Μαθητές', type: 'Integer', help: 'Πόσους μαθητές έχει το τμήμα στους «Μαθητές».', example: '18', get: (c, r) => String(Number(c.studentCounts[r.id]) || 0)}
   ].map(Object.freeze));
@@ -2039,6 +2039,17 @@
     if (!text) return null;
     if (info?.codes) return info.codes.get(compareKey(text)) || null;
     return text;
+  }
+  // Lesson codes joined with «+» («ΓΑΛ+ΓΕΡ»), for the fields of hours and teachers: the hours of any of them count.
+  // → {code} (canonical, joined with «+») or {error} for an unknown or repeated code.
+  function docCodes(value, info) {
+    const parts = String(value ?? '').split('+').map(part => part.trim());
+    if (parts.length === 1) { const code = docCode(parts[0], info); return code ? {code} : {missing: parts[0]}; }
+    const codes = parts.map(part => docCode(part, info));
+    const missing = parts[codes.findIndex(code => !code)];
+    if (missing !== undefined) return {missing};
+    if (new Set(codes.map(compareKey)).size !== codes.length) return {error: 'Ένα μάθημα γράφεται μία φορά στο ' + quoted(value) + '.'};
+    return {code: codes.join('+')};
   }
   function docParse(body, info) {
     const text = String(body ?? '').trim();
@@ -2107,8 +2118,10 @@
       if (!tail.length) return ok(prefix + 'Ώρες.' + zone.key, scope, 'Integer', {family: 'hours', zone});
       if (compareKey(tail[0]) === 'ΜΑΘΗΜΑ') {
         if (tail.length < 2 || tail.length > 4) return unknown();
-        const code = docCode(tail[1], info);
-        if (!code) return codeError(tail[1]);
+        const codes = docCodes(tail[1], info);
+        if (codes.error) return fail(codes.error);
+        if (!codes.code) return codeError(codes.missing);
+        const code = codes.code;
         let name = head + 'Μάθημα.' + code, day = null, which = false;
         if (tail.length >= 3) {
           day = dayOf(tail[2]);
@@ -2128,8 +2141,10 @@
       if (spec1.error) return fail(spec1.error);
       const zone = spec1.zone, tail = rest.slice(zone ? 2 : 1);
       if (tail.length === 2 && compareKey(tail[0]) === 'ΜΑΘΗΜΑ') {
-        const code = docCode(tail[1], info);
-        if (!code) return codeError(tail[1]);
+        const codes = docCodes(tail[1], info);
+        if (codes.error) return fail(codes.error);
+        if (!codes.code) return codeError(codes.missing);
+        const code = codes.code;
         return ok(prefix + 'Εκπαιδευτικός.' + (zone ? zone.key + '.' : '') + 'Μάθημα.' + code, scope, 'Text', {family: 'subjectTeachers', code, zone});
       }
     }
@@ -2221,7 +2236,10 @@
     const seen = new Set();
     return items.filter(item => { const key = item.time.day + '|' + item.time.start + '|' + item.time.end; if (seen.has(key)) return false; seen.add(key); return true; });
   };
-  const docSubjectKeys = (c, code) => new Set(c.subjects.filter(item => compareKey(item.code) === compareKey(code)).map(item => compareKey(item.name)));
+  // The lesson names of a code, or of codes joined with «+».
+  const docSubjectKeys = (c, code) => { const codes = String(code).split('+').map(compareKey); return new Set(c.subjects.filter(item => codes.includes(compareKey(item.code))).map(item => compareKey(item.name))); };
+  // In documents a whole grade is written without the apostrophe: «Ε'» → «Ε», «Α'-Στ'» → «Α-Στ» (the apps keep «Ε'»).
+  const docGradePlain = text => String(text).replace(/(^|[\s,(-])(Α|Β|Γ|Δ|Ε|Στ)['΄’](?=$|[\s,)-])/g, '$1$2');
   const docTeachers = (c, activity, short) => [...(activity.staff || []).map(id => { const person = c.staffById.get(id); return person ? String((short ? person.shortName : person.name) || person.shortName || person.name || '') : ''; }), ...(activity.unmatched || [])];
 
   function docGridValue(c, data, spec) {
@@ -2232,7 +2250,8 @@
     const subject = activity => String(activity.subject ?? '').trim();
     if (data.type === 'staff') {
       if (spec.variant === 'Μάθημα') return docJoin(cell.map(subject), ' / ');
-      if (spec.variant === 'Τμήμα') return docJoin(cell.map(students), ' / ');
+      // The classes of the hour without subsets («Ε1-Γαλ, Ε2-Γαλ» → «Ε»), and a whole grade without apostrophe.
+      if (spec.variant === 'Τμήμα') return docJoin(cell.map(activity => docGradePlain(studentsText({...activity, subsets: []}, {classes: c.classes}))), ' / ');
       // Only the grade (Α … Στ) of the classes of the hour, in grade order; other classes are left out for now.
       if (spec.variant === 'Τάξη') {
         const grades = new Set(cell.flatMap(activity => (activity.classes || []).map(id => c.classesById.get(id)).filter(isGeneralClass).map(record => gradeIndex(record.grade))));
@@ -2338,12 +2357,12 @@
       const variants = scope === 'staff' ? DOC_STAFF_VARIANTS : DOC_CLASS_VARIANTS;
       const cellHelp = scope === 'staff' ? 'μάθημα και τμήμα, π.χ. «Γλώσσα (Α1)»' : 'μάθημα και εκπαιδευτικός, π.χ. «Γλώσσα (Μάρκου Παρασκευή)»';
       const program = [pattern(grid(scope, ''), M + P + '.Πρ.<ημέρα>.<ώρα>', 'Text', 'Μία ώρα του προγράμματος του ' + label + ': ' + cellHelp + '. Δύο δραστηριότητες στην ίδια ώρα χωρίζονται με « / ». ' + slotsHelp, scope === 'staff' ? 'Γλώσσα (Α1)' : 'Γλώσσα (Μάρκου Παρασκευή)'),
-        ...variants.map(variant => pattern(grid(scope, variant), M + P + '.Πρ.<ημέρα>.<ώρα>.' + variant, 'Text', 'Μόνο ' + ({Μάθημα: 'το μάθημα', Τμήμα: 'το τμήμα', Τάξη: 'η τάξη (Α, Β, Γ, Δ, Ε ή Στ, χωρίς τμήμα και υποσύνολα· δύο τάξεις με «, »)', Αίθουσα: 'η αίθουσα', Εκπαιδευτικός: 'ο εκπαιδευτικός, με το πλήρες όνομα', 'Εκπαιδευτικός Σύντομο': 'ο εκπαιδευτικός, με το σύντομο όνομα'})[variant] + ' της ώρας. ' + slotsHelp, ({Μάθημα: 'Γλώσσα', Τμήμα: 'Α1', Τάξη: 'Α', Αίθουσα: 'Αίθουσα 3', Εκπαιδευτικός: 'Μάρκου Παρασκευή', 'Εκπαιδευτικός Σύντομο': '[Α1] - Δασκάλα'})[variant]))];
+        ...variants.map(variant => pattern(grid(scope, variant), M + P + '.Πρ.<ημέρα>.<ώρα>.' + variant, 'Text', 'Μόνο ' + ({Μάθημα: 'το μάθημα', Τμήμα: 'το τμήμα (χωρίς υποσύνολα, π.χ. «Ε» για τα Γαλλικά του Ε1 και του Ε2· ολόκληρη τάξη χωρίς απόστροφο)', Τάξη: 'η τάξη (Α, Β, Γ, Δ, Ε ή Στ, χωρίς τμήμα και υποσύνολα· δύο τάξεις με «, »)', Αίθουσα: 'η αίθουσα', Εκπαιδευτικός: 'ο εκπαιδευτικός, με το πλήρες όνομα', 'Εκπαιδευτικός Σύντομο': 'ο εκπαιδευτικός, με το σύντομο όνομα'})[variant] + ' της ώρας. ' + slotsHelp, ({Μάθημα: 'Γλώσσα', Τμήμα: 'Α1', Τάξη: 'Α', Αίθουσα: 'Αίθουσα 3', Εκπαιδευτικός: 'Μάρκου Παρασκευή', 'Εκπαιδευτικός Σύντομο': '[Α1] - Δασκάλα'})[variant]))];
       const hours = [
         {name: M + P + '.Ώρες', type: 'Integer', help: 'Όλες οι ώρες του ' + label + ' στο Ωρολόγιο της περιόδου.' + (scope === 'class' ? ' Κάθε ώρα μετρά μία φορά, και όταν έχει δύο μαθήματα (π.χ. Γαλλικά και Γερμανικά).' : ''), example: scope === 'staff' ? '22' : '30', pattern: false},
         ...DOC_ZONES.map(zone => ({name: M + P + '.Ώρες.' + zone.key, type: 'Integer', help: 'Οι ώρες στη ζώνη «' + zone.label + '».', example: zone.key === 'Πρωινό' ? '18' : '1', pattern: false})),
         pattern(DOC_DAYS.map(day => M + P + '.Ώρες.' + day.key), '', 'Integer', 'Οι ώρες σε κάθε ημέρα (Δε, Τρ, Τε, Πε, Πα).', '5'),
-        pattern(byCode(code => M + P + '.Ώρες.Μάθημα.' + code), M + P + '.Ώρες.Μάθημα.<κωδικός>', 'Integer', 'Οι ώρες σε ένα μάθημα, με τον κωδικό του μαθήματος στο FET.', '6'),
+        pattern(byCode(code => M + P + '.Ώρες.Μάθημα.' + code), M + P + '.Ώρες.Μάθημα.<κωδικός>', 'Integer', 'Οι ώρες σε ένα μάθημα, με τον κωδικό του μαθήματος στο FET. Και περισσότερα μαθήματα ενωμένα με «+» (π.χ. «ΓΑΛ+ΓΕΡ»), εδώ και στα πεδία ωρών και διδασκόντων παρακάτω: μετρούν οι ώρες οποιουδήποτε από αυτά.', '6'),
         pattern(codes ? codes.flatMap(code => DOC_DAYS.map(day => M + P + '.Ώρες.Μάθημα.' + code + '.' + day.key)) : null, M + P + '.Ώρες.Μάθημα.<κωδικός>.<ημέρα>', 'Integer', 'Οι ώρες σε ένα μάθημα μία ημέρα.', '2'),
         pattern(codes ? codes.flatMap(code => DOC_DAYS.map(day => M + P + '.Ώρες.Μάθημα.' + code + '.' + day.key + '.Ποιες')) : null, M + P + '.Ώρες.Μάθημα.<κωδικός>.<ημέρα>.Ποιες', 'Text', 'Ποιες ώρες έχει ένα μάθημα μία ημέρα, ενωμένες με «+», π.χ. «2» ή «3+4».', '3+4')
       ];
