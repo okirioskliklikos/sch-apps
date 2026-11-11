@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων
- * Έκδοση αρχείου: 0.29
+ * Έκδοση αρχείου: 0.30
  * Όνομα κατά την εγκατάσταση: _data.js
  *
  * Φορτώνεται από όσες υποεφαρμογές διαβάζουν ή γράφουν CSV, FET, ημερομηνίες ή προγράμματα, μετά
@@ -26,8 +26,8 @@
  *   window.SchoolTags       ετικέτες (tagsByYear): κατηγορίες, χρώματα κατηγορίας, όνομα και χρώμα κάθε ετικέτας,
  *                           κοινή σειρά, σύγκριση ονομάτων γενικών ετικετών
  *   window.SchoolDocumentFields  πεδία από το κοινό αρχείο για τα πρότυπα του Documents Templater ({{@…}}):
- *                           κατάλογος, αναγνώριση και υποδείξεις, αν ένα πεδίο χρειάζεται περίοδο, είδος προτύπου, τιμές για εκπαιδευτικό ή τμήμα σε
- *                           μια περίοδο, έτοιμος πίνακας του πλέγματος, ονόματα εγγράφων
+ *                           κατάλογος, αναγνώριση και υποδείξεις, αν ένα πεδίο χρειάζεται περίοδο, άγκυρες, είδος προτύπου, τιμές για
+ *                           εκπαιδευτικό ή τμήμα σε μια περίοδο, έτοιμος πίνακας του πλέγματος και των μαθημάτων, ονόματα εγγράφων
  * Τα προγράμματα είναι στη μορφή formatVersion:2: οι δραστηριότητες αναφέρονται στα τμήματα με το id τους
  * (classes), και τα ονόματα μαθητών των αρχείων που δεν είναι τμήματα μπαίνουν στο otherStudents.
  */
@@ -2016,6 +2016,10 @@
     {name: 'Υπεύθυνος', type: 'Text', help: 'Το πλήρες όνομα του υπευθύνου στα «Τμήματα».', example: 'Μάρκου Παρασκευή', get: (c, r) => r.homeroomStaffId ? staffName(c, r.homeroomStaffId) : ''},
     {name: 'Μαθητές', type: 'Integer', help: 'Πόσους μαθητές έχει το τμήμα στους «Μαθητές».', example: '18', get: (c, r) => String(Number(c.studentCounts[r.id]) || 0)}
   ].map(Object.freeze));
+  // Τα στοιχεία του υπευθύνου ενός τμήματος ({{@Τμ.Υπεύθυνος.…}}): τα στατικά πεδία εκπαιδευτικού, εκτός από το «Τμήμα».
+  const DOC_HOMEROOM = Object.freeze(DOC_STAFF.filter(field => field.name !== 'Τμήμα'));
+  // Η άγκυρα ({{@Εκπ.Άγκυρα}}, {{@Τμ.Άγκυρα}}): γράφει πάντα κενό και σημειώνει μια θέση σε πρότυπο XLSX με άγκυρες.
+  const DOC_ANCHOR_NAME = 'Άγκυρα';
   const DOC_STAFF_VARIANTS = Object.freeze(['Μάθημα', 'Τμήμα', 'Αίθουσα']);
   const DOC_CLASS_VARIANTS = Object.freeze(['Μάθημα', 'Εκπαιδευτικός', 'Εκπαιδευτικός Σύντομο', 'Αίθουσα']);
   const DOC_SCOPE_PREFIX = Object.freeze({staff: 'Εκπ', class: 'Τμ'});
@@ -2065,6 +2069,11 @@
     const field = statics.find(item => compareKey(item.name) === compareKey(rest.join('.')));
     if (field) return ok(prefix + field.name, scope, field.type, {family: 'static', field});
     const first = compareKey(rest[0]);
+    if (rest.length === 1 && first === compareKey(DOC_ANCHOR_NAME)) return ok(prefix + DOC_ANCHOR_NAME, scope, 'Text', {family: 'anchor'});
+    if (scope === 'class' && first === 'ΥΠΕΥΘΥΝΟΣ' && rest.length === 2) {
+      const homeroom = DOC_HOMEROOM.find(item => compareKey(item.name) === compareKey(rest[1]));
+      if (homeroom) return ok(prefix + 'Υπεύθυνος.' + homeroom.name, scope, homeroom.type, {family: 'homeroom', field: homeroom});
+    }
     if (first === 'ΠΡ') {
       if (rest.length < 3 || rest.length > 4) return unknown();
       const day = DOC_DAYS.find(item => compareKey(item.key) === compareKey(rest[1]));
@@ -2106,10 +2115,11 @@
   }
 
   // Ένα πεδίο προτύπου (το κείμενο μέσα στα {{ }}, μαζί με το «:Τύπος» αν υπάρχει) →
-  //   {data, name, canonical, known, scope, type, needsPeriod, message}
+  //   {data, name, canonical, known, scope, type, needsPeriod, anchor, message}
   //   data: έχει «@» (πεδίο από το κοινό αρχείο)· known: η γραφή είναι ακριβώς του καταλόγου (μόνο τότε
   //   συμπληρώνεται)· needsPeriod: η τιμή του χρειάζεται επιλεγμένη περίοδο (τα πεδία της περιόδου, του
-  //   Ωρολογίου και των μαθημάτων)· message: προειδοποίηση ή υπόδειξη για τον χρήστη, ή κενό.
+  //   Ωρολογίου και των μαθημάτων)· anchor: είναι ακριβώς {{@Εκπ.Άγκυρα}} ή {{@Τμ.Άγκυρα}}·
+  //   message: προειδοποίηση ή υπόδειξη για τον χρήστη, ή κενό.
   // Χωρίς «@», ένα όνομα που μοιάζει με πεδίο του καταλόγου (Εκπ., Τμ., Ώρα., Μάθημα.) δίνει υπόδειξη.
   // Οικογένειες πεδίων που παίρνουν την τιμή τους από το Ωρολόγιο της περιόδου. Ένα στατικό πεδίο τη χρειάζεται
   // μόνο όταν έχει «period» (Περίοδος, Περίοδος Από, Περίοδος Έως)· οι ώρες (Ώρα.…) έρχονται από τις Ώρες Διδασκαλίας.
@@ -2120,21 +2130,24 @@
     const name = rawName.trim(), given = typeParts.join(':').trim(), info = c?.info || null;
     if (!name.startsWith(DOC_MARK)) {
       const parsed = /^(ΕΚΠ|ΤΜ|ΩΡΑ|ΜΑΘΗΜΑ)\./.test(compareKey(name)) ? docParse(name, info) : null;
-      return {data: false, name, canonical: '', known: false, scope: '', type: '', needsPeriod: false, message: parsed?.ok ? 'Μήπως εννοείς «{{' + DOC_MARK + parsed.name + '}}»; Χωρίς «' + DOC_MARK + '» το πεδίο συμπληρώνεται χειροκίνητα.' : ''};
+      return {data: false, name, canonical: '', known: false, scope: '', type: '', needsPeriod: false, anchor: false, message: parsed?.ok ? 'Μήπως εννοείς «{{' + DOC_MARK + parsed.name + '}}»; Χωρίς «' + DOC_MARK + '» το πεδίο συμπληρώνεται χειροκίνητα.' : ''};
     }
     const parsed = docParse(name.slice(DOC_MARK.length), info);
-    if (!parsed.ok) return {data: true, name, canonical: '', known: false, scope: '', type: 'Text', needsPeriod: false, message: parsed.error};
+    if (!parsed.ok) return {data: true, name, canonical: '', known: false, scope: '', type: 'Text', needsPeriod: false, anchor: false, message: parsed.error};
     const canonical = DOC_MARK + parsed.name;
     const needsPeriod = docNeedsPeriod(parsed.spec);
-    if (canonical !== name) return {data: true, name, canonical, known: false, scope: parsed.scope, type: parsed.type, needsPeriod, message: 'Μήπως εννοείς «{{' + canonical + '}}»;'};
+    if (canonical !== name) return {data: true, name, canonical, known: false, scope: parsed.scope, type: parsed.type, needsPeriod, anchor: false, message: 'Μήπως εννοείς «{{' + canonical + '}}»;'};
     const message = given && compareKey(given) !== compareKey(parsed.type) ? 'Το πεδίο είναι ' + parsed.type + ' και δεν χρειάζεται «:' + given + '».' : '';
-    return {data: true, name, canonical, known: true, scope: parsed.scope, type: parsed.type, needsPeriod, message};
+    return {data: true, name, canonical, known: true, scope: parsed.scope, type: parsed.type, needsPeriod, anchor: parsed.spec.family === 'anchor', message};
   }
 
-  // Το είδος ενός προτύπου από τα πεδία του → {kind:'none'|'common'|'staff'|'class'|'mixed', staff:[ονόματα], class:[ονόματα]}.
-  //   none: χωρίς πεδία «@»· common: μόνο κοινά (βγαίνει μία φορά)· mixed: και πεδία Εκπ. και πεδία Τμ.
+  // Το είδος ενός προτύπου από τα πεδία του →
+  //   {kind:'none'|'common'|'staff'|'class'|'mixed'|'anchored', staff:[ονόματα], class:[ονόματα], anchors:['staff'|'class']}.
+  //   none: χωρίς πεδία «@»· common: μόνο κοινά (βγαίνει μία φορά)· mixed: και πεδία Εκπ. και πεδία Τμ.·
+  //   anchored: έχει άγκυρες (ένα βιβλίο για όλους τους επιλεγμένους), και τότε Εκπ. και Τμ. μαζί επιτρέπονται.
+  //   anchors: τα είδη των αγκυρών που βρέθηκαν (μόνο με ακριβή γραφή).
   function docTemplateKind(tokens, c) {
-    const staff = [], classes = [];
+    const staff = [], classes = [], anchors = [];
     let data = false;
     for (const token of tokens || []) {
       const item = docRecognize(token, c);
@@ -2142,9 +2155,10 @@
       data = true;
       if (item.scope === 'staff') staff.push(item.name);
       if (item.scope === 'class') classes.push(item.name);
+      if (item.anchor) anchors.push(item.scope);
     }
-    const kind = !data ? 'none' : staff.length && classes.length ? 'mixed' : staff.length ? 'staff' : classes.length ? 'class' : 'common';
-    return {kind, staff: unique(staff), class: unique(classes)};
+    const kind = !data ? 'none' : anchors.length ? 'anchored' : staff.length && classes.length ? 'mixed' : staff.length ? 'staff' : classes.length ? 'class' : 'common';
+    return {kind, staff: unique(staff), class: unique(classes), anchors: ['staff', 'class'].filter(scope => anchors.includes(scope))};
   }
 
   // Το context για τις τιμές, από το school-documents:context του Κεντρικού Μενού:
@@ -2246,8 +2260,9 @@
         continue;
       }
       const owner = scope === 'staff' ? person : record;
-      if (!owner) continue;
+      if (!owner || spec.family === 'anchor') continue;
       if (spec.family === 'static') { out.set(name, spec.field.get(c, owner)); continue; }
+      if (spec.family === 'homeroom') { const homeroom = owner.homeroomStaffId ? c.staffById.get(owner.homeroomStaffId) : null; out.set(name, homeroom ? spec.field.get(c, homeroom) : ''); continue; }
       if (!c.program) continue;
       data ||= docTargetData(c, target);
       if (spec.family === 'grid') out.set(name, docGridValue(c, data, spec));
@@ -2305,8 +2320,12 @@
       ];
       if (scope === 'class') hours.push(pattern(byCode(code => M + 'Τμ.Εκπαιδευτικός.Μάθημα.' + code), M + 'Τμ.Εκπαιδευτικός.Μάθημα.<κωδικός>', 'Text', 'Ποιος διδάσκει ένα μάθημα στο τμήμα (πολλοί με «, »).', 'Μάρκου Παρασκευή'));
       const title = scope === 'staff' ? 'Εκπαιδευτικός' : 'Τμήμα';
+      const details = (scope === 'staff' ? DOC_STAFF : DOC_CLASS).map(field => plain(field, P + '.'));
+      if (scope === 'class') details.push(...DOC_HOMEROOM.map(field => ({...plain(field, P + '.Υπεύθυνος.'), help: 'Του υπευθύνου του τμήματος (κενό χωρίς υπεύθυνο): ' + field.help.charAt(0).toLocaleLowerCase('el') + field.help.slice(1)})));
+      details.push({name: M + P + '.' + DOC_ANCHOR_NAME, type: 'Text', pattern: false, example: '',
+        help: 'Γράφει πάντα κενό. Σε πρότυπο XLSX σημειώνει μια θέση (π.χ. ένα μπλοκ του εντύπου): όλ' + (scope === 'staff' ? 'οι οι επιλεγμένοι εκπαιδευτικοί' : 'α τα επιλεγμένα τμήματα') + ' βγαίνουν σε ένα βιβλίο, ένας σε κάθε θέση, με τα πεδία του πρώτου μπλοκ της καρτέλας. Μπαίνει και μέσα σε κελί με κείμενο.'});
       return [
-        {key: scope, label: title, fields: (scope === 'staff' ? DOC_STAFF : DOC_CLASS).map(field => plain(field, P + '.'))},
+        {key: scope, label: title, fields: details},
         {key: scope + 'Program', label: 'Πρόγραμμα ' + label, fields: program},
         {key: scope + 'Hours', label: 'Ώρες ' + label, fields: hours}
       ];
@@ -2334,6 +2353,20 @@
       rows: (c?.rows || []).map(row => row.type === 'break'
         ? {type: 'break', time: row.time, text: 'Διάλειμμα'}
         : {type: 'slot', time: '{{' + DOC_MARK + 'Ώρα.' + row.slot.key + '}}', label: row.slot.time, cells: DOC_DAYS.map(day => '{{' + prefix + day.key + '.' + row.slot.key + '}}')})
+    };
+  }
+
+  // Ο έτοιμος πίνακας μαθημάτων (scope 'staff' ή 'class'), για έντυπα με μία γραμμή ανά μάθημα, χωρίς επικεφαλίδες.
+  //   rows: οι κωδικοί των μαθημάτων με τη σειρά του εντύπου, null για κενή γραμμή.
+  // → {days:[['{{@Τμ.Ώρες.Μάθημα.ΓΛ.Δε.Ποιες}}'…5] | ['','','','',''] …], teachers:['{{@Τμ.Εκπαιδευτικός.Μάθημα.ΓΛ}}' | ''…] | null}
+  //   (teachers μόνο για τμήμα). Ένας κωδικός γράφεται όπως στο Ωρολόγιο της περιόδου, όταν υπάρχει.
+  function docSubjectTable(scope, rows, c) {
+    const P = DOC_MARK + DOC_SCOPE_PREFIX[scope];
+    const codeOf = code => code == null || String(code).trim() === '' ? null : c?.info?.codes?.get(compareKey(code)) || String(code).trim();
+    const codes = (rows || []).map(codeOf);
+    return {
+      days: codes.map(code => code ? DOC_DAYS.map(day => '{{' + P + '.Ώρες.Μάθημα.' + code + '.' + day.key + '.Ποιες}}') : DOC_DAYS.map(() => '')),
+      teachers: scope === 'class' ? codes.map(code => code ? '{{' + P + '.Εκπαιδευτικός.Μάθημα.' + code + '}}' : '') : null
     };
   }
 
@@ -2386,7 +2419,7 @@
   window.SchoolDocumentFields = Object.freeze({
     MARK: DOC_MARK, DAYS: DOC_DAYS, ZONES: DOC_ZONES, ROLE_LABELS: DOC_ROLE_LABELS, SERVICE_LABELS: DOC_SERVICE_LABELS,
     slots: docSlots, context: docContext, recognize: docRecognize, templateKind: docTemplateKind, values: docValues,
-    catalog: docCatalog, readyTable: docReadyTable, fileName: docFileName, uniqueNames: docUniqueNames
+    catalog: docCatalog, readyTable: docReadyTable, subjectTable: docSubjectTable, fileName: docFileName, uniqueNames: docUniqueNames
   });
   window.SchoolStudents = Object.freeze({
     parseCsv: parseStudentsCsv, studentKey, sameStudent, compare: compareStudents,

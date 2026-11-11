@@ -12,7 +12,7 @@
   φτιάχνονται από το σύντομο όνομα των δασκάλων («[Α1] - …», classesFromStaff). Με το .data δοκιμής, οι
   έλεγχοι των νέων ετικετών (v2) παίρνουν το Προσωπικό από αυτό, γιατί το CSV του Ολοημέρου έχει τα σύντομα
   ονόματα του Προσωπικού.
-  Έκδοση αρχείου: 0.40
+  Έκδοση αρχείου: 0.41
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -1215,7 +1215,32 @@ function documentFieldsChecks() {
     [false, false, false, false, false, true, true, true, true, true, true, true, true, true, true, true, false, true, false, false]);
   check('Χωρίς Ώρες Διδασκαλίας και Ωρολόγιο: ώρες και κωδικοί δεκτοί με σωστή μορφή', F.recognize('@Εκπ.Πρ.Δε.ΟΛΟ7', F.context({})).known && F.recognize('@Μάθημα.ΧΧ', F.context({})).known);
   equal('Είδος προτύπου', [F.templateKind(['Αρ. Πρωτοκόλλου'], c).kind, F.templateKind(['@Σχολείο', 'Αρ. Πρωτοκόλλου'], c).kind, F.templateKind(['@Σχολείο', '@Εκπ.Τμήμα'], c).kind, F.templateKind(['@Τμ.Υπεύθυνος', '@Τμ.Όνομα'], c).kind, F.templateKind(['@Εκπ.Ονοματεπώνυμο', '@Τμ.Όνομα'], c)],
-    ['none', 'common', 'staff', 'class', {kind: 'mixed', staff: ['@Εκπ.Ονοματεπώνυμο'], class: ['@Τμ.Όνομα']}]);
+    ['none', 'common', 'staff', 'class', {kind: 'mixed', staff: ['@Εκπ.Ονοματεπώνυμο'], class: ['@Τμ.Όνομα'], anchors: []}]);
+  // Άγκυρες: γράφουν πάντα κενό· με άγκυρα το πρότυπο είναι «anchored», και Εκπ. με Τμ. μαζί δεν είναι «mixed».
+  const anchorInfo = token => { const item = F.recognize(token, c); return [item.known, item.scope, item.type, item.anchor, item.needsPeriod]; };
+  equal('Άγκυρες: αναγνωρίζονται, χωρίς περίοδο', [anchorInfo('@Τμ.Άγκυρα'), anchorInfo('@Εκπ.Άγκυρα'), anchorInfo('@Τμ.Όνομα')], [[true, 'class', 'Text', true, false], [true, 'staff', 'Text', true, false], [true, 'class', 'Text', false, false]]);
+  equal('Άγκυρα χωρίς τόνο: «Μήπως εννοείς» και δεν είναι άγκυρα', [F.recognize('@Τμ.Αγκυρα', c).message, F.recognize('@Τμ.Αγκυρα', c).anchor], ['Μήπως εννοείς «{{@Τμ.Άγκυρα}}»;', false]);
+  equal('Άγκυρες: η τιμή είναι πάντα κενή', [...F.values(['@Τμ.Άγκυρα', '@Εκπ.Άγκυρα'], {type: 'class', id: 'k1'}, c).values(), ...F.values(['@Εκπ.Άγκυρα'], {type: 'staff', id: 's1'}, c).values()], ['', '', '']);
+  equal('Είδος προτύπου με άγκυρες: «anchored», με τα είδη των αγκυρών· άγκυρα χωρίς τόνο δεν μετρά',
+    [F.templateKind(['@Σχολείο', '@Τμ.Άγκυρα', '@Τμ.Όνομα', '@Εκπ.Ονοματεπώνυμο', '@Εκπ.Άγκυρα'], c), F.templateKind(['@Τμ.Άγκυρα', '@Τμ.Όνομα'], c).anchors, F.templateKind(['@Τμ.Αγκυρα', '@Τμ.Όνομα'], c).kind],
+    [{kind: 'anchored', staff: ['@Εκπ.Ονοματεπώνυμο', '@Εκπ.Άγκυρα'], class: ['@Τμ.Άγκυρα', '@Τμ.Όνομα'], anchors: ['staff', 'class']}, ['class'], 'class']);
+  // Στοιχεία του υπευθύνου του τμήματος.
+  const homeroomNames = ['@Τμ.Υπεύθυνος.Ονοματεπώνυμο', '@Τμ.Υπεύθυνος.Σύντομο Όνομα', '@Τμ.Υπεύθυνος.Κωδικός', '@Τμ.Υπεύθυνος.Κλάδος', '@Τμ.Υπεύθυνος.Ιδιότητα', '@Τμ.Υπεύθυνος.Είδος Υπηρεσίας', '@Τμ.Υπεύθυνος.Υποχρεωτικό Ωράριο', '@Τμ.Υπεύθυνος.Ωράριο Σχολείου', '@Τμ.Υπεύθυνος.Ανάληψη Υπηρεσίας', '@Τμ.Υπεύθυνος.Αποχώρηση'];
+  equal('Υπεύθυνος τμήματος: τα στοιχεία του, όπως στα πεδία Εκπ.', [...F.values(homeroomNames, {type: 'class', id: 'k1'}, c).values()],
+    [...F.values(homeroomNames.map(name => name.replace('@Τμ.Υπεύθυνος.', '@Εκπ.')), {type: 'staff', id: 's1'}, c).values()]);
+  equal('Υπεύθυνος τμήματος: τιμές του Ε1, κενά σε τμήμα χωρίς υπεύθυνο', [...F.values(['@Τμ.Υπεύθυνος.Ονοματεπώνυμο', '@Τμ.Υπεύθυνος.Υποχρεωτικό Ωράριο', '@Τμ.Υπεύθυνος.Ανάληψη Υπηρεσίας'], {type: 'class', id: 'k1'}, c).values(), ...F.values(['@Τμ.Υπεύθυνος.Ονοματεπώνυμο', '@Τμ.Υπεύθυνος.Υποχρεωτικό Ωράριο'], {type: 'class', id: 'k2'}, c).values()],
+    ['Μάρκου Παρασκευή', '24', '01/09/2026', '', '']);
+  equal('Υπεύθυνος τμήματος: πεδία τμήματος, Integer για το ωράριο, χωρίς περίοδο· δεν υπάρχουν «.Τμήμα» και «Εκπ.Υπεύθυνος.…»',
+    [F.recognize('@Τμ.Υπεύθυνος.Υποχρεωτικό Ωράριο', c).scope, F.recognize('@Τμ.Υπεύθυνος.Υποχρεωτικό Ωράριο', c).type, F.recognize('@Τμ.Υπεύθυνος.Κλάδος', c).needsPeriod, F.recognize('@Τμ.Υπεύθυνος.Τμήμα', c).known, F.recognize('@Εκπ.Υπεύθυνος.Κλάδος', c).known, F.recognize('@Τμ.Υπευθυνος.Κλαδος', c).message],
+    ['class', 'Integer', false, false, false, 'Μήπως εννοείς «{{@Τμ.Υπεύθυνος.Κλάδος}}»;']);
+  // Έτοιμος πίνακας μαθημάτων.
+  const subjectsClass = F.subjectTable('class', ['ΓΛ', null, 'γαλ'], c), subjectsStaff = F.subjectTable('staff', ['ΓΕΡ'], c);
+  equal('Πίνακας μαθημάτων τμήματος: Δε–Πα με «.Ποιες», κενή γραμμή, κωδικός όπως στο Ωρολόγιο, Διδάσκοντες',
+    [subjectsClass.days[0], subjectsClass.days[1], subjectsClass.days[2][4], subjectsClass.teachers],
+    [['{{@Τμ.Ώρες.Μάθημα.ΓΛ.Δε.Ποιες}}', '{{@Τμ.Ώρες.Μάθημα.ΓΛ.Τρ.Ποιες}}', '{{@Τμ.Ώρες.Μάθημα.ΓΛ.Τε.Ποιες}}', '{{@Τμ.Ώρες.Μάθημα.ΓΛ.Πε.Ποιες}}', '{{@Τμ.Ώρες.Μάθημα.ΓΛ.Πα.Ποιες}}'], ['', '', '', '', ''], '{{@Τμ.Ώρες.Μάθημα.ΓΑΛ.Πα.Ποιες}}', ['{{@Τμ.Εκπαιδευτικός.Μάθημα.ΓΛ}}', '', '{{@Τμ.Εκπαιδευτικός.Μάθημα.ΓΑΛ}}']]);
+  equal('Πίνακας μαθημάτων εκπαιδευτικού: χωρίς Διδάσκοντες', [subjectsStaff.days[0][0], subjectsStaff.teachers, F.subjectTable('class', [], c)], ['{{@Εκπ.Ώρες.Μάθημα.ΓΕΡ.Δε.Ποιες}}', null, {days: [], teachers: []}]);
+  check('Πίνακας μαθημάτων: κάθε πεδίο αναγνωρίζεται', [...subjectsClass.days.flat(), ...subjectsClass.teachers, ...subjectsStaff.days.flat()].filter(Boolean).every(text => F.recognize(text.slice(2, -2), c).known));
+  equal('Πίνακας μαθημάτων με τις τιμές: «3+4» της Δευτέρας στη Γλώσσα του Ε1', F.values([subjectsClass.days[0][0].slice(2, -2), subjectsClass.teachers[0].slice(2, -2)], {type: 'class', id: 'k1'}, c).get('@Τμ.Ώρες.Μάθημα.ΓΛ.Δε.Ποιες'), '3+4');
   const table = F.readyTable('class', c);
   equal('Έτοιμος πίνακας: ώρες με τα πεδία τους και διαλείμματα', [table.days.length, table.rows.length, table.rows[0].time, table.rows[0].cells[4], table.rows[1]], [5, 17, '{{@Ώρα.ΠΖ1}}', '{{@Τμ.Πρ.Πα.ΠΖ1}}', {type: 'break', time: '08:00–08:15', text: 'Διάλειμμα'}]);
   equal('Ονόματα εγγράφων, με « (2)» σε ίδιο όνομα', F.uniqueNames([F.fileName('Βεβαίωση.docx', {type: 'staff', id: 's1'}, c), F.fileName('βεβαίωση.docx', {type: 'staff', id: 's1'}, c), F.fileName('Πρόγραμμα.xlsx', {type: 'class', id: 'k2'}, c), F.fileName('Κοινό.docx', null, c)]),
@@ -1223,6 +1248,8 @@ function documentFieldsChecks() {
   const catalog = F.catalog(c), grid = catalog.groups.find(group => group.key === 'staffProgram').fields[0];
   equal('Κατάλογος: το πλέγμα ως μία γραμμή-μοτίβο με το πρώτο και το τελευταίο πεδίο', [grid.name, grid.names.length, grid.names.includes('@Εκπ.Πρ.Τε.3')], ['@Εκπ.Πρ.Δε.ΠΖ1 … @Εκπ.Πρ.Πα.ΟΛΟ4', 60, true]);
   check('Κατάλογος: κάθε πεδίο έχει τύπο, εξήγηση και παράδειγμα· κάθε όνομα αναγνωρίζεται', catalog.groups.every(group => group.fields.every(field => field.type && field.help && 'example' in field && (field.pattern ? field.names : [field.name]).every(name => F.recognize(name, c).known))));
+  const classNames = catalog.groups.find(group => group.key === 'class').fields.map(field => field.name), staffNames = catalog.groups.find(group => group.key === 'staff').fields.map(field => field.name);
+  check('Κατάλογος: άγκυρες στο τέλος των στοιχείων εκπαιδευτικού και τμήματος, και τα στοιχεία του υπευθύνου', staffNames.at(-1) === '@Εκπ.Άγκυρα' && classNames.at(-1) === '@Τμ.Άγκυρα' && homeroomNames.every(name => classNames.includes(name)), classNames.join(', '));
   equal('Κατάλογος χωρίς context: μοτίβα με «<ώρα>» και «<κωδικός>»', [F.catalog().groups.find(group => group.key === 'staffProgram').fields[0].name, F.catalog().groups.find(group => group.key === 'subjects').fields[0].name], ['@Εκπ.Πρ.<ημέρα>.<ώρα>', '@Μάθημα.<κωδικός>']);
 
   // Με το .data δοκιμής: το Ωρολόγιο της δεύτερης περιόδου (v2) και της πρώτης (παλιά αρχεία).
