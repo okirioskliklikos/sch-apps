@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων
- * Έκδοση αρχείου: 0.28
+ * Έκδοση αρχείου: 0.29
  * Όνομα κατά την εγκατάσταση: _data.js
  *
  * Φορτώνεται από όσες υποεφαρμογές διαβάζουν ή γράφουν CSV, FET, ημερομηνίες ή προγράμματα, μετά
@@ -26,7 +26,7 @@
  *   window.SchoolTags       ετικέτες (tagsByYear): κατηγορίες, χρώματα κατηγορίας, όνομα και χρώμα κάθε ετικέτας,
  *                           κοινή σειρά, σύγκριση ονομάτων γενικών ετικετών
  *   window.SchoolDocumentFields  πεδία από το κοινό αρχείο για τα πρότυπα του Documents Templater ({{@…}}):
- *                           κατάλογος, αναγνώριση και υποδείξεις, είδος προτύπου, τιμές για εκπαιδευτικό ή τμήμα σε
+ *                           κατάλογος, αναγνώριση και υποδείξεις, αν ένα πεδίο χρειάζεται περίοδο, είδος προτύπου, τιμές για εκπαιδευτικό ή τμήμα σε
  *                           μια περίοδο, έτοιμος πίνακας του πλέγματος, ονόματα εγγράφων
  * Τα προγράμματα είναι στη μορφή formatVersion:2: οι δραστηριότητες αναφέρονται στα τμήματα με το id τους
  * (classes), και τα ονόματα μαθητών των αρχείων που δεν είναι τμήματα μπαίνουν στο otherStudents.
@@ -1990,9 +1990,9 @@
   const DOC_COMMON = Object.freeze([
     {name: 'Σχολείο', type: 'Text', help: 'Το όνομα του σχολείου.', example: '1ο Δημοτικό Σχολείο', get: c => c.schoolName},
     {name: 'Σχολικό Έτος', type: 'Text', help: 'Το σχολικό έτος του κοινού αρχείου.', example: '2026-2027', get: c => c.year},
-    {name: 'Περίοδος', type: 'Text', help: 'Το όνομα της επιλεγμένης περιόδου.', example: 'Α περίοδος', get: c => String(c.period?.name ?? '')},
-    {name: 'Περίοδος Από', type: 'Date', help: 'Η έναρξη της περιόδου.', example: '01/09/2026', get: c => c.period ? formatDate(c.period.from) : ''},
-    {name: 'Περίοδος Έως', type: 'Date', help: 'Η λήξη της περιόδου· χωρίς «έως», η 15η Ιουνίου.', example: '15/06/2027', get: c => c.period ? formatDate(periodEnd(c.period, c.year)) : ''},
+    {name: 'Περίοδος', type: 'Text', period: true, help: 'Το όνομα της επιλεγμένης περιόδου.', example: 'Α περίοδος', get: c => String(c.period?.name ?? '')},
+    {name: 'Περίοδος Από', type: 'Date', period: true, help: 'Η έναρξη της περιόδου.', example: '01/09/2026', get: c => c.period ? formatDate(c.period.from) : ''},
+    {name: 'Περίοδος Έως', type: 'Date', period: true, help: 'Η λήξη της περιόδου· χωρίς «έως», η 15η Ιουνίου.', example: '15/06/2027', get: c => c.period ? formatDate(periodEnd(c.period, c.year)) : ''},
     {name: 'Διευθυντής', type: 'Text', help: 'Το πλήρες όνομα του διευθυντή (Ιδιότητα «Διευθυντής» στο Προσωπικό).', example: 'Γεωργίου Ελένη', get: c => docJoin(c.sortedStaff.filter(person => person.role === 'director').map(person => person.name), ', ')},
     {name: 'Υποδιευθυντής', type: 'Text', help: 'Το πλήρες όνομα του υποδιευθυντή (Ιδιότητα «Υποδιευθυντής»).', example: 'Νικολάου Γιώργος', get: c => docJoin(c.sortedStaff.filter(person => person.role === 'deputy').map(person => person.name), ', ')},
     {name: 'Σήμερα', type: 'Date', help: 'Η ημερομηνία παραγωγής των εγγράφων.', example: '11/11/2026', get: c => formatDate(c.today)}
@@ -2106,23 +2106,29 @@
   }
 
   // Ένα πεδίο προτύπου (το κείμενο μέσα στα {{ }}, μαζί με το «:Τύπος» αν υπάρχει) →
-  //   {data, name, canonical, known, scope, type, message}
+  //   {data, name, canonical, known, scope, type, needsPeriod, message}
   //   data: έχει «@» (πεδίο από το κοινό αρχείο)· known: η γραφή είναι ακριβώς του καταλόγου (μόνο τότε
-  //   συμπληρώνεται)· message: προειδοποίηση ή υπόδειξη για τον χρήστη, ή κενό.
+  //   συμπληρώνεται)· needsPeriod: η τιμή του χρειάζεται επιλεγμένη περίοδο (τα πεδία της περιόδου, του
+  //   Ωρολογίου και των μαθημάτων)· message: προειδοποίηση ή υπόδειξη για τον χρήστη, ή κενό.
   // Χωρίς «@», ένα όνομα που μοιάζει με πεδίο του καταλόγου (Εκπ., Τμ., Ώρα., Μάθημα.) δίνει υπόδειξη.
+  // Οικογένειες πεδίων που παίρνουν την τιμή τους από το Ωρολόγιο της περιόδου. Ένα στατικό πεδίο τη χρειάζεται
+  // μόνο όταν έχει «period» (Περίοδος, Περίοδος Από, Περίοδος Έως)· οι ώρες (Ώρα.…) έρχονται από τις Ώρες Διδασκαλίας.
+  const DOC_PERIOD_FAMILIES = new Set(['grid', 'hours', 'subjectHours', 'subjectTeachers', 'subject']);
+  const docNeedsPeriod = spec => DOC_PERIOD_FAMILIES.has(spec?.family) || !!spec?.field?.period;
   function docRecognize(token, c) {
     const [rawName, ...typeParts] = String(token ?? '').split(':');
     const name = rawName.trim(), given = typeParts.join(':').trim(), info = c?.info || null;
     if (!name.startsWith(DOC_MARK)) {
       const parsed = /^(ΕΚΠ|ΤΜ|ΩΡΑ|ΜΑΘΗΜΑ)\./.test(compareKey(name)) ? docParse(name, info) : null;
-      return {data: false, name, canonical: '', known: false, scope: '', type: '', message: parsed?.ok ? 'Μήπως εννοείς «{{' + DOC_MARK + parsed.name + '}}»; Χωρίς «' + DOC_MARK + '» το πεδίο συμπληρώνεται χειροκίνητα.' : ''};
+      return {data: false, name, canonical: '', known: false, scope: '', type: '', needsPeriod: false, message: parsed?.ok ? 'Μήπως εννοείς «{{' + DOC_MARK + parsed.name + '}}»; Χωρίς «' + DOC_MARK + '» το πεδίο συμπληρώνεται χειροκίνητα.' : ''};
     }
     const parsed = docParse(name.slice(DOC_MARK.length), info);
-    if (!parsed.ok) return {data: true, name, canonical: '', known: false, scope: '', type: 'Text', message: parsed.error};
+    if (!parsed.ok) return {data: true, name, canonical: '', known: false, scope: '', type: 'Text', needsPeriod: false, message: parsed.error};
     const canonical = DOC_MARK + parsed.name;
-    if (canonical !== name) return {data: true, name, canonical, known: false, scope: parsed.scope, type: parsed.type, message: 'Μήπως εννοείς «{{' + canonical + '}}»;'};
+    const needsPeriod = docNeedsPeriod(parsed.spec);
+    if (canonical !== name) return {data: true, name, canonical, known: false, scope: parsed.scope, type: parsed.type, needsPeriod, message: 'Μήπως εννοείς «{{' + canonical + '}}»;'};
     const message = given && compareKey(given) !== compareKey(parsed.type) ? 'Το πεδίο είναι ' + parsed.type + ' και δεν χρειάζεται «:' + given + '».' : '';
-    return {data: true, name, canonical, known: true, scope: parsed.scope, type: parsed.type, message};
+    return {data: true, name, canonical, known: true, scope: parsed.scope, type: parsed.type, needsPeriod, message};
   }
 
   // Το είδος ενός προτύπου από τα πεδία του → {kind:'none'|'common'|'staff'|'class'|'mixed', staff:[ονόματα], class:[ονόματα]}.

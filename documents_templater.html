@@ -1,14 +1,32 @@
-<!doctype html><html lang="el" class="subapp-page"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Documents Templater v0.31</title><link rel="stylesheet" href="_ui.css">
+<!doctype html><html lang="el" class="subapp-page"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Documents Templater v0.32</title><link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <script src="_lib_jszip.min.js"></script>
 <style>
 /* DT-specific geometry. Shared appearance: _ui.css / _subapp.css. */
 :root{--app-mark-bg:var(--school-app-docs)}
 /* Sidebar: the shared main + aside of _subapp.css, in its wide width (main.subapp-wide-aside).
-   Inside it the file list fills the height between the heading and the buttons. */
+   «Στοιχεία σχολείου» (only when the templates have fields «@» and the shared file is open) sits above «Αρχεία»;
+   the two lists share the height between their headings and buttons. */
 #filesPane{display:flex;flex-direction:column;gap:0;min-height:0}
 #filesPane h2{margin:0 0 4px}
 #filesPane .hint{margin:0 0 10px}
+.side-section{display:flex;flex-direction:column;flex:1;min-height:0}
+#schoolSection{flex:1.4;padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid var(--school-ui-border)}
+#schoolSection[hidden]{display:none}
+#schoolSection h2{margin:0 0 8px}
+.period-field{display:grid;gap:4px;margin:0 0 10px}
+.period-field label{font-size:13px;color:var(--school-ui-muted)}
+.period-field select{width:100%;min-width:0}
+.target-list{flex:1;min-height:140px;overflow:auto;overscroll-behavior:contain;display:flex;flex-direction:column}
+.target-item{flex:none;display:flex;align-items:center;gap:8px;border:1px solid transparent;border-radius:7px;padding-top:4px;padding-bottom:4px;font-size:13px;cursor:pointer}
+.target-item:hover:not(.selected){background:#f1f1f1}
+.target-item input{flex:none;margin:0;cursor:pointer}
+.target-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.target-side{flex:none;font-size:11px;color:var(--school-ui-muted)}
+.target-item.selected .target-side{color:var(--school-ui-primary-text)}
+.target-empty{margin:auto;padding:16px;text-align:center;font-size:13px;color:var(--school-ui-muted)}
+.target-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:8px}
+.target-count{margin-left:auto;font-size:13px;color:var(--school-ui-muted)}
 .files-list{flex:1;min-height:160px;overflow:auto;overscroll-behavior:contain;display:flex;flex-direction:column}
 .files-list.drag-over{border-color:var(--school-ui-primary-border);background:var(--school-ui-primary-bg)}
 /* Empty list: a compact drop box in the middle of the list (margin:auto centres it both ways).
@@ -41,18 +59,40 @@
 .field-badge.warning{background:transparent;color:var(--school-ui-error);padding:0}
 .ui-field textarea{width:100%;min-width:0;min-height:84px;resize:vertical;border:1px solid var(--school-ui-input-border);border-radius:6px;padding:9px;font:inherit;background:var(--school-ui-surface)}
 .ui-fields .ui-field textarea[aria-invalid="true"]{border-color:var(--school-ui-error-border)}
+/* Summary of the fields «@» (never shown one by one in the form), above the manual fields. */
+.data-summary{margin:0 0 10px;font-size:14px;line-height:1.45}
+.data-summary p{margin:0}
+.data-summary p+*{margin-top:6px}
+.data-summary-head{font-weight:700}
+.data-summary-label{font-weight:600}
+.data-summary-missing{color:var(--school-ui-warning)}
+.data-summary ul{margin:4px 0 0;padding-left:20px}
+.data-summary li+li{margin-top:2px}
+.data-summary code{overflow-wrap:anywhere}
+.manual-empty{margin:6px 0 0}
 .syntax-note{margin:14px 0 0;padding:10px 12px;border-radius:8px;background:var(--school-ui-label-bg);line-height:1.6}
 /* Stacked (800px or narrower): the whole area under the header scrolls, not the fields on their own
    (the shared .page-main keeps overflow:hidden from 651px on). */
-@media(max-width:800px){#root{overflow:visible}.files-list{min-height:240px;max-height:45dvh}.fields-pane .fields-content{overflow:visible}}
+@media(max-width:800px){#root{overflow:visible}.files-list{min-height:240px;max-height:45dvh}.target-list{min-height:200px;max-height:45dvh}.fields-pane .fields-content{overflow:visible}}
 @media(max-width:620px){.field-grid{grid-template-columns:1fr}}
-</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Documents Templater — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>DT</span></span><span class="brand-text"><span>Documents Templater</span><span class="small version">v0.31</span></span></button></h1></div><button id="reset" type="button" disabled>Αναίρεση Όλων</button><div class="header-right"><button id="findFields" class="primary subapp-change-dot" type="button" disabled>Ανεύρεση πεδίων</button><button id="produce" class="success subapp-change-dot" type="button" disabled>Παραγωγή Εγγράφων</button></div></header>
+</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Documents Templater — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>DT</span></span><span class="brand-text"><span>Documents Templater</span><span class="small version">v0.32</span></span></button></h1></div><button id="reset" type="button" disabled>Αναίρεση Όλων</button><div class="header-right"><button id="findFields" class="primary subapp-change-dot" type="button" disabled>Ανεύρεση πεδίων</button><button id="produce" class="success subapp-change-dot" type="button" disabled>Παραγωγή Εγγράφων</button></div></header>
 <main id="layout" class="subapp-wide-aside">
-<aside id="filesPane" aria-labelledby="filesTitle">
- <h2 id="filesTitle">Αρχεία (0)</h2>
- <p class="hint">Πρότυπα Word/Excel ή CSV με τιμές πεδίων.</p>
- <div id="filesList" class="files-list subapp-list" tabindex="0" aria-label="Αρχεία προτύπων"></div>
- <div class="subapp-list-actions"><button id="addFiles" class="subapp-add-button" type="button">+ Προσθήκη</button><button id="removeFiles" class="subapp-remove-button" type="button" disabled>Αφαίρεση</button></div>
+<aside id="filesPane" aria-label="Στοιχεία σχολείου και αρχεία">
+ <section id="schoolSection" class="side-section" aria-labelledby="schoolTitle" hidden>
+  <h2 id="schoolTitle">Στοιχεία σχολείου</h2>
+  <div class="period-field"><label for="period">Περίοδος</label><select id="period"></select></div>
+  <div id="schoolTabs" class="subapp-sidebar-tabs" role="tablist" aria-label="Εκπαιδευτικοί ή τμήματα">
+   <button id="tabStaff" type="button" role="tab" aria-selected="true" aria-controls="targetList">Εκπαιδευτικοί</button><button id="tabClasses" type="button" role="tab" aria-selected="false" aria-controls="targetList" tabindex="-1">Τμήματα</button>
+  </div>
+  <div id="targetList" class="target-list subapp-list" role="listbox" aria-multiselectable="true" aria-labelledby="tabStaff"></div>
+  <div class="target-actions"><button id="selectAll" type="button">Επιλογή όλων</button><button id="selectNone" type="button">Καμία</button><span id="targetCount" class="target-count" aria-live="polite"></span></div>
+ </section>
+ <section class="side-section" aria-labelledby="filesTitle">
+  <h2 id="filesTitle">Αρχεία (0)</h2>
+  <p class="hint">Πρότυπα Word/Excel ή CSV με τιμές πεδίων.</p>
+  <div id="filesList" class="files-list subapp-list" tabindex="0" aria-label="Αρχεία προτύπων"></div>
+  <div class="subapp-list-actions"><button id="addFiles" class="subapp-add-button" type="button">+ Προσθήκη</button><button id="removeFiles" class="subapp-remove-button" type="button" disabled>Αφαίρεση</button></div>
+ </section>
  <p id="notice" class="subapp-notice" role="status"></p>
 </aside>
 <section id="root" class="page-main">
@@ -65,7 +105,10 @@
 <script src="_data.js"></script>
 <script>
 // Pure template logic: placeholder discovery, CSV values and DOCX/XLSX filling. No DOM of the page.
+// Fields that start with «@» come from the shared file (SchoolDocumentFields in _data.js): they are kept apart from
+// the manual fields, take their type from the catalogue and never go to the values CSV.
 window.TemplaterModel=(()=>{
+ const DATA_MARK=window.SchoolDocumentFields?.MARK||'@';
  const W_NS='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
  const DOCX_PARTS=/^word\/(document|header\d*|footer\d*|footnotes|endnotes)\.xml$/;
  const SHEET_PARTS=/^xl\/worksheets\/sheet\d+\.xml$/;
@@ -94,12 +137,19 @@ window.TemplaterModel=(()=>{
   const known=TYPES.find(t=>t.toLowerCase()===type.toLowerCase());
   return known?{name,type:known}:{name,type:'Text',warning:type};
  }
- function collect(text,src,fields){
+ // found: {fields (manual), data (fields «@»)}; tokens: every field of one template as written (with «:Type»).
+ function collect(text,src,found,tokens){
   const re=/\{\{\s*([^{}]+?)\s*\}\}/g;let m;
   while((m=re.exec(text))){
    if(m[1].startsWith('#')||m[1].startsWith('/'))continue;
    const p=parseToken(m[1]);if(!p.name)continue;
-   const prev=fields.get(p.name);
+   tokens.add(m[1]);
+   if(p.name.startsWith(DATA_MARK)){
+    const item=found.data.get(p.name);
+    if(item)item.sources.add(src);else found.data.set(p.name,{name:p.name,sources:new Set([src])});
+    continue;
+   }
+   const fields=found.fields,prev=fields.get(p.name);
    if(prev&&prev.type!==p.type&&p.type!=='Text')prev.conflict=true;
    else if(!prev)fields.set(p.name,{...p,sources:new Set([src])});
    if(prev)prev.sources.add(src);
@@ -111,10 +161,10 @@ window.TemplaterModel=(()=>{
   const d=new DOMParser().parseFromString(await zip.file('xl/sharedStrings.xml').async('string'),'application/xml');
   return Array.from(d.getElementsByTagName('si')).map(xmlText);
  }
- async function scanDocx(zip,src,fields){
+ async function scanDocx(zip,src,found,tokens){
   for(const p of Object.keys(zip.files).filter(p=>DOCX_PARTS.test(p))){
    const doc=new DOMParser().parseFromString(await zip.file(p).async('string'),'application/xml');
-   for(const para of doc.getElementsByTagNameNS(W_NS,'p'))collect(Array.from(para.getElementsByTagNameNS(W_NS,'t')).map(n=>n.textContent).join(''),src,fields);
+   for(const para of doc.getElementsByTagNameNS(W_NS,'p'))collect(Array.from(para.getElementsByTagNameNS(W_NS,'t')).map(n=>n.textContent).join(''),src,found,tokens);
   }
  }
  function cellText(c,shared){
@@ -124,20 +174,23 @@ window.TemplaterModel=(()=>{
   if(type==='str'){const v=c.getElementsByTagName('v')[0];return v?v.textContent:''}
   return '';
  }
- async function scanXlsx(zip,src,fields){
+ async function scanXlsx(zip,src,found,tokens){
   const shared=await sharedStrings(zip);
   for(const p of Object.keys(zip.files).filter(p=>SHEET_PARTS.test(p))){
    const d=new DOMParser().parseFromString(await zip.file(p).async('string'),'application/xml');
-   for(const c of d.getElementsByTagName('c')){const value=cellText(c,shared);if(value)collect(value,src,fields)}
+   for(const c of d.getElementsByTagName('c')){const value=cellText(c,shared);if(value)collect(value,src,found,tokens)}
   }
  }
+ // → {fields: Map of the manual fields, data: Map of the fields «@», tokens: Map(template file → [fields as written])}.
  async function scanTemplates(templates){
-  const fields=new Map();
+  const found={fields:new Map(),data:new Map(),tokens:new Map()};
   for(const f of templates){
-   try{const zip=await JSZip.loadAsync(f);if(/\.docx$/i.test(f.name))await scanDocx(zip,f.name,fields);else await scanXlsx(zip,f.name,fields)}
+   const tokens=new Set();
+   try{const zip=await JSZip.loadAsync(f);if(/\.docx$/i.test(f.name))await scanDocx(zip,f.name,found,tokens);else await scanXlsx(zip,f.name,found,tokens)}
    catch(error){error.fileName=f.name;throw error}
+   found.tokens.set(f,[...tokens]);
   }
-  return fields;
+  return found;
  }
  // Placeholders may be split across several runs of one paragraph; the value goes to the run where it starts.
  function replaceTextRuns(xml,map){
@@ -271,29 +324,47 @@ window.TemplaterModel=(()=>{
   const v=String(value??'').trim();if(v==='')return false;
   if(type==='Integer')return !/^[+-]?\d+$/.test(v);
   if(type==='Decimal')return !/^[+-]?(?:\d+(?:[.,]\d*)?|[.,]\d+)$/.test(v);
+  if(type==='Date')return !SchoolDate.parse(v);
   return false;
  }
- return Object.freeze({parseCsv,loadCsvValues,buildValuesCsv,scanTemplates,generateOne,invalidValue});
+ // A manual :Date value as dd/mm/yyyy (d/m/yyyy and the older YYYY-MM-DD of values CSVs too). Anything else stays as it is.
+ function dateText(value){
+  const v=String(value??'').trim();
+  if(SchoolDate.valid(v))return SchoolDate.format(v);
+  const iso=SchoolDate.parse(v);return iso?SchoolDate.format(iso):String(value??'');
+ }
+ return Object.freeze({DATA_MARK,parseCsv,loadCsvValues,buildValuesCsv,scanTemplates,generateOne,invalidValue,dateText});
 })();
 
 (()=>{'use strict';
  const M=TemplaterModel,$=id=>document.getElementById(id),layout=$('layout');
  // Messages, requests and their time limits: schoolHost in _ui.js.
  const hosted=schoolHost.hosted,post=schoolHost.post,Selection=schoolListSelection;
+ // Fields «@» from the shared file: SchoolDocumentFields (_data.js), with the read-only school-documents:context.
+ const F=window.SchoolDocumentFields||null,T=window.SchoolTimetable,D=SchoolDate,C=window.SchoolClasses,MARK=M.DATA_MARK;
 
  const TEMPLATE_EXT=['docx','xlsx'],ALL_EXT=[...TEMPLATE_EXT,'csv'];
  const ext=f=>String(f.name).split('.').pop().toLowerCase();
  const isCsv=f=>ext(f)==='csv',isTemplate=f=>TEMPLATE_EXT.includes(ext(f));
  const fieldsLabel=n=>n===1?'1 πεδίο':n+' πεδία';
+ const quoted=value=>'«'+value+'»';
+ const list=items=>items.map(quoted).join(', ');
  let files=[],selected=new Set(),anchor=null,fields=new Map(),values=new Map(),csvMatched=new Set(),scanned=false,dirty=false,busy=false;
+ // dataFields: the fields «@» of the templates (name → {name, sources}); templateTokens: every field of each template as written.
+ let dataFields=new Map(),templateTokens=new Map();
+ // input: the school-documents:context with an open shared file (else null); docCtx: SchoolDocumentFields.context of the period.
+ // The choices of both tabs are kept together, and stay while «Στοιχεία σχολείου» is hidden.
+ let input=null,docCtx=F?F.context({}):null,periodId='',activeTab='staff';
+ const picked={staff:new Set(),class:new Set()},pickAnchor={staff:null,class:null};
 
  function notice(text,error=false){$('notice').textContent=text;$('notice').classList.toggle('error',error)}
  function mark(value=true){dirty=value;post({type:'school-documents:dirty',dirty});updateButtons()}
  function setBusy(value){busy=value;updateButtons()}
+ const hasFields=()=>fields.size>0||dataFields.size>0;
  function updateButtons(){
-  $('produce').disabled=busy||!scanned||!fields.size;
+  $('produce').disabled=busy||!scanned||!hasFields();
   // The change dot shows the next step: «Ανεύρεση πεδίων» until the current files are scanned, then «Παραγωγή Εγγράφων».
-  const needScan=files.length>0&&!scanned,pendingProduce=dirty&&scanned&&fields.size>0;
+  const needScan=files.length>0&&!scanned,pendingProduce=dirty&&scanned&&hasFields();
   $('findFields').classList.toggle('dirty',needScan);
   $('findFields').setAttribute('aria-label',needScan?'Ανεύρεση πεδίων — τα αρχεία δεν έχουν σαρωθεί ακόμη':'Ανεύρεση πεδίων');
   $('produce').classList.toggle('dirty',pendingProduce);
@@ -306,6 +377,169 @@ window.TemplaterModel=(()=>{
   $('findFields').disabled=busy||!files.length;
   // Busy: the sidebar and the fields fade together (shared main.busy of _subapp.css).
   layout.classList.toggle('busy',busy);layout.setAttribute('aria-busy',String(busy));
+ }
+
+ // ---- Στοιχεία σχολείου (school-documents:context) ----
+ const periods=()=>Array.isArray(input?.periods)?input.periods:[];
+ const staffList=()=>T&&input?T.sortStaff((input.staff||[]).filter(p=>p&&p.id)):[];
+ const classList=()=>C&&input?C.sort((input.classes||[]).filter(r=>r&&r.id)):[];
+ const targetOrder=tab=>(tab==='staff'?staffList():classList()).map(item=>item.id);
+ function rebuildContext(){docCtx=F?F.context(input||{},{periodId}):null}
+ const showSchool=()=>!!(input&&scanned&&dataFields.size);
+ function receiveContext(context){
+  input=context&&context.school?context:null;
+  // Choices of people or classes that are no longer in the year are dropped.
+  for(const tab of ['staff','class']){const ids=new Set(targetOrder(tab));for(const id of [...picked[tab]])if(!ids.has(id))picked[tab].delete(id);if(!ids.has(pickAnchor[tab]))pickAnchor[tab]=null}
+  const list=periods();
+  if(!list.some(item=>item.id===periodId)){const current=T?.periodAt(list,D.today())||list[list.length-1]||null;periodId=current?.id||''}
+  rebuildContext();renderSchool();
+  if(scanned)renderFields();
+ }
+ schoolHost.on('school-documents:context',message=>receiveContext(message?.context));
+
+ function periodLabel(period){
+  const end=T?T.periodEnd(period,input?.year):period.to;
+  const hasProgram=(input?.programs||[]).some(program=>program?.kind==='school'&&program.periodId===period.id);
+  return `${period.name||'Χωρίς όνομα'} (${D.format(period.from)}–${D.format(end)})`+(hasProgram?'':' · χωρίς Ωρολόγιο');
+ }
+ function countText(n,one,many){return n===1?'1 '+one:n+' '+many}
+ function renderSchool(){
+  const section=$('schoolSection');section.hidden=!showSchool();
+  if(section.hidden)return;
+  const select=$('period'),list=periods();select.replaceChildren();
+  if(!list.length){select.append(new Option('Δεν υπάρχουν περίοδοι',''));select.disabled=true}
+  else{for(const period of list)select.append(new Option(periodLabel(period),period.id));select.disabled=false;select.value=periodId}
+  for(const [tab,label] of [['staff','Εκπαιδευτικοί'],['class','Τμήματα']]){
+   const button=$(tab==='staff'?'tabStaff':'tabClasses'),n=picked[tab].size;
+   button.setAttribute('aria-selected',String(activeTab===tab));button.tabIndex=activeTab===tab?0:-1;
+   button.textContent=n?`${label} (${n})`:label;
+  }
+  renderTargets();
+  const s=picked.staff.size,c=picked.class.size;
+  $('targetCount').textContent=s||c?'Επιλογή: '+[s?countText(s,'εκπαιδευτικός','εκπαιδευτικοί'):'',c?countText(c,'τμήμα','τμήματα'):''].filter(Boolean).join(', '):'Καμία επιλογή';
+ }
+ function renderTargets(){
+  const box=$('targetList'),tab=activeTab,set=picked[tab];box.replaceChildren();
+  box.setAttribute('aria-labelledby',tab==='staff'?'tabStaff':'tabClasses');
+  const items=tab==='staff'?staffList():classList(),classes=input?.classes||[],counts=input?.studentCounts||{};
+  if(!items.length){
+   const empty=document.createElement('div');empty.className='target-empty';
+   empty.textContent=tab==='staff'?'Το Προσωπικό του έτους είναι κενό.':'Δεν υπάρχουν τμήματα στα «Τμήματα» του έτους.';
+   box.append(empty);return;
+  }
+  const order=items.map(item=>item.id),focusKey=order.includes(pickAnchor[tab])?pickAnchor[tab]:order[0];
+  for(const item of items){
+   const on=set.has(item.id),row=document.createElement('div');
+   row.className='subapp-list-item target-item'+(on?' selected':'');row.setAttribute('role','option');row.setAttribute('aria-selected',String(on));
+   row.dataset.key=item.id;row.tabIndex=item.id===focusKey?0:-1;
+   const box2=document.createElement('input');box2.type='checkbox';box2.checked=on;box2.tabIndex=-1;box2.setAttribute('aria-hidden','true');
+   // The checkbox changes only its own row, like Ctrl+click.
+   box2.onclick=event=>{event.stopPropagation();choose(item.id,{ctrlKey:true})};
+   const name=document.createElement('span');name.className='target-name';
+   const side=document.createElement('span');side.className='target-side';
+   if(tab==='staff'){
+    name.textContent=item.name||item.shortName||'';row.title=item.shortName||'';
+    side.textContent=classes.filter(record=>record.homeroomStaffId&&record.homeroomStaffId===item.id).map(record=>record.name).join(', ');
+   }else{
+    name.textContent=item.name||'';const n=Number(counts[item.id])||0;side.textContent=countText(n,'μαθητής','μαθητές');
+   }
+   row.append(box2,name,side);
+   row.onclick=event=>choose(item.id,event);
+   box.append(row);
+  }
+ }
+ // A «production did not happen» message is out of date once the choice changes.
+ const clearErrorNotice=()=>{if($('notice').classList.contains('error'))notice('')};
+ function afterChoice(focusKey){
+  clearErrorNotice();renderSchool();renderSummary();
+  if(focusKey)$('targetList').querySelector(`[data-key="${CSS.escape(focusKey)}"]`)?.focus({preventScroll:false});
+ }
+ function choose(key,event){
+  if(busy)return;
+  const tab=activeTab;
+  ({selected:picked[tab],anchor:pickAnchor[tab]}=Selection.click(targetOrder(tab),picked[tab],pickAnchor[tab],key,event));
+  afterChoice(key);
+ }
+ function setTab(tab,focus=false){activeTab=tab;renderSchool();if(focus)$(tab==='staff'?'tabStaff':'tabClasses').focus()}
+ $('tabStaff').onclick=()=>setTab('staff');
+ $('tabClasses').onclick=()=>setTab('class');
+ $('schoolTabs').addEventListener('keydown',event=>{if(event.key==='ArrowLeft'||event.key==='ArrowRight'){event.preventDefault();setTab(activeTab==='staff'?'class':'staff',true)}});
+ $('selectAll').onclick=()=>{if(busy)return;picked[activeTab]=new Set(targetOrder(activeTab));afterChoice()};
+ $('selectNone').onclick=()=>{if(busy)return;picked[activeTab]=new Set();afterChoice()};
+ $('period').onchange=()=>{periodId=$('period').value;clearErrorNotice();rebuildContext();renderFields()};
+ // Keyboard: the arrows move between the rows without changing the ticks (a ticked list is not lost by a key press),
+ // Space ticks or unticks the row, Ctrl/Cmd+A ticks all of them.
+ $('targetList').addEventListener('keydown',event=>{
+  if(busy)return;
+  const tab=activeTab,order=targetOrder(tab);if(!order.length)return;
+  if(Selection.isSelectAll(event)){event.preventDefault();picked[tab]=new Set(order);afterChoice(pickAnchor[tab]||order[0]);return}
+  const current=document.activeElement?.closest?.('.target-item')?.dataset.key||pickAnchor[tab]||order[0];
+  if(event.key===' '){event.preventDefault();choose(current,{ctrlKey:true});return}
+  if(event.key!=='ArrowUp'&&event.key!=='ArrowDown'&&event.key!=='Home'&&event.key!=='End')return;
+  event.preventDefault();
+  let index=order.indexOf(current);
+  index=event.key==='Home'?0:event.key==='End'?order.length-1:Math.max(0,Math.min(order.length-1,index+(event.key==='ArrowDown'?1:-1)));
+  pickAnchor[tab]=order[index];renderTargets();
+  $('targetList').querySelector(`[data-key="${CSS.escape(order[index])}"]`)?.focus();
+ });
+
+ // ---- Πεδία «@»: κατάσταση για τη φόρμα και την παραγωγή ----
+ const dataTokens=file=>(templateTokens.get(file)||[]).filter(raw=>raw.trim().startsWith(MARK));
+ const tokenName=raw=>String(raw).split(':')[0].trim();
+ const recognize=token=>F?F.recognize(token,docCtx):{data:true,known:false,scope:'',type:'Text',needsPeriod:false,message:''};
+ // → {total, filled, notes, kinds (template → templateKind), staffT, classT, jobs, missing, infos}
+ function dataStatus(){
+  const templates=files.filter(isTemplate),names=new Map(),notes=new Map(),kinds=new Map();
+  for(const file of templates){
+   const tokens=dataTokens(file);
+   kinds.set(file,F?F.templateKind(templateTokens.get(file)||[],docCtx):{kind:tokens.length?'common':'none',staff:[],class:[]});
+   for(const raw of tokens){
+    const name=tokenName(raw);if(!names.has(name))names.set(name,recognize(name));
+    const item=recognize(raw);
+    if(item.message){const note=notes.get(raw)||{raw,message:item.message,filled:item.known,files:new Set()};note.files.add(file.name);notes.set(raw,note)}
+   }
+  }
+  const items=[...names.values()],filled=items.filter(item=>item.known).length;
+  const staffT=templates.filter(file=>kinds.get(file).kind==='staff'),classT=templates.filter(file=>kinds.get(file).kind==='class');
+  const mixed=templates.filter(file=>kinds.get(file).kind==='mixed');
+  const needsPeriod=items.some(item=>item.known&&item.needsPeriod);
+  const missing=[],infos=[];
+  if(names.size){
+   if(!F)missing.push('Δεν φορτώθηκαν τα πεδία από το κοινό αρχείο. Βεβαιώσου ότι το _data.js είναι η τελευταία έκδοση.');
+   else if(!input)missing.push('Τα πεδία «@» συμπληρώνονται από το κοινό αρχείο: άνοιξέ το από την αρχική σελίδα του Κεντρικού Μενού.');
+   else{
+    for(const file of mixed){const kind=kinds.get(file);missing.push(`Το πρότυπο ${quoted(file.name)} έχει μαζί πεδία εκπαιδευτικού (${list(kind.staff.slice(0,3))}${kind.staff.length>3?' …':''}) και τμήματος (${list(kind.class.slice(0,3))}${kind.class.length>3?' …':''}). Χώρισέ το σε δύο πρότυπα.`)}
+    if(needsPeriod&&!docCtx?.period)missing.push(periods().length?'Διάλεξε περίοδο.':'Το σχολικό έτος δεν έχει περιόδους· τα πρότυπα έχουν πεδία της περιόδου ή του Ωρολογίου.');
+    if(staffT.length&&!picked.staff.size)missing.push(`Διάλεξε εκπαιδευτικούς για ${staffT.length===1?'το πρότυπο':'τα πρότυπα'} ${list(staffT.map(file=>file.name))}.`);
+    if(classT.length&&!picked.class.size)missing.push(`Διάλεξε τμήματα για ${classT.length===1?'το πρότυπο':'τα πρότυπα'} ${list(classT.map(file=>file.name))}.`);
+    if(needsPeriod&&docCtx?.period&&!docCtx.program)infos.push(`Η περίοδος ${quoted(docCtx.period.name||'')} δεν έχει Ωρολόγιο· τα πεδία του προγράμματος θα μείνουν κενά.`);
+    if(docCtx?.slotError&&[...names.keys()].some(name=>/\.(Πρ|Ώρες)\.|^@Ώρα\./.test(name)))infos.push('Ώρες Διδασκαλίας: '+docCtx.slotError);
+   }
+  }
+  const jobs=templates.reduce((sum,file)=>sum+(kinds.get(file).kind==='staff'?picked.staff.size:kinds.get(file).kind==='class'?picked.class.size:1),0);
+  return {total:names.size,filled,notes:[...notes.values()],kinds,staffT,classT,jobs,missing,infos};
+ }
+ function bulletList(lines){const ul=document.createElement('ul');for(const line of lines){const li=document.createElement('li');if(line instanceof Node)li.append(line);else li.textContent=line;ul.append(li)}return ul}
+ function para(text,className=''){const p=document.createElement('p');if(className)p.className=className;p.textContent=text;return p}
+ // The fields «@» are never shown in the form: only this summary, above the manual fields.
+ function renderSummary(){
+  const box=$('dataSummary');if(!box)return;
+  box.replaceChildren();
+  const status=dataStatus();
+  const head=document.createElement('p');head.className='data-summary-head';
+  head.textContent=`Πεδία από το κοινό αρχείο: ${status.total}`+(input&&F?` · θα συμπληρωθούν ${status.filled===status.total?'όλα':status.filled===1?'το 1':'τα '+status.filled}.`:'.');
+  box.append(head);
+  if(status.missing.length){box.append(para('Για την παραγωγή λείπει:','data-summary-label data-summary-missing'),bulletList(status.missing))}
+  else{box.append(para(status.jobs===1?'Θα παραχθεί 1 έγγραφο.':`Θα παραχθούν ${status.jobs} έγγραφα.`))}
+  if(status.infos.length)box.append(bulletList(status.infos));
+  if(status.notes.length){
+   box.append(para('Πεδία που θέλουν έλεγχο:','data-summary-label'));
+   box.append(bulletList(status.notes.map(note=>{
+    const span=document.createElement('span'),code=document.createElement('code');code.textContent='{{'+note.raw+'}}';
+    span.append(code,' — '+note.message+(note.filled?'':' Δεν συμπληρώνεται.')+(files.filter(isTemplate).length>1?' ('+[...note.files].join(', ')+')':''));
+    return span;
+   })));
+  }
  }
 
  // ---- Files ----
@@ -341,7 +575,7 @@ window.TemplaterModel=(()=>{
   });
   updateButtons();
  }
- function clearScan(message){scanned=false;fields=new Map();csvMatched.clear();renderFieldsPlaceholder(message)}
+ function clearScan(message){scanned=false;fields=new Map();dataFields=new Map();templateTokens=new Map();csvMatched.clear();renderSchool();renderFieldsPlaceholder(message)}
  function addFiles(list){
   let added=0;const rejected=[];
   for(const f of list){
@@ -412,28 +646,37 @@ window.TemplaterModel=(()=>{
  function renderFields(){
   const out=$('fieldsContent');out.replaceChildren();
   $('fieldsCount').textContent=fieldsLabel(fields.size);
-  if(!fields.size){renderFieldsPlaceholder('Δεν βρέθηκαν πεδία στα επιλεγμένα αρχεία.');$('fieldsCount').textContent='0 πεδία';return}
-  $('fieldsSubtitle').textContent='Συμπλήρωσε ή έλεγξε τις τιμές.';
-  const set=document.createElement('fieldset');set.className='ui-fields field-grid';set.setAttribute('aria-label','Τιμές πεδίων');
-  let i=0;
-  for(const [name,f] of fields){
-   const id='field-'+(i++),wrap=document.createElement('div');wrap.className='ui-field';
-   const label=document.createElement('label');label.htmlFor=id;label.className='field-label';
-   const text=document.createElement('span');text.className='field-name';text.textContent=name;const tags=document.createElement('span');tags.className='field-tags';label.append(text,tags);
-   if(f.conflict)tags.append(badge('διαφορετικός τύπος σε άλλο πρότυπο','conflict'));
-   const typeBadge=badge(TYPE_LABELS[f.type]||'Κείμενο');if(f.warning){typeBadge.textContent='Κείμενο (άγνωστος τύπος «'+f.warning+'»)';typeBadge.classList.add('warning')}tags.append(typeBadge);
-   const input=document.createElement(f.type==='Textarea'?'textarea':'input');input.id=id;input.dataset.type=f.type;
-   if(f.type==='Date')input.type='date';
-   else if(f.type!=='Textarea'){input.type='text';if(f.type==='Decimal')input.inputMode='decimal';if(f.type==='Integer')input.inputMode='numeric'}
-   input.value=values.get(name)??'';
-   input.oninput=()=>{values.set(name,input.value);input.removeAttribute('aria-invalid');mark(true)};
-   wrap.append(label,input);
-   set.append(wrap);
-  }
-  out.append(set);
+  if(!hasFields()){renderFieldsPlaceholder('Δεν βρέθηκαν πεδία στα επιλεγμένα αρχεία.');$('fieldsCount').textContent='0 πεδία';return}
+  $('fieldsSubtitle').textContent=fields.size?'Συμπλήρωσε ή έλεγξε τις τιμές.':'Τα πρότυπα έχουν μόνο πεδία από το κοινό αρχείο.';
+  if(dataFields.size){const box=document.createElement('div');box.id='dataSummary';box.className='data-summary subapp-info-panel';box.setAttribute('role','status');out.append(box)}
+  if(fields.size){
+   const set=document.createElement('fieldset');set.className='ui-fields field-grid';set.setAttribute('aria-label','Τιμές πεδίων');
+   let i=0;
+   for(const [name,f] of fields){
+    const id='field-'+(i++),wrap=document.createElement('div');wrap.className='ui-field';
+    const label=document.createElement('label');label.htmlFor=id;label.className='field-label';
+    const text=document.createElement('span');text.className='field-name';text.textContent=name;const tags=document.createElement('span');tags.className='field-tags';label.append(text,tags);
+    if(f.conflict)tags.append(badge('διαφορετικός τύπος σε άλλο πρότυπο','conflict'));
+    const typeBadge=badge(TYPE_LABELS[f.type]||'Κείμενο');if(f.warning){typeBadge.textContent='Κείμενο (άγνωστος τύπος «'+f.warning+'»)';typeBadge.classList.add('warning')}tags.append(typeBadge);
+    const input=document.createElement(f.type==='Textarea'?'textarea':'input');input.id=id;input.dataset.type=f.type;
+    if(f.type!=='Textarea'){input.type='text';if(f.type==='Decimal')input.inputMode='decimal';if(f.type==='Integer')input.inputMode='numeric'}
+    // Dates: always dd/mm/yyyy for the user (not the browser's date field, which follows the computer's locale).
+    if(f.type==='Date'){input.inputMode='numeric';input.placeholder='dd/mm/yyyy';input.maxLength=10;input.autocomplete='off'}
+    input.value=values.get(name)??'';
+    input.oninput=()=>{values.set(name,input.value);input.removeAttribute('aria-invalid');mark(true)};
+    if(f.type==='Date')input.onchange=()=>{const v=M.dateText(input.value);if(v!==input.value){input.value=v;values.set(name,v)}};
+    wrap.append(label,input);
+    // A manual field written like a field of the catalogue (Εκπ., Τμ., Ώρα., Μάθημα.) gets the hint «Μήπως εννοείς…».
+    const hint=F?F.recognize(name,docCtx).message:'';
+    if(hint){const warn=document.createElement('div');warn.className='ui-validation-warning';warn.textContent=hint;wrap.append(warn)}
+    set.append(wrap);
+   }
+   out.append(set);
+  }else out.append(para('Δεν υπάρχουν πεδία για χειροκίνητη συμπλήρωση.','ui-helper manual-empty'));
   const note=document.createElement('p');note.className='syntax-note ui-helper';
-  note.innerHTML=files.some(isTemplate)?'Μορφή πεδίων: <code>{{Σχολικό Έτος}}</code> · <code>{{Τιμή:Decimal}}</code> · <code>{{Μέρες:Integer}}</code> · <code>{{Ημερομηνία:Date}}</code> · <code>{{Σημειώσεις:Textarea}}</code>. Μαζί με τα έγγραφα εξάγεται CSV με τα πεδία και τις τιμές τους, που μπορείς να ξαναπροσθέσεις την επόμενη φορά.':'Οι τιμές προέρχονται από το CSV. Μπορείς να τις τροποποιήσεις και να αποθηκεύσεις νέο CSV με «Παραγωγή Εγγράφων».';
+  note.innerHTML=files.some(isTemplate)?'Μορφή πεδίων: <code>{{Σχολικό Έτος}}</code> · <code>{{Τιμή:Decimal}}</code> · <code>{{Μέρες:Integer}}</code> · <code>{{Ημερομηνία:Date}}</code> · <code>{{Σημειώσεις:Textarea}}</code>. Τα πεδία από το κοινό αρχείο αρχίζουν με «@», π.χ. <code>{{@Σχολείο}}</code>, και συμπληρώνονται μόνα τους. Μαζί με τα έγγραφα εξάγεται CSV με τα υπόλοιπα πεδία και τις τιμές τους, που μπορείς να ξαναπροσθέσεις την επόμενη φορά.':'Οι τιμές προέρχονται από το CSV. Μπορείς να τις τροποποιήσεις και να αποθηκεύσεις νέο CSV με «Παραγωγή Εγγράφων».';
   out.append(note);
+  renderSummary();
   updateButtons();
  }
  function validate(){
@@ -453,15 +696,21 @@ window.TemplaterModel=(()=>{
   if(templates.length&&libraryMissing())return;
   setBusy(true);notice('Σάρωση αρχείων…');
   try{
-   const found=templates.length?await M.scanTemplates(templates):new Map(),csvMap=await M.loadCsvValues(csvFiles);
-   if(!templates.length)for(const name of csvMap.keys())found.set(name,{name,type:'Text',sources:new Set(csvFiles.map(f=>f.name))});
-   fields=found;csvMatched.clear();let changed=false;
-   for(const name of fields.keys())if(csvMap.has(name)){if(values.get(name)!==csvMap.get(name))changed=true;values.set(name,csvMap.get(name));csvMatched.add(name)}
-   scanned=true;renderFields();if(changed)mark(true);
-   if(!fields.size)notice(templates.length?'Δεν εντοπίστηκαν πεδία. Έλεγξε ότι είναι γραμμένα ως {{Όνομα}}.':'Δεν εντοπίστηκαν πεδία στο CSV. Έλεγξε τη μορφή των στηλών «Πεδίο» και «Τιμή».',true);
+   const found=templates.length?await M.scanTemplates(templates):{fields:new Map(),data:new Map(),tokens:new Map()},csvMap=await M.loadCsvValues(csvFiles);
+   // Only CSV: its rows are the fields (all Text). Rows «@…» are fields of the shared file and are not filled by hand.
+   if(!templates.length)for(const name of csvMap.keys())if(!name.startsWith(MARK))found.fields.set(name,{name,type:'Text',sources:new Set(csvFiles.map(f=>f.name))});
+   fields=found.fields;dataFields=found.data;templateTokens=found.tokens;csvMatched.clear();let changed=false;
+   for(const [name,f] of fields)if(csvMap.has(name)){
+    const value=f.type==='Date'?M.dateText(csvMap.get(name)):csvMap.get(name);
+    if(values.get(name)!==value)changed=true;values.set(name,value);csvMatched.add(name);
+   }
+   scanned=true;renderSchool();renderFields();if(changed)mark(true);
+   if(!hasFields())notice(templates.length?'Δεν εντοπίστηκαν πεδία. Έλεγξε ότι είναι γραμμένα ως {{Όνομα}}.':'Δεν εντοπίστηκαν πεδία στο CSV. Έλεγξε τη μορφή των στηλών «Πεδίο» και «Τιμή».',true);
    else{
-    let text=fields.size===1?'Βρέθηκε 1 πεδίο.':`Βρέθηκαν ${fields.size} πεδία.`;
-    if(csvFiles.length&&templates.length){const absent=fields.size-csvMatched.size;text+=` Από το CSV προσυμπληρώθηκαν ${csvMatched.size} από ${fields.size}`+(absent?`· ${absent} χωρίς αντιστοιχία.`:'.')}
+    let text=fields.size===1?'Βρέθηκε 1 πεδίο':`Βρέθηκαν ${fields.size} πεδία`;
+    text+=dataFields.size?` προς συμπλήρωση και ${dataFields.size===1?'1 πεδίο':dataFields.size+' πεδία'} από το κοινό αρχείο.`:'.';
+    if(csvFiles.length&&templates.length&&fields.size){const absent=fields.size-csvMatched.size;text+=` Από το CSV προσυμπληρώθηκαν ${csvMatched.size} από ${fields.size}`+(absent?`· ${absent} χωρίς αντιστοιχία.`:'.')}
+    if(dataFields.size&&!input)text+=' Για τα πεδία «@» άνοιξε το κοινό αρχείο από το Κεντρικό Μενού.';
     notice(text);
    }
   }catch(error){
@@ -473,6 +722,7 @@ window.TemplaterModel=(()=>{
  // ---- CSV-only production ----
  async function exportValuesCsv(){
   if(busy||!scanned||!fields.size||!hosted)return;
+  if(!validate()){notice('Διόρθωσε πρώτα τις τιμές που σημειώνονται.',true);return}
   setBusy(true);
   try{
    const csv=await M.buildValuesCsv(fields,values).text();
@@ -486,26 +736,49 @@ window.TemplaterModel=(()=>{
  }
 
  // ---- Production ----
+ // Each staff template once per chosen teacher, each class template once per chosen class (in the order of the lists),
+ // a common template or one without fields «@» once. A field «@» that is not exactly of the catalogue stays as written.
  function saveBlob(blob,name){const a=document.createElement('a'),url=URL.createObjectURL(blob);a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000)}
  $('produce').onclick=async()=>{
-  if(busy||!scanned||!fields.size)return;
+  if(busy||!scanned||!hasFields())return;
   if(!files.some(isTemplate)){await exportValuesCsv();return}
   if(libraryMissing())return;
-  if(!validate()){notice('Διόρθωσε πρώτα τις τιμές που σημειώνονται (Decimal ή Integer).',true);return}
+  if(!validate()){notice('Διόρθωσε πρώτα τις τιμές που σημειώνονται (αριθμοί ή ημερομηνίες dd/mm/yyyy).',true);return}
   for(const [name,f] of fields)if(f.conflict){notice(`Το πεδίο «${name}» έχει διαφορετικό τύπο σε διαφορετικά πρότυπα. Διόρθωσέ το στα πρότυπα και πάτησε ξανά «Ανεύρεση πεδίων».`,true);return}
-  const templates=files.filter(isTemplate),map=new Map(),typeMap=new Map();
-  for(const [name,f] of fields){map.set(name,values.get(name)??'');typeMap.set(name,f.type)}
+  const status=dataStatus();
+  if(status.missing.length){notice('Η παραγωγή δεν έγινε. '+status.missing.join(' '),true);return}
+  const templates=files.filter(isTemplate),manual=new Map(),manualTypes=new Map();
+  for(const [name,f] of fields){const value=values.get(name)??'';manual.set(name,f.type==='Date'?M.dateText(value):value);manualTypes.set(name,f.type)}
+  const staffIds=staffList().map(p=>p.id).filter(id=>picked.staff.has(id)),classIds=classList().map(r=>r.id).filter(id=>picked.class.has(id));
+  const jobs=[];
+  for(const file of templates){
+   const kind=status.kinds.get(file).kind;
+   const targets=kind==='staff'?staffIds.map(id=>({type:'staff',id})):kind==='class'?classIds.map(id=>({type:'class',id})):[null];
+   const names=[...new Set(dataTokens(file).map(tokenName))].filter(name=>recognize(name).known);
+   for(const target of targets)jobs.push({file,target,names});
+  }
   setBusy(true);notice('Συμπλήρωση των εγγράφων…');
   try{
    const generated=[];
-   for(const f of templates)generated.push({name:f.name,blob:await M.generateOne(f,map,typeMap)});
-   const csvBlob=M.buildValuesCsv(fields,values),csvName='Documents_Templater_Τιμές.csv';
-   if(generated.length===1){saveBlob(generated[0].blob,generated[0].name);setTimeout(()=>saveBlob(csvBlob,csvName),350)}
-   else{const zip=new JSZip();for(const g of generated)zip.file(g.name,g.blob);zip.file(csvName,csvBlob);saveBlob(await zip.generateAsync({type:'blob',compression:'DEFLATE'}),'Documents_Templater_συμπληρωμένο.zip')}
+   for(const job of jobs){
+    const map=new Map(manual),typeMap=new Map(manualTypes);
+    if(job.names.length&&F){for(const [name,value] of F.values(job.names,job.target,docCtx)){map.set(name,value);typeMap.set(name,recognize(name).type)}}
+    if(jobs.length>1)notice(`Συμπλήρωση των εγγράφων… (${generated.length+1} από ${jobs.length})`);
+    generated.push({name:F?F.fileName(job.file.name,job.target,docCtx):job.file.name,blob:await M.generateOne(job.file,map,typeMap)});
+   }
+   const names=F?F.uniqueNames(generated.map(g=>g.name)):generated.map(g=>g.name);
+   generated.forEach((g,i)=>{g.name=names[i]});
+   // The values CSV keeps only the fields filled by hand; without such fields there is no CSV.
+   const csvBlob=fields.size?M.buildValuesCsv(fields,values):null,csvName='Documents_Templater_Τιμές.csv';
+   if(generated.length===1){saveBlob(generated[0].blob,generated[0].name);if(csvBlob)setTimeout(()=>saveBlob(csvBlob,csvName),350)}
+   else{const zip=new JSZip();for(const g of generated)zip.file(g.name,g.blob);if(csvBlob)zip.file(csvName,csvBlob);saveBlob(await zip.generateAsync({type:'blob',compression:'DEFLATE'}),'Documents_Templater_συμπληρωμένο.zip')}
    mark(false);
-   notice(generated.length===1
-    ?`Δημιουργήθηκε το συμπληρωμένο «${generated[0].name}» και το CSV τιμών. Θα τα βρεις στις Λήψεις του browser.`
-    :`Δημιουργήθηκαν ${generated.length} συμπληρωμένα έγγραφα και το CSV τιμών, μαζί σε ένα ZIP. Θα το βρεις στις Λήψεις του browser.`);
+   const csvText=csvBlob?' και το CSV τιμών':'';
+   const unfilled=status.notes.filter(note=>!note.filled).length;
+   notice((generated.length===1
+    ?`Δημιουργήθηκε το συμπληρωμένο «${generated[0].name}»${csvText}. Θα ${csvBlob?'τα':'το'} βρεις στις Λήψεις του browser.`
+    :`Δημιουργήθηκαν ${generated.length} συμπληρωμένα έγγραφα${csvText}, μαζί σε ένα ZIP. Θα το βρεις στις Λήψεις του browser.`)
+    +(unfilled?(unfilled===1?' Ένα πεδίο «@» έμεινε όπως είναι γραμμένο':` ${unfilled} πεδία «@» έμειναν όπως είναι γραμμένα`)+' στο πρότυπο (δες τα «Πεδία που θέλουν έλεγχο»).':''));
   }catch(error){console.error(error);notice('Παρουσιάστηκε σφάλμα κατά τη δημιουργία των αρχείων.',true)}
   finally{setBusy(false)}
  };
@@ -518,6 +791,7 @@ window.TemplaterModel=(()=>{
  };
 
  renderFiles();
+ renderSchool();
  renderFieldsPlaceholder('Τα πεδία που θα βρεθούν θα εμφανιστούν εδώ.');
  notice('Η επεξεργασία γίνεται τοπικά στον browser. Τα αρχεία δεν αποστέλλονται πουθενά.');
  post({type:'school-documents:ready'});
