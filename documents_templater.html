@@ -1,9 +1,9 @@
-<!doctype html><html lang="el" class="subapp-page"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Documents Templater v0.32</title><link rel="stylesheet" href="_ui.css">
+<!doctype html><html lang="el" class="subapp-page"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Documents Templater v0.33</title><link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <script src="_lib_jszip.min.js"></script>
 <style>
 /* DT-specific geometry. Shared appearance: _ui.css / _subapp.css. */
-:root{--app-mark-bg:var(--school-app-docs)}
+:root{--app-mark-bg:var(--school-app-docs);--dt-copied:#176534}
 /* Sidebar: the shared main + aside of _subapp.css, in its wide width (main.subapp-wide-aside).
    «Στοιχεία σχολείου» (only when the templates have fields «@» and the shared file is open) sits above «Αρχεία»;
    the two lists share the height between their headings and buttons. */
@@ -75,7 +75,66 @@
    (the shared .page-main keeps overflow:hidden from 651px on). */
 @media(max-width:800px){#root{overflow:visible}.files-list{min-height:240px;max-height:45dvh}.target-list{min-height:200px;max-height:45dvh}.fields-pane .fields-content{overflow:visible}}
 @media(max-width:620px){.field-grid{grid-template-columns:1fr}}
-</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Documents Templater — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>DT</span></span><span class="brand-text"><span>Documents Templater</span><span class="small version">v0.32</span></span></button></h1></div><button id="reset" type="button" disabled>Αναίρεση Όλων</button><div class="header-right"><button id="findFields" class="primary subapp-change-dot" type="button" disabled>Ανεύρεση πεδίων</button><button id="produce" class="success subapp-change-dot" type="button" disabled>Παραγωγή Εγγράφων</button></div></header>
+/* Window «Πεδία» (schoolChoiceDialog with the class dt-fields-dialog): search and the example choice stay on top,
+   the groups scroll under them. Each group is a table Πεδίο | Τύπος | Επεξήγηση | Παράδειγμα with the same columns;
+   the visible column heading is sticky at the top of the scrolling area. */
+.school-confirm.dt-fields-dialog{width:min(1040px,calc(100vw - 32px));height:min(860px,calc(100dvh - 32px));overflow:hidden}
+.school-confirm.dt-fields-dialog[open]{display:flex;flex-direction:column}
+.school-confirm.dt-fields-dialog .school-confirm-actions{margin-top:14px}
+.dt-fields{flex:1;min-height:0;display:flex;flex-direction:column;gap:8px}
+.dt-fields-search{width:100%;min-width:0}
+.dt-example{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font-size:14px}
+.dt-example select{flex:0 1 260px;min-width:0}
+.dt-example-period{color:var(--school-ui-muted)}
+.school-confirm .dt-fields p.dt-fields-note{font-size:14px;color:var(--school-ui-muted)}
+.school-confirm .dt-fields p.dt-fields-status{font-size:13px;color:var(--school-ui-muted)}
+.school-confirm .dt-fields p.dt-fields-status:empty{margin-top:-8px}
+.school-confirm .dt-fields p.dt-fields-status.ui-validation-warning{color:var(--school-ui-warning)}
+.dt-fields-body{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;border:1px solid var(--school-ui-border);border-radius:8px;font-size:14px;line-height:1.45}
+.dt-table{width:100%;table-layout:fixed;border-collapse:collapse}
+.dt-table col.dt-c-field{width:36%}.dt-table col.dt-c-type{width:11%}.dt-table col.dt-c-help{width:31%}.dt-table col.dt-c-example{width:22%}
+.dt-table th,.dt-table td{padding:6px 8px;text-align:left;vertical-align:top;overflow-wrap:anywhere}
+.dt-table td{border-top:1px solid var(--school-ui-border)}
+.dt-table-head{position:sticky;top:0;z-index:2;background:var(--school-ui-workspace-bg);border-bottom:1px solid var(--school-ui-border)}
+.dt-table-head th{font-size:13px;font-weight:700;color:var(--school-ui-muted)}
+.dt-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.dt-group>summary{display:flex;align-items:baseline;gap:8px;padding:8px;font-weight:700;cursor:pointer;background:var(--school-ui-surface);border-top:1px solid var(--school-ui-border)}
+.dt-group:first-of-type>summary{border-top:0}
+.dt-group-count{font-size:12px;font-weight:600;padding:1px 8px;border-radius:999px;background:var(--school-ui-label-bg);color:var(--school-ui-label-text)}
+.dt-type,.dt-example-static,.dt-example-empty,.dt-where{color:var(--school-ui-muted)}
+.dt-where{font-size:12px}
+.dt-example-line+.dt-example-line{margin-top:3px}
+.dt-empty{padding:24px 12px;text-align:center;color:var(--school-ui-muted)}
+.dt-note-row td{color:var(--school-ui-muted)}
+/* A field: dragged as plain text into Word or Excel; the copy icon shows when the pointer is over it (or on focus). */
+.dt-field{display:flex;align-items:center;gap:4px;width:max-content;max-width:100%;padding:1px 2px 1px 6px;border:1px solid transparent;border-radius:6px;cursor:grab}
+.dt-field+.dt-field,.dt-field-gap+.dt-field{margin-top:2px}
+.dt-field:hover,.dt-field:focus-within{background:var(--school-ui-label-bg);border-color:var(--school-ui-border)}
+.dt-field:active{cursor:grabbing}
+.dt-field code{min-width:0;overflow-wrap:anywhere;font-size:13px}
+.dt-field.found{border-color:var(--school-ui-primary-border);background:var(--school-ui-primary-bg)}
+.dt-field.ready{font-weight:600}
+.dt-field.ready code{font-family:inherit;font-size:14px}
+.dt-field-gap{padding-left:8px;color:var(--school-ui-muted);line-height:1}
+.dt-field-template{display:block;color:var(--school-ui-muted);font-size:13px;padding-left:6px}
+.school-confirm button.dt-copy{flex:none;display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;padding:0;border:1px solid transparent;border-radius:6px;background:transparent;color:#536575;opacity:0}
+.school-confirm button.dt-copy.text{width:auto;padding:0 6px;font-size:12px}
+.school-confirm button.dt-copy svg{width:16px;height:16px}
+.dt-field:hover .dt-copy,.dt-field:focus-within .dt-copy,.school-confirm button.dt-copy.copied{opacity:1}
+.school-confirm button.dt-copy:hover{border-color:var(--school-ui-control-border);background:var(--school-ui-surface)}
+.school-confirm button.dt-copy.copied{color:var(--dt-copied)}
+@media(hover:none){.school-confirm button.dt-copy{opacity:1}}
+/* Narrow: each row becomes a card (field and type, then explanation and example), with no sideways scrolling. */
+@media(max-width:720px){
+ .dt-table.dt-table-head{display:none}
+ .dt-table,.dt-table tbody,.dt-table tr,.dt-table td{display:block;width:auto}
+ .dt-table colgroup{display:none}
+ .dt-table tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 8px;padding:6px 8px;border-top:1px solid var(--school-ui-border)}
+ .dt-table td{border:0;padding:0}
+ .dt-table td.dt-col-help,.dt-table td.dt-col-example{grid-column:1 / -1}
+ .dt-table td.dt-col-example:empty{display:none}
+}
+</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Documents Templater — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>DT</span></span><span class="brand-text"><span>Documents Templater</span><span class="small version">v0.33</span></span></button></h1></div><button id="reset" type="button" disabled>Αναίρεση Όλων</button><span class="sep" aria-hidden="true"></span><button id="openCatalog" type="button" title="Όλα τα πεδία από το κοινό αρχείο, για μεταφορά ή αντιγραφή στα πρότυπα">Πεδία…</button><div class="header-right"><button id="findFields" class="primary subapp-change-dot" type="button" disabled>Ανεύρεση πεδίων</button><button id="produce" class="success subapp-change-dot" type="button" disabled>Παραγωγή Εγγράφων</button></div></header>
 <main id="layout" class="subapp-wide-aside">
 <aside id="filesPane" aria-label="Στοιχεία σχολείου και αρχεία">
  <section id="schoolSection" class="side-section" aria-labelledby="schoolTitle" hidden>
@@ -789,6 +848,274 @@ window.TemplaterModel=(()=>{
   clearScan('Τα πεδία που θα βρεθούν θα εμφανιστούν εδώ.');renderFiles();mark(false);
   notice('Η λίστα αρχείων και οι τιμές καθάρισαν.');
  };
+
+ // ---- Παράθυρο «Πεδία» (SchoolDocumentFields.catalog) ----
+ // Always available, with or without the shared file. Each group is a table Πεδίο | Τύπος | Επεξήγηση | Παράδειγμα.
+ // Examples: the real value (SchoolDocumentFields.values, in the context of the period of «Στοιχεία σχολείου») when the
+ // shared file is open and the field has what it needs (teacher or class of «Παράδειγμα για», period, Ωρολόγιο);
+ // otherwise the fixed example of the catalogue. «Παράδειγμα για» changes only the examples, never the choice for
+ // production. Every field is dragged as plain text into Word or Excel and has a copy icon (shown on hover or focus).
+ const catalogView={open:new Set(['common']),staff:'',class:''};
+ let catalogShown=false;
+ const READY_GROUPS={staffProgram:'staff',classProgram:'class'};
+ const PROGRAM_GROUPS=new Set(['staffProgram','staffHours','classProgram','classHours','subjects']);
+ const TYPE_SHORT={Text:'Κείμενο',Integer:'Ακέραιος',Date:'Ημερομηνία',Table:'Πίνακας'};
+ const plainUpper=v=>(window.SchoolText?SchoolText.withoutTones(String(v??'')):String(v??'')).toLocaleUpperCase('el');
+ const fieldKey=v=>plainUpper(v).replace(/\s+/g,'');
+ const regexText=v=>v.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+ const braces=name=>'{{'+name+'}}';
+ function el(tag,className,text){const node=document.createElement(tag);if(className)node.className=className;if(text!=null)node.textContent=text;return node}
+ const copyIcon=()=>(typeof schoolIcon==='function'&&schoolIcon('copy'))||'';
+
+ // Clipboard: the Clipboard API (the iframe of the Central Menu allows clipboard-write), else a copy event.
+ async function copyData(text,html){
+  try{
+   if(html&&navigator.clipboard?.write&&window.ClipboardItem){await navigator.clipboard.write([new ClipboardItem({'text/plain':new Blob([text],{type:'text/plain'}),'text/html':new Blob([html],{type:'text/html'})})]);return true}
+   if(!html&&navigator.clipboard?.writeText){await navigator.clipboard.writeText(text);return true}
+  }catch{}
+  let done=false;
+  const onCopy=event=>{event.preventDefault();event.clipboardData.setData('text/plain',text);if(html)event.clipboardData.setData('text/html',html);done=true};
+  document.addEventListener('copy',onCopy);
+  try{document.execCommand('copy')}catch{}
+  document.removeEventListener('copy',onCopy);
+  return done;
+ }
+ // The ready table of the grid: HTML (for Word) and tab-separated text (for Excel).
+ function readyHtml(table){
+  const cell='border:1px solid #000;padding:2pt 4pt;vertical-align:top';
+  const th=text=>`<th style="${cell}">${schoolEscape(text)}</th>`,td=(text,extra='')=>`<td style="${cell}"${extra}>${schoolEscape(text)}</td>`;
+  const rows=table.rows.map(row=>row.type==='break'?`<tr>${td(row.time)}${td(row.text,` colspan="${table.days.length}" align="center"`)}</tr>`:`<tr>${td(row.time)}${row.cells.map(text=>td(text)).join('')}</tr>`);
+  return `<meta charset="utf-8"><table style="border-collapse:collapse"><tr>${th('Ώρα')}${table.days.map(th).join('')}</tr>${rows.join('')}</table>`;
+ }
+ function readyText(table){
+  return [['Ώρα',...table.days],...table.rows.map(row=>row.type==='break'?[row.time,row.text]:[row.time,...row.cells])].map(row=>row.join('\t')).join('\r\n');
+ }
+
+ // A draggable field (or the ready table) with its copy icon. status: the live line of the window.
+ function fieldChip({text,html,label,className='',display,status}){
+  const chip=el('div','dt-field'+(className?' '+className:''));chip.draggable=true;chip.title='Σύρε το στο Word ή στο Excel';
+  chip.append(el('code','',display??text));
+  const button=el('button','dt-copy');button.type='button';
+  const idle=copyIcon();
+  const setIdle=()=>{if(idle){button.innerHTML=idle}else{button.textContent='Αντιγραφή';button.classList.add('text')}button.classList.remove('copied');button.title='Αντιγραφή'};
+  setIdle();button.setAttribute('aria-label','Αντιγραφή: '+label);
+  let timer=0;
+  button.onclick=async()=>{
+   const ok=await copyData(text,html);
+   clearTimeout(timer);
+   if(ok){button.textContent='✓';button.classList.remove('text');button.classList.add('copied');button.title='Αντιγράφηκε';timer=setTimeout(setIdle,1500)}
+   status.className='dt-fields-status'+(ok?'':' ui-validation-warning');
+   status.textContent=ok?'Αντιγράφηκε: '+label:'Η αντιγραφή δεν έγινε. Σύρε το πεδίο στο έγγραφο ή γράψ\' το με το χέρι.';
+  };
+  chip.addEventListener('dragstart',event=>{event.dataTransfer.effectAllowed='copy';event.dataTransfer.setData('text/plain',text);if(html)event.dataTransfer.setData('text/html',html)});
+  chip.append(button);
+  return chip;
+ }
+
+ // The field the search names, e.g. «Πρ.Τε.3» → «@Εκπ.Πρ.Τε.3» and «@Τμ.Πρ.Τε.3» (SchoolDocumentFields.recognize,
+ // also without the shared file). → {canonical:[…], hint, key}
+ function searchedField(query){
+  const text=String(query).replace(/[{}]/g,'').trim().split(':')[0].trim().replace(/^@/,'').replace(/\s*\.\s*/g,'.');
+  const out={canonical:[],hint:'',key:text.includes('.')?fieldKey(text):''};
+  if(!F||!text.includes('.'))return out;
+  const head=fieldKey(text.split('.')[0]);
+  const candidates=['ΕΚΠ','ΤΜ','ΩΡΑ','ΜΑΘΗΜΑ'].includes(head)?[MARK+text]:[MARK+'Εκπ.'+text,MARK+'Τμ.'+text];
+  const messages=[];
+  for(const candidate of candidates){const item=F.recognize(candidate,docCtx);if(item.canonical)out.canonical.push(item.canonical);else if(item.message)messages.push(item.message)}
+  // Only a specific reason (hour, day or subject code that does not exist), not «the field is not in the catalogue».
+  if(!out.canonical.length)out.hint=messages.find(message=>!/δεν υπάρχει στον κατάλογο/.test(message))||'';
+  return out;
+ }
+ const templateRegex=name=>new RegExp('^'+fieldKey(name).split(/<[^>]+>/).map(regexText).join('[^.]+')+'$');
+ // The names of a row that the search names: canonical fields, or names that contain the search at dot boundaries.
+ function rowSpecific(field,search){
+  if(!search.key)return [];
+  const names=field.pattern?field.names:[field.name];
+  if(field.pattern&&!names.length){const re=templateRegex(field.name);return search.canonical.filter(name=>re.test(fieldKey(name)))}
+  const canonical=new Set(search.canonical.map(fieldKey));
+  const exact=names.filter(name=>canonical.has(fieldKey(name)));
+  if(exact.length)return exact;
+  const re=new RegExp('(^|[.@])'+regexText(search.key)+'($|\\.)');
+  const found=names.filter(name=>re.test(fieldKey(name)));
+  return found.length<=3?found:[];
+ }
+ // Common prefix of the first and last field up to a dot: what is left names the field of a pattern row («Δε.2»).
+ function patternSuffix(field,name){
+  const a=field.first||'',b=field.last||'';let i=0;while(i<a.length&&a[i]===b[i])i++;
+  const prefix=a.slice(0,a.lastIndexOf('.',i-1)+1);
+  return name.startsWith(prefix)?name.slice(prefix.length):name;
+ }
+
+ function openCatalog(){
+  if(catalogShown)return;
+  catalogShown=true;
+  const root=el('div','dt-fields'),status=el('p','dt-fields-status');status.setAttribute('role','status');status.setAttribute('aria-live','polite');
+  if(!F){
+   root.append(el('p','dt-fields-note','Δεν φορτώθηκε ο κατάλογος των πεδίων. Βεβαιώσου ότι το _data.js είναι η τελευταία έκδοση.'));
+   schoolChoiceDialog({title:'Πεδία',content:root,className:'dt-fields-dialog',actions:[{label:'Κλείσιμο',cancel:true}]}).finally(()=>{catalogShown=false});
+   return;
+  }
+  const catalog=F.catalog(docCtx);
+  const search=el('input','dt-fields-search');search.type='search';search.placeholder='Αναζήτηση (π.χ. «ώρες», «πλήρες όνομα», «Πρ.Τε.3»)';
+  search.setAttribute('aria-label','Αναζήτηση πεδίων');search.autocomplete='off';search.spellcheck=false;
+  root.append(search);
+  // «Παράδειγμα για»: starts from the first chosen teacher and class (in the order of the lists), else the last choice here.
+  const staffItems=staffList(),classItems=classList();
+  const firstPicked=(items,set)=>items.find(item=>set.has(item.id))?.id||'';
+  catalogView.staff=firstPicked(staffItems,picked.staff)||(staffItems.some(item=>item.id===catalogView.staff)?catalogView.staff:'');
+  catalogView.class=firstPicked(classItems,picked.class)||(classItems.some(item=>item.id===catalogView.class)?catalogView.class:'');
+  if(input){
+   const row=el('div','dt-example');row.append(el('span','','Παράδειγμα για:'));
+   const makeSelect=(scope,items,label,text)=>{
+    const select=el('select');select.setAttribute('aria-label',label);
+    select.append(new Option(scope==='staff'?'— εκπαιδευτικός: σταθερό παράδειγμα —':'— τμήμα: σταθερό παράδειγμα —',''));
+    for(const item of items)select.append(new Option(text(item),item.id));
+    select.value=catalogView[scope];
+    select.onchange=()=>{catalogView[scope]=select.value;render(true)};
+    return select;
+   };
+   row.append(makeSelect('staff',staffItems,'Εκπαιδευτικός για τα παραδείγματα',item=>item.name||item.shortName||''),
+    makeSelect('class',classItems,'Τμήμα για τα παραδείγματα',item=>item.name||''));
+   row.append(el('span','dt-example-period','Περίοδος: '+(docCtx?.period?periodLabel(docCtx.period):periods().length?'καμία':'δεν υπάρχουν περίοδοι')));
+   root.append(row);
+   if(docCtx?.slotError)root.append(el('p','dt-fields-note','Ώρες Διδασκαλίας: '+docCtx.slotError));
+  }else root.append(el('p','dt-fields-note','Σταθερά παραδείγματα· για πραγματικές τιμές άνοιξε το κοινό αρχείο από την αρχική σελίδα του Κεντρικού Μενού.'));
+  root.append(status);
+  const body=el('div','dt-fields-body');root.append(body);
+
+  const colgroup=()=>{const group=el('colgroup');for(const name of ['field','type','help','example']){const col=el('col','dt-c-'+name);group.append(col)}return group};
+  const headRow=()=>{const tr=el('tr');for(const text of ['Πεδίο','Τύπος','Επεξήγηση','Παράδειγμα'])tr.append(el('th','',text));return tr};
+
+  // One row of a group → {tr, hay (text for the search), specific (names the search found)}.
+  function rowElement(cells){
+   const tr=el('tr');
+   for(const [name,content] of [['field',cells.field],['type',cells.type],['help',cells.help],['example',cells.example]]){
+    const td=el('td','dt-col-'+name);if(content instanceof Node)td.append(content);else if(Array.isArray(content))td.append(...content);else if(content)td.textContent=content;tr.append(td);
+   }
+   return tr;
+  }
+  const exampleLine=(content,className='')=>{const line=el('div','dt-example-line'+(className?' '+className:''));if(Array.isArray(content))line.append(...content);else line.textContent=content;return line};
+  const valueLine=(value,where)=>{
+   const parts=[value!==''?el('span','',value):el('span','dt-example-empty','(κενό)')];
+   if(where)parts.push(' ',el('span','dt-where','('+where+')'));
+   return exampleLine(parts);
+  };
+  const staticLine=example=>example?exampleLine('π.χ. '+example,'dt-example-static'):exampleLine('—','dt-example-static');
+
+  function groupModel(group,query){
+   const scope=group.key.startsWith('staff')?'staff':group.key.startsWith('class')?'class':'common';
+   const targetId=scope==='common'?'':catalogView[scope];
+   const target=targetId?{type:scope,id:targetId}:null;
+   const needsProgram=PROGRAM_GROUPS.has(group.key);
+   const canReal=!!input&&(scope==='common'||!!target)&&(!needsProgram||!!docCtx?.program);
+   const terms=query.terms,searching=!!terms.length;
+   const matches=hay=>terms.every(term=>hay.includes(term));
+   const rows=[];
+   // The ready table of the grid, first in «Πρόγραμμα εκπαιδευτικού» / «Πρόγραμμα τμήματος».
+   if(READY_GROUPS[group.key]){
+    const kind=READY_GROUPS[group.key],table=F.readyTable(kind,docCtx),title='Έτοιμος πίνακας '+(kind==='staff'?'εκπαιδευτικού':'τμήματος');
+    const hay=plainUpper([title,'πίνακας πλέγμα πρόγραμμα',group.label].join(' '));
+    if(!searching||matches(hay)){
+     const slotsN=table.rows.filter(row=>row.type==='slot').length,breaks=table.rows.length-slotsN;
+     const help=table.rows.length
+      ?`Γραμμές οι ώρες (${slotsN}) και στήλες οι ημέρες, με τα πεδία {{@Ώρα.…}} στην πρώτη στήλη`+(breaks?` και ${breaks===1?'1 διάλειμμα':breaks+' διαλείμματα'} με την ώρα τους.`:'.')+' Σύρε τον στο Word ή στο Excel, ή αντίγραψέ τον.'
+      :'Ο πίνακας φτιάχνεται από τις Ώρες Διδασκαλίας: χρειάζεται ανοιχτό κοινό αρχείο.';
+     const field=table.rows.length?fieldChip({text:readyText(table),html:readyHtml(table),label:title,display:title,className:'ready',status}):el('span','dt-field-template',title);
+     rows.push(rowElement({field,type:TYPE_SHORT.Table,help,example:''}));
+    }
+   }
+   const items=[];
+   for(const field of group.fields){
+    const names=field.pattern?field.names:[field.name];
+    const specific=rowSpecific(field,query.search);
+    const hay=plainUpper([field.name,...names,field.help,group.label,TYPE_SHORT[field.type]||''].join(' '));
+    if(searching&&!matches(hay)&&!specific.length)continue;
+    items.push({field,names,specific});
+   }
+   // Lessons of the Ωρολόγιο of the period, each with its fields.
+   const subjects=group.key==='subjects'?(catalog.subjects||[]).map(item=>({item,names:[MARK+'Μάθημα.'+item.code,MARK+'Μάθημα.'+item.code+'.Πλήρες']}))
+    .filter(entry=>!searching||matches(plainUpper([entry.item.code,entry.item.name,entry.item.longName,group.label,'μάθημα'].join(' ')))||entry.names.some(name=>query.search.canonical.some(c=>fieldKey(c)===fieldKey(name)))):[];
+   // Real values: one SchoolDocumentFields.values for the group.
+   let values=new Map();
+   if(canReal){
+    const all=[...items.flatMap(entry=>[...entry.names,...entry.specific]),...subjects.flatMap(entry=>entry.names)];
+    if(all.length)values=F.values(all,target,docCtx);
+   }
+   const total=group.fields.length+(READY_GROUPS[group.key]?1:0)+(group.key==='subjects'?(catalog.subjects||[]).length:0);
+   for(const {field,names,specific} of items){
+    const chips=[];
+    if(field.pattern&&!names.length)chips.push(el('span','dt-field-template',braces(field.name)));
+    else if(field.pattern){
+     chips.push(fieldChip({text:braces(field.first),label:braces(field.first),status}));
+     if(field.last&&field.last!==field.first){chips.push(el('div','dt-field-gap','…'),fieldChip({text:braces(field.last),label:braces(field.last),status}))}
+    }else chips.push(fieldChip({text:braces(field.name),label:braces(field.name),status,className:specific.length?'found':''}));
+    // The field the search names: marked when it is the first or last field, else added under them.
+    if(field.pattern)for(const name of specific){
+     const chip=chips.find(item=>item.classList.contains('dt-field')&&item.querySelector('code').textContent===braces(name));
+     if(chip)chip.classList.add('found');else chips.push(fieldChip({text:braces(name),label:braces(name),status,className:'found'}));
+    }
+    // A common field of the period needs a period; the Ωρολόγιο fields need the Ωρολόγιο (canReal).
+    const real=canReal&&!(scope==='common'&&!field.pattern&&!docCtx?.period&&F.recognize(field.name,docCtx).needsPeriod)&&(!field.pattern||names.length>0);
+    const example=[];
+    if(real){
+     // Pattern row: the first value that says something (not empty, and for numbers not «0»).
+     if(field.pattern){const has=name=>(values.get(name)??'')!=='',first=names.find(name=>has(name)&&values.get(name)!=='0')||names.find(has);example.push(first?valueLine(values.get(first),patternSuffix(field,first)):valueLine('',''))}
+     else example.push(valueLine(values.get(field.name)??'',''));
+     if(field.pattern)for(const name of specific)example.push(valueLine(values.get(name)??'',patternSuffix(field,name)));
+    }else example.push(staticLine(field.example));
+    rows.push(rowElement({field:chips,type:el('span','dt-type',TYPE_SHORT[field.type]||field.type),help:field.help,example}));
+   }
+   for(const {item,names} of subjects){
+    const chips=names.map(name=>fieldChip({text:braces(name),label:braces(name),status,className:query.search.canonical.some(c=>fieldKey(c)===fieldKey(name))?'found':''}));
+    const example=[valueLine(values.get(names[0])??item.name,''),valueLine(values.get(names[1])??(item.longName||item.name),'Πλήρες')];
+    rows.push(rowElement({field:chips,type:el('span','dt-type',TYPE_SHORT.Text),help:`Μάθημα του Ωρολογίου με κωδικό «${item.code}» στο FET: το όνομα και το πλήρες όνομα.`,example}));
+   }
+   if(group.key==='subjects'&&!searching&&!(catalog.subjects||[]).length){
+    const tr=el('tr','dt-note-row'),td=el('td','',input?'Διάλεξε στα «Στοιχεία σχολείου» περίοδο με Ωρολόγιο, για να φανούν εδώ τα μαθήματα και οι κωδικοί τους.':'Με ανοιχτό κοινό αρχείο και περίοδο με Ωρολόγιο φαίνονται εδώ τα μαθήματα και οι κωδικοί τους.');
+    td.colSpan=4;tr.append(td);rows.push(tr);
+   }
+   return {rows,total,shown:rows.filter(tr=>!tr.classList.contains('dt-note-row')).length};
+  }
+
+  function render(keepScroll=false){
+   const top=body.scrollTop,raw=search.value.trim();
+   const terms=plainUpper(raw.replace(/[{}@]/g,' ')).split(/\s+/).map(term=>term.split(':')[0]).filter(Boolean);
+   const query={terms,search:raw?searchedField(raw):{canonical:[],hint:'',key:''}};
+   const searching=!!terms.length;
+   body.replaceChildren();
+   const head=el('table','dt-table dt-table-head');head.setAttribute('aria-hidden','true');head.append(colgroup(),el('thead'));head.tHead.append(headRow());
+   body.append(head);
+   let shownAll=0;
+   for(const group of catalog.groups){
+    const model=groupModel(group,query);
+    if(searching&&!model.shown)continue;
+    shownAll+=model.shown;
+    const details=el('details','dt-group');details.dataset.key=group.key;
+    details.open=searching||catalogView.open.has(group.key);
+    const summary=el('summary');summary.append(el('span','dt-group-title',group.label),el('span','dt-group-count',searching?`${model.shown} από ${model.total}`:String(model.total)));
+    details.append(summary);
+    // The open groups are remembered only outside a search (a search opens the groups with results).
+    details.addEventListener('toggle',()=>{if(search.value.trim())return;if(details.open)catalogView.open.add(group.key);else catalogView.open.delete(group.key)});
+    const table=el('table','dt-table'),thead=el('thead','dt-sr'),tbody=el('tbody');
+    thead.append(headRow());tbody.append(...model.rows);table.append(colgroup(),thead,tbody);
+    table.setAttribute('aria-label',group.label);
+    details.append(table);body.append(details);
+   }
+   if(searching&&!shownAll)body.append(el('div','dt-empty',`Δεν βρέθηκαν πεδία για «${raw}».`));
+   // Status line: the reason a searched field does not exist, else how many rows the search found.
+   if(query.search.hint){status.className='dt-fields-status ui-validation-warning';status.textContent=query.search.hint}
+   else if(searching){status.className='dt-fields-status';status.textContent=shownAll===1?'Βρέθηκε 1 γραμμή.':`Βρέθηκαν ${shownAll} γραμμές.`}
+   else if(!keepScroll||status.classList.contains('ui-validation-warning')){status.className='dt-fields-status';status.textContent=''}
+   body.scrollTop=keepScroll?top:0;
+  }
+  search.addEventListener('input',()=>render(false));
+  // Esc in a non-empty search clears it first; the next Esc closes the window.
+  search.addEventListener('keydown',event=>{if(event.key==='Escape'&&search.value){event.preventDefault();event.stopPropagation();search.value='';render(false)}});
+  render(false);
+  schoolChoiceDialog({title:'Πεδία',content:root,className:'dt-fields-dialog',actions:[{label:'Κλείσιμο',cancel:true}],ready:()=>search.focus()})
+   .finally(()=>{catalogShown=false});
+ }
+ $('openCatalog').onclick=openCatalog;
 
  renderFiles();
  renderSchool();
