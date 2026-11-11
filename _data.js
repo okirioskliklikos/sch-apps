@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων
- * Έκδοση αρχείου: 0.30
+ * Έκδοση αρχείου: 0.31
  * Όνομα κατά την εγκατάσταση: _data.js
  *
  * Φορτώνεται από όσες υποεφαρμογές διαβάζουν ή γράφουν CSV, FET, ημερομηνίες ή προγράμματα, μετά
@@ -2084,32 +2084,40 @@
       if (variant === undefined) return unknown();
       return ok(prefix + 'Πρ.' + day.key + '.' + slot + (variant ? '.' + variant : ''), scope, 'Text', {family: 'grid', day, slot, variant});
     }
+    // An optional zone right after «Ώρες» (and «Εκπαιδευτικός»): only the hours of that zone count,
+    // e.g. «Ώρες.Πρωινό.Μάθημα.ΓΛ.Δε.Ποιες», «Ώρες.Πρωινό.Δε», «Εκπαιδευτικός.Πρωινό.Μάθημα.ΓΛ».
+    const zoneOf = value => DOC_ZONES.find(item => compareKey(item.key) === compareKey(value)) || null;
+    const dayOf = value => DOC_DAYS.find(item => compareKey(item.key) === compareKey(value)) || null;
+    const dayError = value => fail('Η ημέρα ' + quoted(value) + ' δεν υπάρχει· οι ημέρες είναι Δε, Τρ, Τε, Πε, Πα.');
     if (first === 'ΩΡΕΣ') {
       if (rest.length === 1) return ok(prefix + 'Ώρες', scope, 'Integer', {family: 'hours'});
-      if (compareKey(rest[1]) === 'ΜΑΘΗΜΑ') {
-        if (rest.length < 3 || rest.length > 5) return unknown();
-        const code = docCode(rest[2], info);
-        if (!code) return codeError(rest[2]);
-        let name = prefix + 'Ώρες.Μάθημα.' + code, day = null, which = false;
-        if (rest.length >= 4) {
-          day = DOC_DAYS.find(item => compareKey(item.key) === compareKey(rest[3]));
-          if (!day) return fail('Η ημέρα ' + quoted(rest[3]) + ' δεν υπάρχει· οι ημέρες είναι Δε, Τρ, Τε, Πε, Πα.');
+      const zone = zoneOf(rest[1]), tail = rest.slice(zone ? 2 : 1), head = prefix + 'Ώρες.' + (zone ? zone.key + '.' : '');
+      if (!tail.length) return ok(prefix + 'Ώρες.' + zone.key, scope, 'Integer', {family: 'hours', zone});
+      if (compareKey(tail[0]) === 'ΜΑΘΗΜΑ') {
+        if (tail.length < 2 || tail.length > 4) return unknown();
+        const code = docCode(tail[1], info);
+        if (!code) return codeError(tail[1]);
+        let name = head + 'Μάθημα.' + code, day = null, which = false;
+        if (tail.length >= 3) {
+          day = dayOf(tail[2]);
+          if (!day) return dayError(tail[2]);
           name += '.' + day.key;
         }
-        if (rest.length === 5) { if (compareKey(rest[4]) !== 'ΠΟΙΕΣ') return unknown(); which = true; name += '.Ποιες'; }
-        return ok(name, scope, which ? 'Text' : 'Integer', {family: 'subjectHours', code, day, which});
+        if (tail.length === 4) { if (compareKey(tail[3]) !== 'ΠΟΙΕΣ') return unknown(); which = true; name += '.Ποιες'; }
+        return ok(name, scope, which ? 'Text' : 'Integer', {family: 'subjectHours', code, day, which, zone});
       }
-      if (rest.length !== 2) return unknown();
-      const zone = DOC_ZONES.find(item => compareKey(item.key) === compareKey(rest[1]));
-      if (zone) return ok(prefix + 'Ώρες.' + zone.key, scope, 'Integer', {family: 'hours', zone});
-      const day = DOC_DAYS.find(item => compareKey(item.key) === compareKey(rest[1]));
-      if (day) return ok(prefix + 'Ώρες.' + day.key, scope, 'Integer', {family: 'hours', day});
+      if (tail.length !== 1) return unknown();
+      const day = dayOf(tail[0]);
+      if (day) return ok(head + day.key, scope, 'Integer', {family: 'hours', day, zone});
       return unknown();
     }
-    if (scope === 'class' && first === 'ΕΚΠΑΙΔΕΥΤΙΚΟΣ' && rest.length === 3 && compareKey(rest[1]) === 'ΜΑΘΗΜΑ') {
-      const code = docCode(rest[2], info);
-      if (!code) return codeError(rest[2]);
-      return ok(prefix + 'Εκπαιδευτικός.Μάθημα.' + code, scope, 'Text', {family: 'subjectTeachers', code});
+    if (scope === 'class' && first === 'ΕΚΠΑΙΔΕΥΤΙΚΟΣ' && rest.length >= 3) {
+      const zone = zoneOf(rest[1]), tail = rest.slice(zone ? 2 : 1);
+      if (tail.length === 2 && compareKey(tail[0]) === 'ΜΑΘΗΜΑ') {
+        const code = docCode(tail[1], info);
+        if (!code) return codeError(tail[1]);
+        return ok(prefix + 'Εκπαιδευτικός.' + (zone ? zone.key + '.' : '') + 'Μάθημα.' + code, scope, 'Text', {family: 'subjectTeachers', code, zone});
+      }
     }
     return unknown();
   }
@@ -2219,21 +2227,21 @@
     if (spec.variant === 'Αίθουσα') return docJoin(cell.map(activity => activity.room), ' / ');
     return docJoin(cell.map(activity => { const who = docJoin(docTeachers(c, activity, false), ', '); return subject(activity) + (who ? ' (' + who + ')' : ''); }), ' / ');
   }
+  // The hours of the grid in a zone (all of them without a zone), and the times that fall in them.
+  const docZoneSlots = (c, zone) => zone ? c.slots.filter(slot => slot.zone === zone.key) : c.slots;
+  const docInZone = (c, items, zone) => { if (!zone) return items; const slots = docZoneSlots(c, zone); return items.filter(item => slots.some(slot => slotOverlaps(item.time, slot))); };
   function docHoursValue(c, data, spec) {
     let items = docTimes(data);
     if (spec.day) items = items.filter(item => item.time.day === spec.day.day);
-    if (spec.zone) {
-      const zoneSlots = c.slots.filter(slot => slot.zone === spec.zone.key);
-      items = items.filter(item => zoneSlots.some(slot => slotOverlaps(item.time, slot)));
-    }
-    return String(items.length);
+    return String(docInZone(c, items, spec.zone).length);
   }
   function docSubjectHoursValue(c, data, spec) {
     const keys = docSubjectKeys(c, spec.code);
     let items = docTimes(data, data.list.filter(activity => keys.has(compareKey(activity.subject))));
     if (spec.day) items = items.filter(item => item.time.day === spec.day.day);
+    items = docInZone(c, items, spec.zone);
     if (!spec.which) return String(items.length);
-    return unique(c.slots.filter(slot => items.some(item => slotOverlaps(item.time, slot))).map(slot => slot.key)).join('+');
+    return unique(docZoneSlots(c, spec.zone).filter(slot => items.some(item => slotOverlaps(item.time, slot))).map(slot => slot.key)).join('+');
   }
 
   // Οι τιμές των πεδίων «@» για έναν εκπαιδευτικό ({type:'staff', id}), ένα τμήμα ({type:'class', id}) ή μόνο
@@ -2269,8 +2277,10 @@
       else if (spec.family === 'hours') out.set(name, docHoursValue(c, data, spec));
       else if (spec.family === 'subjectHours') out.set(name, docSubjectHoursValue(c, data, spec));
       else if (spec.family === 'subjectTeachers') {
-        const keys = docSubjectKeys(c, spec.code);
-        out.set(name, docJoin(data.list.filter(activity => keys.has(compareKey(activity.subject))).flatMap(activity => docTeachers(c, activity, false)), ', '));
+        // With a zone: only those who teach the lesson at an hour of that zone.
+        const keys = docSubjectKeys(c, spec.code), slots = docZoneSlots(c, spec.zone);
+        const inZone = activity => !spec.zone || (activity.times || []).some(time => slots.some(slot => slotOverlaps(time, slot)));
+        out.set(name, docJoin(data.list.filter(activity => keys.has(compareKey(activity.subject)) && inZone(activity)).flatMap(activity => docTeachers(c, activity, false)), ', '));
       }
     }
     return out;
@@ -2319,6 +2329,15 @@
         pattern(codes ? codes.flatMap(code => DOC_DAYS.map(day => M + P + '.Ώρες.Μάθημα.' + code + '.' + day.key + '.Ποιες')) : null, M + P + '.Ώρες.Μάθημα.<κωδικός>.<ημέρα>.Ποιες', 'Text', 'Ποιες ώρες έχει ένα μάθημα μία ημέρα, ενωμένες με «+», π.χ. «2» ή «3+4».', '3+4')
       ];
       if (scope === 'class') hours.push(pattern(byCode(code => M + 'Τμ.Εκπαιδευτικός.Μάθημα.' + code), M + 'Τμ.Εκπαιδευτικός.Μάθημα.<κωδικός>', 'Text', 'Ποιος διδάσκει ένα μάθημα στο τμήμα (πολλοί με «, »).', 'Μάρκου Παρασκευή'));
+      // The same fields for one zone (the zone right after «Ώρες»): e.g. only the Πρωινό, without the Ολοήμερο.
+      const zoneNote = ' Μόνο οι ώρες μιας ζώνης (' + DOC_ZONES.map(zone => zone.key).join(', ') + ').';
+      const byZone = make => DOC_ZONES.flatMap(make);
+      hours.push(
+        pattern(byZone(zone => DOC_DAYS.map(day => M + P + '.Ώρες.' + zone.key + '.' + day.key)), '', 'Integer', 'Οι ώρες μιας ζώνης σε κάθε ημέρα, π.χ. οι ώρες του Πρωινού τη Δευτέρα.', '5'),
+        pattern(codes ? byZone(zone => codes.map(code => M + P + '.Ώρες.' + zone.key + '.Μάθημα.' + code)) : null, M + P + '.Ώρες.<ζώνη>.Μάθημα.<κωδικός>', 'Integer', 'Οι ώρες σε ένα μάθημα.' + zoneNote, '6'),
+        pattern(codes ? byZone(zone => codes.flatMap(code => DOC_DAYS.map(day => M + P + '.Ώρες.' + zone.key + '.Μάθημα.' + code + '.' + day.key))) : null, M + P + '.Ώρες.<ζώνη>.Μάθημα.<κωδικός>.<ημέρα>', 'Integer', 'Οι ώρες σε ένα μάθημα μία ημέρα.' + zoneNote, '2'),
+        pattern(codes ? byZone(zone => codes.flatMap(code => DOC_DAYS.map(day => M + P + '.Ώρες.' + zone.key + '.Μάθημα.' + code + '.' + day.key + '.Ποιες'))) : null, M + P + '.Ώρες.<ζώνη>.Μάθημα.<κωδικός>.<ημέρα>.Ποιες', 'Text', 'Ποιες ώρες έχει ένα μάθημα μία ημέρα, ενωμένες με «+».' + zoneNote, '3+4'));
+      if (scope === 'class') hours.push(pattern(codes ? byZone(zone => codes.map(code => M + 'Τμ.Εκπαιδευτικός.' + zone.key + '.Μάθημα.' + code)) : null, M + 'Τμ.Εκπαιδευτικός.<ζώνη>.Μάθημα.<κωδικός>', 'Text', 'Ποιος διδάσκει ένα μάθημα στο τμήμα, σε ώρες μιας ζώνης (πολλοί με «, »).', 'Μάρκου Παρασκευή'));
       const title = scope === 'staff' ? 'Εκπαιδευτικός' : 'Τμήμα';
       const details = (scope === 'staff' ? DOC_STAFF : DOC_CLASS).map(field => plain(field, P + '.'));
       if (scope === 'class') details.push(...DOC_HOMEROOM.map(field => ({...plain(field, P + '.Υπεύθυνος.'), help: 'Του υπευθύνου του τμήματος (κενό χωρίς υπεύθυνο): ' + field.help.charAt(0).toLocaleLowerCase('el') + field.help.slice(1)})));
@@ -2358,15 +2377,17 @@
 
   // Ο έτοιμος πίνακας μαθημάτων (scope 'staff' ή 'class'), για έντυπα με μία γραμμή ανά μάθημα, χωρίς επικεφαλίδες.
   //   rows: οι κωδικοί των μαθημάτων με τη σειρά του εντύπου, null για κενή γραμμή.
+  //   options.zone: μια ζώνη του ZONES (π.χ. 'Πρωινό'), για τα πεδία μόνο αυτής της ζώνης· χωρίς αυτή, όλες οι ζώνες.
   // → {days:[['{{@Τμ.Ώρες.Μάθημα.ΓΛ.Δε.Ποιες}}'…5] | ['','','','',''] …], teachers:['{{@Τμ.Εκπαιδευτικός.Μάθημα.ΓΛ}}' | ''…] | null}
   //   (teachers μόνο για τμήμα). Ένας κωδικός γράφεται όπως στο Ωρολόγιο της περιόδου, όταν υπάρχει.
-  function docSubjectTable(scope, rows, c) {
+  function docSubjectTable(scope, rows, c, options = {}) {
+    const zone = DOC_ZONES.find(item => compareKey(item.key) === compareKey(options.zone)), Z = zone ? zone.key + '.' : '';
     const P = DOC_MARK + DOC_SCOPE_PREFIX[scope];
     const codeOf = code => code == null || String(code).trim() === '' ? null : c?.info?.codes?.get(compareKey(code)) || String(code).trim();
     const codes = (rows || []).map(codeOf);
     return {
-      days: codes.map(code => code ? DOC_DAYS.map(day => '{{' + P + '.Ώρες.Μάθημα.' + code + '.' + day.key + '.Ποιες}}') : DOC_DAYS.map(() => '')),
-      teachers: scope === 'class' ? codes.map(code => code ? '{{' + P + '.Εκπαιδευτικός.Μάθημα.' + code + '}}' : '') : null
+      days: codes.map(code => code ? DOC_DAYS.map(day => '{{' + P + '.Ώρες.' + Z + 'Μάθημα.' + code + '.' + day.key + '.Ποιες}}') : DOC_DAYS.map(() => '')),
+      teachers: scope === 'class' ? codes.map(code => code ? '{{' + P + '.Εκπαιδευτικός.' + Z + 'Μάθημα.' + code + '}}' : '') : null
     };
   }
 

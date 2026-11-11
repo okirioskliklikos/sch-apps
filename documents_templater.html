@@ -1,4 +1,4 @@
-<!doctype html><html lang="el" class="subapp-page"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Documents Templater v0.34</title><link rel="stylesheet" href="_ui.css">
+<!doctype html><html lang="el" class="subapp-page"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Documents Templater v0.35</title><link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <script src="_lib_jszip.min.js"></script>
 <style>
@@ -125,6 +125,7 @@
 .dt-subjects-actions{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}
 .dt-subjects-actions .dt-field{margin:0}
 .dt-subjects-empty{font-size:13px;color:var(--school-ui-muted)}
+.dt-subjects-zone{display:inline-flex;align-items:center;gap:6px;font-size:14px}
 /* A field: dragged as plain text into Word or Excel; the copy icon shows when the pointer is over it (or on focus). */
 .dt-field{display:flex;align-items:center;gap:4px;width:max-content;max-width:100%;padding:1px 2px 1px 6px;border:1px solid transparent;border-radius:6px;cursor:grab}
 .dt-field+.dt-field,.dt-field-gap+.dt-field{margin-top:2px}
@@ -153,7 +154,7 @@
  .dt-table td.dt-col-help,.dt-table td.dt-col-example{grid-column:1 / -1}
  .dt-table td.dt-col-example:empty{display:none}
 }
-</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Documents Templater — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>DT</span></span><span class="brand-text"><span>Documents Templater</span><span class="small version">v0.34</span></span></button></h1></div><button id="reset" type="button" disabled>Αναίρεση Όλων</button><span class="sep" aria-hidden="true"></span><button id="openCatalog" type="button" title="Όλα τα πεδία από το κοινό αρχείο, για μεταφορά ή αντιγραφή στα πρότυπα">Πεδία…</button><div class="header-right"><button id="findFields" class="primary subapp-change-dot" type="button" disabled>Ανεύρεση πεδίων</button><button id="produce" class="success subapp-change-dot" type="button" disabled>Παραγωγή Εγγράφων</button></div></header>
+</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Documents Templater — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>DT</span></span><span class="brand-text"><span>Documents Templater</span><span class="small version">v0.35</span></span></button></h1></div><button id="reset" type="button" disabled>Αναίρεση Όλων</button><span class="sep" aria-hidden="true"></span><button id="openCatalog" type="button" title="Όλα τα πεδία από το κοινό αρχείο, για μεταφορά ή αντιγραφή στα πρότυπα">Πεδία…</button><div class="header-right"><button id="findFields" class="primary subapp-change-dot" type="button" disabled>Ανεύρεση πεδίων</button><button id="produce" class="success subapp-change-dot" type="button" disabled>Παραγωγή Εγγράφων</button></div></header>
 <main id="layout" class="subapp-wide-aside">
 <aside id="filesPane" aria-label="Στοιχεία σχολείου και αρχεία">
  <section id="schoolSection" class="side-section" aria-labelledby="schoolTitle" hidden>
@@ -391,7 +392,38 @@ window.TemplaterModel=(()=>{
    }
    if(!changed)break;
   }
+  // Formulas computed here only when simple (IF / SUM above) and when every formula they refer to is computed here too.
+  // All the others (COUNTA, COUNTIF, …) lose their cached result: LibreOffice keeps a cached result as it is (it ignores
+  // fullCalcOnLoad) but computes a formula that has none; Excel recalculates all of them on load anyway.
+  const simpleFormula=formula=>{
+   if(/^IF\(\s*(\$?[A-Z]{1,3}\$?\d+)\s*<>\s*""\s*,\s*(\$?[A-Z]{1,3}\$?\d+)\s*,\s*""\s*\)$/i.test(formula))return true;
+   const sm=formula.match(/^SUM\s*\(([^()]*)\)$/i);
+   return !!sm&&sm[1].split(',').every(part=>/^\$?[A-Z]{1,3}\$?\d+(?::\$?[A-Z]{1,3}\$?\d+)?$/i.test(part.trim()));
+  };
+  const refsOf=formula=>{
+   const out=[];
+   for(const m of formula.matchAll(/\$?([A-Z]{1,3})\$?(\d+)(?::\$?([A-Z]{1,3})\$?(\d+))?/gi)){
+    const c1=colNum(m[1].toUpperCase()),r1=Number(m[2]),c2=m[3]?colNum(m[3].toUpperCase()):c1,r2=m[4]?Number(m[4]):r1;
+    for(let row=Math.min(r1,r2);row<=Math.max(r1,r2);row++)for(let col=Math.min(c1,c2);col<=Math.max(c1,c2);col++)out.push(colName(col)+row);
+   }
+   return out;
+  };
+  const computed=new Set(formulas.filter(c=>simpleFormula(formulaFor(c))));
+  for(let again=true;again;){
+   again=false;
+   for(const c of [...computed]){
+    if(refsOf(formulaFor(c)).some(ref=>{const other=cells.get(ref);return other&&other!==c&&other.getElementsByTagName('f').length&&!computed.has(other)})){computed.delete(c);again=true}
+   }
+  }
+  for(const c of formulas){
+   if(computed.has(c))continue;
+   const v=c.getElementsByTagName('v')[0];if(v)c.removeChild(v);
+   c.removeAttribute('t');
+  }
  }
+ // NUMBER_TEXT: a text field written as a number when its value is a plain number and it is the whole cell
+ // (the «.Ποιες» fields: «6» becomes a number, «3+4» or «ΟΛΟ1» stay text).
+ const NUMBER_TEXT='NumberText';
  // Writes the text of a cell with its fields replaced (only the content: the style «s» of the cell stays).
  // force: write even when no field of the map is found (a copied cell of an anchored block).
  function fillCell(doc,c,text,map,types,force=false){
@@ -399,7 +431,7 @@ window.TemplaterModel=(()=>{
   let changed=force,fieldType='Text',numericWhole=false;
   const replaced=text.replace(/\{\{\s*([^{}]+?)\s*\}\}/g,(all,raw)=>{
    const p=parseToken(raw);if(!map.has(p.name))return all;
-   changed=true;fieldType=types.get(p.name)||p.type;numericWhole=!!full&&(fieldType==='Decimal'||fieldType==='Integer');
+   changed=true;fieldType=types.get(p.name)||p.type;numericWhole=!!full&&(fieldType==='Decimal'||fieldType==='Integer'||fieldType===NUMBER_TEXT);
    return String(map.get(p.name));
   });
   if(!changed)return;
@@ -479,7 +511,7 @@ window.TemplaterModel=(()=>{
   if(SchoolDate.valid(v))return SchoolDate.format(v);
   const iso=SchoolDate.parse(v);return iso?SchoolDate.format(iso):String(value??'');
  }
- return Object.freeze({DATA_MARK,parseCsv,loadCsvValues,buildValuesCsv,scanTemplates,generateOne,invalidValue,dateText,cellRef,insideSheet});
+ return Object.freeze({DATA_MARK,NUMBER_TEXT,parseCsv,loadCsvValues,buildValuesCsv,scanTemplates,generateOne,invalidValue,dateText,cellRef,insideSheet});
 })();
 
 (()=>{'use strict';
@@ -633,6 +665,8 @@ window.TemplaterModel=(()=>{
  // ---- Πεδία «@»: κατάσταση για τη φόρμα και την παραγωγή ----
  const dataTokens=file=>(templateTokens.get(file)||[]).filter(raw=>raw.trim().startsWith(MARK));
  const tokenName=raw=>String(raw).split(':')[0].trim();
+ // The type of a field «@» in an XLSX cell: the «.Ποιες» fields are text, but a plain number goes in as a number.
+ const cellType=name=>/\.Ποιες$/.test(name)?M.NUMBER_TEXT:recognize(name).type;
  const recognize=token=>F?F.recognize(token,docCtx):{data:true,known:false,scope:'',type:'Text',needsPeriod:false,message:''};
  // ---- Πρότυπα XLSX με άγκυρες ----
  // {{@Τμ.Άγκυρα}} / {{@Εκπ.Άγκυρα}} mark positions: all the chosen classes or teachers go into one workbook, one per
@@ -721,7 +755,7 @@ window.TemplaterModel=(()=>{
   const out=new Map();
   for(const group of plan.groups){
    const names=group.names.filter(name=>recognize(name).known);
-   for(const name of names)types.set(name,recognize(name).type);
+   for(const name of names)types.set(name,cellType(name));
    group.positions.forEach((position,index)=>{
     const id=ids[group.scope][book*group.capacity+index];
     const own=id&&F?F.values(names,{type:group.scope,id},docCtx):new Map(names.map(name=>[name,'']));
@@ -1029,7 +1063,7 @@ window.TemplaterModel=(()=>{
    const generated=[];
    for(const job of jobs){
     const map=new Map(manual),typeMap=new Map(manualTypes);
-    if(job.names.length&&F){for(const [name,value] of F.values(job.names,job.target,docCtx)){map.set(name,value);typeMap.set(name,recognize(name).type)}}
+    if(job.names.length&&F){for(const [name,value] of F.values(job.names,job.target,docCtx)){map.set(name,value);typeMap.set(name,cellType(name))}}
     if(jobs.length>1)notice(`Συμπλήρωση των εγγράφων… (${generated.length+1} από ${jobs.length})`);
     const writes=job.anchored?anchorWrites(job.anchored.plan,job.anchored.book,{staff:staffIds,class:classIds},map,typeMap):null;
     const name=job.anchored?bookName(job.file.name,job.anchored.book,job.anchored.books):F?F.fileName(job.file.name,job.target,docCtx):job.file.name;
@@ -1072,7 +1106,7 @@ window.TemplaterModel=(()=>{
  // lines, and the ticked lessons, common to teacher and class, kept while the Documents Templater is open.
  // Keys: 'c:<code>' for a lesson, 'b:<n>' for a blank line. Lessons not in the Ωρολόγιο of the period are hidden, not forgotten.
  const SUBJECT_GROUPS={staffHours:'staff',classHours:'class'};
- const subjectView={order:[],on:new Set(),blanks:0};
+ const subjectView={order:[],on:new Set(),blanks:0,zone:''};
  function subjectKeys(subjects){
   for(const item of subjects){const key='c:'+item.code;if(!subjectView.order.includes(key))subjectView.order.push(key)}
   const codes=new Set(subjects.map(item=>'c:'+item.code));
@@ -1235,7 +1269,7 @@ window.TemplaterModel=(()=>{
     box.append(el('p','dt-subjects-help',!input?'Ο πίνακας φτιάχνεται από τα μαθήματα του Ωρολογίου: χρειάζεται ανοιχτό κοινό αρχείο.':!docCtx?.period?'Χρειάζεται περίοδο με Ωρολόγιο: διάλεξέ την στα «Στοιχεία σχολείου».':!docCtx.program?`Η περίοδος ${quoted(docCtx.period.name||'')} δεν έχει Ωρολόγιο· διάλεξε περίοδο με Ωρολόγιο.`:'Το Ωρολόγιο της περιόδου δεν έχει μαθήματα με κωδικό στο FET.'));
     return tr;
    }
-   box.append(el('p','dt-subjects-help','Για έντυπα με μία γραμμή ανά μάθημα. Τσέκαρε τα μαθήματα του εντύπου και βάλ\' τα στη σειρά του με σύρσιμο από τη λαβή (ή Alt+↑/↓)· η «Κενή γραμμή» είναι για σειρές του εντύπου χωρίς μάθημα στο FET. «Ημέρες»: μία γραμμή ανά μάθημα, με στήλες Δε–Πα (επικόλληση στο κελί της Δευτέρας του πρώτου μαθήματος)'+(kind==='class'?'· «Διδάσκοντες»: μία στήλη με όσους διδάσκουν κάθε μάθημα. Οι δύο αντιγραφές είναι χωριστές, ώστε μια στήλη ανάμεσά τους (π.χ. με τύπο) να μη σβήνεται.':'.')));
+   box.append(el('p','dt-subjects-help','Για έντυπα με μία γραμμή ανά μάθημα. Τσέκαρε τα μαθήματα του εντύπου και βάλ\' τα στη σειρά του με σύρσιμο από τη λαβή (ή Alt+↑/↓)· η «Κενή γραμμή» είναι για σειρές του εντύπου χωρίς μάθημα στο FET. «Ζώνη»: μόνο οι ώρες μιας ζώνης (π.χ. Πρωινό, χωρίς το Ολοήμερο). «Ημέρες»: μία γραμμή ανά μάθημα, με στήλες Δε–Πα (επικόλληση στο κελί της Δευτέρας του πρώτου μαθήματος)'+(kind==='class'?'· «Διδάσκοντες»: μία στήλη με όσους διδάσκουν κάθε μάθημα. Οι δύο αντιγραφές είναι χωριστές, ώστε μια στήλη ανάμεσά τους (π.χ. με τύπο) να μη σβήνεται.':'.')));
    const byCode=new Map(subjects.map(item=>['c:'+item.code,item])),keys=subjectKeys(subjects);
    const listBox=el('ol','dt-subjects-list');listBox.setAttribute('aria-label','Μαθήματα του πίνακα');
    const move=(key,delta)=>{
@@ -1267,15 +1301,21 @@ window.TemplaterModel=(()=>{
    }
    box.append(listBox);
    const rows=keys.filter(key=>key.startsWith('b:')||subjectView.on.has(key.slice(2))).map(key=>key.startsWith('b:')?null:key.slice(2));
-   const table=F.subjectTable(kind,rows,docCtx);
+   const table=F.subjectTable(kind,rows,docCtx,{zone:subjectView.zone});
    const actions=el('div','dt-subjects-actions');
+   // The zone of the hours (e.g. only the Πρωινό, without the Ολοήμερο); common to teacher and class.
+   const zoneLabel=el('label','dt-subjects-zone'),zone=el('select');zone.dataset.focus=kind+'|zone';
+   zone.append(new Option('Όλες',''),...(F.ZONES||[]).map(item=>new Option(item.label,item.key)));zone.value=subjectView.zone;
+   zone.onchange=()=>{subjectView.zone=zone.value;rerender(kind+'|zone')};
+   zoneLabel.append('Ζώνη:',zone);actions.append(zoneLabel);
    const add=el('button','ui-compact-button');add.type='button';add.textContent='+ Κενή γραμμή';add.dataset.focus=kind+'|add';
    add.onclick=()=>{subjectView.order.push('b:'+(++subjectView.blanks));rerender(kind+'|add')};
    actions.append(add);
    const lessons=rows.filter(Boolean).length;
    if(!lessons)actions.append(el('span','dt-subjects-empty','Τσέκαρε τουλάχιστον ένα μάθημα.'));
    else{
-    const count=rows.length===1?'1 γραμμή':rows.length+' γραμμές';
+    const zoneName=(F.ZONES||[]).find(item=>item.key===subjectView.zone)?.label;
+    const count=(rows.length===1?'1 γραμμή':rows.length+' γραμμές')+(zoneName?', '+zoneName:'');
     actions.append(fieldChip({text:subjectText(table.days),html:subjectHtml(table.days),label:`«Ημέρες» (${count})`,display:`Ημέρες (${count})`,className:'ready',status}));
     if(table.teachers)actions.append(fieldChip({text:subjectText(table.teachers.map(text=>[text])),html:subjectHtml(table.teachers.map(text=>[text])),label:`«Διδάσκοντες» (${count})`,display:`Διδάσκοντες (${count})`,className:'ready',status}));
    }

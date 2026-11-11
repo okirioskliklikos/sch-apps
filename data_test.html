@@ -12,7 +12,7 @@
   φτιάχνονται από το σύντομο όνομα των δασκάλων («[Α1] - …», classesFromStaff). Με το .data δοκιμής, οι
   έλεγχοι των νέων ετικετών (v2) παίρνουν το Προσωπικό από αυτό, γιατί το CSV του Ολοημέρου έχει τα σύντομα
   ονόματα του Προσωπικού.
-  Έκδοση αρχείου: 0.41
+  Έκδοση αρχείου: 0.42
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -1241,6 +1241,21 @@ function documentFieldsChecks() {
   equal('Πίνακας μαθημάτων εκπαιδευτικού: χωρίς Διδάσκοντες', [subjectsStaff.days[0][0], subjectsStaff.teachers, F.subjectTable('class', [], c)], ['{{@Εκπ.Ώρες.Μάθημα.ΓΕΡ.Δε.Ποιες}}', null, {days: [], teachers: []}]);
   check('Πίνακας μαθημάτων: κάθε πεδίο αναγνωρίζεται', [...subjectsClass.days.flat(), ...subjectsClass.teachers, ...subjectsStaff.days.flat()].filter(Boolean).every(text => F.recognize(text.slice(2, -2), c).known));
   equal('Πίνακας μαθημάτων με τις τιμές: «3+4» της Δευτέρας στη Γλώσσα του Ε1', F.values([subjectsClass.days[0][0].slice(2, -2), subjectsClass.teachers[0].slice(2, -2)], {type: 'class', id: 'k1'}, c).get('@Τμ.Ώρες.Μάθημα.ΓΛ.Δε.Ποιες'), '3+4');
+  // Ζώνη μετά το «Ώρες»: μια Γλώσσα του Ε1 και στο Ολοήμερο (Πέμπτη 14:10, Κρητικού) μετρά μόνο στη ζώνη της.
+  const zoned = F.context({...input, programs: [{...program, activities: [...program.activities,
+    {id: 'a7', subject: 'Γλώσσα', staff: ['s3'], unmatched: [], classes: ['k1'], subsets: [], otherStudents: [], room: '', times: [t(4, '14:10', '14:55')]}]}]}, {periodId: 'per1'});
+  const zoneNames = ['@Τμ.Ώρες.Μάθημα.ΓΛ', '@Τμ.Ώρες.Πρωινό.Μάθημα.ΓΛ', '@Τμ.Ώρες.Ολοήμερο.Μάθημα.ΓΛ', '@Τμ.Ώρες.Μάθημα.ΓΛ.Πε.Ποιες', '@Τμ.Ώρες.Πρωινό.Μάθημα.ΓΛ.Πε.Ποιες', '@Τμ.Ώρες.Ολοήμερο.Μάθημα.ΓΛ.Πε.Ποιες', '@Τμ.Ώρες.Πρωινό.Μάθημα.ΓΛ.Δε.Ποιες', '@Τμ.Ώρες.Πρωινό.Μάθημα.ΓΛ.Δε',
+    '@Τμ.Εκπαιδευτικός.Μάθημα.ΓΛ', '@Τμ.Εκπαιδευτικός.Πρωινό.Μάθημα.ΓΛ', '@Τμ.Εκπαιδευτικός.Ολοήμερο.Μάθημα.ΓΛ', '@Τμ.Ώρες.Δε', '@Τμ.Ώρες.Πρωινό.Δε', '@Τμ.Ώρες.ΠΖ.Δε', '@Τμ.Ώρες.Ολοήμερο.Πε'];
+  equal('Ζώνη μετά το «Ώρες»: ώρες, «.Ποιες», διδάσκοντες και ώρες ημέρας μόνο της ζώνης', [...F.values(zoneNames, {type: 'class', id: 'k1'}, zoned).values()],
+    ['4', '3', '1', 'ΟΛΟ1', '', 'ΟΛΟ1', '3+4', '2', 'Μάρκου Παρασκευή, Κρητικού Ερασμία', 'Μάρκου Παρασκευή', 'Κρητικού Ερασμία', '3', '2', '1', '1']);
+  equal('Ζώνη για εκπαιδευτικό: ώρες Πρωινού στη Γλώσσα και ώρες Ολοημέρου την Πέμπτη', [...F.values(['@Εκπ.Ώρες.Πρωινό.Μάθημα.ΓΛ', '@Εκπ.Ώρες.Ολοήμερο.Πε', '@Εκπ.Ώρες.Ολοήμερο.Μάθημα.ΓΛ.Πε.Ποιες'], {type: 'staff', id: 's3'}, zoned).values()], ['0', '2', 'ΟΛΟ1']);
+  equal('Ζώνη: κανονική γραφή, τύποι, περίοδος, «Μήπως εννοείς», και άγνωστα σχήματα',
+    [F.recognize('@Τμ.Ώρες.Πρωινό.Μάθημα.ΓΛ.Δε.Ποιες', c).type, F.recognize('@Τμ.Ώρες.Πρωινό.Δε', c).type, F.recognize('@Τμ.Ώρες.Πρωινό.Μάθημα.ΓΛ', c).needsPeriod, F.recognize('@Τμ.Εκπαιδευτικός.Πρωινό.Μάθημα.ΓΛ', c).known,
+     F.recognize('@Τμ.Ώρες.πρωινο.Δε', c).message, F.recognize('@Τμ.Ώρες.Πρωινό.Ολοήμερο', c).known, F.recognize('@Εκπ.Εκπαιδευτικός.Πρωινό.Μάθημα.ΓΛ', c).known, F.recognize('@Τμ.Ώρες.Πρωινό.Σα', c).known],
+    ['Text', 'Integer', true, true, 'Μήπως εννοείς «{{@Τμ.Ώρες.Πρωινό.Δε}}»;', false, false, false]);
+  const zonedTable = F.subjectTable('class', ['ΓΛ', null], c, {zone: 'πρωινο'});
+  equal('Πίνακας μαθημάτων με ζώνη: πεδία της ζώνης· χωρίς ζώνη όπως πριν', [zonedTable.days[0][0], zonedTable.days[1][0], zonedTable.teachers, F.subjectTable('staff', ['ΓΛ'], c, {zone: ''}).days[0][0]],
+    ['{{@Τμ.Ώρες.Πρωινό.Μάθημα.ΓΛ.Δε.Ποιες}}', '', ['{{@Τμ.Εκπαιδευτικός.Πρωινό.Μάθημα.ΓΛ}}', ''], '{{@Εκπ.Ώρες.Μάθημα.ΓΛ.Δε.Ποιες}}']);
   const table = F.readyTable('class', c);
   equal('Έτοιμος πίνακας: ώρες με τα πεδία τους και διαλείμματα', [table.days.length, table.rows.length, table.rows[0].time, table.rows[0].cells[4], table.rows[1]], [5, 17, '{{@Ώρα.ΠΖ1}}', '{{@Τμ.Πρ.Πα.ΠΖ1}}', {type: 'break', time: '08:00–08:15', text: 'Διάλειμμα'}]);
   equal('Ονόματα εγγράφων, με « (2)» σε ίδιο όνομα', F.uniqueNames([F.fileName('Βεβαίωση.docx', {type: 'staff', id: 's1'}, c), F.fileName('βεβαίωση.docx', {type: 'staff', id: 's1'}, c), F.fileName('Πρόγραμμα.xlsx', {type: 'class', id: 'k2'}, c), F.fileName('Κοινό.docx', null, c)]),
@@ -1290,6 +1305,18 @@ function documentFieldsChecks() {
       const which = F.values(['@Εκπ.Ώρες.Μάθημα.' + code + '.' + day + '.Ποιες'], {type: 'staff', id: double.staff[0]}, ctx).get('@Εκπ.Ώρες.Μάθημα.' + code + '.' + day + '.Ποιες');
       const keys = double.times.map(item => ctx.slots.find(slot => slot.start === item.start).key);
       check('«' + period.name + '»: δίωρη στο «.Ποιες» (' + double.subject + ')', keys.every(key => which.split('+').includes(key)), which);
+    }
+    // Ζώνη μετά το «Ώρες»: οι ζώνες αθροίζουν στο σύνολο, ανά ημέρα και ανά μάθημα και ημέρα.
+    check('«' + period.name + '»: οι ζώνες αθροίζουν στο σύνολο ανά ημέρα και ανά μάθημα', [...real.staff.map(person => ({type: 'staff', id: person.id})), ...real.classes.map(record => ({type: 'class', id: record.id}))].every(target => {
+      const P = target.type === 'staff' ? '@Εκπ' : '@Τμ', names = [];
+      for (const day of F.DAYS) { names.push(P + '.Ώρες.' + day.key, ...F.ZONES.map(zone => P + '.Ώρες.' + zone.key + '.' + day.key)); for (const subject of ctx.subjects) names.push(P + '.Ώρες.Μάθημα.' + subject.code + '.' + day.key, ...F.ZONES.map(zone => P + '.Ώρες.' + zone.key + '.Μάθημα.' + subject.code + '.' + day.key)); }
+      const v = F.values(names, target, ctx), num = name => Number(v.get(name)), sum = (make) => F.ZONES.reduce((total, zone) => total + num(make(zone.key)), 0);
+      return F.DAYS.every(day => sum(zone => P + '.Ώρες.' + zone + '.' + day.key) === num(P + '.Ώρες.' + day.key) && ctx.subjects.every(subject => sum(zone => P + '.Ώρες.' + zone + '.Μάθημα.' + subject.code + '.' + day.key) === num(P + '.Ώρες.Μάθημα.' + subject.code + '.' + day.key)));
+    }));
+    const a1 = byName('Α1'), gym = ctx.subjects.find(subject => subject.name === 'Γυμναστική');
+    if (a1 && gym) {
+      const names = F.DAYS.map(day => '@Τμ.Ώρες.Πρωινό.Μάθημα.' + gym.code + '.' + day.key + '.Ποιες'), v = F.values(names, {type: 'class', id: a1.id}, ctx);
+      check('«' + period.name + '»: το Α1 στο Πρωινό δεν έχει ώρες Ολοημέρου στη Γυμναστική', names.every(name => !/ΟΛΟ|ΠΖ|ΓΕΥΜΑ/.test(v.get(name))), names.map(name => v.get(name)).join(' | '));
     }
     equal('«' + period.name + '»: το «Στ1» γράφεται «Στ1» και η τάξη «Στ\'»', [...F.values(['@Τμ.Όνομα', '@Τμ.Τάξη'], {type: 'class', id: byName('Στ1').id}, ctx).values()], ['Στ1', "Στ'"]);
     const unmatched = ctx.program.activities.find(activity => activity.unmatched.length && activity.classes.length);
