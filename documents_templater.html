@@ -1,4 +1,4 @@
-<!doctype html><html lang="el" class="subapp-page"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Documents Templater v0.36</title><link rel="stylesheet" href="_ui.css">
+<!doctype html><html lang="el" class="subapp-page"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Documents Templater v0.37</title><link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <script src="_lib_jszip.min.js"></script>
 <style>
@@ -104,6 +104,8 @@
 .dt-type,.dt-example-static,.dt-example-empty,.dt-where{color:var(--school-ui-muted)}
 .dt-where{font-size:12px}
 .dt-example-line+.dt-example-line{margin-top:3px}
+/* A value of several lines (e.g. «.Εκπαιδευτικοί.Λίστα» of the Ολοήμερο) keeps its line breaks. */
+.dt-example-line{white-space:pre-line}
 .dt-empty{padding:24px 12px;text-align:center;color:var(--school-ui-muted)}
 .dt-note-row td{color:var(--school-ui-muted)}
 /* Ready table of subjects: ticked lessons in the order of the form, dragged by the handle; then the two copies. */
@@ -154,7 +156,7 @@
  .dt-table td.dt-col-help,.dt-table td.dt-col-example{grid-column:1 / -1}
  .dt-table td.dt-col-example:empty{display:none}
 }
-</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Documents Templater — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>DT</span></span><span class="brand-text"><span>Documents Templater</span><span class="small version">v0.36</span></span></button></h1></div><button id="reset" type="button" disabled>Αναίρεση Όλων</button><span class="sep" aria-hidden="true"></span><button id="openCatalog" type="button" title="Όλα τα πεδία από το κοινό αρχείο, για μεταφορά ή αντιγραφή στα πρότυπα">Πεδία…</button><div class="header-right"><button id="findFields" class="primary subapp-change-dot" type="button" disabled>Ανεύρεση πεδίων</button><button id="produce" class="success subapp-change-dot" type="button" disabled>Παραγωγή Εγγράφων</button></div></header>
+</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Documents Templater — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>DT</span></span><span class="brand-text"><span>Documents Templater</span><span class="small version">v0.37</span></span></button></h1></div><button id="reset" type="button" disabled>Αναίρεση Όλων</button><span class="sep" aria-hidden="true"></span><button id="openCatalog" type="button" title="Όλα τα πεδία από το κοινό αρχείο, για μεταφορά ή αντιγραφή στα πρότυπα">Πεδία…</button><div class="header-right"><button id="findFields" class="primary subapp-change-dot" type="button" disabled>Ανεύρεση πεδίων</button><button id="produce" class="success subapp-change-dot" type="button" disabled>Παραγωγή Εγγράφων</button></div></header>
 <main id="layout" class="subapp-wide-aside">
 <aside id="filesPane" aria-label="Στοιχεία σχολείου και αρχεία">
  <section id="schoolSection" class="side-section" aria-labelledby="schoolTitle" hidden>
@@ -189,6 +191,7 @@
 window.TemplaterModel=(()=>{
  const DATA_MARK=window.SchoolDocumentFields?.MARK||'@';
  const W_NS='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+ const XML_NS='http://www.w3.org/XML/1998/namespace';
  const DOCX_PARTS=/^word\/(document|header\d*|footer\d*|footnotes|endnotes)\.xml$/;
  const SHEET_PARTS=/^xl\/worksheets\/sheet\d+\.xml$/;
  const TYPES=['Decimal','Integer','Date','Text','Textarea'];
@@ -330,7 +333,19 @@ window.TemplaterModel=(()=>{
     out[target]+=match.value;cursor=match.end;
    }
    appendRange(cursor,full.length);
-   for(let i=0;i<nodes.length;i++)nodes[i].textContent=out[i];
+   for(let i=0;i<nodes.length;i++){
+    nodes[i].textContent=out[i];
+    // A value of several lines (e.g. «.Εκπαιδευτικοί.Λίστα», a Textarea): each new line is a line break of the run.
+    if(!out[i].includes('\n'))continue;
+    const parts=out[i].replace(/\r\n?/g,'\n').split('\n');
+    nodes[i].textContent=parts[0];nodes[i].setAttributeNS(XML_NS,'xml:space','preserve');
+    let after=nodes[i];
+    for(const part of parts.slice(1)){
+     const br=doc.createElementNS(W_NS,'w:br'),t=doc.createElementNS(W_NS,'w:t');
+     t.setAttributeNS(XML_NS,'xml:space','preserve');t.textContent=part;
+     after.after(br,t);after=t;
+    }
+   }
   }
   return new XMLSerializer().serializeToString(doc);
  }
@@ -444,8 +459,10 @@ window.TemplaterModel=(()=>{
   }else{
    c.setAttribute('t','inlineStr');
    const is=doc.createElementNS(c.namespaceURI,'is'),t=doc.createElementNS(c.namespaceURI,'t');
-   if(/^\s|\s$/.test(replaced))t.setAttributeNS('http://www.w3.org/XML/1998/namespace','xml:space','preserve');
-   t.textContent=replaced;is.appendChild(t);c.appendChild(is);
+   // A new line stays a new line in the cell (the cell needs «Wrap text» to show it).
+   const value=replaced.replace(/\r\n?/g,'\n');
+   if(/^\s|\s$|\n/.test(value))t.setAttributeNS(XML_NS,'xml:space','preserve');
+   t.textContent=value;is.appendChild(t);c.appendChild(is);
   }
  }
  // The cell «ref» of the sheet; a missing cell (or row) is created in its place, with no style of its own.
@@ -771,7 +788,7 @@ window.TemplaterModel=(()=>{
  // → {total, filled, notes, anchorNotes, kinds (template → templateKind), plans (anchored XLSX → anchorPlan), staffT,
  //    classT, jobs, missing, infos, positions}
  function dataStatus(){
-  const templates=files.filter(isTemplate),names=new Map(),notes=new Map(),kinds=new Map(),plans=new Map(),anchorNotes=[];
+  const templates=files.filter(isTemplate),names=new Map(),notes=new Map(),kinds=new Map(),plans=new Map(),anchorNotes=[],oloimeroInfos=new Set();
   for(const file of templates){
    const tokens=dataTokens(file),all=templateTokens.get(file)||[];
    // An anchor in a DOCX is not used: the kind of the template comes from its other fields.
@@ -785,6 +802,8 @@ window.TemplaterModel=(()=>{
     if(message){const key=raw+'\n'+message,note=notes.get(key)||{raw,message,filled:item.known,files:new Set()};note.files.add(file.name);notes.set(key,note)}
    }
    for(const line of plans.get(file)?.notes||[])anchorNotes.push({text:line,file:file.name});
+   // Τμήματα Ολοημέρου: activities not found in the design of the period, τμήματα beyond the template's fields.
+   if(F?.oloimeroNotes&&input){const olo=F.oloimeroNotes(tokens,docCtx);for(const line of olo.warnings)anchorNotes.push({text:line,file:file.name});for(const line of olo.infos)oloimeroInfos.add(line)}
   }
   const items=[...names.values()],filled=items.filter(item=>item.known).length;
   const needs=scope=>templates.filter(file=>kinds.get(file).kind===scope||(plans.get(file)?.capacity[scope]!==undefined));
@@ -803,6 +822,7 @@ window.TemplaterModel=(()=>{
     if(classT.length&&!picked.class.size)missing.push(`Διάλεξε τμήματα για ${classT.length===1?'το πρότυπο':'τα πρότυπα'} ${list(classT.map(file=>file.name))}.`);
     if(needsPeriod&&docCtx?.period&&!docCtx.program)infos.push(`Η περίοδος ${quoted(docCtx.period.name||'')} δεν έχει Ωρολόγιο· τα πεδία του προγράμματος θα μείνουν κενά.`);
     if(docCtx?.slotError&&[...names.keys()].some(name=>/\.(Πρ|Ώρες)\.|^@Ώρα\./.test(name)))infos.push('Ώρες Διδασκαλίας: '+docCtx.slotError);
+    infos.push(...oloimeroInfos);
    }
   }
   // Positions of the templates with anchors, and how many workbooks they give.
@@ -1115,7 +1135,7 @@ window.TemplaterModel=(()=>{
  // The ready table as text with tabs (Excel) and HTML without styles or borders (Word), with no headings.
  function subjectText(rows){return rows.map(row=>row.join('\t')).join('\r\n')}
  function subjectHtml(rows){return '<meta charset="utf-8"><table>'+rows.map(row=>'<tr>'+row.map(text=>'<td>'+schoolEscape(text)+'</td>').join('')+'</tr>').join('')+'</table>'}
- const PROGRAM_GROUPS=new Set(['staffProgram','staffHours','classProgram','classHours','subjects']);
+ const PROGRAM_GROUPS=new Set(['oloimero','staffProgram','staffHours','classProgram','classHours','subjects']);
  const TYPE_SHORT={Text:'Κείμενο',Integer:'Ακέραιος',Date:'Ημερομηνία',Table:'Πίνακας'};
  const plainUpper=v=>(window.SchoolText?SchoolText.withoutTones(String(v??'')):String(v??'')).toLocaleUpperCase('el');
  const fieldKey=v=>plainUpper(v).replace(/\s+/g,'');
@@ -1176,7 +1196,7 @@ window.TemplaterModel=(()=>{
   const out={canonical:[],hint:'',key:text.includes('.')?fieldKey(text):''};
   if(!F||!text.includes('.'))return out;
   const head=fieldKey(text.split('.')[0]);
-  const candidates=['ΕΚΠ','ΤΜ','ΩΡΑ','ΜΑΘΗΜΑ'].includes(head)?[MARK+text]:[MARK+'Εκπ.'+text,MARK+'Τμ.'+text];
+  const candidates=['ΕΚΠ','ΤΜ','ΩΡΑ','ΜΑΘΗΜΑ','ΟΛ'].includes(head)?[MARK+text]:[MARK+'Εκπ.'+text,MARK+'Τμ.'+text];
   const messages=[];
   for(const candidate of candidates){const item=F.recognize(candidate,docCtx);if(item.canonical)out.canonical.push(item.canonical);else if(item.message)messages.push(item.message)}
   // Only a specific reason (hour, day or subject code that does not exist), not «the field is not in the catalogue».

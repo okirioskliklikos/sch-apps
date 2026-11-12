@@ -367,7 +367,7 @@ body.session-locked #app-shell { visibility:hidden; pointer-events:none; }
     <div class="sidebar-head">
       <div class="brand">
         <span class="brand-name">Εφαρμογές σχολείου</span>
-        <span class="sidebar-version" aria-label="Έκδοση 1.05">v1.05</span>
+        <span class="sidebar-version" aria-label="Έκδοση 1.06">v1.06</span>
       </div>
     </div>
     <div id="sidebar-school" class="sidebar-school" hidden><span id="nav-school-name" class="sidebar-school-name"></span><span id="nav-school-year" class="sidebar-school-year"></span></div>
@@ -1509,7 +1509,8 @@ const StaffStorage = (() => {
     const hours = plain(sharedData.teachingHoursByYear) ? sharedData.teachingHoursByYear[year] || null : null;
     const timetables = plain(sharedData.timetablesByYear) && plain(sharedData.timetablesByYear[year]) ? sharedData.timetablesByYear[year] : {};
     const periods = Array.isArray(timetables.periods) ? timetables.periods : [];
-    const programs = (Array.isArray(timetables.programs) ? timetables.programs : []).filter(program => program && program.kind === 'school' && program.periodId);
+    // The Ωρολόγια of the periods, and the Ολοήμερο designs of the periods (only for the Τμήματα Ολοημέρου positions).
+    const programs = (Array.isArray(timetables.programs) ? timetables.programs : []).filter(program => program && (program.kind === 'school' || program.kind === 'oloimero') && program.periodId);
     const studentCounts = {};
     for (const student of Students ? Students.yearStudents(sharedData, year) : []) if (student && student.classId) studentCounts[student.classId] = (studentCounts[student.classId] || 0) + 1;
     return {revision:schoolRevision, school:{...sharedData.school}, year, staff, classes:Classes ? Classes.yearClasses(sharedData, year) : [], teachingHours:hours, periods, programs, studentCounts};

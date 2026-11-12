@@ -12,7 +12,7 @@
   φτιάχνονται από το σύντομο όνομα των δασκάλων («[Α1] - …», classesFromStaff). Με το .data δοκιμής, οι
   έλεγχοι των νέων ετικετών (v2) παίρνουν το Προσωπικό από αυτό, γιατί το CSV του Ολοημέρου έχει τα σύντομα
   ονόματα του Προσωπικού.
-  Έκδοση αρχείου: 0.44
+  Έκδοση αρχείου: 0.45
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -1293,6 +1293,49 @@ function documentFieldsChecks() {
   const classNames = catalog.groups.find(group => group.key === 'class').fields.map(field => field.name), staffNames = catalog.groups.find(group => group.key === 'staff').fields.map(field => field.name);
   check('Κατάλογος: άγκυρες στο τέλος των στοιχείων εκπαιδευτικού και τμήματος, και τα στοιχεία του υπευθύνου', staffNames.at(-1) === '@Εκπ.Άγκυρα' && classNames.at(-1) === '@Τμ.Άγκυρα' && homeroomNames.every(name => classNames.includes(name)), classNames.join(', '));
   equal('Κατάλογος χωρίς context: μοτίβα με «<ώρα>» και «<κωδικός>»', [F.catalog().groups.find(group => group.key === 'staffProgram').fields[0].name, F.catalog().groups.find(group => group.key === 'subjects').fields[0].name], ['@Εκπ.Πρ.<ημέρα>.<ώρα>', '@Μάθημα.<κωδικός>']);
+
+  // Τμήματα Ολοημέρου: η θέση από το σχέδιο Ολοημέρου της περιόδου, το περιεχόμενο από το Ωρολόγιο.
+  attempt('Τμήματα Ολοημέρου', () => {
+    const at = key => { const slot = c.slots.find(item => item.key === key); return t(2, slot.start, slot.end); };
+    const act = (id, subject, people, classIds, key, unmatched = []) => ({id, subject, staff: people, unmatched, classes: classIds, subsets: [], otherStudents: [], room: '', times: [at(key)]});
+    const oloimeroActivities = [
+      act('o1', 'Μελέτη', ['s1'], ['k1'], 'ΟΛΟ1'), act('o2', 'Μελέτη', ['s3'], ['k2'], 'ΟΛΟ1'),
+      act('o3', 'Γεύμα', ['s1'], ['k1', 'k2'], 'ΓΕΥΜΑ1'), act('o4', 'Γεύμα', [], ['k2'], 'ΓΕΥΜΑ1', ['Ματίνα']),
+      act('o5', 'Αγγλικά', ['s3'], ['k1'], 'ΟΛΟ2'), act('o6', 'Πρωϊνή', ['s2'], ['k1', 'k2'], 'ΠΖ1'), act('o7', 'Γλώσσα', ['s1'], ['k1'], '2')];
+    const school = {...program, activities: [...program.activities, ...oloimeroActivities]};
+    // Το σχέδιο: ο Κρητικού (Στ1) στο Τμήμα 1 και η Μάρκου (Ε1) στο Τμήμα 2, αντίθετα από τη σειρά των τμημάτων· τα
+    // Αγγλικά του σχεδίου είναι με άλλη εκπαιδευτικό, οπότε τα Αγγλικά του Ωρολογίου δεν έχουν ίδια.
+    const placed = [['d1', 'o2', 0], ['d2', 'o1', 1], ['d3', 'o3', 0], ['d4', 'o4', 1], ['d5', 'o5', 1, {staff: ['s1']}], ['d6', 'o6', 2]];
+    const design = {id: 'g1', formatVersion: 2, kind: 'oloimero', periodId: 'per1', name: 'Σχέδιο Α', activities: placed.map(([id, from, , change]) => ({...oloimeroActivities.find(item => item.id === from), ...change, id})),
+      source: {type: 'oloimero-designer', version: 2, placements: Object.fromEntries(placed.map(([id, , slot]) => [id, {hourId: 'h', day: 2, slot, students: []}]))}};
+    const withDesign = F.context({...input, programs: [school, design]}, {periodId: 'per1'});
+    const withoutDesign = F.context({...input, programs: [school]}, {periodId: 'per1'});
+    check('Context: το σχέδιο Ολοημέρου της περιόδου', withDesign.design === design && withoutDesign.design === null);
+    const names = ['@Ολ.Πρ.Τρ.ΟΛΟ1.Τμ1', '@Ολ.Πρ.Τρ.ΟΛΟ1.Τμ2', '@Ολ.Πρ.Τρ.ΟΛΟ1.Τμ2.Μάθημα', '@Ολ.Πρ.Τρ.ΟΛΟ1.Τμ1.Εκπαιδευτικός', '@Ολ.Πρ.Τρ.ΟΛΟ1.Τμ1.Εκπαιδευτικός Σύντομο', '@Ολ.Πρ.Τρ.ΟΛΟ1.Τμ3',
+      '@Ολ.Πρ.Τρ.ΓΕΥΜΑ1.Εκπαιδευτικοί.Λίστα', '@Ολ.Πρ.Τρ.ΓΕΥΜΑ1.Εκπαιδευτικοί.Γραμμή', '@Ολ.Πρ.Τρ.ΓΕΥΜΑ1.Εκπαιδευτικοί Σύντομο.Γραμμή', '@Ολ.Πρ.Τρ.ΟΛΟ2.Τμ1', '@Ολ.Πρ.Τρ.ΠΖ1.Τμ3', '@Ολ.Πρ.Τρ.ΠΖ1.Τμ1', '@Ολ.Πρ.Δε.ΟΛΟ1.Τμ1'];
+    equal('Θέσεις από το σχέδιο: Τμήμα 1/2 όπως στον Designer, εκπαιδευτικοί της ώρας με τη σειρά των τμημάτων, χωρίς ίδια στην πρώτη ελεύθερη θέση', [...F.values(names, null, withDesign).values()],
+      ['Μελέτη (Κρητικού Ερασμία)', 'Μελέτη (Μάρκου Παρασκευή)', 'Μελέτη', 'Κρητικού Ερασμία', '[ΠΕ07] - Γερμανικά', '',
+       'Μάρκου Παρασκευή\nΜατίνα', 'Μάρκου Παρασκευή, Ματίνα', '[Ε1] - Δασκάλα, Ματίνα', 'Αγγλικά (Κρητικού Ερασμία)', 'Πρωϊνή (Γεωργίου Ελένη)', '', '']);
+    equal('Χωρίς σχέδιο: με τη σειρά των τμημάτων (Ε1 πριν από Στ1)', [...F.values(['@Ολ.Πρ.Τρ.ΟΛΟ1.Τμ1', '@Ολ.Πρ.Τρ.ΟΛΟ1.Τμ2', '@Ολ.Πρ.Τρ.ΠΖ1.Τμ1'], null, withoutDesign).values()],
+      ['Μελέτη (Μάρκου Παρασκευή)', 'Μελέτη (Κρητικού Ερασμία)', 'Πρωϊνή (Γεωργίου Ελένη)']);
+    equal('Χωρίς Ωρολόγιο στην περίοδο: κενό', [...F.values(['@Ολ.Πρ.Τρ.ΟΛΟ1.Τμ1'], null, none).values()], ['']);
+    const notes = F.oloimeroNotes(['@Ολ.Πρ.Τρ.ΟΛΟ1.Τμ1', '@Ολ.Πρ.Τρ.ΟΛΟ2.Τμ1:Text', '@Ολ.Πρ.Τρ.ΓΕΥΜΑ1.Εκπαιδευτικοί.Λίστα', '@Σχολείο'], withDesign);
+    equal('Παρατηρήσεις: χωρίς ίδια στο σχέδιο, και τμήμα πέρα από το μεγαλύτερο Τμ του προτύπου', [notes.infos, notes.warnings.length, notes.warnings[0].includes('«Αγγλικά»') && notes.warnings[0].includes('Τμήμα 1') && notes.warnings[0].includes('Τρίτη, ΟΛΟ2'), notes.warnings[1].includes('Τρίτη, ΟΛΟ1') && notes.warnings[1].includes('Τμήμα 2') && notes.warnings[1].includes('έως το Τμ1')],
+      [[], 2, true, true], notes.warnings.join('\n'));
+    equal('Παρατηρήσεις: χωρίς σχέδιο ενημέρωση· τίποτα χωρίς πεδία Τμ…, με όλα τα τμήματα ή χωρίς Ωρολόγιο',
+      [F.oloimeroNotes(['@Ολ.Πρ.Τρ.ΟΛΟ1.Τμ2'], withoutDesign).infos.length, F.oloimeroNotes(['@Ολ.Πρ.Τρ.ΟΛΟ1.Τμ2'], withoutDesign).warnings, F.oloimeroNotes(['@Ολ.Πρ.Τρ.ΓΕΥΜΑ1.Εκπαιδευτικοί.Λίστα'], withDesign), F.oloimeroNotes(['@Ολ.Πρ.Τρ.ΟΛΟ1.Τμ2'], withDesign), F.oloimeroNotes(['@Ολ.Πρ.Τρ.ΟΛΟ1.Τμ1'], none)],
+      [1, [], {warnings: [], infos: []}, {warnings: [], infos: []}, {warnings: [], infos: []}]);
+    const info = token => { const item = F.recognize(token, c); return [item.known, item.scope, item.type, item.needsPeriod]; };
+    equal('Αναγνώριση: κοινά πεδία κειμένου, που χρειάζονται περίοδο', [info('@Ολ.Πρ.Τρ.ΟΛΟ1.Τμ1'), info('@Ολ.Πρ.Πα.ΠΖ1.Τμ20.Αίθουσα'), info('@Ολ.Πρ.Δε.ΓΕΥΜΑ1.Εκπαιδευτικοί Σύντομο.Λίστα'), F.templateKind(['@Ολ.Πρ.Τρ.ΟΛΟ1.Τμ1', '@Σχολείο'], c).kind],
+      [[true, 'common', 'Text', true], [true, 'common', 'Text', true], [true, 'common', 'Text', true], 'common']);
+    equal('Αναγνώριση: ώρα του Πρωινού, Τμ21, «Μήπως εννοείς», χωρίς «.Λίστα»/«.Γραμμή», άγνωστη παραλλαγή, υπόδειξη χωρίς «@»',
+      [F.recognize('@Ολ.Πρ.Τρ.3.Τμ1', c).message.includes('δεν είναι ώρα Ολοημέρου'), F.recognize('@Ολ.Πρ.Τρ.ΟΛΟ7.Τμ1', c).message.includes('«ΟΛΟ7»'), F.recognize('@Ολ.Πρ.Τρ.ΟΛΟ1.Τμ21', c).message.includes('Τμ1 έως Τμ20'), F.recognize('@ολ.πρ.τρ.ολο1.τμ01', c).message,
+       F.recognize('@Ολ.Πρ.Τρ.ΟΛΟ1.Εκπαιδευτικοί', c).known, F.recognize('@Ολ.Πρ.Τρ.ΟΛΟ1.Τμ1.Τάξη', c).known, F.recognize('@Ολ.Πρ.Σα.ΟΛΟ1.Τμ1', c).message.includes('«Σα»'), F.recognize('Ολ.Πρ.Τρ.ΟΛΟ1.Τμ1', c).message.includes('{{@Ολ.Πρ.Τρ.ΟΛΟ1.Τμ1}}')],
+      [true, true, true, 'Μήπως εννοείς «{{@Ολ.Πρ.Τρ.ΟΛΟ1.Τμ1}}»;', false, false, true, true]);
+    const group = F.catalog(c).groups.find(item => item.key === 'oloimero');
+    equal('Κατάλογος: ομάδα «Ολοήμερο» μετά τα «Κοινά», με γραμμές-μοτίβο μόνο στις ώρες Ολοημέρου', [F.catalog(c).groups.map(item => item.key).indexOf('oloimero'), group.label, group.fields.length, group.fields[0].first, group.fields[0].last, group.fields[0].names.some(name => /\.Πρ\.Δε\.\d\./.test(name)), group.fields[5].first],
+      [1, 'Ολοήμερο', 9, '@Ολ.Πρ.Δε.ΠΖ1.Τμ1', '@Ολ.Πρ.Πα.ΟΛΟ4.Τμ20', false, '@Ολ.Πρ.Δε.ΠΖ1.Εκπαιδευτικοί.Λίστα']);
+  });
 
   // Με το .data δοκιμής: το Ωρολόγιο της δεύτερης περιόδου (v2) και της πρώτης (παλιά αρχεία).
   if (!texts.data) return skip('Πεδία εγγράφων με το .data δοκιμής', 'Λείπει το .data δοκιμής.');

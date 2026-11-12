@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων
- * Έκδοση αρχείου: 0.33
+ * Έκδοση αρχείου: 0.34
  * Όνομα κατά την εγκατάσταση: _data.js
  *
  * Φορτώνεται από όσες υποεφαρμογές διαβάζουν ή γράφουν CSV, FET, ημερομηνίες ή προγράμματα, μετά
@@ -189,7 +189,18 @@
   }
 
   // Κλειδί σύγκρισης: χωρίς τόνους, κεφαλαία, χωρίς κενά (π.χ. «ΣΤ1» και «Στ1» ταιριάζουν).
-  const compareKey = value => withoutTones(value).toUpperCase().replace(/\s+/g, '');
+  // Kept in a cache: the fields of the Documents Templater compare the same few names thousands of times.
+  const compareKeyCache = new Map();
+  const compareKey = value => {
+    const text = String(value ?? '');
+    let key = compareKeyCache.get(text);
+    if (key === undefined) {
+      if (compareKeyCache.size >= 50000) compareKeyCache.clear();
+      key = withoutTones(text).toUpperCase().replace(/\s+/g, '');
+      compareKeyCache.set(text, key);
+    }
+    return key;
+  };
 
   // ---- Ημερομηνίες ----
   const pad = (number, size = 2) => String(number).padStart(size, '0');
@@ -1943,7 +1954,8 @@
   // Τα πεδία από το κοινό αρχείο γράφονται στα πρότυπα με «@» στην αρχή: {{@Σχολείο}}, {{@Εκπ.Πρ.Δε.1}}.
   // Χωρίς «@» ένα πεδίο είναι πάντα χειροκίνητο. Ο κατάλογος γράφεται με «οικογένειες» πεδίων (στατικά, ώρες,
   // πλέγμα, σύνολα, μαθήματα), ώστε να προστίθενται εύκολα νέα. Ο τύπος κάθε πεδίου είναι γραμμένος εδώ·
-  // το «:Integer» / «:Date» στο πρότυπο είναι προαιρετικό. Πρόγραμμα είναι μόνο το Ωρολόγιο (school) της περιόδου.
+  // το «:Integer» / «:Date» στο πρότυπο είναι προαιρετικό. Πρόγραμμα είναι μόνο το Ωρολόγιο (school) της περιόδου·
+  // από το σχέδιο Ολοημέρου (oloimero) της περιόδου παίρνεται μόνο η θέση των δραστηριοτήτων (Τμήματα Ολοημέρου).
   const DOC_MARK = '@';
   const DOC_DAYS = Object.freeze([['Δε', 1, 'Δευτέρα'], ['Τρ', 2, 'Τρίτη'], ['Τε', 3, 'Τετάρτη'], ['Πε', 4, 'Πέμπτη'], ['Πα', 5, 'Παρασκευή']]
     .map(([key, day, label]) => Object.freeze({key, day, label})));
@@ -2023,6 +2035,12 @@
   const DOC_STAFF_VARIANTS = Object.freeze(['Μάθημα', 'Τμήμα', 'Τάξη', 'Αίθουσα']);
   const DOC_CLASS_VARIANTS = Object.freeze(['Μάθημα', 'Εκπαιδευτικός', 'Εκπαιδευτικός Σύντομο', 'Αίθουσα']);
   const DOC_SCOPE_PREFIX = Object.freeze({staff: 'Εκπ', class: 'Τμ'});
+  // Τμήματα Ολοημέρου ({{@Ολ.Πρ.Δε.ΟΛΟ2.Τμ1}}): μόνο οι ώρες του Ολοημέρου (ΠΖ…, ΓΕΥΜΑ…, ΟΛΟ…), τα τμήματα Τμ1…Τμ20
+  // (OLOIMERO_MAX_SLOTS), οι παραλλαγές του πλέγματος τμήματος, και οι εκπαιδευτικοί όλων των τμημάτων της ώρας.
+  const DOC_OLOIMERO_PREFIX = 'Ολ';
+  const DOC_OLOIMERO_SLOT = /^(ΠΖ|ΓΕΥΜΑ|ΟΛΟ)\d+$/;
+  const DOC_OLOIMERO_TEACHERS = Object.freeze(['Εκπαιδευτικοί', 'Εκπαιδευτικοί Σύντομο']);
+  const DOC_OLOIMERO_FORMS = Object.freeze(['Λίστα', 'Γραμμή']);
 
   // ---- Ανάλυση ονόματος πεδίου ----
   // info: {slotKeys: Set | null, codes: Map(compareKey → κωδικός) | null}. Χωρίς Ώρες Διδασκαλίας ή Ωρολόγιο,
@@ -2051,7 +2069,17 @@
     if (new Set(codes.map(compareKey)).size !== codes.length) return {error: 'Ένα μάθημα γράφεται μία φορά στο ' + quoted(value) + '.'};
     return {code: codes.join('+')};
   }
+  // The result of one name is the same for the same info (one context), so it is kept: a template or the window
+  // «Πεδία» asks for thousands of names, and recognize and values read each of them more than once. Read only.
+  const docParseCache = new WeakMap(), docNoInfo = {};
   function docParse(body, info) {
+    const holder = info || docNoInfo, key = String(body ?? '');
+    if (!docParseCache.has(holder)) docParseCache.set(holder, new Map());
+    const cache = docParseCache.get(holder);
+    if (!cache.has(key)) cache.set(key, docParseName(body, info));
+    return cache.get(key);
+  }
+  function docParseName(body, info) {
     const text = String(body ?? '').trim();
     const parts = text.split('.').map(part => part.trim());
     const fail = error => ({ok: false, error});
@@ -2072,6 +2100,26 @@
       const code = docCode(rest[0], info);
       if (!code) return codeError(rest[0]);
       return ok('Μάθημα.' + code + (rest.length === 2 ? '.Πλήρες' : ''), 'common', 'Text', {family: 'subject', code, full: rest.length === 2});
+    }
+    if (head === compareKey(DOC_OLOIMERO_PREFIX)) {
+      if (rest.length < 4 || rest.length > 5 || compareKey(rest[0]) !== 'ΠΡ') return unknown();
+      const day = DOC_DAYS.find(item => compareKey(item.key) === compareKey(rest[1]));
+      if (!day) return fail('Η ημέρα ' + quoted(rest[1]) + ' δεν υπάρχει· οι ημέρες είναι Δε, Τρ, Τε, Πε, Πα.');
+      const slot = docSlotKey(rest[2], info);
+      if (!slot) return slotError(rest[2]);
+      if (!DOC_OLOIMERO_SLOT.test(slot)) return fail('Η ώρα ' + quoted(rest[2]) + ' δεν είναι ώρα Ολοημέρου· τα πεδία «Ολ.» δέχονται μόνο ώρες της Πρωινής Ζώνης (ΠΖ…), του Γεύματος (ΓΕΥΜΑ…) και του Ολοημέρου και Διευρυμένου (ΟΛΟ…).');
+      const prefix = DOC_OLOIMERO_PREFIX + '.Πρ.' + day.key + '.' + slot + '.';
+      const match = /^ΤΜ(\d+)$/.exec(compareKey(rest[3]));
+      if (match) {
+        const number = Number(match[1]);
+        if (number < 1 || number > OLOIMERO_MAX_SLOTS) return fail('Το τμήμα ' + quoted(rest[3]) + ' δεν υπάρχει· τα τμήματα του Ολοημέρου είναι Τμ1 έως Τμ' + OLOIMERO_MAX_SLOTS + '.');
+        const variant = rest.length === 5 ? docOption(rest[4], DOC_CLASS_VARIANTS) : '';
+        if (variant === undefined) return unknown();
+        return ok(prefix + 'Τμ' + number + (variant ? '.' + variant : ''), 'common', 'Text', {family: 'oloimero', day, slot, number, variant});
+      }
+      const teachers = docOption(rest[3], DOC_OLOIMERO_TEACHERS), form = rest.length === 5 ? docOption(rest[4], DOC_OLOIMERO_FORMS) : undefined;
+      if (!teachers || !form) return unknown();
+      return ok(prefix + teachers + '.' + form, 'common', 'Text', {family: 'oloimero', day, slot, teachers: {short: teachers !== DOC_OLOIMERO_TEACHERS[0], list: form === DOC_OLOIMERO_FORMS[0]}});
     }
     const scope = head === 'ΕΚΠ' ? 'staff' : head === 'ΤΜ' ? 'class' : '';
     if (!scope || !rest.length) return unknown();
@@ -2155,18 +2203,18 @@
   //   {data, name, canonical, known, scope, type, needsPeriod, anchor, message}
   //   data: έχει «@» (πεδίο από το κοινό αρχείο)· known: η γραφή είναι ακριβώς του καταλόγου (μόνο τότε
   //   συμπληρώνεται)· needsPeriod: η τιμή του χρειάζεται επιλεγμένη περίοδο (τα πεδία της περιόδου, του
-  //   Ωρολογίου και των μαθημάτων)· anchor: είναι ακριβώς {{@Εκπ.Άγκυρα}} ή {{@Τμ.Άγκυρα}}·
+  //   Ωρολογίου, των Τμημάτων Ολοημέρου και των μαθημάτων)· anchor: είναι ακριβώς {{@Εκπ.Άγκυρα}} ή {{@Τμ.Άγκυρα}}·
   //   message: προειδοποίηση ή υπόδειξη για τον χρήστη, ή κενό.
-  // Χωρίς «@», ένα όνομα που μοιάζει με πεδίο του καταλόγου (Εκπ., Τμ., Ώρα., Μάθημα.) δίνει υπόδειξη.
+  // Χωρίς «@», ένα όνομα που μοιάζει με πεδίο του καταλόγου (Εκπ., Τμ., Ώρα., Μάθημα., Ολ.) δίνει υπόδειξη.
   // Οικογένειες πεδίων που παίρνουν την τιμή τους από το Ωρολόγιο της περιόδου. Ένα στατικό πεδίο τη χρειάζεται
   // μόνο όταν έχει «period» (Περίοδος, Περίοδος Από, Περίοδος Έως)· οι ώρες (Ώρα.…) έρχονται από τις Ώρες Διδασκαλίας.
-  const DOC_PERIOD_FAMILIES = new Set(['grid', 'hours', 'subjectHours', 'subjectTeachers', 'subject']);
+  const DOC_PERIOD_FAMILIES = new Set(['grid', 'hours', 'subjectHours', 'subjectTeachers', 'subject', 'oloimero']);
   const docNeedsPeriod = spec => DOC_PERIOD_FAMILIES.has(spec?.family) || !!spec?.field?.period;
   function docRecognize(token, c) {
     const [rawName, ...typeParts] = String(token ?? '').split(':');
     const name = rawName.trim(), given = typeParts.join(':').trim(), info = c?.info || null;
     if (!name.startsWith(DOC_MARK)) {
-      const parsed = /^(ΕΚΠ|ΤΜ|ΩΡΑ|ΜΑΘΗΜΑ)\./.test(compareKey(name)) ? docParse(name, info) : null;
+      const parsed = /^(ΕΚΠ|ΤΜ|ΩΡΑ|ΜΑΘΗΜΑ|ΟΛ)\./.test(compareKey(name)) ? docParse(name, info) : null;
       return {data: false, name, canonical: '', known: false, scope: '', type: '', needsPeriod: false, anchor: false, message: parsed?.ok ? 'Μήπως εννοείς «{{' + DOC_MARK + parsed.name + '}}»; Χωρίς «' + DOC_MARK + '» το πεδίο συμπληρώνεται χειροκίνητα.' : ''};
     }
     const parsed = docParse(name.slice(DOC_MARK.length), info);
@@ -2201,13 +2249,14 @@
   // Το context για τις τιμές, από το school-documents:context του Κεντρικού Μενού:
   //   input: {school, year, staff, classes, teachingHours, periods, programs, studentCounts}
   //   options: {periodId, today}
-  // → {schoolName, year, period, program, slots, rows, slotError, subjects, info, …}. Το πρόγραμμα είναι το
-  //   Ωρολόγιο (school) της περιόδου.
+  // → {schoolName, year, period, program, design, slots, rows, slotError, subjects, info, …}. Το πρόγραμμα είναι το
+  //   Ωρολόγιο (school) της περιόδου· design το σχέδιο Ολοημέρου (oloimero) της περιόδου, μόνο για τις θέσεις.
   function docContext(input = {}, options = {}) {
     const staff = (input.staff || []).filter(isObject), classes = (input.classes || []).filter(isObject);
     const year = String(input.year || input.school?.year || '');
     const period = (input.periods || []).find(item => item?.id === options.periodId) || null;
     const program = period ? (input.programs || []).find(item => item?.kind === 'school' && item.periodId === period.id) || null : null;
+    const design = period ? (input.programs || []).find(item => item?.kind === 'oloimero' && item.periodId === period.id) || null : null;
     let slots = [], rows = [], slotError = '';
     try { ({slots, rows} = docSlots(input.teachingHours)); } catch (error) { slotError = error.message; }
     const subjects = (program?.source?.subjects || []).filter(item => String(item?.code ?? '').trim())
@@ -2216,7 +2265,7 @@
     return {
       schoolName: docPlain(input.school?.name), year, staff, classes, sortedStaff: sortStaff(staff), staffById: new Map(staff.map(person => [person.id, person])),
       classesById: classesById(classes), studentCounts: isObject(input.studentCounts) ? input.studentCounts : {},
-      period, program, slots, rows, slotError, subjects, today: options.today || today(),
+      period, program, design, slots, rows, slotError, subjects, today: options.today || today(),
       info: {slotKeys: slots.length ? new Set(slots.map(slot => slot.key)) : null, codes}
     };
   }
@@ -2282,6 +2331,110 @@
     return unique(docZoneSlots(c, spec.zone).filter(slot => items.some(item => slotOverlaps(item.time, slot))).map(slot => slot.key)).join('+');
   }
 
+  // ---- Τμήματα Ολοημέρου ----
+  // Οι θέσεις («Τμήμα 1, 2…» μιας ώρας) είναι οι θέσεις του σχεδίου Ολοημέρου της περιόδου (source.placements[id].slot)·
+  // το περιεχόμενο είναι πάντα το Ωρολόγιο. Κάθε ώρα δραστηριότητας του Ωρολογίου που είναι ολόκληρη σε ώρα Ολοημέρου
+  // παίρνει τη θέση της «ίδιας» ώρας του σχεδίου (sameKey, ο κανόνας της Εισαγωγής Ολοημέρου, ανά ώρα). Όσες δεν
+  // έχουν ίδια (ή όλες, χωρίς σχέδιο) μπαίνουν στις πρώτες ελεύθερες θέσεις της ώρας, με τη σειρά των μαθητών τους
+  // (SchoolClasses.sort του πρώτου τμήματος) και μετά του μαθήματος.
+  // → {cells: Map('ημέρα|ώρα' → Map(αριθμός τμήματος → [δραστηριότητες])), moved:[{activity, day, slot, number}]}
+  //   moved: όσες μπήκαν σε ελεύθερη θέση ενώ η περίοδος έχει σχέδιο. Υπολογίζεται μία φορά ανά context.
+  const docOloimeroCache = new WeakMap();
+  function docOloimeroLayout(c) {
+    if (docOloimeroCache.has(c)) return docOloimeroCache.get(c);
+    const layout = {cells: new Map(), moved: []};
+    const slots = c.slots.filter(slot => OLOIMERO_CATEGORIES.includes(slot.category));
+    const slotOf = time => slots.find(slot => slot.start <= time.start && time.end <= slot.end) || null;
+    const keyOf = (activity, time) => sameKey({...activity, times: [time]}, c.classes);
+    const waiting = new Map(), placements = isObject(c.design?.source?.placements) ? c.design.source.placements : {};
+    for (const activity of c.design?.activities || []) {
+      const place = placements[activity.id];
+      if (!place || !Number.isInteger(place.slot) || place.slot < 0) continue;
+      for (const time of activity.times || []) {
+        const key = keyOf(activity, time);
+        if (!waiting.has(key)) waiting.set(key, []);
+        waiting.get(key).push(place.slot + 1);
+      }
+    }
+    const put = (cellKey, number, activity) => {
+      if (!layout.cells.has(cellKey)) layout.cells.set(cellKey, new Map());
+      const cell = layout.cells.get(cellKey);
+      if (!cell.has(number)) cell.set(number, []);
+      if (!cell.get(number).includes(activity)) cell.get(number).push(activity);
+    };
+    const loose = new Map();
+    for (const activity of c.program?.activities || []) {
+      for (const time of activity.times || []) {
+        if (!Number.isInteger(time?.day) || time.day < 1 || time.day > 5) continue;
+        const slot = slotOf(time);
+        if (!slot) continue;
+        const cellKey = time.day + '|' + slot.key, queue = waiting.get(keyOf(activity, time));
+        if (queue?.length) { put(cellKey, queue.shift(), activity); continue; }
+        if (!loose.has(cellKey)) loose.set(cellKey, []);
+        loose.get(cellKey).push({activity, day: time.day, slot});
+      }
+    }
+    const order = new Map(sortClasses(c.classes).map((record, index) => [record.id, index]));
+    const rank = activity => Math.min(1e9, ...(activity.classes || []).map(id => order.has(id) ? order.get(id) : 1e9));
+    const text = activity => studentsText(activity, {classes: c.classes});
+    for (const [cellKey, items] of loose) {
+      items.sort((a, b) => rank(a.activity) - rank(b.activity) || text(a.activity).localeCompare(text(b.activity), 'el') || String(a.activity.subject || '').localeCompare(String(b.activity.subject || ''), 'el'));
+      let number = 1;
+      for (const item of items) {
+        while (layout.cells.get(cellKey)?.has(number)) number++;
+        put(cellKey, number, item.activity);
+        if (c.design) layout.moved.push({...item, number});
+      }
+    }
+    docOloimeroCache.set(c, layout);
+    return layout;
+  }
+  function docOloimeroValue(c, spec) {
+    const cell = docOloimeroLayout(c).cells.get(spec.day.day + '|' + spec.slot) || new Map();
+    if (spec.teachers) {
+      const people = [...cell.keys()].sort((a, b) => a - b).flatMap(number => cell.get(number).flatMap(activity => docTeachers(c, activity, spec.teachers.short)));
+      return docJoin(people, spec.teachers.list ? '\n' : ', ');
+    }
+    return docGridValue(c, {type: 'class', list: cell.get(spec.number) || []}, {day: spec.day, slot: spec.slot, variant: spec.variant});
+  }
+  // Οι παρατηρήσεις των Τμημάτων Ολοημέρου ενός προτύπου, για τα «Πεδία που θέλουν έλεγχο» και τη σύνοψη.
+  //   names: τα πεδία του προτύπου (με ή χωρίς «:Τύπος»). Μετρούν μόνο τα πεδία Ολ.Πρ.<ημέρα>.<ώρα>.Τμ… με ακριβή
+  //   γραφή, και μόνο με Ωρολόγιο στην περίοδο.
+  // → {warnings:[κείμενο…], infos:[κείμενο…]}. warnings: δραστηριότητες που δεν βρέθηκαν στο σχέδιο και μπήκαν σε
+  //   ελεύθερη θέση, και τμήματα του Ωρολογίου πέρα από το μεγαλύτερο Τμ του προτύπου για την ίδια ημέρα και ώρα·
+  //   infos: η περίοδος δεν έχει σχέδιο Ολοημέρου.
+  function docOloimeroNotes(names, c) {
+    const out = {warnings: [], infos: []};
+    if (!c?.program) return out;
+    const limits = new Map();
+    for (const raw of names || []) {
+      const name = String(raw ?? '').split(':')[0].trim();
+      if (!name.startsWith(DOC_MARK)) continue;
+      const parsed = docParse(name.slice(DOC_MARK.length), c.info);
+      if (!parsed.ok || parsed.spec.family !== 'oloimero' || !parsed.spec.number || DOC_MARK + parsed.name !== name) continue;
+      const key = parsed.spec.day.day + '|' + parsed.spec.slot;
+      limits.set(key, Math.max(limits.get(key) || 0, parsed.spec.number));
+    }
+    if (!limits.size) return out;
+    if (!c.design) out.infos.push('Η περίοδος ' + quoted(c.period?.name || '') + ' δεν έχει σχέδιο Ολοημέρου: τα τμήματα του Ολοημέρου αριθμούνται με τη σειρά των μαθητών τους.');
+    const layout = docOloimeroLayout(c), slotIndex = new Map(c.slots.map((slot, index) => [slot.key, index]));
+    const where = (day, key) => { const slot = c.slots.find(item => item.key === key); return DOC_DAYS.find(item => item.day === day).label + ', ' + key + (slot ? ' (' + slot.time + ')' : ''); };
+    const describe = activity => {
+      const parts = [studentsText(activity, {classes: c.classes}), docJoin(docTeachers(c, activity, false), ', ')].filter(Boolean);
+      return quoted(activity.subject || '—') + (parts.length ? ' (' + parts.join(' · ') + ')' : '');
+    };
+    const byPlace = (a, b) => a.day - b.day || (slotIndex.get(a.key) ?? 0) - (slotIndex.get(b.key) ?? 0);
+    const moved = layout.moved.map(item => ({...item, key: item.slot.key})).filter(item => limits.has(item.day + '|' + item.key)).sort((a, b) => byPlace(a, b) || a.number - b.number);
+    for (const item of moved) out.warnings.push('Ολοήμερο, ' + where(item.day, item.key) + ': η δραστηριότητα ' + describe(item.activity) + ' δεν βρέθηκε στο σχέδιο Ολοημέρου ' + quoted(c.design.name || '') + ' και μπήκε στο Τμήμα ' + item.number + '.');
+    const places = [...limits.keys()].map(key => { const [day, slot] = key.split('|'); return {day: Number(day), key: slot}; }).sort(byPlace);
+    for (const place of places) {
+      const limit = limits.get(place.day + '|' + place.key), cell = layout.cells.get(place.day + '|' + place.key);
+      const over = cell ? [...cell.keys()].filter(number => number > limit).sort((a, b) => a - b) : [];
+      if (over.length) out.warnings.push('Ολοήμερο, ' + where(place.day, place.key) + ': το Ωρολόγιο έχει ' + (over.length === 1 ? 'και το Τμήμα ' + over[0] : 'και τα Τμήματα ' + over.join(', ')) + ', αλλά το πρότυπο έχει πεδία έως το Τμ' + limit + '· ' + (over.length === 1 ? 'δεν γράφεται' : 'δεν γράφονται') + ' στο έγγραφο.');
+    }
+    return out;
+  }
+
   // Οι τιμές των πεδίων «@» για έναν εκπαιδευτικό ({type:'staff', id}), ένα τμήμα ({type:'class', id}) ή μόνο
   // τα κοινά (null), στο context του docContext. names: τα ονόματα των πεδίων (χωρίς το «:Τύπος»).
   // → Map(όνομα → κείμενο). Ημερομηνίες dd/mm/yyyy, ακέραιοι ως αριθμοί. Ένα πεδίο «@» που δεν είναι
@@ -2303,6 +2456,7 @@
         if (spec.family === 'static') out.set(name, spec.field.get(c));
         else if (spec.family === 'time') out.set(name, c.slots.find(slot => slot.key === spec.slot)?.time || '');
         else if (spec.family === 'subject') { const subject = c.subjects.find(entry => compareKey(entry.code) === compareKey(spec.code)); out.set(name, subject ? (spec.full ? subject.longName || subject.name : subject.name) : ''); }
+        else if (spec.family === 'oloimero') out.set(name, c.program ? docOloimeroValue(c, spec) : '');
         continue;
       }
       const owner = scope === 'staff' ? person : record;
@@ -2351,6 +2505,19 @@
       return slots ? DOC_DAYS.flatMap(day => slots.map(slot => prefix + day.key + '.' + slot + tail)) : null;
     };
     const slotsHelp = docSlotsText(c);
+    // Τμήματα Ολοημέρου: ημέρες × ώρες Ολοημέρου × Τμ1…Τμ20, και οι εκπαιδευτικοί της ώρας.
+    const oloimeroSlots = slots ? slots.filter(slot => DOC_OLOIMERO_SLOT.test(slot)) : null, O = M + DOC_OLOIMERO_PREFIX + '.Πρ.';
+    const numbered = (day, slot, tail) => Array.from({length: OLOIMERO_MAX_SLOTS}, (_, index) => O + day.key + '.' + slot + '.Τμ' + (index + 1) + tail);
+    const oloimeroNames = (tail, single = false) => oloimeroSlots ? DOC_DAYS.flatMap(day => oloimeroSlots.flatMap(slot => single ? [O + day.key + '.' + slot + '.' + tail] : numbered(day, slot, tail))) : null;
+    const oloimeroNote = ' Τα «Τμήμα 1, 2…» μιας ώρας είναι οι θέσεις της ώρας στον Ολοήμερο Designer («Σχεδιασμός»), από το σχέδιο Ολοημέρου της περιόδου· το περιεχόμενο έρχεται από το Ωρολόγιο. Μόνο ώρες Ολοημέρου (ΠΖ…, ΓΕΥΜΑ…, ΟΛΟ…), τμήματα Τμ1 έως Τμ' + OLOIMERO_MAX_SLOTS + '.';
+    const oloimeroVariant = {Μάθημα: ['το μάθημα', 'Αγγλικά'], Εκπαιδευτικός: ['ο εκπαιδευτικός, με το πλήρες όνομα', 'Παπαδόπουλος Γιώργος'], 'Εκπαιδευτικός Σύντομο': ['ο εκπαιδευτικός, με το σύντομο όνομα', '[ΠΕ06] - Αγγλικά'], Αίθουσα: ['η αίθουσα', 'Αίθουσα 3']};
+    const oloimeroFields = [
+      pattern(oloimeroNames(''), O + '<ημέρα>.<ώρα>.Τμ<αριθμός>', 'Text', 'Ένα τμήμα του Ολοημέρου μία ώρα: μάθημα και εκπαιδευτικός, π.χ. «Αγγλικά (Παπαδόπουλος Γιώργος)». Δύο δραστηριότητες στην ίδια θέση χωρίζονται με « / ».' + oloimeroNote, 'Αγγλικά (Παπαδόπουλος Γιώργος)'),
+      ...DOC_CLASS_VARIANTS.map(variant => pattern(oloimeroNames('.' + variant), O + '<ημέρα>.<ώρα>.Τμ<αριθμός>.' + variant, 'Text', 'Μόνο ' + oloimeroVariant[variant][0] + ' του τμήματος του Ολοημέρου, π.χ. για ένα κελί με το μάθημα και από κάτω τον εκπαιδευτικό.' + oloimeroNote, oloimeroVariant[variant][1])),
+      ...DOC_OLOIMERO_TEACHERS.flatMap(teachers => DOC_OLOIMERO_FORMS.map(form => pattern(oloimeroNames(teachers + '.' + form, true), O + '<ημέρα>.<ώρα>.' + teachers + '.' + form, 'Text',
+        'Όλοι οι εκπαιδευτικοί της ώρας εκείνη την ημέρα, από όλα τα τμήματα (π.χ. για ένα κελί «Όλα τα τμήματα» της Πρωινής Ζώνης ή του Γεύματος), με ' + (teachers === DOC_OLOIMERO_TEACHERS[0] ? 'το πλήρες όνομα' : 'το σύντομο όνομα') + ', με τη σειρά Τμήμα 1, 2, … και ο καθένας μία φορά· ' + (form === DOC_OLOIMERO_FORMS[0] ? 'ένας σε κάθε γραμμή (σε XLSX το κελί χρειάζεται αναδίπλωση κειμένου).' : 'σε μία γραμμή, με «, ».') + ' Μόνο ώρες Ολοημέρου (ΠΖ…, ΓΕΥΜΑ…, ΟΛΟ…).',
+        (teachers === DOC_OLOIMERO_TEACHERS[0] ? ['Παπαδόπουλος Γιώργος', 'Μάρκου Παρασκευή'] : ['[ΠΕ06] - Αγγλικά', '[Α1] - Δασκάλα']).join(form === DOC_OLOIMERO_FORMS[0] ? '\n' : ', '))))
+    ];
     const byCode = (make) => codes ? codes.map(make) : null;
     const scopeGroups = scope => {
       const P = DOC_SCOPE_PREFIX[scope], label = scope === 'staff' ? 'εκπαιδευτικού' : 'τμήματος';
@@ -2390,6 +2557,7 @@
     return {
       groups: [
         {key: 'common', label: 'Κοινά', fields: [...DOC_COMMON.map(field => plain(field)), pattern(slots ? slots.map(slot => M + 'Ώρα.' + slot) : null, M + 'Ώρα.<ώρα>', 'Text', 'Το διάστημα μιας ώρας, π.χ. «07:15–08:00». ' + slotsHelp, '07:15–08:00')]},
+        {key: 'oloimero', label: 'Ολοήμερο', fields: oloimeroFields},
         ...scopeGroups('staff'), ...scopeGroups('class'),
         {key: 'subjects', label: 'Μαθήματα', fields: [
           pattern(byCode(code => M + 'Μάθημα.' + code), M + 'Μάθημα.<κωδικός>', 'Text', 'Το όνομα ενός μαθήματος, όπως στο Ωρολόγιο, με τον κωδικό του στο FET. Μάθημα χωρίς κωδικό στο FET δεν έχει τέτοια πεδία.', 'Γλώσσα'),
@@ -2477,7 +2645,7 @@
   });
   window.SchoolDocumentFields = Object.freeze({
     MARK: DOC_MARK, DAYS: DOC_DAYS, ZONES: DOC_ZONES, ROLE_LABELS: DOC_ROLE_LABELS, SERVICE_LABELS: DOC_SERVICE_LABELS,
-    slots: docSlots, context: docContext, recognize: docRecognize, templateKind: docTemplateKind, values: docValues,
+    slots: docSlots, context: docContext, recognize: docRecognize, templateKind: docTemplateKind, values: docValues, oloimeroNotes: docOloimeroNotes,
     catalog: docCatalog, readyTable: docReadyTable, subjectTable: docSubjectTable, fileName: docFileName, uniqueNames: docUniqueNames
   });
   window.SchoolStudents = Object.freeze({
