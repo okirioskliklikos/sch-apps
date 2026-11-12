@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων
- * Έκδοση αρχείου: 0.36
+ * Έκδοση αρχείου: 0.37
  * Όνομα κατά την εγκατάσταση: _data.js
  *
  * Φορτώνεται από όσες υποεφαρμογές διαβάζουν ή γράφουν CSV, FET, ημερομηνίες ή προγράμματα, μετά
@@ -2020,16 +2020,16 @@
     {name: 'Ωράριο Σχολείου', type: 'Integer', help: 'Το «Ωράριο στο σχολείο» του Προσωπικού.', example: '24', get: (c, p) => docNumber(p.schoolHours)},
     {name: 'Ανάληψη Υπηρεσίας', type: 'Date', help: 'Η ημερομηνία ανάληψης υπηρεσίας.', example: '01/09/2026', get: (c, p) => formatDate(p.startDate)},
     {name: 'Αποχώρηση', type: 'Date', help: 'Η ημερομηνία αποχώρησης (κενό αν δεν υπάρχει).', example: '', get: (c, p) => formatDate(p.endDate)},
-    {name: 'Τμήμα', type: 'Text', help: 'Το τμήμα του οποίου είναι υπεύθυνος στα «Τμήματα».', example: 'Α1', get: (c, p) => docJoin(c.classes.filter(record => record.homeroomStaffId && record.homeroomStaffId === p.id).map(record => record.name), ', ')}
+    {name: 'Υπεύθυνος Τμήματος', type: 'Text', help: 'Το τμήμα του οποίου είναι υπεύθυνος στα «Τμήματα».', example: 'Α1', get: (c, p) => docJoin(c.classes.filter(record => record.homeroomStaffId && record.homeroomStaffId === p.id).map(record => record.name), ', ')}
   ].map(Object.freeze));
   const DOC_CLASS = Object.freeze([
     {name: 'Όνομα', type: 'Text', help: 'Το όνομα του τμήματος από τα «Τμήματα».', example: 'Α1', get: (c, r) => String(r.name ?? '')},
     {name: 'Τάξη', type: 'Text', help: 'Η τάξη, χωρίς απόστροφο (κενό σε τμήμα που δεν είναι Γενικής Παιδείας).', example: 'Α', get: (c, r) => isGeneralClass(r) ? gradeName(GRADES[gradeIndex(r.grade)]) : ''},
     {name: 'Υπεύθυνος', type: 'Text', help: 'Το πλήρες όνομα του υπευθύνου στα «Τμήματα».', example: 'Μάρκου Παρασκευή', get: (c, r) => r.homeroomStaffId ? staffName(c, r.homeroomStaffId) : ''},
-    {name: 'Μαθητές', type: 'Integer', help: 'Πόσους μαθητές έχει το τμήμα στους «Μαθητές».', example: '18', get: (c, r) => String(Number(c.studentCounts[r.id]) || 0)}
+    {name: 'Αριθμός Μαθητών', type: 'Integer', help: 'Πόσους μαθητές έχει το τμήμα στους «Μαθητές».', example: '18', get: (c, r) => String(Number(c.studentCounts[r.id]) || 0)}
   ].map(Object.freeze));
-  // Τα στοιχεία του υπευθύνου ενός τμήματος ({{@Τμ.Υπεύθυνος.…}}): τα στατικά πεδία εκπαιδευτικού, εκτός από το «Τμήμα».
-  const DOC_HOMEROOM = Object.freeze(DOC_STAFF.filter(field => field.name !== 'Τμήμα'));
+  // Τα στοιχεία του υπευθύνου ενός τμήματος ({{@Τμ.Υπεύθυνος.…}}): τα στατικά πεδία εκπαιδευτικού, εκτός από το «Υπεύθυνος Τμήματος».
+  const DOC_HOMEROOM = Object.freeze(DOC_STAFF.filter(field => field.name !== 'Υπεύθυνος Τμήματος'));
   // Η άγκυρα ({{@Εκπ.Άγκυρα}}, {{@Τμ.Άγκυρα}}): γράφει πάντα κενό και σημειώνει μια θέση σε πρότυπο XLSX με άγκυρες.
   const DOC_ANCHOR_NAME = 'Άγκυρα';
   const DOC_STAFF_VARIANTS = Object.freeze(['Μάθημα', 'Τμήμα', 'Τάξη', 'Αίθουσα']);
@@ -2040,14 +2040,14 @@
   const DOC_OLOIMERO_PREFIX = 'Ολ';
   const DOC_OLOIMERO_SLOT = /^(ΠΖ|ΓΕΥΜΑ|ΟΛΟ)\d+$/;
   // Of one τμήμα: the variants of the class grid, and the name with the branch in brackets («Όνομα (ΠΕ70)»).
-  const DOC_OLOIMERO_VARIANTS = Object.freeze([...DOC_CLASS_VARIANTS, 'Εκπαιδευτικός Κλάδος Παρένθεση', 'Εκπαιδευτικός Σύντομο Κλάδος Παρένθεση']);
-  // Of all the τμήματα of the hour: full or short name, without the branch, with it in brackets («Όνομα (ΠΕ70)»),
-  // or after a comma («Όνομα, ΠΕ70», only with «.Λίστα», since «.Γραμμή» separates the teachers with «, »).
-  const DOC_OLOIMERO_TEACHERS = Object.freeze(['Εκπαιδευτικοί', 'Εκπαιδευτικοί Σύντομο', 'Εκπαιδευτικοί Κλάδος Παρένθεση', 'Εκπαιδευτικοί Σύντομο Κλάδος Παρένθεση', 'Εκπαιδευτικοί Κλάδος Κόμμα', 'Εκπαιδευτικοί Σύντομο Κλάδος Κόμμα']);
-  const docTeacherKind = name => ({short: /Σύντομο/.test(name), branch: /Κλάδος Παρένθεση$/.test(name) ? 'paren' : /Κλάδος Κόμμα$/.test(name) ? 'comma' : ''});
+  // The name shows the shape of the value: «Εκπαιδευτικός (Κλάδος)» → «Όνομα (ΠΕ70)».
+  const DOC_OLOIMERO_VARIANTS = Object.freeze([...DOC_CLASS_VARIANTS, 'Εκπαιδευτικός (Κλάδος)', 'Εκπαιδευτικός Σύντομο (Κλάδος)']);
+  // Of all the τμήματα of the hour: full or short name, without the branch, with it in brackets («Εκπαιδευτικοί (Κλάδος)»
+  // → «Όνομα (ΠΕ70)»), or after a comma («Εκπαιδευτικοί, Κλάδος» → «Όνομα, ΠΕ70», only with «.Λίστα», since «.Γραμμή»
+  // separates the teachers with «, »).
+  const DOC_OLOIMERO_TEACHERS = Object.freeze(['Εκπαιδευτικοί', 'Εκπαιδευτικοί Σύντομο', 'Εκπαιδευτικοί (Κλάδος)', 'Εκπαιδευτικοί Σύντομο (Κλάδος)', 'Εκπαιδευτικοί, Κλάδος', 'Εκπαιδευτικοί Σύντομο, Κλάδος']);
+  const docTeacherKind = name => ({short: /Σύντομο/.test(name), branch: /\(Κλάδος\)$/.test(name) ? 'paren' : /, Κλάδος$/.test(name) ? 'comma' : ''});
   const docTeacherForms = teachers => docTeacherKind(teachers).branch === 'comma' ? [DOC_OLOIMERO_FORMS[0]] : DOC_OLOIMERO_FORMS;
-  // The earlier names with a plain «Κλάδος» (Nov 2026) are read as «Κλάδος Παρένθεση», so «Μήπως εννοείς» shows the new name.
-  const docOloimeroOption = (value, options) => docOption(value, options) || (/ΚΛΑΔΟΣ$/.test(compareKey(value)) ? docOption(String(value) + ' Παρένθεση', options) : undefined);
   const DOC_OLOIMERO_FORMS = Object.freeze(['Λίστα', 'Γραμμή']);
 
   // ---- Ανάλυση ονόματος πεδίου ----
@@ -2128,12 +2128,12 @@
           return ok(prefix + 'Τμ' + number + '.Εκπαιδευτικός.' + field.name, 'common', field.type, {family: 'oloimero', day, slot, number, field});
         }
         if (rest.length > 5) return unknown();
-        const variant = rest.length === 5 ? docOloimeroOption(rest[4], DOC_OLOIMERO_VARIANTS) : '';
+        const variant = rest.length === 5 ? docOption(rest[4], DOC_OLOIMERO_VARIANTS) : '';
         if (variant === undefined) return unknown();
         return ok(prefix + 'Τμ' + number + (variant ? '.' + variant : ''), 'common', 'Text', {family: 'oloimero', day, slot, number, variant});
       }
       if (rest.length > 5) return unknown();
-      const teachers = docOloimeroOption(rest[3], DOC_OLOIMERO_TEACHERS), form = rest.length === 5 ? docOption(rest[4], DOC_OLOIMERO_FORMS) : undefined;
+      const teachers = docOption(rest[3], DOC_OLOIMERO_TEACHERS), form = rest.length === 5 ? docOption(rest[4], DOC_OLOIMERO_FORMS) : undefined;
       if (!teachers || !form) return unknown();
       if (!docTeacherForms(teachers).includes(form)) return fail('Το ' + quoted(teachers) + ' υπάρχει μόνο με «.Λίστα» (ένας σε κάθε γραμμή), γιατί η «.Γραμμή» χωρίζει ήδη τους εκπαιδευτικούς με «, ».');
       return ok(prefix + teachers + '.' + form, 'common', 'Text', {family: 'oloimero', day, slot, teachers: {...docTeacherKind(teachers), list: form === DOC_OLOIMERO_FORMS[0]}});
@@ -2161,7 +2161,7 @@
       return ok(prefix + 'Πρ.' + day.key + '.' + slot + (variant ? '.' + variant : ''), scope, 'Text', {family: 'grid', day, slot, variant});
     }
     // An optional zone right after «Ώρες» (and «Εκπαιδευτικός»): only the hours of that zone count,
-    // e.g. «Ώρες.Πρωινό.Μάθημα.ΓΛ.Δε.Ποιες», «Ώρες.Πρωινό.Δε», «Εκπαιδευτικός.Πρωινό.Μάθημα.ΓΛ».
+    // e.g. «Ώρες.Πρωινό.Μάθημα.ΓΛ.Δε.Ποιες», «Ώρες.Πρωινό.Δε», «Διδάσκοντες.Πρωινό.Μάθημα.ΓΛ».
     // One zone («Πρωινό») or several joined with «+» («ΠΖ+Γεύμα+Ολοήμερο»): the hours of any of them count.
     // → {zone} (null when the part is not a zone) or {error} for «+» with an unknown or repeated zone.
     const zoneSpec = value => {
@@ -2201,7 +2201,7 @@
       if (day) return ok(head + day.key, scope, 'Integer', {family: 'hours', day, zone});
       return unknown();
     }
-    if (scope === 'class' && first === 'ΕΚΠΑΙΔΕΥΤΙΚΟΣ' && rest.length >= 3) {
+    if (scope === 'class' && first === 'ΔΙΔΑΣΚΟΝΤΕΣ' && rest.length >= 3) {
       const spec1 = zoneSpec(rest[1]);
       if (spec1.error) return fail(spec1.error);
       const zone = spec1.zone, tail = rest.slice(zone ? 2 : 1);
@@ -2210,7 +2210,7 @@
         if (codes.error) return fail(codes.error);
         if (!codes.code) return codeError(codes.missing);
         const code = codes.code;
-        return ok(prefix + 'Εκπαιδευτικός.' + (zone ? zone.key + '.' : '') + 'Μάθημα.' + code, scope, 'Text', {family: 'subjectTeachers', code, zone});
+        return ok(prefix + 'Διδάσκοντες.' + (zone ? zone.key + '.' : '') + 'Μάθημα.' + code, scope, 'Text', {family: 'subjectTeachers', code, zone});
       }
     }
     return unknown();
@@ -2545,7 +2545,7 @@
     const oloimeroNames = (tail, single = false) => oloimeroSlots ? DOC_DAYS.flatMap(day => oloimeroSlots.flatMap(slot => single ? [O + day.key + '.' + slot + '.' + tail] : numbered(day, slot, tail))) : null;
     const oloimeroNote = ' Τα «Τμήμα 1, 2…» μιας ώρας είναι οι θέσεις της ώρας στον Ολοήμερο Designer («Σχεδιασμός»), από το σχέδιο Ολοημέρου της περιόδου· το περιεχόμενο έρχεται από το Ωρολόγιο. Μόνο ώρες Ολοημέρου (ΠΖ…, ΓΕΥΜΑ…, ΟΛΟ…), τμήματα Τμ1 έως Τμ' + OLOIMERO_MAX_SLOTS + '.';
     const oloimeroVariant = {Μάθημα: ['το μάθημα', 'Αγγλικά'], Εκπαιδευτικός: ['ο εκπαιδευτικός, με το πλήρες όνομα', 'Παπαδόπουλος Γιώργος'], 'Εκπαιδευτικός Σύντομο': ['ο εκπαιδευτικός, με το σύντομο όνομα', '[ΠΕ06] - Αγγλικά'], Αίθουσα: ['η αίθουσα', 'Αίθουσα 3'],
-      'Εκπαιδευτικός Κλάδος Παρένθεση': ['ο εκπαιδευτικός, με το πλήρες όνομα και τον κλάδο σε παρένθεση (χωρίς παρένθεση όταν δεν υπάρχει κλάδος)', 'Παπαδόπουλος Γιώργος (ΠΕ06)'], 'Εκπαιδευτικός Σύντομο Κλάδος Παρένθεση': ['ο εκπαιδευτικός, με το σύντομο όνομα και τον κλάδο σε παρένθεση (χωρίς παρένθεση όταν δεν υπάρχει κλάδος)', '[ΠΕ06] - Αγγλικά (ΠΕ06)']};
+      'Εκπαιδευτικός (Κλάδος)': ['ο εκπαιδευτικός, με το πλήρες όνομα και τον κλάδο σε παρένθεση (χωρίς παρένθεση όταν δεν υπάρχει κλάδος)', 'Παπαδόπουλος Γιώργος (ΠΕ06)'], 'Εκπαιδευτικός Σύντομο (Κλάδος)': ['ο εκπαιδευτικός, με το σύντομο όνομα και τον κλάδο σε παρένθεση (χωρίς παρένθεση όταν δεν υπάρχει κλάδος)', '[ΠΕ06] - Αγγλικά (ΠΕ06)']};
     const teachersLabel = teachers => { const kind = docTeacherKind(teachers); return (kind.short ? 'το σύντομο όνομα' : 'το πλήρες όνομα') + (kind.branch === 'paren' ? ' και τον κλάδο σε παρένθεση, π.χ. «Μάρκου Παρασκευή (ΠΕ70)» (χωρίς παρένθεση όταν δεν υπάρχει κλάδος)' : kind.branch === 'comma' ? ' και τον κλάδο μετά από κόμμα, π.χ. «Μάρκου Παρασκευή, ΠΕ70» (χωρίς κόμμα όταν δεν υπάρχει κλάδος)' : ''); };
     const teachersExample = (teachers, form) => { const kind = docTeacherKind(teachers); return (kind.short ? [['[ΠΕ06] - Αγγλικά', 'ΠΕ06'], ['[Α1] - Δασκάλα', 'ΠΕ70']] : [['Παπαδόπουλος Γιώργος', 'ΠΕ06'], ['Μάρκου Παρασκευή', 'ΠΕ70']]).map(([name, branch]) => kind.branch === 'paren' ? name + ' (' + branch + ')' : kind.branch === 'comma' ? name + ', ' + branch : name).join(form === DOC_OLOIMERO_FORMS[0] ? '\n' : ', '); };
     const oloimeroFields = [
@@ -2573,7 +2573,7 @@
         pattern(codes ? codes.flatMap(code => DOC_DAYS.map(day => M + P + '.Ώρες.Μάθημα.' + code + '.' + day.key)) : null, M + P + '.Ώρες.Μάθημα.<κωδικός>.<ημέρα>', 'Integer', 'Οι ώρες σε ένα μάθημα μία ημέρα.', '2'),
         pattern(codes ? codes.flatMap(code => DOC_DAYS.map(day => M + P + '.Ώρες.Μάθημα.' + code + '.' + day.key + '.Ποιες')) : null, M + P + '.Ώρες.Μάθημα.<κωδικός>.<ημέρα>.Ποιες', 'Text', 'Ποιες ώρες έχει ένα μάθημα μία ημέρα, ενωμένες με «+», π.χ. «2» ή «3+4».', '3+4')
       ];
-      if (scope === 'class') hours.push(pattern(byCode(code => M + 'Τμ.Εκπαιδευτικός.Μάθημα.' + code), M + 'Τμ.Εκπαιδευτικός.Μάθημα.<κωδικός>', 'Text', 'Ποιος διδάσκει ένα μάθημα στο τμήμα (πολλοί με «, »).', 'Μάρκου Παρασκευή'));
+      if (scope === 'class') hours.push(pattern(byCode(code => M + 'Τμ.Διδάσκοντες.Μάθημα.' + code), M + 'Τμ.Διδάσκοντες.Μάθημα.<κωδικός>', 'Text', 'Ποιος διδάσκει ένα μάθημα στο τμήμα (πολλοί με «, »).', 'Μάρκου Παρασκευή'));
       // The same fields for one zone (the zone right after «Ώρες»): e.g. only the Πρωινό, without the Ολοήμερο.
       const zoneNote = ' Μόνο οι ώρες μιας ζώνης (' + DOC_ZONES.map(zone => zone.key).join(', ') + '), ή περισσότερων ενωμένων με «+», π.χ. «ΠΖ+Γεύμα+Ολοήμερο+Διευρυμένο».';
       const byZone = make => DOC_ZONES.flatMap(make);
@@ -2582,7 +2582,7 @@
         pattern(codes ? byZone(zone => codes.map(code => M + P + '.Ώρες.' + zone.key + '.Μάθημα.' + code)) : null, M + P + '.Ώρες.<ζώνη>.Μάθημα.<κωδικός>', 'Integer', 'Οι ώρες σε ένα μάθημα.' + zoneNote, '6'),
         pattern(codes ? byZone(zone => codes.flatMap(code => DOC_DAYS.map(day => M + P + '.Ώρες.' + zone.key + '.Μάθημα.' + code + '.' + day.key))) : null, M + P + '.Ώρες.<ζώνη>.Μάθημα.<κωδικός>.<ημέρα>', 'Integer', 'Οι ώρες σε ένα μάθημα μία ημέρα.' + zoneNote, '2'),
         pattern(codes ? byZone(zone => codes.flatMap(code => DOC_DAYS.map(day => M + P + '.Ώρες.' + zone.key + '.Μάθημα.' + code + '.' + day.key + '.Ποιες'))) : null, M + P + '.Ώρες.<ζώνη>.Μάθημα.<κωδικός>.<ημέρα>.Ποιες', 'Text', 'Ποιες ώρες έχει ένα μάθημα μία ημέρα, ενωμένες με «+».' + zoneNote, '3+4'));
-      if (scope === 'class') hours.push(pattern(codes ? byZone(zone => codes.map(code => M + 'Τμ.Εκπαιδευτικός.' + zone.key + '.Μάθημα.' + code)) : null, M + 'Τμ.Εκπαιδευτικός.<ζώνη>.Μάθημα.<κωδικός>', 'Text', 'Ποιος διδάσκει ένα μάθημα στο τμήμα, σε ώρες μιας ζώνης (πολλοί με «, »).', 'Μάρκου Παρασκευή'));
+      if (scope === 'class') hours.push(pattern(codes ? byZone(zone => codes.map(code => M + 'Τμ.Διδάσκοντες.' + zone.key + '.Μάθημα.' + code)) : null, M + 'Τμ.Διδάσκοντες.<ζώνη>.Μάθημα.<κωδικός>', 'Text', 'Ποιος διδάσκει ένα μάθημα στο τμήμα, σε ώρες μιας ζώνης (πολλοί με «, »).', 'Μάρκου Παρασκευή'));
       const title = scope === 'staff' ? 'Εκπαιδευτικός' : 'Τμήμα';
       const details = (scope === 'staff' ? DOC_STAFF : DOC_CLASS).map(field => plain(field, P + '.'));
       if (scope === 'class') details.push(...DOC_HOMEROOM.map(field => ({...plain(field, P + '.Υπεύθυνος.'), help: 'Του υπευθύνου του τμήματος (κενό χωρίς υπεύθυνο): ' + field.help.charAt(0).toLocaleLowerCase('el') + field.help.slice(1)})));
@@ -2624,7 +2624,7 @@
   // Ο έτοιμος πίνακας μαθημάτων (scope 'staff' ή 'class'), για έντυπα με μία γραμμή ανά μάθημα, χωρίς επικεφαλίδες.
   //   rows: οι κωδικοί των μαθημάτων με τη σειρά του εντύπου, null για κενή γραμμή.
   //   options.zone: μια ζώνη του ZONES (π.χ. 'Πρωινό'), για τα πεδία μόνο αυτής της ζώνης· χωρίς αυτή, όλες οι ζώνες.
-  // → {days:[['{{@Τμ.Ώρες.Μάθημα.ΓΛ.Δε.Ποιες}}'…5] | ['','','','',''] …], teachers:['{{@Τμ.Εκπαιδευτικός.Μάθημα.ΓΛ}}' | ''…] | null}
+  // → {days:[['{{@Τμ.Ώρες.Μάθημα.ΓΛ.Δε.Ποιες}}'…5] | ['','','','',''] …], teachers:['{{@Τμ.Διδάσκοντες.Μάθημα.ΓΛ}}' | ''…] | null}
   //   (teachers μόνο για τμήμα). Ένας κωδικός γράφεται όπως στο Ωρολόγιο της περιόδου, όταν υπάρχει.
   function docSubjectTable(scope, rows, c, options = {}) {
     const zone = DOC_ZONES.find(item => compareKey(item.key) === compareKey(options.zone)), Z = zone ? zone.key + '.' : '';
@@ -2633,7 +2633,7 @@
     const codes = (rows || []).map(codeOf);
     return {
       days: codes.map(code => code ? DOC_DAYS.map(day => '{{' + P + '.Ώρες.' + Z + 'Μάθημα.' + code + '.' + day.key + '.Ποιες}}') : DOC_DAYS.map(() => '')),
-      teachers: scope === 'class' ? codes.map(code => code ? '{{' + P + '.Εκπαιδευτικός.' + Z + 'Μάθημα.' + code + '}}' : '') : null
+      teachers: scope === 'class' ? codes.map(code => code ? '{{' + P + '.Διδάσκοντες.' + Z + 'Μάθημα.' + code + '}}' : '') : null
     };
   }
 
