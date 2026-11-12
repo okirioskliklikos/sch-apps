@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων
- * Έκδοση αρχείου: 0.34
+ * Έκδοση αρχείου: 0.35
  * Όνομα κατά την εγκατάσταση: _data.js
  *
  * Φορτώνεται από όσες υποεφαρμογές διαβάζουν ή γράφουν CSV, FET, ημερομηνίες ή προγράμματα, μετά
@@ -2039,7 +2039,11 @@
   // (OLOIMERO_MAX_SLOTS), οι παραλλαγές του πλέγματος τμήματος, και οι εκπαιδευτικοί όλων των τμημάτων της ώρας.
   const DOC_OLOIMERO_PREFIX = 'Ολ';
   const DOC_OLOIMERO_SLOT = /^(ΠΖ|ΓΕΥΜΑ|ΟΛΟ)\d+$/;
-  const DOC_OLOIMERO_TEACHERS = Object.freeze(['Εκπαιδευτικοί', 'Εκπαιδευτικοί Σύντομο']);
+  // Of one τμήμα: the variants of the class grid, and the name with the branch next to each teacher («Όνομα (ΠΕ70)»).
+  const DOC_OLOIMERO_VARIANTS = Object.freeze([...DOC_CLASS_VARIANTS, 'Εκπαιδευτικός Κλάδος', 'Εκπαιδευτικός Σύντομο Κλάδος']);
+  // Of all the τμήματα of the hour: full or short name, with or without the branch.
+  const DOC_OLOIMERO_TEACHERS = Object.freeze(['Εκπαιδευτικοί', 'Εκπαιδευτικοί Σύντομο', 'Εκπαιδευτικοί Κλάδος', 'Εκπαιδευτικοί Σύντομο Κλάδος']);
+  const docTeacherKind = name => ({short: /Σύντομο/.test(name), branch: /Κλάδος$/.test(name)});
   const DOC_OLOIMERO_FORMS = Object.freeze(['Λίστα', 'Γραμμή']);
 
   // ---- Ανάλυση ονόματος πεδίου ----
@@ -2102,7 +2106,7 @@
       return ok('Μάθημα.' + code + (rest.length === 2 ? '.Πλήρες' : ''), 'common', 'Text', {family: 'subject', code, full: rest.length === 2});
     }
     if (head === compareKey(DOC_OLOIMERO_PREFIX)) {
-      if (rest.length < 4 || rest.length > 5 || compareKey(rest[0]) !== 'ΠΡ') return unknown();
+      if (rest.length < 4 || rest.length > 6 || compareKey(rest[0]) !== 'ΠΡ') return unknown();
       const day = DOC_DAYS.find(item => compareKey(item.key) === compareKey(rest[1]));
       if (!day) return fail('Η ημέρα ' + quoted(rest[1]) + ' δεν υπάρχει· οι ημέρες είναι Δε, Τρ, Τε, Πε, Πα.');
       const slot = docSlotKey(rest[2], info);
@@ -2113,13 +2117,21 @@
       if (match) {
         const number = Number(match[1]);
         if (number < 1 || number > OLOIMERO_MAX_SLOTS) return fail('Το τμήμα ' + quoted(rest[3]) + ' δεν υπάρχει· τα τμήματα του Ολοημέρου είναι Τμ1 έως Τμ' + OLOIMERO_MAX_SLOTS + '.');
-        const variant = rest.length === 5 ? docOption(rest[4], DOC_CLASS_VARIANTS) : '';
+        // The details of the teacher of the τμήμα from Προσωπικό: «Τμ1.Εκπαιδευτικός.Κλάδος».
+        if (rest.length === 6 && compareKey(rest[4]) === compareKey('Εκπαιδευτικός')) {
+          const field = DOC_STAFF.find(item => compareKey(item.name) === compareKey(rest[5]));
+          if (!field) return unknown();
+          return ok(prefix + 'Τμ' + number + '.Εκπαιδευτικός.' + field.name, 'common', field.type, {family: 'oloimero', day, slot, number, field});
+        }
+        if (rest.length > 5) return unknown();
+        const variant = rest.length === 5 ? docOption(rest[4], DOC_OLOIMERO_VARIANTS) : '';
         if (variant === undefined) return unknown();
         return ok(prefix + 'Τμ' + number + (variant ? '.' + variant : ''), 'common', 'Text', {family: 'oloimero', day, slot, number, variant});
       }
+      if (rest.length > 5) return unknown();
       const teachers = docOption(rest[3], DOC_OLOIMERO_TEACHERS), form = rest.length === 5 ? docOption(rest[4], DOC_OLOIMERO_FORMS) : undefined;
       if (!teachers || !form) return unknown();
-      return ok(prefix + teachers + '.' + form, 'common', 'Text', {family: 'oloimero', day, slot, teachers: {short: teachers !== DOC_OLOIMERO_TEACHERS[0], list: form === DOC_OLOIMERO_FORMS[0]}});
+      return ok(prefix + teachers + '.' + form, 'common', 'Text', {family: 'oloimero', day, slot, teachers: {...docTeacherKind(teachers), list: form === DOC_OLOIMERO_FORMS[0]}});
     }
     const scope = head === 'ΕΚΠ' ? 'staff' : head === 'ΤΜ' ? 'class' : '';
     if (!scope || !rest.length) return unknown();
@@ -2389,13 +2401,29 @@
     docOloimeroCache.set(c, layout);
     return layout;
   }
+  // The teachers of an activity, as names; with branch, «Όνομα (ΠΕ70)» (without brackets when Προσωπικό has no branch,
+  // and for those not matched, who keep the name of the file).
+  const docTeacherLabels = (c, activity, kind) => [
+    ...(activity.staff || []).map(id => {
+      const person = c.staffById.get(id);
+      if (!person) return '';
+      const name = String((kind.short ? person.shortName : person.name) || person.shortName || person.name || ''), branch = String(person.branch ?? '').trim();
+      return kind.branch && branch ? name + ' (' + branch + ')' : name;
+    }),
+    ...(activity.unmatched || [])
+  ];
   function docOloimeroValue(c, spec) {
     const cell = docOloimeroLayout(c).cells.get(spec.day.day + '|' + spec.slot) || new Map();
     if (spec.teachers) {
-      const people = [...cell.keys()].sort((a, b) => a - b).flatMap(number => cell.get(number).flatMap(activity => docTeachers(c, activity, spec.teachers.short)));
+      const people = [...cell.keys()].sort((a, b) => a - b).flatMap(number => cell.get(number).flatMap(activity => docTeacherLabels(c, activity, spec.teachers)));
       return docJoin(people, spec.teachers.list ? '\n' : ', ');
     }
-    return docGridValue(c, {type: 'class', list: cell.get(spec.number) || []}, {day: spec.day, slot: spec.slot, variant: spec.variant});
+    const list = cell.get(spec.number) || [];
+    // A detail of the teacher (Κλάδος, Κωδικός…): one value per teacher, «, » between teachers of one activity and
+    // « / » between activities; those not matched have no details.
+    if (spec.field) return list.map(activity => (activity.staff || []).map(id => c.staffById.get(id)).filter(Boolean).map(person => String(spec.field.get(c, person) ?? '').trim()).filter(Boolean).join(', ')).filter(Boolean).join(' / ');
+    if (spec.variant === 'Εκπαιδευτικός Κλάδος' || spec.variant === 'Εκπαιδευτικός Σύντομο Κλάδος') return docJoin(list.map(activity => docJoin(docTeacherLabels(c, activity, docTeacherKind(spec.variant)), ', ')), ' / ');
+    return docGridValue(c, {type: 'class', list}, {day: spec.day, slot: spec.slot, variant: spec.variant});
   }
   // Οι παρατηρήσεις των Τμημάτων Ολοημέρου ενός προτύπου, για τα «Πεδία που θέλουν έλεγχο» και τη σύνοψη.
   //   names: τα πεδία του προτύπου (με ή χωρίς «:Τύπος»). Μετρούν μόνο τα πεδία Ολ.Πρ.<ημέρα>.<ώρα>.Τμ… με ακριβή
@@ -2510,13 +2538,19 @@
     const numbered = (day, slot, tail) => Array.from({length: OLOIMERO_MAX_SLOTS}, (_, index) => O + day.key + '.' + slot + '.Τμ' + (index + 1) + tail);
     const oloimeroNames = (tail, single = false) => oloimeroSlots ? DOC_DAYS.flatMap(day => oloimeroSlots.flatMap(slot => single ? [O + day.key + '.' + slot + '.' + tail] : numbered(day, slot, tail))) : null;
     const oloimeroNote = ' Τα «Τμήμα 1, 2…» μιας ώρας είναι οι θέσεις της ώρας στον Ολοήμερο Designer («Σχεδιασμός»), από το σχέδιο Ολοημέρου της περιόδου· το περιεχόμενο έρχεται από το Ωρολόγιο. Μόνο ώρες Ολοημέρου (ΠΖ…, ΓΕΥΜΑ…, ΟΛΟ…), τμήματα Τμ1 έως Τμ' + OLOIMERO_MAX_SLOTS + '.';
-    const oloimeroVariant = {Μάθημα: ['το μάθημα', 'Αγγλικά'], Εκπαιδευτικός: ['ο εκπαιδευτικός, με το πλήρες όνομα', 'Παπαδόπουλος Γιώργος'], 'Εκπαιδευτικός Σύντομο': ['ο εκπαιδευτικός, με το σύντομο όνομα', '[ΠΕ06] - Αγγλικά'], Αίθουσα: ['η αίθουσα', 'Αίθουσα 3']};
+    const oloimeroVariant = {Μάθημα: ['το μάθημα', 'Αγγλικά'], Εκπαιδευτικός: ['ο εκπαιδευτικός, με το πλήρες όνομα', 'Παπαδόπουλος Γιώργος'], 'Εκπαιδευτικός Σύντομο': ['ο εκπαιδευτικός, με το σύντομο όνομα', '[ΠΕ06] - Αγγλικά'], Αίθουσα: ['η αίθουσα', 'Αίθουσα 3'],
+      'Εκπαιδευτικός Κλάδος': ['ο εκπαιδευτικός, με το πλήρες όνομα και τον κλάδο σε παρένθεση', 'Παπαδόπουλος Γιώργος (ΠΕ06)'], 'Εκπαιδευτικός Σύντομο Κλάδος': ['ο εκπαιδευτικός, με το σύντομο όνομα και τον κλάδο σε παρένθεση', '[ΠΕ06] - Αγγλικά (ΠΕ06)']};
+    const teachersLabel = teachers => { const kind = docTeacherKind(teachers); return (kind.short ? 'το σύντομο όνομα' : 'το πλήρες όνομα') + (kind.branch ? ' και τον κλάδο σε παρένθεση, π.χ. «Μάρκου Παρασκευή (ΠΕ70)» (χωρίς παρένθεση όταν δεν υπάρχει κλάδος)' : ''); };
+    const teachersExample = (teachers, form) => { const kind = docTeacherKind(teachers); return (kind.short ? [['[ΠΕ06] - Αγγλικά', 'ΠΕ06'], ['[Α1] - Δασκάλα', 'ΠΕ70']] : [['Παπαδόπουλος Γιώργος', 'ΠΕ06'], ['Μάρκου Παρασκευή', 'ΠΕ70']]).map(([name, branch]) => kind.branch ? name + ' (' + branch + ')' : name).join(form === DOC_OLOIMERO_FORMS[0] ? '\n' : ', '); };
     const oloimeroFields = [
       pattern(oloimeroNames(''), O + '<ημέρα>.<ώρα>.Τμ<αριθμός>', 'Text', 'Ένα τμήμα του Ολοημέρου μία ώρα: μάθημα και εκπαιδευτικός, π.χ. «Αγγλικά (Παπαδόπουλος Γιώργος)». Δύο δραστηριότητες στην ίδια θέση χωρίζονται με « / ».' + oloimeroNote, 'Αγγλικά (Παπαδόπουλος Γιώργος)'),
-      ...DOC_CLASS_VARIANTS.map(variant => pattern(oloimeroNames('.' + variant), O + '<ημέρα>.<ώρα>.Τμ<αριθμός>.' + variant, 'Text', 'Μόνο ' + oloimeroVariant[variant][0] + ' του τμήματος του Ολοημέρου, π.χ. για ένα κελί με το μάθημα και από κάτω τον εκπαιδευτικό.' + oloimeroNote, oloimeroVariant[variant][1])),
+      ...DOC_OLOIMERO_VARIANTS.map(variant => pattern(oloimeroNames('.' + variant), O + '<ημέρα>.<ώρα>.Τμ<αριθμός>.' + variant, 'Text', 'Μόνο ' + oloimeroVariant[variant][0] + ' του τμήματος του Ολοημέρου, π.χ. για ένα κελί με το μάθημα και από κάτω τον εκπαιδευτικό.' + oloimeroNote, oloimeroVariant[variant][1])),
       ...DOC_OLOIMERO_TEACHERS.flatMap(teachers => DOC_OLOIMERO_FORMS.map(form => pattern(oloimeroNames(teachers + '.' + form, true), O + '<ημέρα>.<ώρα>.' + teachers + '.' + form, 'Text',
-        'Όλοι οι εκπαιδευτικοί της ώρας εκείνη την ημέρα, από όλα τα τμήματα (π.χ. για ένα κελί «Όλα τα τμήματα» της Πρωινής Ζώνης ή του Γεύματος), με ' + (teachers === DOC_OLOIMERO_TEACHERS[0] ? 'το πλήρες όνομα' : 'το σύντομο όνομα') + ', με τη σειρά Τμήμα 1, 2, … και ο καθένας μία φορά· ' + (form === DOC_OLOIMERO_FORMS[0] ? 'ένας σε κάθε γραμμή (σε XLSX το κελί χρειάζεται αναδίπλωση κειμένου).' : 'σε μία γραμμή, με «, ».') + ' Μόνο ώρες Ολοημέρου (ΠΖ…, ΓΕΥΜΑ…, ΟΛΟ…).',
-        (teachers === DOC_OLOIMERO_TEACHERS[0] ? ['Παπαδόπουλος Γιώργος', 'Μάρκου Παρασκευή'] : ['[ΠΕ06] - Αγγλικά', '[Α1] - Δασκάλα']).join(form === DOC_OLOIMERO_FORMS[0] ? '\n' : ', '))))
+        'Όλοι οι εκπαιδευτικοί της ώρας εκείνη την ημέρα, από όλα τα τμήματα (π.χ. για ένα κελί «Όλα τα τμήματα» της Πρωινής Ζώνης ή του Γεύματος), με ' + teachersLabel(teachers) + ', με τη σειρά Τμήμα 1, 2, … και ο καθένας μία φορά· ' + (form === DOC_OLOIMERO_FORMS[0] ? 'ένας σε κάθε γραμμή (σε XLSX το κελί χρειάζεται αναδίπλωση κειμένου).' : 'σε μία γραμμή, με «, ».') + ' Μόνο ώρες Ολοημέρου (ΠΖ…, ΓΕΥΜΑ…, ΟΛΟ…).',
+        teachersExample(teachers, form)))),
+      // The details of the teacher of a τμήμα, as the fields {{@Εκπ.…}}.
+      ...DOC_STAFF.map(field => pattern(oloimeroNames('.Εκπαιδευτικός.' + field.name), O + '<ημέρα>.<ώρα>.Τμ<αριθμός>.Εκπαιδευτικός.' + field.name, field.type,
+        'Του εκπαιδευτικού του τμήματος του Ολοημέρου, όπως το {{@Εκπ.' + field.name + '}}: ' + field.help.charAt(0).toLocaleLowerCase('el') + field.help.slice(1) + ' Δύο εκπαιδευτικοί με «, », δύο δραστηριότητες στην ίδια θέση με « / »· όσοι δεν αντιστοιχίστηκαν στο Προσωπικό δεν έχουν στοιχεία.' + oloimeroNote, field.example))
     ];
     const byCode = (make) => codes ? codes.map(make) : null;
     const scopeGroups = scope => {
