@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Σχολικό Ημερολόγιο v1.08</title>
+<title>Σχολικό Ημερολόγιο v1.09</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -106,6 +106,52 @@
 .cal-note-grip:disabled{cursor:default!important;opacity:.35}
 .cal-note-add{display:block;width:100%;border:1px dashed #a8b9c8!important;background:#f9fbfd!important;color:#365e83!important;text-align:center!important}
 .cal-note-empty{color:#697984;text-align:center;padding:30px 10px}
+
+/* Behavior events: shared tagged-text appearance with a separate scores column. */
+.school-confirm.cal-behavior-editor{height:75dvh;min-height:min(60dvh,calc(100dvh - 16px));max-height:min(85dvh,calc(100dvh - 16px));display:flex;flex-direction:column;overflow:hidden}
+.cal-behavior-editor>.cal-notes-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex:none;margin-top:15px;margin-bottom:6px}
+.cal-behavior-editor>.cal-notes-list{flex:1;min-height:0;overflow-y:auto;padding:3px 5px 8px 2px}
+.cal-behavior-editor>.school-confirm-actions{flex:none;margin-top:12px}
+.cal-event{display:flex;min-width:0;margin:0 0 10px;border:1px solid var(--cal-list-border);border-left:4px solid #8799ad;border-radius:9px;background:#fafbfc;overflow:hidden}
+.cal-event>.cal-event-layout{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,3fr);flex:1;min-width:0;gap:0}
+.cal-event-description{min-width:0;padding:8px 10px}
+.cal-event-description>.school-tagged-text{margin:0;border:0;background:transparent}
+.cal-event-scores{min-width:0;padding:12px 12px 10px;border-left:1px solid #dfe5ea;background:#f6f8fa;display:flex;flex-direction:column;gap:8px}
+.cal-event-group-heading{font-size:13px;font-weight:700;color:#4b5966;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.cal-event-group{display:flex;flex-direction:column;gap:6px}
+.cal-event-score{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;font-size:13px}
+.cal-event-score-name{min-width:0;overflow-wrap:anywhere}
+.cal-event-points{white-space:nowrap;font-weight:750;font-variant-numeric:tabular-nums;min-width:34px;text-align:center;padding:4px 6px;border:1px solid #cbd4dd;border-radius:6px;background:#e9eef3;color:#52606d}
+.cal-event-points.is-positive{background:#e5f4eb;border-color:#b7dec5;color:#216c42}
+.cal-event-points.is-negative{background:#fae9e7;border-color:#e5c2bd;color:#ad3d33}
+.cal-event-points.is-pending{font-size:11px;font-weight:600}
+.cal-event-score-edit{display:flex;align-items:center;gap:3px;flex:none}
+.cal-event-score-edit button{padding:0!important;width:29px;min-width:29px;height:30px;line-height:1}
+.cal-event-score-edit input{width:55px;min-width:0;height:30px;padding:3px 4px;text-align:center;font-variant-numeric:tabular-nums}
+.cal-event-score-edit input[aria-invalid=true]{border-color:var(--school-ui-error)}
+.cal-event-point-error,.cal-event-description-error{font-size:12px;margin:3px 0 0}
+.cal-event-point-error:empty,.cal-event-description-error:empty{display:none}
+.cal-event-score-block{min-width:0}
+.cal-event-add-participant{font-size:12px!important;min-height:30px;padding:4px 8px!important;align-self:flex-start}
+.cal-event-count-warning{color:#946415;font-size:12px}
+.cal-event.is-drag-source{position:fixed;left:-10000px;top:-10000px;visibility:hidden;pointer-events:none;margin:0}
+.cal-event-placeholder{box-sizing:border-box;margin:0 0 10px;border:2px dashed #8eadd1;background:var(--cal-drop-bg);border-radius:9px;pointer-events:none}
+.cal-event>.cal-note-grip{align-self:center}
+.cal-event>.cal-note-grip[hidden]{display:none}
+.cal-event:not(.is-editing) .cal-event-scores .cal-event-empty{font-size:12px;color:var(--school-ui-muted)}
+.cal-event-chooser{display:flex;flex-direction:column;gap:9px;min-height:160px}
+.cal-event-chooser-list{max-height:min(45dvh,340px);overflow:auto;border:1px solid var(--cal-list-border);border-radius:7px;padding:6px;background:#fafbfc}
+.cal-event-chooser-list label{display:flex;align-items:center;gap:9px;padding:5px 8px;border-radius:5px;font-size:14px}
+.cal-event-chooser-list label:hover{background:#edf3f8}
+.cal-event-chooser-list input{flex:none}
+.cal-event-chooser-summary{font-size:12px;color:var(--school-ui-muted)}
+@media(max-width:760px){
+ .cal-event>.cal-event-layout{grid-template-columns:minmax(0,1fr)}
+ .cal-event-scores{border-left:0;border-top:1px solid #dfe5ea}
+ .cal-event-description{padding:8px}
+ .cal-event-score{flex-wrap:wrap}
+ .cal-event-score-edit{margin-left:auto}
+}
 /* Βιβλίο Σχολικής Ζωής and ΣΣΔ: the box and the field of the editor have the very light yellow of the Βιβλίο;
    Προσωπικές Σημειώσεις and Παιδαγωγική Συνάντηση keep the shared almost white box. */
 .cal-yellow{--school-tagged-text-bg:var(--cal-book-panel);--school-tagged-text-editor-bg:var(--cal-book-panel)}
@@ -236,7 +282,7 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v1.08</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v1.09</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="print" type="button" disabled>Εκτύπωση...</button>
@@ -277,7 +323,7 @@
 // the whole registry, as tags in the same school-calendar:save (schoolTags of _ui.js, SchoolTags of _data.js).
 const $ = id => document.getElementById(id), esc = schoolEscape, post = schoolHost.post;
 const D = SchoolDate, T = SchoolTimetable, Selection = schoolListSelection, G = SchoolTags;
-const APP = 'school_calendar.html', NOTE_WORDS = {one: 'Προσωπική Σημείωση', many: 'Προσωπικές Σημειώσεις'}, BOOK_WORDS = {one: 'Καταχώρηση Βιβλίου Σχολικής Ζωής', many: 'Καταχωρήσεις Βιβλίου Σχολικής Ζωής'};
+const APP = 'school_calendar.html', EVENT_WORDS = {one:'Συμβάν Ποινών / Επιβραβεύσεων', many:'Συμβάντα Ποινών / Επιβραβεύσεων'}, NOTE_WORDS = {one: 'Προσωπική Σημείωση', many: 'Προσωπικές Σημειώσεις'}, BOOK_WORDS = {one: 'Καταχώρηση Βιβλίου Σχολικής Ζωής', many: 'Καταχωρήσεις Βιβλίου Σχολικής Ζωής'};
 const MEETING_WORDS = {ssdMeetings: {one: 'Συνεδρίαση ΣΣΔ', many: 'Συνεδριάσεις ΣΣΔ'}, pedagogicMeetings: {one: 'Παιδαγωγική Συνάντηση', many: 'Παιδαγωγικές Συναντήσεις'}};
 const MONTHS = ['Ιανουάριος','Φεβρουάριος','Μάρτιος','Απρίλιος','Μάιος','Ιούνιος','Ιούλιος','Αύγουστος','Σεπτέμβριος','Οκτώβριος','Νοέμβριος','Δεκέμβριος'];
 const MONTHS_GEN = ['Ιανουαρίου','Φεβρουαρίου','Μαρτίου','Απριλίου','Μαΐου','Ιουνίου','Ιουλίου','Αυγούστου','Σεπτεμβρίου','Οκτωβρίου','Νοεμβρίου','Δεκεμβρίου'];
@@ -316,7 +362,7 @@ const tagData = (tags = tagRegistry) => ({tags, classes: context?.classes || [],
 // ({day, notes} or {day, book} for a day; {field, key, value} for a meeting), so that their current tags count.
 function tagUsageOf(id, open = {}) {
   const uses = item => (item?.tags || []).some(ref => ref.type === 'general' && ref.id === id);
-  let notes = 0, books = 0;
+  let notes = 0, books = 0, events = 0;
   const days = new Set(Object.keys(cal.entries));
   if (open.day) days.add(open.day);
   for (const key of days) {
@@ -324,6 +370,8 @@ function tagUsageOf(id, open = {}) {
     const list = key === open.day && open.notes ? open.notes : entry.personalNotes || [];
     for (const note of list) if (uses(note)) notes++;
     if (uses(key === open.day && open.book ? open.book : entry.schoolLifeBook)) books++;
+    const eventList = key === open.day && open.events ? open.events : entry.behaviorEvents || [];
+    for (const item of eventList) if (uses(item)) events++;
   }
   const meetings = Object.keys(MEETING_WORDS).map(field => {
     const keys = new Set(Object.keys(cal[field] || {}));
@@ -333,7 +381,7 @@ function tagUsageOf(id, open = {}) {
     return count ? [{...MEETING_WORDS[field], count}] : [];
   }).flat();
   const others = ((context?.tagUsage || {})[id] || []).filter(item => item.app !== APP);
-  return [...(notes ? [{...NOTE_WORDS, count:notes}] : []), ...(books ? [{...BOOK_WORDS, count:books}] : []), ...meetings, ...others];
+  return [...(notes ? [{...NOTE_WORDS, count:notes}] : []), ...(books ? [{...BOOK_WORDS, count:books}] : []), ...(events ? [{...EVENT_WORDS, count:events}] : []), ...meetings, ...others];
 }
 // The general tags deleted in the «Διαχείριση ετικετών» of a dialog leave every item of the year (notes, Βιβλίο,
 // meetings) when the dialog ends with «Ενημέρωση»; the registry of the dialog becomes the registry of the page.
@@ -346,6 +394,7 @@ function acceptRegistry(registry) {
   for (const entry of Object.values(cal.entries)) {
     for (const note of entry.personalNotes || []) note.tags = withoutGeneral(note.tags, removed);
     if (entry.schoolLifeBook) entry.schoolLifeBook.tags = withoutGeneral(entry.schoolLifeBook.tags, removed);
+    for (const item of entry.behaviorEvents || []) item.tags = withoutGeneral(item.tags, removed);
   }
   for (const field of Object.keys(MEETING_WORDS)) for (const meeting of Object.values(cal[field] || {})) if (meeting.subject) meeting.subject.tags = withoutGeneral(meeting.subject.tags, removed);
 }
@@ -370,9 +419,11 @@ const inYear = d => schoolYearFor(d) === startYear;
 const monthDelta = (d, n) => new Date(d.getFullYear(), d.getMonth() + n, 1, 12);
 const hasHtml = html => SchoolHtml.hasText(html);
 const sanitizeHtml = html => SchoolHtml.sanitize(html);
-function getEntry(k) { return cal.entries[k] || {personalNotes:[], schoolLifeBook:{html:'',tags:[]}}; }
+function getEntry(k) { return cal.entries[k] || {personalNotes:[], schoolLifeBook:{html:'',tags:[]}, behaviorEvents:[]}; }
 const hasPersonal = notes => Array.isArray(notes) && notes.some(note => hasHtml(note.html));
 const hasBook = book => !!book && hasHtml(book.html);
+const hasEvents = events => Array.isArray(events) && events.length > 0;
+const hasDayContent = entry => hasPersonal(entry.personalNotes) || hasBook(entry.schoolLifeBook) || hasEvents(entry.behaviorEvents);
 const noteId = () => crypto.randomUUID();
 // A cancelled confirmation inside a dialog: the dialog stays open and shows no error.
 const cancelled = () => Object.assign(Error('Η ενέργεια ακυρώθηκε.'), {name:'AbortError'});
@@ -411,7 +462,11 @@ function normalizeCalendar(value) {
     const personalNotes = (Array.isArray(entry.personalNotes) ? entry.personalNotes : []).filter(note => isObject(note) && typeof note.id === 'string' && typeof note.html === 'string').map(note => ({id:note.id, html:sanitizeHtml(note.html), tags:G.clean(note.tags)})).filter(note => hasHtml(note.html));
     const book = isObject(entry.schoolLifeBook) ? entry.schoolLifeBook : {};
     const schoolLifeBook = {html:sanitizeHtml(book.html), tags:G.clean(book.tags)};
-    if (hasPersonal(personalNotes) || hasBook(schoolLifeBook)) entries[key] = {personalNotes, schoolLifeBook};
+    const behaviorEvents = (Array.isArray(entry.behaviorEvents) ? entry.behaviorEvents : []).map(event => ({
+      id:event.id, html:sanitizeHtml(event.html), tags:G.clean(event.tags),
+      scores:(Array.isArray(event.scores) ? event.scores : []).map(score => ({type:score.type, id:score.id, points:score.points}))
+    }));
+    if (hasPersonal(personalNotes) || hasBook(schoolLifeBook) || hasEvents(behaviorEvents)) entries[key] = {personalNotes, schoolLifeBook, behaviorEvents};
   }
   return {entries, ssdMeetings: normalizeMeetings(value?.ssdMeetings, true), pedagogicMeetings: normalizeMeetings(value?.pedagogicMeetings, false)};
 }
@@ -506,9 +561,9 @@ function meetingIcon(hasSsd, hasPed) {
 // Colours, meeting icon and label of one day cell (month and school year).
 function decorateDay(cell, date, label) {
   const key = dateKey(date), entry = getEntry(key), personal = hasPersonal(entry.personalNotes), school = hasBook(entry.schoolLifeBook);
-  const hasSsd = !!cal.ssdMeetings[key], hasPed = !!cal.pedagogicMeetings[key];
+  const hasSsd = !!cal.ssdMeetings[key], hasPed = !!cal.pedagogicMeetings[key], hasBehavior = hasEvents(entry.behaviorEvents);
   cell.dataset.key = key; cell.tabIndex = 0; cell.setAttribute('role', 'gridcell');
-  cell.setAttribute('aria-label', `${label}${personal ? ' — προσωπικές σημειώσεις' : ''}${school ? ' — βιβλίο σχολικής ζωής' : ''}${hasSsd ? ' — συνεδρίαση Συλλόγου Διδασκόντων' : ''}${hasPed ? ' — παιδαγωγική συνάντηση' : ''}`);
+  cell.setAttribute('aria-label', `${label}${personal ? ' — προσωπικές σημειώσεις' : ''}${school ? ' — βιβλίο σχολικής ζωής' : ''}${hasBehavior ? ' — ποινές / επιβραβεύσεις' : ''}${hasSsd ? ' — συνεδρίαση Συλλόγου Διδασκόντων' : ''}${hasPed ? ' — παιδαγωγική συνάντηση' : ''}`);
   if (hasSsd || hasPed) { cell.classList.add('has-meeting'); cell.append(meetingIcon(hasSsd, hasPed)); }
   if (personal) cell.classList.add('has-personal');
   if (school) cell.classList.add('has-school');
@@ -623,18 +678,20 @@ async function openDayActions(date) {
   while (true) {
     // On returning from an entry, refresh the indicators and show the same day's choices again.
     const entry = getEntry(key);
-    const has = [hasPersonal(entry.personalNotes), hasBook(entry.schoolLifeBook), !!cal.ssdMeetings[key], !!cal.pedagogicMeetings[key]];
+    const has = [hasPersonal(entry.personalNotes), hasBook(entry.schoolLifeBook), !!cal.ssdMeetings[key], !!cal.pedagogicMeetings[key], hasEvents(entry.behaviorEvents)];
     const choice = await schoolChoiceDialog({
       title: longDate(date), className: 'cal-day-actions',
       choices: [
         {label: 'Προσωπικές Σημειώσεις', value: 'personalNotes'},
         {label: 'Βιβλίο Σχολικής Ζωής', value: 'schoolLifeBook'},
+        {label: 'Ποινές / Επιβραβεύσεις', value: 'behaviorEvents'},
         {label: 'Παιδαγωγική Συνάντηση', value: 'ped'},
         {label: 'Συνεδρίαση Συλλόγου Διδασκόντων', value: 'ssd'}
       ],
-      ready: ({dialog}) => dialog.querySelectorAll('.school-choice-options button').forEach((button, index) => button.classList.toggle('cal-has-data', has[[0, 1, 3, 2][index]]))
+      ready: ({dialog}) => dialog.querySelectorAll('.school-choice-options button').forEach((button, index) => button.classList.toggle('cal-has-data', has[[0, 1, 4, 3, 2][index]]))
     });
     if (choice === 'personalNotes' || choice === 'schoolLifeBook') await editDay(date, choice);
+    else if (choice === 'behaviorEvents') await editBehaviorEvents(date);
     else if (choice === 'ssd' || choice === 'ped') await openMeeting(choice, date);
     else break;
   }
@@ -820,7 +877,7 @@ async function editPersonalNotes(date) {
   if (!result) return;
   acceptRegistry(result.registry);
   const next = {...getEntry(key), personalNotes: result.notes};
-  if (!hasPersonal(next.personalNotes) && !hasBook(next.schoolLifeBook)) delete cal.entries[key];
+  if (!hasDayContent(next)) delete cal.entries[key];
   else cal.entries[key] = next;
   render(); updateDirty();
 }
@@ -859,9 +916,299 @@ async function editDay(date, field) {
   if (!result) return;
   acceptRegistry(result.registry);
   const next = {...getEntry(key), schoolLifeBook:result.book};
-  if (!hasPersonal(next.personalNotes) && !hasBook(next.schoolLifeBook)) delete cal.entries[key];
+  if (!hasDayContent(next)) delete cal.entries[key];
   else cal.entries[key] = next;
   render(); updateDirty();
+}
+
+// ---- Behavior events: one shared description/tags and independent scores for classes/students. ----
+async function editBehaviorEvents(date) {
+  const key = dateKey(date), original = clone(getEntry(key).behaviorEvents || []), originalTags = clone(tagRegistry);
+  let events = clone(original), registry = clone(originalTags), editingEnabled = !events.length;
+  let activeId = null, active = null, draftScores = null, dragging = null;
+  const body = document.createElement('div'); body.className = 'cal-notes-list'; body.id = 'calBehaviorEventsList';
+  const maxEvents = context?.limits?.eventsPerDay ?? 100;
+  const maxScores = context?.limits?.scoresPerEvent ?? 250;
+  const pointMin = context?.limits?.pointsMin ?? -100, pointMax = context?.limits?.pointsMax ?? 100;
+  const warn = context?.limits?.warnRatio ?? .9;
+  const selectedKey = score => score.type + ':' + score.id;
+  const labels = (type, id) => {
+    if (type === 'class') return (context.classes || []).find(c => c.id === id)?.name || id;
+    const student = (context.students || []).find(s => s.id === id);
+    return student ? G.studentLabel(student, context.classes || []) : id;
+  };
+  const registryAccess = {
+    get: () => registry,
+    set: (next, removed) => {
+      registry = next;
+      for (const event of events) event.tags = withoutGeneral(event.tags, removed);
+      if (active) active.event.tags = withoutGeneral(active.event.tags, removed);
+      renderEvents();
+    }
+  };
+  const eventUsage = (id, current) => tagUsageOf(id, {
+    day:key, events:[...events.filter(event => event.id !== activeId), {id:activeId, tags:current.tags}]
+  });
+  const scoreProblem = raw => {
+    if (raw === '') return '';
+    if (!/^-?\d+$/.test(raw) || !Number.isSafeInteger(Number(raw))) return 'Γράψε ακέραιο αριθμό βαθμών.';
+    const number = Number(raw);
+    if (number < pointMin || number > pointMax) return `Επιτρέπονται βαθμοί από ${pointMin} έως ${pointMax}.`;
+    return '';
+  };
+  const renderScoreList = (host, scoreList, editing) => {
+    host.replaceChildren();
+    for (const [type, title] of [['class','Τμήματα'],['student','Μαθητές']]) {
+      const section = document.createElement('section'); section.className = 'cal-event-group';
+      const heading = document.createElement('div'); heading.className = 'cal-event-group-heading';
+      const label = document.createElement('span'); label.textContent = title; heading.append(label);
+      const items = scoreList.filter(item => item.type === type);
+      if (editing && scoreList.length < maxScores) {
+        const add = document.createElement('button'); add.type = 'button'; add.className = 'cal-event-add-participant';
+        add.textContent = type === 'class' ? '+ Τμήμα' : '+ Μαθητής';
+        add.addEventListener('click', async () => {
+          const available = (type === 'class' ? context.classes || [] : context.students || [])
+            .filter(item => item?.id && !scoreList.some(s => s.type === type && s.id === item.id))
+            .map(item => ({id:item.id, name:labels(type,item.id)}));
+          if (!available.length) return;
+          const selected = await pickEventParticipants(type, available, maxScores-scoreList.length);
+          if (!selected?.length || activeId === null) return;
+          for (const id of selected) if (scoreList.length < maxScores && !scoreList.some(s => s.type === type && s.id === id)) scoreList.push({type,id,points:null});
+          renderScoreList(host, scoreList, true);
+        });
+        heading.append(add);
+      }
+      section.append(heading);
+      if (!items.length) {
+        const empty = document.createElement('div'); empty.className = 'cal-event-empty';
+        empty.textContent = editing ? 'Δεν έχουν προστεθεί.' : '—'; section.append(empty);
+      }
+      for (const score of items) {
+        const block = document.createElement('div'); block.className = 'cal-event-score-block';
+        const row = document.createElement('div'); row.className = 'cal-event-score';
+        const name = document.createElement('span'); name.className = 'cal-event-score-name'; name.textContent = labels(type,score.id); name.title = name.textContent;
+        row.append(name);
+        if (!editing) {
+          const value = document.createElement('span'); value.className = 'cal-event-points';
+          value.classList.add(score.points === null ? 'is-pending' : score.points > 0 ? 'is-positive' : score.points < 0 ? 'is-negative' : 'is-zero');
+          value.textContent = score.points === null ? 'Εκκρεμεί' : score.points > 0 ? '+'+score.points : String(score.points);
+          row.append(value);
+        } else {
+          const controls = document.createElement('div'); controls.className = 'cal-event-score-edit';
+          const minus = document.createElement('button'); minus.type='button'; minus.textContent='−'; minus.title='Μείωση κατά έναν βαθμό';
+          const input = document.createElement('input'); input.type='text'; input.inputMode='numeric'; input.autocomplete='off';
+          input.setAttribute('aria-label','Βαθμοί για '+name.textContent);
+          input.value = score.points === null ? '' : String(score.points); input.placeholder='—';
+          const plus = document.createElement('button'); plus.type='button'; plus.textContent='+'; plus.title='Αύξηση κατά έναν βαθμό';
+          const remove = document.createElement('button'); remove.type='button'; remove.innerHTML=schoolIcon('close'); remove.title='Αφαίρεση συμμετέχοντα'; remove.setAttribute('aria-label','Αφαίρεση '+name.textContent);
+          const error = document.createElement('div'); error.className='ui-validation-error cal-event-point-error'; error.setAttribute('role','alert');
+          const apply = () => {
+            const raw=input.value.trim(), problem=scoreProblem(raw);
+            input.setAttribute('aria-invalid',String(!!problem)); error.textContent=problem;
+            if (!problem) score.points=raw===''?null:Number(raw);
+            return !problem;
+          };
+          input.addEventListener('input',apply);
+          const step = direction => {
+            const raw=input.value.trim(); if (scoreProblem(raw)) {apply();input.focus();return;}
+            const next=(raw===''?0:Number(raw))+direction;
+            if (next < pointMin || next > pointMax) return;
+            input.value=String(next);apply();input.focus();
+          };
+          minus.addEventListener('click',()=>step(-1)); plus.addEventListener('click',()=>step(1));
+          minus.disabled=score.points!==null && score.points<=pointMin;
+          plus.disabled=score.points!==null && score.points>=pointMax;
+          input.addEventListener('input',()=>{ const valid=scoreProblem(input.value.trim())==='';const n=Number(input.value.trim()); minus.disabled=valid && input.value.trim()!=='' && n<=pointMin; plus.disabled=valid && input.value.trim()!=='' && n>=pointMax; });
+          remove.addEventListener('click',()=>{const i=scoreList.findIndex(s=>selectedKey(s)===selectedKey(score));if(i>=0)scoreList.splice(i,1);renderScoreList(host,scoreList,true);});
+          controls.append(minus,input,plus,remove);row.append(controls); block.append(row,error);
+        }
+        if (!editing) block.append(row);
+        section.append(block);
+      }
+      host.append(section);
+    }
+    if (editing && scoreList.length >= Math.ceil(maxScores*warn)) {
+      const message=document.createElement('div'); message.className='cal-event-count-warning';
+      message.textContent=scoreList.length>=maxScores ? `Συμπληρώθηκε το όριο των ${maxScores} συμμετεχόντων.` : `${scoreList.length} από ${maxScores} συμμετέχοντες.`;
+      host.append(message);
+    }
+  };
+  const validationIssue = () => {
+    if (!active) return null;
+    const root=active.row;
+    const content=root.querySelector('.school-richtext-editor');
+    if (content && !hasHtml(sanitizeHtml(content.innerHTML))) {
+      const error=root.querySelector('.cal-event-description-error');
+      if (error) error.textContent='Η περιγραφή του συμβάντος είναι υποχρεωτική.';
+      content.setAttribute('aria-invalid','true'); content.focus();
+      return 'Η περιγραφή του συμβάντος είναι υποχρεωτική.';
+    }
+    for (const input of root.querySelectorAll('.cal-event-score-edit input')) {
+      const problem=scoreProblem(input.value.trim());
+      if (problem) {
+        input.setAttribute('aria-invalid','true');
+        input.closest('.cal-event-score-block')?.querySelector('.cal-event-point-error')?.replaceChildren(document.createTextNode(problem));
+        input.focus();return problem;
+      }
+    }
+    return null;
+  };
+  const renderEvent = (event,isNew=false) => {
+    const row=document.createElement('div');row.className='cal-event';row.dataset.eventId=event.id;
+    const grip=document.createElement('button');grip.type='button';grip.className='cal-note-grip';grip.textContent='⠿';grip.hidden=!editingEnabled;grip.title='Σύρε για αλλαγή σειράς';grip.setAttribute('aria-label','Μετακίνηση συμβάντος');
+    const layout=document.createElement('div');layout.className='cal-event-layout';
+    const description=document.createElement('div');description.className='cal-event-description';
+    const scoresArea=document.createElement('div');scoresArea.className='cal-event-scores';
+    layout.append(description,scoresArea);row.append(grip,layout);
+    let committedScores = null;
+    const text=taggedText({
+      value:event,label:'Περιγραφή συμβάντος',className:'cal-note',
+      texts:{empty:'Δεν υπάρχει περιγραφή.',edit:'Επεξεργασία συμβάντος',create:'Νέο συμβάν',remove:'Διαγραφή συμβάντος',
+        accept:'Αποδοχή συμβάντος',cancel:'Ακύρωση αλλαγών συμβάντος',removeConfirm:'Να διαγραφεί αυτό το συμβάν;',removeTitle:'Διαγραφή συμβάντος',pickTitle:'Ετικέτες συμβάντος'},
+      tools:()=>editingEnabled,locked:()=>activeId!==null,
+      onEditing: editing=>{
+        if (editing) {
+          activeId=event.id;draftScores=clone(event.scores || []);active={row,event,text};row.classList.add('is-editing');grip.hidden=true;
+          renderScoreList(scoresArea,draftScores,true);
+          renderEvents();
+        } else {
+          if (activeId===event.id) {committedScores=clone(draftScores ?? event.scores ?? []);activeId=null;active=null;draftScores=null;row.classList.remove('is-editing');renderEvents();}
+        }
+      },
+      onChange:(value,{removed})=>{
+        if (removed) events=events.filter(other=>other.id!==event.id);
+        else {
+          const updated={id:event.id,html:value.html,tags:value.tags,scores:clone(committedScores??event.scores??[])};
+          const found=events.findIndex(other=>other.id===event.id);
+          if(found>=0)events[found]=updated;else events.push(updated);
+        }
+        renderEvents();
+      }
+    },registryAccess,eventUsage);
+    description.append(text.element);
+    const error=document.createElement('div');error.className='ui-validation-error cal-event-description-error';error.setAttribute('role','alert'); description.append(error);
+    row.addEventListener('click', e=>{
+      if(!active || active.row!==row)return;
+      const button=e.target.closest('button');
+      if(button && button.textContent.trim()==='Αποδοχή') {
+        const issue=validationIssue();if(issue){e.preventDefault();e.stopPropagation();}
+      }
+    },true);
+    row.addEventListener('input',e=>{
+      if(e.target.closest('.school-richtext-editor')){error.textContent='';e.target.removeAttribute('aria-invalid');}
+    });
+    renderScoreList(scoresArea,event.scores||[],false);
+    return {row,grip,text};
+  };
+  function renderEvents() {
+    const locked=activeId!==null;
+    editToggle.setAttribute('aria-pressed',String(editingEnabled));editToggle.disabled=locked;
+    body.replaceChildren();
+    for(const event of events){
+      if(event.id===activeId && active){active.row.querySelector('.cal-note-grip').hidden=true;body.append(active.row);continue;}
+      const created=renderEvent(event);bindDrag(created.row,created.grip,event,locked);body.append(created.row);
+    }
+    if(active&&!events.some(event=>event.id===activeId))body.append(active.row);
+    if(!events.length && !active){const empty=document.createElement('div');empty.className='cal-note-empty';empty.textContent='Δεν υπάρχουν συμβάντα για αυτή την ημέρα.';body.append(empty);}
+    if(editingEnabled){
+      const add=document.createElement('button');add.type='button';add.className='cal-note-add';
+      add.textContent='＋ Προσθήκη συμβάντος';add.disabled=locked||events.length>=maxEvents;
+      add.addEventListener('click',()=>{
+        if(activeId!==null||events.length>=maxEvents)return;
+        const used=new Set(Object.values(cal.entries).flatMap(e=>(e.behaviorEvents||[]).map(x=>x.id)));
+        let id;do{id=noteId();}while(used.has(id));
+        const item=renderEvent({id,html:'',tags:[],scores:[]},true);item.text.edit(true);
+      });body.append(add);
+      if(events.length>=Math.ceil(maxEvents*warn)){
+        const warning=document.createElement('div');warning.className='cal-event-count-warning';
+        warning.textContent=events.length>=maxEvents?`Συμπληρώθηκε το όριο των ${maxEvents} συμβάντων.`:`${events.length} από ${maxEvents} συμβάντα.`;body.append(warning);
+      }
+    }
+  }
+  const finishDrag=accept=>{
+    if(!dragging)return;const state=dragging;dragging=null;cancelAnimationFrame(state.frame);state.row.classList.remove('is-drag-source');
+    if(accept){state.placeholder.replaceWith(state.row);const byId=new Map(events.map(e=>[e.id,e]));events=[...body.querySelectorAll('.cal-event[data-event-id]')].map(row=>byId.get(row.dataset.eventId)).filter(Boolean);}
+    else state.placeholder.remove();
+    renderEvents();
+  };
+  const positionPlaceholder=y=>{
+    if(!dragging||!dragging.placeholder.isConnected)return;
+    const next=[...body.querySelectorAll('.cal-event:not(.is-drag-source)')].find(row=>y<row.getBoundingClientRect().top+row.getBoundingClientRect().height/2);
+    if(next)body.insertBefore(dragging.placeholder,next);
+    else body.insertBefore(dragging.placeholder,body.querySelector('.cal-note-add'));
+  };
+  const autoScroll=()=>{
+    if(!dragging)return;
+    const rect=body.getBoundingClientRect(),edge=Math.min(60,rect.height/4),y=dragging.y;
+    if(y<rect.top+edge)body.scrollTop-=Math.min(18,Math.ceil(18*(rect.top+edge-y)/edge));
+    else if(y>rect.bottom-edge)body.scrollTop+=Math.min(18,Math.ceil(18*(y-rect.bottom+edge)/edge));
+    positionPlaceholder(y);dragging.frame=requestAnimationFrame(autoScroll);
+  };
+  const trackDrag=e=>{if(dragging){dragging.y=e.clientY;positionPlaceholder(e.clientY);}};
+  const dragEscape=e=>{if(dragging && e.key==='Escape')finishDrag(false);};
+  function bindDrag(row,grip,event,locked) {
+    grip.disabled=locked||!editingEnabled;grip.draggable=!grip.disabled;
+    grip.addEventListener('dragstart',e=>{
+      if(dragging||activeId!==null||!editingEnabled){e.preventDefault();return;}
+      const rect=row.getBoundingClientRect(),placeholder=document.createElement('div');placeholder.className='cal-event-placeholder';placeholder.style.height=rect.height+'px';
+      dragging={row,placeholder,y:e.clientY,frame:null};e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',event.id);
+      e.dataTransfer.setDragImage(row,e.clientX-rect.left,e.clientY-rect.top);
+      requestAnimationFrame(()=>{if(!dragging||dragging.row!==row)return;body.insertBefore(placeholder,row);row.classList.add('is-drag-source');dragging.frame=requestAnimationFrame(autoScroll);});
+    });
+    grip.addEventListener('drag',e=>{if(dragging&&(e.clientX||e.clientY))trackDrag(e);});
+    grip.addEventListener('dragend',()=>finishDrag(false));
+  }
+  const heading=document.createElement('div');heading.className='cal-notes-heading';
+  const label=document.createElement('span');label.className='editor-label';label.textContent='Ποινές / Επιβραβεύσεις';
+  const editToggle=document.createElement('button');editToggle.type='button';editToggle.className='ui-toggle';editToggle.textContent='Επεξεργασία';editToggle.setAttribute('aria-controls',body.id);
+  editToggle.addEventListener('click',()=>{if(activeId!==null)return;editingEnabled=!editingEnabled;renderEvents();});
+  heading.append(label,editToggle);
+  document.addEventListener('dragover',trackDrag,true);document.addEventListener('keydown',dragEscape);
+  const result=await schoolChoiceDialog({
+    title:`${weekdayName(date)} ${D.format(key)}`,content:[heading,body],className:'cal-editor cal-behavior-editor',escape:false,
+    actions:[
+      {label:'Επαναφορά',run:()=>{if(active?.text.editing)active.text.cancel();events=clone(original);registry=clone(originalTags);activeId=null;active=null;draftScores=null;renderEvents();throw cancelled();}},
+      {label:'Ενημέρωση',accept:true,run:()=>{
+        if(active){const issue=validationIssue();if(issue)throw Error(issue);active.text.commit();}
+        for(const event of events)if(!hasHtml(event.html))throw Error('Κάθε συμβάν πρέπει να έχει περιγραφή.');
+        return {events,registry};
+      }},
+      {label:'Ακύρωση'}
+    ],
+    ready:({dialog})=>{
+      dialog.addEventListener('dragover',e=>{if(!dragging)return;e.preventDefault();e.dataTransfer.dropEffect='move';});
+      dialog.addEventListener('drop',e=>{if(!dragging)return;e.preventDefault();finishDrag(true);});
+      renderEvents();
+    }
+  });
+  document.removeEventListener('dragover',trackDrag,true);document.removeEventListener('keydown',dragEscape);
+  if(!result)return;
+  acceptRegistry(result.registry);
+  const next={...getEntry(key),behaviorEvents:result.events};
+  if(!hasDayContent(next))delete cal.entries[key];else cal.entries[key]=next;
+  render();updateDirty();
+}
+
+async function pickEventParticipants(type,available,max) {
+  const body=document.createElement('div');body.className='cal-event-chooser';
+  const search=document.createElement('input');search.type='search';search.placeholder='Αναζήτηση…';search.setAttribute('aria-label','Αναζήτηση συμμετεχόντων');
+  const list=document.createElement('div');list.className='cal-event-chooser-list';
+  const count=document.createElement('div');count.className='cal-event-chooser-summary';
+  const selected=new Set(), collator=new Intl.Collator('el',{sensitivity:'base',numeric:true});
+  available.sort((a,b)=>collator.compare(a.name,b.name));
+  const filter=()=>{
+    const term=search.value.toLocaleLowerCase('el').normalize('NFD').replace(/[\u0300-\u036f]/g,'');list.replaceChildren();
+    for(const person of available){
+      if(!person.name.toLocaleLowerCase('el').normalize('NFD').replace(/[\u0300-\u036f]/g,'').includes(term))continue;
+      const line=document.createElement('label'),check=document.createElement('input');check.type='checkbox';check.checked=selected.has(person.id);check.disabled=!check.checked&&selected.size>=max;
+      check.addEventListener('change',()=>{if(check.checked)selected.add(person.id);else selected.delete(person.id);filter();});
+      const text=document.createElement('span');text.textContent=person.name;line.append(check,text);list.append(line);
+    }
+    count.textContent=`Επιλεγμένοι: ${selected.size} · Μέγιστη προσθήκη: ${max}`;
+  };
+  search.addEventListener('input',filter);body.append(search,count,list);
+  return await schoolChoiceDialog({title:type==='student'?'Προσθήκη μαθητών':'Προσθήκη τμημάτων',content:body,
+    actions:[{label:'Προσθήκη',accept:true,run:()=>[...selected]},{label:'Ακύρωση'}],ready:()=>{filter();search.focus();}});
 }
 
 // ---- Meetings (ΣΣΔ and Παιδαγωγική Συνάντηση) ----
