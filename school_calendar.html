@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Σχολικό Ημερολόγιο v1.18</title>
+<title>Σχολικό Ημερολόγιο v1.19</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -142,6 +142,9 @@
 .cal-event-score-edit{display:flex;align-items:center;gap:2px;flex:none}
 .cal-event-score-edit button{padding:0!important;width:32px;min-width:32px;height:32px;line-height:1}
 .cal-event-score-edit input[type=text]{flex:0 0 40px;width:40px;min-width:40px;max-width:40px;height:32px;min-height:32px;padding:3px;text-align:center;font-variant-numeric:tabular-nums}
+.cal-event-score-edit input[type=text].is-negative{background:#fae9e7;border-color:#e5c2bd;color:#ad3d33}
+.cal-event-score-edit input[type=text].is-zero{background:#fff4c7;border-color:#e5d18a;color:#846300}
+.cal-event-score-edit input[type=text].is-positive{background:#e5f4eb;border-color:#b7dec5;color:#216c42}
 .cal-event-score-edit input[aria-invalid=true]{border-color:var(--school-ui-error)}
 .cal-event-point-error,.cal-event-description-error{font-size:12px;margin:3px 0 0}
 .cal-event-point-error:empty,.cal-event-description-error:empty{display:none}
@@ -301,7 +304,7 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v1.18</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v1.19</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="print" type="button" disabled>Εκτύπωση...</button>
@@ -1022,13 +1025,21 @@ async function editBehaviorEvents(date) {
           const plus = document.createElement('button'); plus.type='button'; plus.textContent='+'; plus.title='Αύξηση κατά έναν βαθμό';
           const remove = document.createElement('button'); remove.type='button'; remove.innerHTML=schoolIcon('close'); remove.title='Αφαίρεση συμμετέχοντα'; remove.setAttribute('aria-label','Αφαίρεση '+name.textContent);
           const error = document.createElement('div'); error.className='ui-validation-error cal-event-point-error'; error.setAttribute('role','alert');
+          const updatePointColor = () => {
+            const raw=input.value.trim(), number=Number(raw), valid=raw!=='' && !scoreProblem(raw);
+            input.classList.toggle('is-negative',valid && number<0);
+            input.classList.toggle('is-zero',valid && number===0);
+            input.classList.toggle('is-positive',valid && number>0);
+          };
           const apply = () => {
             const raw=input.value.trim(), problem=scoreProblem(raw);
             input.setAttribute('aria-invalid',String(!!problem)); error.textContent=problem;
+            updatePointColor();
             if (!problem) score.points=raw===''?null:Number(raw);
             return !problem;
           };
           input.addEventListener('input',apply);
+          updatePointColor();
           const step = direction => {
             const raw=input.value.trim(); if (scoreProblem(raw)) {apply();input.focus();return;}
             const next=(raw===''?0:Number(raw))+direction;
