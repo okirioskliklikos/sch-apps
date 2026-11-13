@@ -1,4 +1,4 @@
-<!doctype html><html lang="el" class="subapp-page"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Τμήματα v0.05</title><link rel="stylesheet" href="_ui.css">
+<!doctype html><html lang="el" class="subapp-page"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Τμήματα v0.06</title><link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
 /* Τμήματα: layout of the list and the details. Shared appearance: _ui.css and _subapp.css. */
@@ -52,7 +52,7 @@
   .classes-list-pane{max-height:calc(100dvh - var(--subapp-header-height,110px) - 32px);overflow:visible}
   .classes-list{min-height:220px}
 }
-</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" aria-label="Τμήματα — άνοιγμα κεντρικού μενού" title="Άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΤΜ</span></span><span class="brand-text"><span>Τμήματα</span><span class="small version">v0.05</span></span></button></h1></div><button id="saveClasses" class="save-main" type="button" disabled>Αποθήκευση</button><button id="cancelClasses" type="button" disabled>Αναίρεση Όλων</button><div class="header-right"><span id="classesSchoolYear" class="school-year-indicator" hidden><span>Σχολικό έτος:</span> <span id="classesSchoolYearValue"></span></span></div></header><main id="classes-root" class="page-main"><p class="connection subapp-connection">Άνοιξε τη σελίδα «Τμήματα» μέσα από το Κεντρικό Μενού, αφού ανοίξεις το αρχείο πληροφοριών του σχολείου.</p></main><script src="_ui.js"></script>
+</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" aria-label="Τμήματα — άνοιγμα κεντρικού μενού" title="Άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΤΜ</span></span><span class="brand-text"><span>Τμήματα</span><span class="small version">v0.06</span></span></button></h1></div><button id="saveClasses" class="save-main" type="button" disabled>Αποθήκευση</button><button id="cancelClasses" type="button" disabled>Αναίρεση Όλων</button><div class="header-right"><span id="classesSchoolYear" class="school-year-indicator" hidden><span>Σχολικό έτος:</span> <span id="classesSchoolYearValue"></span></span></div></header><main id="classes-root" class="page-main"><p class="connection subapp-connection">Άνοιξε τη σελίδα «Τμήματα» μέσα από το Κεντρικό Μενού, αφού ανοίξεις το αρχείο πληροφοριών του σχολείου.</p></main><script src="_ui.js"></script>
 <script src="_data.js"></script>
 <script>
 (() => {
@@ -99,6 +99,9 @@ const canHold = (item, person) => !isGeneral(item) || HOMEROOM_SERVICES.includes
 const usageOf = id => (context?.classUsage || {})[id] || [];
 // Use of a class as a tag (context.tagUsage, saved data): [{app, one, many, count}] → «3 Προσωπικές Σημειώσεις».
 const tagUsageOf = id => ((context?.tagUsage || {})[id] || []).filter(item => item?.count > 0);
+// Scores of a class in events of «Ποινές / Επιβραβεύσεις» of the Σχολικό Ημερολόγιο (context.scoreUsage, saved data),
+// in the same form: → «2 Συμβάντα Ποινών / Επιβραβεύσεων».
+const scoreUsageOf = id => ((context?.scoreUsage || {})[id] || []).filter(item => item?.count > 0);
 const tagUsageText = list => list.map(item => `${item.count} ${item.count === 1 ? item.one : item.many}`).join(', ');
 // Saved students of a class (by id).
 const studentsOf = id => Number((context?.studentCounts || {})[id]) || 0;
@@ -108,7 +111,7 @@ const usageText = list => list.map(item => `${item.kindLabel} – ${item.periodI
 const limit = () => Number.isInteger(context?.limits?.classes) ? context.limits.classes : 50;
 const warnAt = () => Math.ceil(limit() * (Number(context?.limits?.warnRatio) || 0.9));
 
-// The data of a class that prevent removing it and changing its kind (students, homeroom, programs, tags), as text
+// The data of a class that prevent removing it and changing its kind (students, homeroom, programs, tags, scores), as text
 // («2 μαθητές, υπεύθυνο, χρήση σε 1 πρόγραμμα ή προσχέδιο (…)»), or ''; brief: without the list of programs. The homeroom counts both saved and in the page.
 function dataText(item, brief = false) {
   const parts = [], before = savedById(item.id);
@@ -118,6 +121,8 @@ function dataText(item, brief = false) {
   if (list.length) parts.push(`χρήση σε ${programsWord(list.length)}` + (brief ? '' : ` (${usageText(list)})`));
   const tags = tagUsageOf(item.id);
   if (tags.length) parts.push(`χρήση ως ετικέτα σε ${tagUsageText(tags)}`);
+  const scores = scoreUsageOf(item.id);
+  if (scores.length) parts.push(`βαθμολογία σε ${tagUsageText(scores)}`);
   return parts.join(', ');
 }
 // The problem with the name that prevents saving, or ''.
@@ -323,7 +328,9 @@ function refreshField() {
   }
   const tags = tagUsageOf(item.id);
   if (tags.length) line(`Ετικέτα σε ${tagUsageText(tags)}.`);
-  if (dataText(item)) line('Ένα τμήμα με μαθητές, υπεύθυνο, χρήση σε πρόγραμμα ή χρήση ως ετικέτα δεν αφαιρείται και δεν αλλάζει είδος.');
+  const scores = scoreUsageOf(item.id);
+  if (scores.length) line(`Βαθμολογία σε ${tagUsageText(scores)} του Σχολικού Ημερολογίου.`);
+  if (dataText(item)) line('Ένα τμήμα με μαθητές, υπεύθυνο, χρήση σε πρόγραμμα, χρήση ως ετικέτα ή βαθμολογία σε συμβάν δεν αφαιρείται και δεν αλλάζει είδος.');
 }
 
 // Kind of a class without data: to Γενικής Παιδείας the grade and number come from the name; to another class they
@@ -417,7 +424,7 @@ async function removeSelected() {
   if (blocked.length) {
     const many = blocked.length > 1;
     const lines = blocked.map(item => `«${clean(savedById(item.id).name) || clean(item.name)}»: ${dataText(item)}`).join('\n');
-    await schoolMessage(`${many ? 'Τα τμήματα δεν αφαιρούνται, γιατί έχουν' : 'Το τμήμα δεν αφαιρείται, γιατί έχει'} δεδομένα:\n\n${lines}\n\nΜετάφερε πρώτα τους μαθητές σε άλλο τμήμα από τους «Μαθητές», βγάλε τον υπεύθυνο και αποθήκευσε, διόρθωσε τα προγράμματα και αφαίρεσε τις ετικέτες.`, {title: 'Αφαίρεση τμημάτων'});
+    await schoolMessage(`${many ? 'Τα τμήματα δεν αφαιρούνται, γιατί έχουν' : 'Το τμήμα δεν αφαιρείται, γιατί έχει'} δεδομένα:\n\n${lines}\n\nΜετάφερε πρώτα τους μαθητές σε άλλο τμήμα από τους «Μαθητές», βγάλε τον υπεύθυνο και αποθήκευσε, διόρθωσε τα προγράμματα, αφαίρεσε τις ετικέτες και βγάλε το τμήμα από τις Ποινές / Επιβραβεύσεις του Σχολικού Ημερολογίου.`, {title: 'Αφαίρεση τμημάτων'});
     return;
   }
   const order = sortedDraft().map(item => item.id), first = Math.min(...removing.map(item => order.indexOf(item.id)));

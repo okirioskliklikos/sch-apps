@@ -1,4 +1,4 @@
-<!doctype html><html lang="el" class="subapp-page"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Μαθητές v0.05</title><link rel="stylesheet" href="_ui.css">
+<!doctype html><html lang="el" class="subapp-page"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Μαθητές v0.06</title><link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
 /* Μαθητές: layout of the list and the details. Shared appearance: _ui.css and _subapp.css. */
@@ -52,7 +52,7 @@
   .students-list-pane{max-height:calc(100dvh - var(--subapp-header-height,110px) - 32px);overflow:visible}
   .students-list{min-height:220px}
 }
-</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" aria-label="Μαθητές — άνοιγμα κεντρικού μενού" title="Άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΜΘ</span></span><span class="brand-text"><span>Μαθητές</span><span class="small version">v0.05</span></span></button></h1></div><button id="saveStudents" class="save-main" type="button" disabled>Αποθήκευση</button><button id="cancelStudents" type="button" disabled>Αναίρεση Όλων</button><div class="header-right"><span id="studentsSchoolYear" class="school-year-indicator" hidden><span>Σχολικό έτος:</span> <span id="studentsSchoolYearValue"></span></span></div></header><main id="students-root" class="page-main"><p class="connection subapp-connection">Άνοιξε τη σελίδα «Μαθητές» μέσα από το Κεντρικό Μενού, αφού ανοίξεις το αρχείο πληροφοριών του σχολείου.</p></main><script src="_ui.js"></script>
+</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" aria-label="Μαθητές — άνοιγμα κεντρικού μενού" title="Άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΜΘ</span></span><span class="brand-text"><span>Μαθητές</span><span class="small version">v0.06</span></span></button></h1></div><button id="saveStudents" class="save-main" type="button" disabled>Αποθήκευση</button><button id="cancelStudents" type="button" disabled>Αναίρεση Όλων</button><div class="header-right"><span id="studentsSchoolYear" class="school-year-indicator" hidden><span>Σχολικό έτος:</span> <span id="studentsSchoolYearValue"></span></span></div></header><main id="students-root" class="page-main"><p class="connection subapp-connection">Άνοιξε τη σελίδα «Μαθητές» μέσα από το Κεντρικό Μενού, αφού ανοίξεις το αρχείο πληροφοριών του σχολείου.</p></main><script src="_ui.js"></script>
 <script src="_data.js"></script>
 <script>
 (() => {
@@ -363,22 +363,34 @@ function addStudent() {
   setSummary(`Νέος μαθητής στο ${classById(classId).name}.`);
 }
 
-// Confirmation for removed students used as tags (tagUsage of the context, from the saved data): the references leave
-// the data of the year with the «Αποθήκευση» (the host clears them); the items themselves stay. → true to go on.
+// Confirmation for removed students used as tags (tagUsage) or scored in events of «Ποινές / Επιβραβεύσεις» of the
+// Σχολικό Ημερολόγιο (scoreUsage), both from the saved data of the context: with the «Αποθήκευση» the host clears the
+// tag references and the score entries of these students; the items, the events and the other scores stay. → true to go on.
 const TAG_REMOVAL_SHOWN = 10;
 function confirmTagRemoval(students) {
-  const usage = context?.tagUsage || {}, usesOf = student => (usage[student.id] || []).filter(item => item?.count > 0);
-  const used = students.filter(student => student.id && usesOf(student).length);
+  const usesOf = (usage, student) => ((usage || {})[student.id] || []).filter(item => item?.count > 0);
+  const tagsOf = student => usesOf(context?.tagUsage, student), scoresOf = student => usesOf(context?.scoreUsage, student);
+  const used = students.filter(student => student.id && (tagsOf(student).length || scoresOf(student).length));
   if (!used.length) return Promise.resolve(true);
   const label = student => SchoolTags.studentLabel(student, classes());
+  // full: «χρησιμοποιείται ως ετικέτα σε … και βαθμολογείται σε …»· brief (for the list): «ετικέτα σε …, βαθμολογία σε …».
+  const usesText = (student, brief = false) => [
+    tagsOf(student).length ? `${brief ? 'ετικέτα' : 'χρησιμοποιείται ως ετικέτα'} σε ${schoolTags.usageText(tagsOf(student))}` : '',
+    scoresOf(student).length ? `${brief ? 'βαθμολογία' : 'βαθμολογείται'} σε ${schoolTags.usageText(scoresOf(student))}` : ''
+  ].filter(Boolean).join(brief ? ', ' : ' και ');
+  const anyTags = used.some(student => tagsOf(student).length), anyScores = used.some(student => scoresOf(student).length);
+  const one = used.length === 1;
+  const leaves = [anyTags ? (one ? 'η ετικέτα' : 'οι ετικέτες') : '', anyScores ? (one ? 'οι βαθμολογίες του/της στα συμβάντα' : 'οι βαθμολογίες τους στα συμβάντα') : ''].filter(Boolean).join(' και ');
+  const stays = anyScores ? 'το περιεχόμενο, τα συμβάντα και οι βαθμολογίες των υπόλοιπων μένουν όπως είναι' : 'το περιεχόμενο μένει όπως είναι';
+  const ending = `\n\nΜε την «Αποθήκευση» θα φύγ${leaves === 'η ετικέτα' ? 'ει' : 'ουν'} μόνο ${leaves}· ${stays}. Θέλεις να συνεχίσεις;`;
   let message;
-  if (used.length === 1) message = `Ο/Η μαθητής/τρια ${label(used[0])} χρησιμοποιείται ως ετικέτα σε ${schoolTags.usageText(usesOf(used[0]))}.\n\nΜε την «Αποθήκευση» θα φύγει μόνο η ετικέτα· το περιεχόμενο μένει όπως είναι. Θέλεις να συνεχίσεις;`;
+  if (one) message = `Ο/Η μαθητής/τρια ${label(used[0])} ${usesText(used[0])}.${ending}`;
   else {
-    const lines = used.slice(0, TAG_REMOVAL_SHOWN).map(student => `• ${label(student)}: ${schoolTags.usageText(usesOf(student))}`);
+    const lines = used.slice(0, TAG_REMOVAL_SHOWN).map(student => `• ${label(student)}: ${usesText(student, true)}`);
     if (used.length > TAG_REMOVAL_SHOWN) lines.push(`… και ${used.length - TAG_REMOVAL_SHOWN} ακόμη`);
-    message = `Οι παρακάτω μαθητές χρησιμοποιούνται ως ετικέτες:\n${lines.join('\n')}\n\nΜε την «Αποθήκευση» θα φύγουν μόνο οι ετικέτες· το περιεχόμενο μένει όπως είναι. Θέλεις να συνεχίσεις;`;
+    message = `Οι παρακάτω μαθητές ${anyTags && anyScores ? 'χρησιμοποιούνται ως ετικέτες ή βαθμολογούνται σε συμβάντα' : anyTags ? 'χρησιμοποιούνται ως ετικέτες' : 'βαθμολογούνται σε Συμβάντα Ποινών / Επιβραβεύσεων'}:\n${lines.join('\n')}${ending}`;
   }
-  return schoolConfirm(message, {title: used.length === 1 ? 'Αφαίρεση μαθητή' : 'Αφαίρεση μαθητών', accept: 'Αφαίρεση'});
+  return schoolConfirm(message, {title: one ? 'Αφαίρεση μαθητή' : 'Αφαίρεση μαθητών', accept: 'Αφαίρεση'});
 }
 
 async function removeSelected() {

@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Μαθητές στο Κεντρικό Μενού (host)
- * Έκδοση αρχείου: 0.03
+ * Έκδοση αρχείου: 0.04
  * Όνομα κατά την εγκατάσταση: _host_students.js
  *
  * Κώδικας μόνο του host για τους μαθητές (studentsByYear). Το φορτώνει το index.html μετά το _data.js και το
@@ -14,10 +14,13 @@
  *                                           νεότερο πρώτο (τα τμήματα με grade/number, για την προαγωγή)
  *   tagUsage(data, year)                    σε ποια στοιχεία ποιας εφαρμογής χρησιμοποιείται κάθε μαθητής ως ετικέτα:
  *                                           {[id μαθητή]: [{app, one, many, count}]}. Χωρίς το _host_tags.js → {}
+ *   scoreUsage(data, year)                  σε πόσα Συμβάντα Ποινών / Επιβραβεύσεων του Ημερολογίου βαθμολογείται κάθε
+ *                                           μαθητής (η μορφή του tagUsage). Χωρίς το _host_calendar.js → {}
  *   context(data, revision)                 το school-students:context
  *   validateStudents(students, classIds)    έλεγχος της λίστας ενός έτους· classIds: τα id των τμημάτων Γενικής
  *                                           Παιδείας· επιστρέφει καθαρό αντίγραφο (πετά λάθος)
- *   applySave(data, message)                εφαρμογή ενός school-students:save σε αντίγραφο του data
+ *   applySave(data, message)                εφαρμογή ενός school-students:save σε αντίγραφο του data· οι μαθητές που
+ *                                           αφαιρούνται φεύγουν από τη βαθμολογία των συμβάντων του Ημερολογίου
  *   csvFile(year, message, rememberedFile)  το CSV μαθητών της εισαγωγής (school-students:file)
  *   install(bridge)                         σύνδεση με το index (πρωτόκολλο school-students:*)
  *
@@ -71,7 +74,14 @@
     return H ? H.usage(data, year).student : {};
   }
 
-  // school-students:context: οι μαθητές και τα τμήματα του έτους, τα παλαιότερα έτη, η χρήση ως ετικέτα και τα όρια.
+  // Σε πόσα Συμβάντα Ποινών / Επιβραβεύσεων βαθμολογείται κάθε μαθητής (για την προειδοποίηση πριν από την αφαίρεση).
+  function scoreUsage(data, year) {
+    const Cal = window.SchoolHostCalendar;
+    return Cal ? Cal.scoreUsage(data, year).student : {};
+  }
+
+  // school-students:context: οι μαθητές και τα τμήματα του έτους, τα παλαιότερα έτη, η χρήση ως ετικέτα και στη
+  // βαθμολογία των συμβάντων, και τα όρια.
   function context(data, revision) {
     const year = data.school.year;
     return clone({
@@ -80,6 +90,7 @@
       classes: Classes.yearClasses(data, year),
       previousYears: previousYears(data, year),
       tagUsage: tagUsage(data, year),
+      scoreUsage: scoreUsage(data, year),
       limits: {students: LIMITS.students, classes: Classes.LIMITS.classes, warnRatio: LIMITS.warnRatio}
     });
   }
@@ -110,7 +121,9 @@
     return out;
   }
   // Το school-students:save σε αντίγραφο του data: αντικαθιστά τη λίστα του studentsByYear[year] και προσθέτει τα
-  // νέα τμήματα (newClasses) στο classesByYear[year]. Τα άλλα έτη και τα άγνωστα πεδία του έτους μένουν.
+  // νέα τμήματα (newClasses) στο classesByYear[year]. Τα άλλα έτη και τα άγνωστα πεδία του έτους μένουν. Οι μαθητές
+  // που αφαιρούνται φεύγουν, στην ίδια αποθήκευση, από τη βαθμολογία των Συμβάντων Ποινών / Επιβραβεύσεων (το
+  // συμβάν και οι υπόλοιποι συμμετέχοντες μένουν). Τις ετικέτες τους τις αφαιρεί το index (removeRefs).
   function applySave(data, message) {
     const year = data.school.year, candidate = clone(data);
     const classes = Classes.addClasses(candidate, year, message?.newClasses, APP);
@@ -118,6 +131,13 @@
     if (!isObject(candidate.studentsByYear)) candidate.studentsByYear = {};
     const previous = isObject(candidate.studentsByYear[year]) ? candidate.studentsByYear[year] : {};
     candidate.studentsByYear[year] = {...previous, students};
+    const kept = new Set(students.map(item => item.id));
+    const removed = yearStudents(data, year).map(item => item.id).filter(id => typeof id === 'string' && id && !kept.has(id));
+    if (removed.length) {
+      const Cal = window.SchoolHostCalendar;
+      if (Cal) Cal.removeScores(candidate, year, 'student', removed);
+      else if (isObject(candidate.calendarByYear)) throw Error('Λείπει το αρχείο _host_calendar.js από τον φάκελο των εφαρμογών. Βεβαιώσου ότι το index.html και τα κοινά αρχεία είναι η τελευταία έκδοση.');
+    }
     return candidate;
   }
 
@@ -183,6 +203,6 @@
   }
 
   window.SchoolHostStudents = Object.freeze({
-    APP, LIMITS, yearStudents, previousYears, tagUsage, context, validateStudents, applySave, csvFile, install
+    APP, LIMITS, yearStudents, previousYears, tagUsage, scoreUsage, context, validateStudents, applySave, csvFile, install
   });
 })();

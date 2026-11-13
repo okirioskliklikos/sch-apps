@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Τμήματα στο Κεντρικό Μενού (host)
- * Έκδοση αρχείου: 0.06
+ * Έκδοση αρχείου: 0.07
  * Όνομα κατά την εγκατάσταση: _host_classes.js
  *
  * Κώδικας μόνο του host για τα Τμήματα (classesByYear). Το φορτώνει το index.html μετά το _data.js και πριν
@@ -15,6 +15,8 @@
  *   studentCounts(data, year)               πόσοι μαθητές του έτους (studentsByYear) είναι σε κάθε τμήμα (με το id)
  *   tagUsage(data, year)                    σε ποια στοιχεία ποιας εφαρμογής χρησιμοποιείται κάθε τμήμα ως ετικέτα
  *                                           (με το id· από το _host_tags.js)
+ *   scoreUsage(data, year)                  σε πόσα Συμβάντα Ποινών / Επιβραβεύσεων του Ημερολογίου βαθμολογείται κάθε
+ *                                           τμήμα (η μορφή του tagUsage· από το _host_calendar.js)
  *   context(data, revision)                 το school-classes:context
  *   validateClasses(classes, staff, options)  έλεγχος της λίστας ενός έτους· επιστρέφει καθαρό αντίγραφο (πετά λάθος)
  *   applySave(data, message)                εφαρμογή ενός school-classes:save σε αντίγραφο του data
@@ -35,8 +37,9 @@
  *   number. homeroomStaffId: το id ενός εκπαιδευτικού του Προσωπικού ή ''. Τα άγνωστα πεδία (του έτους και κάθε
  *   τμήματος) διατηρούνται.
  * Όλα τα δεδομένα αναφέρονται στα τμήματα με το id: μια μετονομασία περνά παντού. Ένα τμήμα δεν αφαιρείται, και
- * δεν αλλάζει είδος, όταν έχει μαθητές, υπεύθυνο, εμφανίζεται σε πρόγραμμα ή προσχέδιο του έτους ή χρησιμοποιείται
- * ως ετικέτα (_host_tags.js, που φορτώνεται μετά από αυτό· το χρησιμοποιεί τη στιγμή της κλήσης).
+ * δεν αλλάζει είδος, όταν έχει μαθητές, υπεύθυνο, εμφανίζεται σε πρόγραμμα ή προσχέδιο του έτους, χρησιμοποιείται
+ * ως ετικέτα (_host_tags.js, που φορτώνεται μετά από αυτό· το χρησιμοποιεί τη στιγμή της κλήσης) ή βαθμολογείται σε
+ * Συμβάν Ποινών / Επιβραβεύσεων του Ημερολογίου (_host_calendar.js, επίσης τη στιγμή της κλήσης).
  * Παλιά μορφή τμημάτων (needsMigration): Προσωπικό με homeroomClass, τμήμα χωρίς grade/number με όνομα τμήματος,
  * πρόγραμμα με formatVersion:1, σχέδιο του Ολοήμερου Designer με source.version:1. Ένα τέτοιο αρχείο το index
  * δεν το ανοίγει.
@@ -133,6 +136,13 @@
     return H ? H.usage(data, year).class : {};
   }
 
+  // Σε πόσα Συμβάντα Ποινών / Επιβραβεύσεων του Ημερολογίου βαθμολογείται κάθε τμήμα:
+  // {[id τμήματος]: [{app, one, many, count}]}. Χωρίς το _host_calendar.js → {}.
+  function scoreUsage(data, year) {
+    const Cal = window.SchoolHostCalendar;
+    return Cal ? Cal.scoreUsage(data, year).class : {};
+  }
+
   // school-classes:context: τα τμήματα του έτους, το Προσωπικό (για τον υπεύθυνο κάθε τμήματος), τα
   // παλαιότερα έτη, η χρήση στα προγράμματα και ως ετικέτα, οι μαθητές ανά τμήμα και τα όρια.
   function context(data, revision) {
@@ -145,6 +155,7 @@
       classUsage: classUsage(data, year),
       studentCounts: studentCounts(data, year),
       tagUsage: tagUsage(data, year),
+      scoreUsage: scoreUsage(data, year),
       limits: {classes: LIMITS.classes, warnRatio: LIMITS.warnRatio}
     });
   }
@@ -197,38 +208,40 @@
   }
 
   // Τα δεδομένα ενός τμήματος που εμποδίζουν την αφαίρεση και την αλλαγή είδους: μαθητές, υπεύθυνος, προγράμματα,
-  // χρήση ως ετικέτα. → κείμενο («2 μαθητές, υπεύθυνο, 1 πρόγραμμα») ή ''.
-  function classDataText(record, counts, usage, homeroom, tags = {}) {
+  // χρήση ως ετικέτα, βαθμολογία σε συμβάντα. → κείμενο («2 μαθητές, υπεύθυνο, 1 πρόγραμμα») ή ''.
+  function classDataText(record, counts, usage, homeroom, tags = {}, scores = {}) {
     const parts = [];
     if (counts[record.id]) parts.push(plural(counts[record.id], 'μαθητή', 'μαθητές'));
     if (homeroom) parts.push('υπεύθυνο');
     if (usage[record.id]?.length) parts.push('χρήση σε ' + plural(usage[record.id].length, 'πρόγραμμα ή προσχέδιο', 'προγράμματα ή προσχέδια') + ' (' + usage[record.id].map(item => item.kindLabel + ' – ' + (item.periodId ? (item.periodName || 'περίοδος') : 'προσχέδιο') + (item.name ? ' ' + quoted(item.name) : '')).join(', ') + ')');
     if (tags[record.id]?.length) parts.push('χρήση ως ετικέτα σε ' + tags[record.id].map(item => item.count + ' ' + (item.count === 1 ? item.one : item.many)).join(', '));
+    if (scores[record.id]?.length) parts.push('βαθμολογία σε ' + scores[record.id].map(item => item.count + ' ' + (item.count === 1 ? item.one : item.many)).join(', '));
     return parts.join(', ');
   }
 
   // Το school-classes:save σε αντίγραφο του data: αντικαθιστά μόνο τη λίστα του classesByYear[year]. Τα άλλα έτη
   // και τα άγνωστα πεδία του έτους μένουν όπως είναι. Απορρίπτει την αφαίρεση και την αλλαγή είδους τμήματος που
-  // έχει δεδομένα (μαθητές, υπεύθυνο, χρήση σε πρόγραμμα ή προσχέδιο ή ως ετικέτα), και αλλαγή τάξης ή αριθμού.
+  // έχει δεδομένα (μαθητές, υπεύθυνο, χρήση σε πρόγραμμα ή προσχέδιο ή ως ετικέτα, βαθμολογία σε συμβάν), και αλλαγή
+  // τάξης ή αριθμού.
   function applySave(data, message) {
     const year = data.school.year, classes = validateClasses(message?.classes, staffOf(data, year)), candidate = clone(data);
     const existing = new Map(yearClasses(data, year).map(item => [item.id, item]));
-    const counts = studentCounts(data, year), usage = classUsage(data, year), tags = tagUsage(data, year), next = new Map(classes.map(item => [item.id, item]));
+    const counts = studentCounts(data, year), usage = classUsage(data, year), tags = tagUsage(data, year), scores = scoreUsage(data, year), next = new Map(classes.map(item => [item.id, item]));
     const lost = [];
     for (const [id, old] of existing) {
       const now = next.get(id);
       if (!now) {
-        const text = classDataText(old, counts, usage, old.homeroomStaffId, tags);
+        const text = classDataText(old, counts, usage, old.homeroomStaffId, tags, scores);
         if (text) lost.push(quoted(old.name) + ': ' + text);
         continue;
       }
       if (C.isGeneral(old) && C.isGeneral(now) && C.key(old) !== C.key(now)) throw Error('Το τμήμα ' + quoted(old.name) + ' δεν μπορεί να γίνει ' + C.key(now) + ': η τάξη και ο αριθμός ενός τμήματος δεν αλλάζουν. Για νέο τμήμα χρησιμοποίησε «+ Προσθήκη».');
       if (C.isGeneral(old) !== C.isGeneral(now)) {
-        const text = classDataText(old, counts, usage, old.homeroomStaffId || now.homeroomStaffId, tags);
+        const text = classDataText(old, counts, usage, old.homeroomStaffId || now.homeroomStaffId, tags, scores);
         if (text) throw Error('Το είδος του τμήματος ' + quoted(old.name) + ' δεν αλλάζει, γιατί έχει ' + text + '.');
       }
     }
-    if (lost.length) throw Error((lost.length === 1 ? 'Το τμήμα δεν αφαιρείται, γιατί έχει δεδομένα: ' : 'Τα τμήματα δεν αφαιρούνται, γιατί έχουν δεδομένα: ') + lost.join('· ') + '. Μετάφερε πρώτα τους μαθητές από τους «Μαθητές», βγάλε τον υπεύθυνο, διόρθωσε τα προγράμματα και αφαίρεσε τις ετικέτες.');
+    if (lost.length) throw Error((lost.length === 1 ? 'Το τμήμα δεν αφαιρείται, γιατί έχει δεδομένα: ' : 'Τα τμήματα δεν αφαιρούνται, γιατί έχουν δεδομένα: ') + lost.join('· ') + '. Μετάφερε πρώτα τους μαθητές από τους «Μαθητές», βγάλε τον υπεύθυνο, διόρθωσε τα προγράμματα, αφαίρεσε τις ετικέτες και βγάλε το τμήμα από τις Ποινές / Επιβραβεύσεις του Σχολικού Ημερολογίου.');
     if (!isObject(candidate.classesByYear)) candidate.classesByYear = {};
     const previous = isObject(candidate.classesByYear[year]) ? candidate.classesByYear[year] : {};
     candidate.classesByYear[year] = {...previous, classes};
@@ -374,7 +387,7 @@
   }
 
   window.SchoolHostClasses = Object.freeze({
-    APP, LIMITS, yearClasses, previousYears, classUsage, studentCounts, tagUsage, context, validateClasses, applySave, addClasses,
+    APP, LIMITS, yearClasses, previousYears, classUsage, studentCounts, tagUsage, scoreUsage, context, validateClasses, applySave, addClasses,
     removeStaff, needsMigration, fetFile, install
   });
 })();

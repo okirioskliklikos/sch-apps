@@ -12,7 +12,7 @@
   φτιάχνονται από το σύντομο όνομα των δασκάλων («[Α1] - …», classesFromStaff). Με το .data δοκιμής, οι
   έλεγχοι των νέων ετικετών (v2) παίρνουν το Προσωπικό από αυτό, γιατί το CSV του Ολοημέρου έχει τα σύντομα
   ονόματα του Προσωπικού.
-  Έκδοση αρχείου: 0.48
+  Έκδοση αρχείου: 0.49
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -696,7 +696,7 @@ function hostCalendarChecks() {
   const saved = C.applySave(base, {calendar});
   equal('Αποθήκευση: γράφει μόνο το calendarByYear του έτους, τα άλλα έτη μένουν', [Object.keys(saved.calendarByYear).sort(), saved.calendarByYear['2025-2026'].entries['2026-01-10'].personalNotes[0].html], [['2025-2026', year], 'παλιό']);
   equal('Οι κενές σημειώσεις δεν κρατιούνται', Object.keys(saved.calendarByYear[year].entries), ['2026-11-10']);
-  equal('Τα δύο πεδία σημειώσεων αποθηκεύονται ανεξάρτητα, οι προσωπικές με τη σειρά τους', saved.calendarByYear[year].entries['2026-11-10'], {personalNotes: notes('<b>σημ.</b>', 'δεύτερη').map(note => ({...note, tags: []})), schoolLifeBook: {html:'<p>Σχολική ζωή</p>', tags:[]}});
+  equal('Τα δύο πεδία σημειώσεων αποθηκεύονται ανεξάρτητα, οι προσωπικές με τη σειρά τους', saved.calendarByYear[year].entries['2026-11-10'], {personalNotes: notes('<b>σημ.</b>', 'δεύτερη').map(note => ({...note, tags: []})), schoolLifeBook: {html:'<p>Σχολική ζωή</p>', tags:[]}, behaviorEvents: []});
   equal('Μόνο προσωπικές σημειώσεις: διατηρείται η ημέρα', Object.keys(C.validateCalendar({entries: {'2026-11-13': {personalNotes: notes('Π'), schoolLifeBook: {html:'', tags:[]}}}}, year, []).entries), ['2026-11-13']);
   equal('Μόνο Βιβλίο Σχολικής Ζωής: διατηρείται η ημέρα', Object.keys(C.validateCalendar({entries: {'2026-11-13': {personalNotes: [], schoolLifeBook: {html:'Β', tags:[]}}}}, year, []).entries), ['2026-11-13']);
   equal('Προσωπική σημείωση με κενό html δεν κρατιέται', C.validateCalendar({entries: {'2026-11-13': {personalNotes: [{id: 'a', html: ''}, {id: 'b', html: 'Β'}], schoolLifeBook: {html:'', tags:[]}}}}, year, []).entries['2026-11-13'].personalNotes, [{id: 'b', html: 'Β', tags: []}]);
@@ -751,6 +751,157 @@ function hostCalendarChecks() {
   equal('Ζουμ: προεπιλογή 100, ισχύει για όλα τα έτη (calendarSettings)', [C.zoom(base), C.zoom(C.withZoom(base, 120)), C.withZoom(base, 120).calendarSettings.zoom, C.zoom({calendarSettings: {zoom: 500}})], [100, 120, 120, 100]);
   const context = C.context(C.withZoom(saved, 90), 7);
   equal('Context: έτος, Προσωπικό, Ημερολόγιο του έτους, ζουμ', [context.revision, context.year, context.staff.length, Object.keys(context.calendar.ssdMeetings).length, context.zoom], [7, year, 3, 2, 90]);
+}
+
+// ---- Host: Ποινές / Επιβραβεύσεις (behaviorEvents του _host_calendar.js, με τα _host_tags.js, _host_students.js, _host_classes.js) ----
+function hostBehaviorChecks() {
+  start('7β. Host: Ποινές / Επιβραβεύσεις του Σχολικού Ημερολογίου');
+  const C = window.SchoolHostCalendar, H = window.SchoolHostTags, S = window.SchoolHostStudents, K = window.SchoolHostClasses;
+  if (!C || !H || !S || !K) { record('fail', 'Λείπει ένα από τα _host_calendar.js, _host_tags.js, _host_students.js, _host_classes.js'); return; }
+  const year = '2026-2027', day = '2026-11-13', day2 = '2026-11-16';
+  const student = (id, classId) => ({id, registryNumber: '1' + id, lastName: 'ΕΠΩΝΥΜΟ ' + id, firstName: 'ΟΝΟΜΑ', fatherName: '', classId, adymDate: ''});
+  const crowd = Array.from({length: 260}, (_, i) => student('m' + i, 'c1'));
+  const base = {format: 'school-shared-data', formatVersion: 1, school: {name: 'Σχολείο', year},
+    staffByYear: {[year]: [{id: 's1', code: 'Δ1', shortName: '[Δ1] - Δ', name: 'Δασκάλα Μαρία', serviceType: 'classroom'}, {id: 's2', code: 'ΔΘ', name: 'Διευθυντής', role: 'director'}]},
+    classesByYear: {'2025-2026': {classes: [{...generalClass('Γ1'), id: 'old'}]}, [year]: {classes: [{...generalClass('Δ1'), id: 'c1'}, {...generalClass('Δ2'), id: 'c2'}, {id: 'ce', name: 'Τμήμα Ένταξης', homeroomStaffId: ''}]}},
+    studentsByYear: {'2025-2026': {students: [student('past', 'old')]}, [year]: {students: [student('st1', 'c1'), student('st2', 'c1'), student('st3', 'c1'), student('st4', 'c1'), student('st5', 'c2'), ...crowd]}},
+    tagsByYear: {[year]: {general: [{id: 'g1', name: 'Ομαδική εργασία', color: '#a8d8ff'}, {id: 'g2', name: 'Εκδρομή', color: '#ff0000'}], colors: {}}},
+    calendarByYear: {'2025-2026': {entries: {'2026-01-10': {personalNotes: [{id: 'n0', html: 'παλιό', tags: []}], schoolLifeBook: {html: '', tags: []}}}, ssdMeetings: {}, pedagogicMeetings: {}},
+      [year]: {entries: {'2026-11-10': {personalNotes: [{id: 'n1', html: 'Παλιά σημείωση', tags: []}], schoolLifeBook: {html: 'Βιβλίο', tags: []}}},
+        ssdMeetings: {}, pedagogicMeetings: {'2026-11-20': {startTime: '13:20', endTime: '14:00', subject: {html: '', tags: []}, directorId: 's2', directorName: 'Δ', present: ['s1'], absent: [], absenceReasons: {}, scheduleAutoReasons: {}, leaveAutoIds: []}}, future: 'x'}}};
+  const frozen = JSON.stringify(base);
+  const sc = (type, id, points) => ({type, id, points});
+  const ev = (id, extra = {}) => ({id, html: '<p>Συμβάν ' + id + '</p>', tags: [], scores: [], ...extra});
+  // Ένα Ημερολόγιο του έτους με ό,τι ήδη υπάρχει και τα συμβάντα μιας ημέρας.
+  const withEvents = (events, more = {}) => {
+    const calendar = clone(base.calendarByYear[year]);
+    calendar.entries[day] = {personalNotes: [], schoolLifeBook: {html: '', tags: []}, behaviorEvents: events};
+    return {...calendar, ...more};
+  };
+  const save = (calendar, extra = {}) => C.applySave(base, {calendar, ...extra});
+  const eventsOf = (data, key = day) => data.calendarByYear[year].entries[key]?.behaviorEvents;
+  const rejects = (label, calendar, text) => { try { save(calendar); record('fail', label, 'έγινε δεκτό'); } catch (error) { check(label, error.message.includes(text), error.message); } };
+  const accepts = (label, calendar) => { try { save(calendar); record('ok', label); } catch (error) { record('fail', label, error.message); } };
+
+  // 1–4, 6–7, 9–18, 25: αποθήκευση, ανάκτηση, σειρά, βαθμοί.
+  const scores = [sc('class', 'c1', 5), sc('student', 'st1', 3), sc('student', 'st2', -2), sc('student', 'st3', 0), sc('student', 'st4', null), sc('class', 'c2', null), sc('class', 'ce', -1)];
+  const events = [
+    ev('e3', {tags: [{type: 'general', id: 'g1'}, {type: 'student', id: 'st1'}], scores}),
+    {id: 'e1', html: '<p>Μόνο περιγραφή</p>'},
+    ev('e2', {tags: [{type: 'general', id: 'g2'}, {type: 'class', id: 'c1'}]}),
+    ev('e4', {scores: [sc('student', 'st1', 1), sc('student', 'st5', 100), sc('class', 'c1', -100)]})
+  ];
+  const saved = save(withEvents(events));
+  const kept = eventsOf(saved);
+  equal('1. Αποθήκευση και ανάκτηση συμβάντων (στο context, όπως αποθηκεύτηκαν)', C.context(saved, 1).calendar.entries[day].behaviorEvents, kept);
+  equal('2. Πολλαπλά συμβάντα την ίδια ημέρα', kept.length, 4);
+  equal('4. Η σειρά των συμβάντων διατηρείται', kept.map(item => item.id), ['e3', 'e1', 'e2', 'e4']);
+  equal('6. Συμβάν μόνο με περιγραφή: κενές ετικέτες και βαθμολογία', kept[1], {id: 'e1', html: '<p>Μόνο περιγραφή</p>', tags: [], scores: []});
+  equal('7. Συμβάν με περιγραφή και ετικέτες, χωρίς βαθμολογίες', [kept[2].tags, kept[2].scores], [[{type: 'general', id: 'g2'}, {type: 'class', id: 'c1'}], []]);
+  equal('9–11. Πολλοί μαθητές, πολλά τμήματα και τα δύο μαζί, με τη σειρά τους', kept[0].scores.map(item => item.type + ':' + item.id), scores.map(item => item.type + ':' + item.id));
+  equal('12–15. Θετικοί, αρνητικοί, μηδενικοί βαθμοί και null', kept[0].scores.map(item => item.points), [5, 3, -2, 0, null, null, -1]);
+  check('16. Το 0 και το null μένουν διαφορετικά (και μετά από JSON και νέα αποθήκευση)', (() => {
+    const again = eventsOf(C.applySave(JSON.parse(JSON.stringify(saved)), {calendar: JSON.parse(JSON.stringify(saved.calendarByYear[year]))}))[0].scores;
+    return again[3].points === 0 && again[4].points === null && Object.prototype.hasOwnProperty.call(again[4], 'points');
+  })());
+  check('17. Συμβάν με καθορισμένες και εκκρεμείς βαθμολογίες', kept[0].scores.some(item => item.points === null) && kept[0].scores.some(item => Number.isInteger(item.points)));
+  equal('18. Συμβάν με κενό scores', save(withEvents([ev('x', {scores: []})])).calendarByYear[year].entries[day].behaviorEvents[0].scores, []);
+  equal('Όρια βαθμών: −100 και +100 γίνονται δεκτά', kept[3].scores.map(item => item.points), [1, 100, -100]);
+  equal('25. Ανεξαρτησία: τα +5 του Δ1 δεν αλλάζουν τους μαθητές του, ούτε οι μαθητές το Δ1', [kept[0].scores[0].points, kept[0].scores.slice(1, 5).map(item => item.points), kept[3].scores[2].points], [5, [3, -2, 0, null], -100]);
+  check('Ο ίδιος μαθητής σε δύο συμβάντα της ίδιας ημέρας, και ως ετικέτα και ως βαθμολογούμενος', kept[0].scores.some(item => item.id === 'st1') && kept[3].scores.some(item => item.id === 'st1') && kept[0].tags.some(item => item.id === 'st1'));
+  equal('Ετικέτα μαθητή δεν δημιουργεί βαθμολογία, βαθμολογία δεν δημιουργεί ετικέτα', [kept[2].scores.length, kept[3].tags.length], [0, 0]);
+  check('Το αρχικό data δεν αλλάζει', JSON.stringify(base) === frozen);
+
+  // 3: μοναδικότητα των id σε όλο το σχολικό έτος.
+  rejects('3. Δύο συμβάντα με το ίδιο id την ίδια ημέρα: απορρίπτεται', withEvents([ev('a'), ev('a')]), 'Διπλή ταυτότητα συμβάντος');
+  rejects('3. Το ίδιο id σε δύο ημέρες του έτους: απορρίπτεται', {...withEvents([ev('a')]), entries: {...withEvents([ev('a')]).entries, [day2]: {behaviorEvents: [ev('a')]}}}, 'Διπλή ταυτότητα συμβάντος');
+  rejects('Συμβάν χωρίς id: απορρίπτεται', withEvents([ev('')]), 'Μη έγκυρη ταυτότητα συμβάντος');
+  rejects('Συμβάν που δεν είναι αντικείμενο: απορρίπτεται', withEvents(['κείμενο']), 'Μη έγκυρο συμβάν');
+  rejects('behaviorEvents που δεν είναι πίνακας: απορρίπτεται', withEvents({}), 'Μη έγκυρες σημειώσεις');
+
+  // 5, 8: περιγραφή.
+  for (const [html, what] of [['', 'κενό'], ['<p><br></p>', '<p><br></p>'], ['<p>&nbsp; </p>', 'μόνο κενά'], ['<ul><li></li></ul>', 'κενή λίστα'], ['<script>alert(1)<\/script>', 'μόνο script']])
+    rejects('5. Συμβάν χωρίς ουσιαστική περιγραφή (' + what + ', με ετικέτες και συμμετέχοντες): απορρίπτεται', withEvents([ev('a', {html, tags: [{type: 'general', id: 'g1'}], scores: [sc('student', 'st1', 1)]})]), 'δεν έχει περιγραφή');
+  rejects('Περιγραφή που δεν είναι κείμενο: απορρίπτεται', withEvents([ev('a', {html: 12})]), 'Μη έγκυρη περιγραφή');
+  const dirty = '<p onclick="x()">Α<script>alert(1)<\/script><span style="color:#ff0000;font-size:40px">Β</span><img src="x"><b>Γ</b><u>Δ</u><i>Ε</i></p><ol><li>ένα</li></ol><ul><li>δύο</li></ul><font color="#0000ff">Ζ</font>';
+  const clean = eventsOf(save(withEvents([ev('a', {html: dirty})])))[0].html;
+  equal('8. Καθαρισμός HTML με το SchoolHtml.sanitize (κρατά μορφοποίηση και λίστες, φεύγουν script, img, onclick, font-size)', clean, SchoolHtml.sanitize(dirty));
+  check('8. Το καθαρό HTML δεν έχει επικίνδυνα στοιχεία', !/script|onclick|<img|font-size/i.test(clean) && /<b>Γ<\/b>/.test(clean) && /<ol>/.test(clean) && /color/.test(clean), clean);
+
+  // 19–24: λάθος βαθμοί και συμμετέχοντες.
+  const one = score => withEvents([ev('a', {scores: [score]})]);
+  rejects('19. Δεκαδικοί βαθμοί: απορρίπτονται', one(sc('student', 'st1', 1.5)), 'ακέραιος');
+  for (const [value, what] of [['5', '«5» (αριθμητική συμβολοσειρά)'], ['abc', 'κείμενο'], [true, 'true'], [{}, 'αντικείμενο'], [NaN, 'NaN'], [Infinity, 'Infinity']])
+    rejects('20. Μη αριθμητικοί βαθμοί: ' + what + ' απορρίπτεται', one(sc('student', 'st1', value)), 'ακέραιος');
+  rejects('Βαθμοί πάνω από +100: απορρίπτονται', one(sc('student', 'st1', 101)), 'από -100 έως 100');
+  rejects('Βαθμοί κάτω από −100: απορρίπτονται', one(sc('class', 'c1', -101)), 'από -100 έως 100');
+  rejects('Βαθμολογική εγγραφή χωρίς points: απορρίπτεται (δεν γίνεται null)', one({type: 'student', id: 'st1'}), 'ελλιπής');
+  rejects('Βαθμολογική εγγραφή με άγνωστο type («staff»): απορρίπτεται', one(sc('staff', 's1', 1)), 'ελλιπής');
+  rejects('Βαθμολογική εγγραφή χωρίς id: απορρίπτεται', one(sc('student', '', 1)), 'ελλιπής');
+  rejects('scores που δεν είναι πίνακας: απορρίπτεται', withEvents([ev('a', {scores: {}})]), 'Μη έγκυρη βαθμολογία');
+  rejects('21. Ο ίδιος μαθητής δύο φορές στο ίδιο συμβάν: απορρίπτεται', withEvents([ev('a', {scores: [sc('student', 'st1', 1), sc('student', 'st1', null)]})]), 'Ο ίδιος μαθητής υπάρχει δύο φορές');
+  rejects('22. Το ίδιο τμήμα δύο φορές στο ίδιο συμβάν: απορρίπτεται', withEvents([ev('a', {scores: [sc('class', 'c1', 1), sc('class', 'c1', 2)]})]), 'Το ίδιο τμήμα υπάρχει δύο φορές');
+  accepts('Μαθητής και τμήμα με το ίδιο id στο ίδιο συμβάν: διαφορετικό ζεύγος type + id', (() => { const c = withEvents([ev('a', {scores: [sc('student', 'st1', 1), sc('class', 'c1', 1)]})]); return c; })());
+  rejects('23. Μαθητής που δεν υπάρχει: απορρίπτεται', one(sc('student', 'xx', 1)), 'μαθητή που δεν υπάρχει');
+  rejects('23. Μαθητής παλαιότερου έτους μόνο: απορρίπτεται', one(sc('student', 'past', 1)), 'μαθητή που δεν υπάρχει');
+  rejects('24. Τμήμα που δεν υπάρχει: απορρίπτεται', one(sc('class', 'xx', 1)), 'τμήμα που δεν υπάρχει');
+  rejects('24. Τμήμα παλαιότερου έτους: απορρίπτεται', one(sc('class', 'old', 1)), 'τμήμα που δεν υπάρχει');
+  rejects('Μαθητής με id τμήματος (λάθος type): απορρίπτεται', one(sc('student', 'c1', 1)), 'μαθητή που δεν υπάρχει');
+
+  // Όρια πλήθους.
+  const many = n => Array.from({length: n}, (_, i) => ev('l' + i));
+  accepts(C.LIMITS.events + ' συμβάντα σε μία ημέρα: γίνονται δεκτά', withEvents(many(C.LIMITS.events)));
+  rejects((C.LIMITS.events + 1) + ' συμβάντα σε μία ημέρα: απορρίπτεται', withEvents(many(C.LIMITS.events + 1)), 'πάνω από το όριο των ' + C.LIMITS.events);
+  const people = n => crowd.slice(0, n).map(item => sc('student', item.id, null));
+  accepts(C.LIMITS.scores + ' συμμετέχοντες σε ένα συμβάν: γίνονται δεκτοί', withEvents([ev('a', {scores: people(C.LIMITS.scores)})]));
+  rejects((C.LIMITS.scores + 1) + ' συμμετέχοντες σε ένα συμβάν: απορρίπτεται', withEvents([ev('a', {scores: people(C.LIMITS.scores + 1)})]), 'πάνω από το όριο των ' + C.LIMITS.scores);
+  equal('Όρια στο school-calendar:context', (({eventsPerDay, scoresPerEvent, pointsMin, pointsMax}) => [eventsPerDay, scoresPerEvent, pointsMin, pointsMax])(C.context(base, 1).limits), [100, 250, -100, 100]);
+
+  // 26–28: ετικέτες.
+  rejects('26. Γενική ετικέτα που δεν υπάρχει στο μητρώο: απορρίπτεται', withEvents([ev('a', {tags: [{type: 'general', id: 'gx'}]})]), 'δεν υπάρχει στο μητρώο');
+  rejects('26. Ετικέτα άγνωστου είδους: απορρίπτεται', withEvents([ev('a', {tags: [{type: 'xyz', id: 'g1'}]})]), 'άγνωστου είδους');
+  rejects('26. Πάνω από 40 ετικέτες σε ένα συμβάν: απορρίπτεται', withEvents([ev('a', {tags: crowd.slice(0, 41).map(item => ({type: 'student', id: item.id}))})]), 'πάνω από το όριο των 40');
+  equal('26. Διπλή ετικέτα: κρατιέται μία φορά', eventsOf(save(withEvents([ev('a', {tags: [{type: 'general', id: 'g1'}, {type: 'general', id: 'g1'}]})])))[0].tags, [{type: 'general', id: 'g1'}]);
+  const usage = H.usage(saved, year), app = item => item.many === 'Συμβάντα Ποινών / Επιβραβεύσεων';
+  equal('27. Μέτρηση χρήσης ετικετών στα συμβάντα (γενική, μαθητής, τμήμα)', [usage.general.g1?.find(app)?.count, usage.student.st1?.find(app)?.count, usage.class.c1?.find(app)?.count], [1, 1, 1]);
+  const noG1 = C.applySave(saved, {calendar: saved.calendarByYear[year], tags: {general: [{id: 'g2', name: 'Εκδρομή', color: '#ff0000'}], colors: {}}});
+  equal('28. Διαγραμμένη γενική ετικέτα: φεύγει από τα συμβάντα, μένουν οι άλλες ετικέτες και η βαθμολογία', [eventsOf(noG1)[0].tags, eventsOf(noG1)[0].scores.length], [[{type: 'student', id: 'st1'}], 7]);
+  const noStaffTag = save(withEvents([ev('a', {tags: [{type: 'staff', id: 's1'}, {type: 'general', id: 'g1'}]})]));
+  H.removeRefs(noStaffTag, year, 'staff', ['s1']);
+  equal('28. Διαγραφή εκπαιδευτικού: η ετικέτα του φεύγει από τα συμβάντα', eventsOf(noStaffTag)[0].tags, [{type: 'general', id: 'g1'}]);
+
+  // 29–31: διαγραφή μαθητή ή τμήματος.
+  equal('29. Χρήση του μαθητή στη βαθμολογία (scoreUsage του school-students:context)', [S.context(saved, 1).scoreUsage.st1, S.context(saved, 1).scoreUsage.st2?.[0]?.count, S.context(saved, 1).scoreUsage.st9], [[{app: 'school_calendar.html', one: 'Συμβάν Ποινών / Επιβραβεύσεων', many: 'Συμβάντα Ποινών / Επιβραβεύσεων', count: 2}], 1, undefined]);
+  const withoutSt1 = S.applySave(saved, {students: saved.studentsByYear[year].students.filter(item => item.id !== 'st1')});
+  const after = eventsOf(withoutSt1);
+  check('29. Διαγραφή μαθητή: η βαθμολογική εγγραφή του φεύγει από όλα τα συμβάντα', after.every(item => !item.scores.some(score => score.type === 'student' && score.id === 'st1')));
+  equal('29. Το συμβάν μένει, με την περιγραφή και τις ετικέτες του (ετικέτα μαθητή: την αφαιρεί το index)', [after.length, after[0].html, after[0].tags.length], [4, kept[0].html, 2]);
+  equal('31. Οι υπόλοιποι συμμετέχοντες μένουν με τη σειρά και τους βαθμούς τους (και το 0 και το null)', [after[0].scores, after[3].scores], [scores.filter(item => item.id !== 'st1'), [sc('student', 'st5', 100), sc('class', 'c1', -100)]]);
+  equal('29. removeScores: πόσες εγγραφές αφαιρέθηκαν', C.removeScores(clone(saved), year, 'student', ['st1', 'st2']), 3);
+  check('29. Το αρχικό data δεν αλλάζει από τη διαγραφή', eventsOf(saved)[0].scores.length === 7);
+  equal('30. Χρήση του τμήματος στη βαθμολογία (scoreUsage του school-classes:context)', [K.context(saved, 1).scoreUsage.c1?.[0]?.count, K.context(saved, 1).scoreUsage.c2?.[0]?.count, K.context(saved, 1).scoreUsage.ce?.[0]?.count], [2, 1, 1]);
+  const classRejects = (label, data, classes, text) => { try { K.applySave(data, {classes}); record('fail', label, 'έγινε δεκτό'); } catch (error) { check(label, error.message.includes(text), error.message); } };
+  const classesNow = saved.classesByYear[year].classes;
+  classRejects('30. Τμήμα με βαθμολογία δεν αφαιρείται (το Τμήμα Ένταξης, χωρίς μαθητές)', saved, classesNow.filter(item => item.id !== 'ce'), 'βαθμολογία σε 1 Συμβάν Ποινών / Επιβραβεύσεων');
+  classRejects('30. Τμήμα με βαθμολογία δεν αλλάζει είδος', saved, classesNow.map(item => item.id === 'ce' ? {...item, name: 'Β3', grade: 'Β', number: 3} : item), 'δεν αλλάζει');
+  const freed = save(withEvents([]));
+  check('30. Χωρίς βαθμολογία ή άλλα δεδομένα, το τμήμα αφαιρείται', (() => { try { K.applySave(freed, {classes: classesNow.filter(item => item.id !== 'ce')}); return true; } catch { return false; } })());
+
+  // 32–36: συμβατότητα.
+  const mixed = clone(base.calendarByYear[year]);
+  mixed.entries['2026-11-10'].behaviorEvents = [ev('m1', {scores: [sc('student', 'st1', 2)]})];
+  const both = C.applySave(base, {calendar: mixed}).calendarByYear[year].entries['2026-11-10'];
+  equal('32–33. Συνύπαρξη με Προσωπικές Σημειώσεις και Βιβλίο Σχολικής Ζωής την ίδια ημέρα', [both.personalNotes.map(item => item.html), both.schoolLifeBook.html, both.behaviorEvents.map(item => item.id)], [['Παλιά σημείωση'], 'Βιβλίο', ['m1']]);
+  const old = C.applySave(base, {calendar: clone(base.calendarByYear[year])}).calendarByYear[year];
+  equal('34. Δεδομένα χωρίς behaviorEvents: διαβάζονται ως κενή λίστα, η ημέρα μένει', old.entries['2026-11-10'], {personalNotes: [{id: 'n1', html: 'Παλιά σημείωση', tags: []}], schoolLifeBook: {html: 'Βιβλίο', tags: []}, behaviorEvents: []});
+  equal('34. Το context δίνει τις αποθηκευμένες ημέρες όπως είναι (χωρίς behaviorEvents = κενή λίστα)', C.context(base, 1).calendar.entries['2026-11-10'].behaviorEvents, undefined);
+  equal('35. Ημέρα μόνο με συμβάντα: διατηρείται', Object.keys(save(withEvents([ev('a')])).calendarByYear[year].entries).sort(), ['2026-11-10', day]);
+  equal('35. Διαγραφή του τελευταίου συμβάντος μιας ημέρας μόνο με συμβάντα: η ημέρα φεύγει', Object.keys(save(withEvents([])).calendarByYear[year].entries), ['2026-11-10']);
+  const lastGone = clone(mixed); lastGone.entries['2026-11-10'].behaviorEvents = [];
+  equal('35. Διαγραφή του τελευταίου συμβάντος: οι σημειώσεις και το Βιβλίο της ημέρας μένουν', (({personalNotes, schoolLifeBook}) => [personalNotes.length, schoolLifeBook.html])(C.applySave(base, {calendar: lastGone}).calendarByYear[year].entries['2026-11-10']), [1, 'Βιβλίο']);
+  equal('36. Μη αλλοίωση: τα άλλα έτη, οι συνεδριάσεις και τα άγνωστα πεδία του έτους μένουν', [JSON.stringify(saved.calendarByYear['2025-2026']) === JSON.stringify(base.calendarByYear['2025-2026']), saved.calendarByYear[year].pedagogicMeetings['2026-11-20'].present, saved.calendarByYear[year].future, saved.calendarByYear[year].entries['2026-11-10'].personalNotes[0].html], [true, ['s1'], 'x', 'Παλιά σημείωση']);
+  check('36. Το αρχικό data δεν αλλάζει από καμία πράξη', JSON.stringify(base) === frozen);
+  rejects('Συμβάν σε ημερομηνία έξω από το έτος: απορρίπτεται', {entries: {'2027-09-02': {behaviorEvents: [ev('a')]}}}, 'έξω από το σχολικό έτος');
 }
 
 // ---- Host (_host_classes.js) ----
@@ -1077,7 +1228,7 @@ function hostTagsChecks() {
   // Context του Ημερολογίου
   const context = Cal.context(saved, 3);
   equal('Context του Ημερολογίου: μητρώο, χρήση γενικών, Τμήματα, Μαθητές, όρια', [context.tags.general.length, context.tagUsage.g1[0].count, context.classes.length, context.students.length, context.limits],
-    [2, 2, 3, 3, {tags: H.LIMITS.general, tagsPerItem: H.LIMITS.perItem, warnRatio: H.LIMITS.warnRatio}]);
+    [2, 2, 3, 3, {tags: H.LIMITS.general, tagsPerItem: H.LIMITS.perItem, warnRatio: H.LIMITS.warnRatio, eventsPerDay: Cal.LIMITS.events, scoresPerEvent: Cal.LIMITS.scores, pointsMin: Cal.LIMITS.pointsMin, pointsMax: Cal.LIMITS.pointsMax}]);
 
   const bookContext = Cal.context(savedBook, 4);
   equal('Context Ημερολογίου: το Βιβλίο και οι γενικές ετικέτες του εμφανίζονται χωριστά από τις σημειώσεις',
@@ -1900,6 +2051,7 @@ function run() {
   attempt('Απασχόληση σε ημερομηνία και ώρα', () => busyAtChecks(v2Program));
   attempt('Host', hostChecks);
   attempt('Host: Σχολικό Ημερολόγιο', hostCalendarChecks);
+  attempt('Host: Ποινές / Επιβραβεύσεις', hostBehaviorChecks);
   attempt('Host: Τμήματα', hostClassesChecks);
   attempt('Μαθητές', studentsChecks);
   attempt('Host: Μαθητές', hostStudentsChecks);

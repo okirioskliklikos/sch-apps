@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Ετικέτες στο Κεντρικό Μενού (host)
- * Έκδοση αρχείου: 0.03
+ * Έκδοση αρχείου: 0.04
  * Όνομα κατά την εγκατάσταση: _host_tags.js
  *
  * Κώδικας μόνο του host για τις ετικέτες (tagsByYear). Το φορτώνει το index.html μετά το _data.js και το
@@ -86,7 +86,19 @@
       }
     }),
     meetingHolder('ssdMeetings', 'Συνεδρίαση ΣΣΔ', 'Συνεδριάσεις ΣΣΔ'),
-    meetingHolder('pedagogicMeetings', 'Παιδαγωγική Συνάντηση', 'Παιδαγωγικές Συναντήσεις')
+    meetingHolder('pedagogicMeetings', 'Παιδαγωγική Συνάντηση', 'Παιδαγωγικές Συναντήσεις'),
+    // Τα Συμβάντα Ποινών / Επιβραβεύσεων (behaviorEvents). Οι ετικέτες τους είναι ανεξάρτητες από τη βαθμολογία
+    // (scores), που δεν είναι ετικέτες: τις βαθμολογικές εγγραφές τις χειρίζεται το _host_calendar.js.
+    Object.freeze({
+      app: 'school_calendar.html', one: 'Συμβάν Ποινών / Επιβραβεύσεων', many: 'Συμβάντα Ποινών / Επιβραβεύσεων',
+      items(data, year) {
+        const value = isObject(data?.calendarByYear) ? data.calendarByYear[year] : null, out = [];
+        for (const entry of Object.values(isObject(value?.entries) ? value.entries : {})) {
+          for (const event of Array.isArray(entry?.behaviorEvents) ? entry.behaviorEvents : []) if (isObject(event)) out.push(event);
+        }
+        return out;
+      }
+    })
   ]);
 
   // ---- Μητρώο ----
