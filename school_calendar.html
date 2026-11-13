@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Σχολικό Ημερολόγιο v1.19</title>
+<title>Σχολικό Ημερολόγιο v1.20</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -142,6 +142,7 @@
 .cal-event-score-edit{display:flex;align-items:center;gap:2px;flex:none}
 .cal-event-score-edit button{padding:0!important;width:32px;min-width:32px;height:32px;line-height:1}
 .cal-event-score-edit input[type=text]{flex:0 0 40px;width:40px;min-width:40px;max-width:40px;height:32px;min-height:32px;padding:3px;text-align:center;font-variant-numeric:tabular-nums}
+.cal-behavior-editor .cal-event-score-edit input[type=text]:focus-visible{outline-offset:-2px}
 .cal-event-score-edit input[type=text].is-negative{background:#fae9e7;border-color:#e5c2bd;color:#ad3d33}
 .cal-event-score-edit input[type=text].is-zero{background:#fff4c7;border-color:#e5d18a;color:#846300}
 .cal-event-score-edit input[type=text].is-positive{background:#e5f4eb;border-color:#b7dec5;color:#216c42}
@@ -304,7 +305,7 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v1.19</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v1.20</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="print" type="button" disabled>Εκτύπωση...</button>
@@ -973,7 +974,7 @@ async function editBehaviorEvents(date) {
   });
   const scoreProblem = raw => {
     if (raw === '') return '';
-    if (!/^-?\d+$/.test(raw) || !Number.isSafeInteger(Number(raw))) return 'Γράψε ακέραιο αριθμό βαθμών.';
+    if (!/^[+-]?\d+$/.test(raw) || !Number.isSafeInteger(Number(raw))) return 'Γράψε ακέραιο αριθμό βαθμών.';
     const number = Number(raw);
     if (number < pointMin || number > pointMax) return `Επιτρέπονται βαθμοί από ${pointMin} έως ${pointMax}.`;
     return '';
@@ -1021,7 +1022,7 @@ async function editBehaviorEvents(date) {
           const minus = document.createElement('button'); minus.type='button'; minus.textContent='−'; minus.title='Μείωση κατά έναν βαθμό';
           const input = document.createElement('input'); input.type='text'; input.inputMode='numeric'; input.autocomplete='off';
           input.setAttribute('aria-label','Βαθμοί για '+name.textContent);
-          input.value = score.points === null ? '' : String(score.points); input.placeholder='—';
+          input.value = score.points === null ? '' : score.points > 0 ? '+'+score.points : String(score.points); input.placeholder='—';
           const plus = document.createElement('button'); plus.type='button'; plus.textContent='+'; plus.title='Αύξηση κατά έναν βαθμό';
           const remove = document.createElement('button'); remove.type='button'; remove.innerHTML=schoolIcon('close'); remove.title='Αφαίρεση συμμετέχοντα'; remove.setAttribute('aria-label','Αφαίρεση '+name.textContent);
           const error = document.createElement('div'); error.className='ui-validation-error cal-event-point-error'; error.setAttribute('role','alert');
@@ -1031,7 +1032,21 @@ async function editBehaviorEvents(date) {
             input.classList.toggle('is-zero',valid && number===0);
             input.classList.toggle('is-positive',valid && number>0);
           };
+          // Keep a visible + for positive values while preserving the caret as the user types.
+          const normalizePointSign = () => {
+            const raw = input.value;
+            if (!/^[+-]?\d+$/.test(raw) || !Number.isSafeInteger(Number(raw))) return;
+            const number = Number(raw);
+            const next = number > 0 ? (raw.startsWith('+') ? raw : '+' + raw) :
+              number === 0 && raw.startsWith('+') ? raw.slice(1) : raw;
+            if (next === raw) return;
+            const start = input.selectionStart, end = input.selectionEnd;
+            const shift = next.length - raw.length;
+            input.value = next;
+            if (start !== null && end !== null) input.setSelectionRange(Math.max(0,start+shift),Math.max(0,end+shift));
+          };
           const apply = () => {
+            normalizePointSign();
             const raw=input.value.trim(), problem=scoreProblem(raw);
             input.setAttribute('aria-invalid',String(!!problem)); error.textContent=problem;
             updatePointColor();
@@ -1044,7 +1059,7 @@ async function editBehaviorEvents(date) {
             const raw=input.value.trim(); if (scoreProblem(raw)) {apply();input.focus();return;}
             const next=(raw===''?0:Number(raw))+direction;
             if (next < pointMin || next > pointMax) return;
-            input.value=String(next);apply();input.focus();
+            input.value=next>0?'+'+next:String(next);apply();input.focus();
           };
           minus.addEventListener('click',()=>step(-1)); plus.addEventListener('click',()=>step(1));
           minus.disabled=score.points!==null && score.points<=pointMin;
