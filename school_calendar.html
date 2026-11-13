@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Σχολικό Ημερολόγιο v1.17</title>
+<title>Σχολικό Ημερολόγιο v1.18</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -153,9 +153,11 @@
 .cal-event>.cal-note-grip{grid-column:1;grid-row:1/3;align-self:center}
 .cal-event>.cal-note-grip[hidden]{display:none}
 .cal-event:not(.is-editing) .cal-event-scores .cal-event-empty{font-size:12px;color:var(--school-ui-muted)}
-.cal-event-chooser{display:flex;flex-direction:column;gap:9px;min-height:160px}
-.cal-event-chooser-list{max-height:min(45dvh,340px);overflow:auto;border:1px solid var(--cal-list-border);border-radius:7px;padding:6px;background:#fafbfc}
-.cal-event-chooser-list label{display:flex;align-items:center;gap:9px;padding:5px 8px;border-radius:5px;font-size:14px}
+/* Both participant pickers use a taller dialog; only the list scrolls. */
+.school-confirm.cal-event-chooser-dialog{height:min(75dvh,calc(100dvh - 32px));display:flex;flex-direction:column;overflow:hidden}
+.cal-event-chooser{display:flex;flex:1;flex-direction:column;gap:9px;min-height:0}
+.cal-event-chooser-list{flex:1;min-height:0;overflow:auto;border:1px solid var(--cal-list-border);border-radius:7px;padding:6px;background:#fafbfc}
+.cal-event-chooser-list label{display:flex;align-items:center;gap:8px;margin:0;padding:4px 8px;border-radius:5px;font-size:13px;line-height:1.4}
 .cal-event-chooser-list label:hover{background:#edf3f8}
 .cal-event-chooser-list input{flex:none}
 .cal-event-chooser-summary{font-size:12px;color:var(--school-ui-muted)}
@@ -299,7 +301,7 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v1.17</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v1.18</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="print" type="button" disabled>Εκτύπωση...</button>
@@ -1235,7 +1237,7 @@ async function pickEventParticipants(type,available,max) {
     count.textContent=`Επιλεγμένοι: ${selected.size} · Μέγιστη προσθήκη: ${max}`;
   };
   search.addEventListener('input',filter);body.append(search,count,list);
-  return await schoolChoiceDialog({title:type==='student'?'Προσθήκη μαθητών':'Προσθήκη τμημάτων',content:body,
+  return await schoolChoiceDialog({title:type==='student'?'Προσθήκη μαθητών':'Προσθήκη τμημάτων',content:body,className:'cal-event-chooser-dialog',
     actions:[{label:'Προσθήκη',accept:true,run:()=>[...selected]},{label:'Ακύρωση'}],ready:()=>{filter();search.focus();}});
 }
 
