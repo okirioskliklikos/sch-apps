@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ολοήμερο Designer v1.90</title>
+<title>Ολοήμερο Designer v1.91</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -93,8 +93,9 @@ main.ol-without-design :is(#board,#boardTimeOverlayAnchor,.board-zoom-controls,.
 .teacher-actions :is(.teacher-over-warning,.teacher-hours-ok){margin-left:0;padding-left:0}
 .teacher-over-warning{color:var(--ol-over-limit)!important}
 .teacher-hours-ok{color:var(--ol-hours-ok)!important}
-/* «!» / «✓» of the hours: schoolIcon (alert / check), 14px like list rows, with a heavier line (they were bold). */
-.teacher-over-warning>svg,.teacher-hours-ok>svg{display:block;width:var(--school-ui-icon-size-list);height:var(--school-ui-icon-size-list);stroke-width:3.2}
+/* «!» / «✓» of the hours: schoolIcon (alert / check), 14px like list rows; the «!» with a heavier line (it was bold). */
+.teacher-over-warning>svg,.teacher-hours-ok>svg{display:block;width:var(--school-ui-icon-size-list);height:var(--school-ui-icon-size-list)}
+.teacher-over-warning>svg{stroke-width:3.2}
 .template small{grid-column:1;min-width:0}
 .teacher-long-row{
   grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;
@@ -588,7 +589,7 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
 <body>
 
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΟΛ</span></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v1.90</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΟΛ</span></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v1.91</span></span></button></h1></div>
   <select id="program" aria-label="Σχέδιο" hidden></select>
   <span class="save-control">
     <button id="saveData" class="save-main" type="button" disabled>Αποθήκευση</button>

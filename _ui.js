@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.36
+ * Έκδοση αρχείου: 0.37
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -436,7 +436,7 @@
         if (defaultValue) swatch.style.background = defaultValue;
         const label = document.createElement('span'); label.textContent = 'Αυτόματο';
         auto.append(swatch, label);
-        auto.insertAdjacentHTML('beforeend', schoolIcon('check'));
+        auto.insertAdjacentHTML('beforeend', schoolIcon('check-bold'));
         auto.onclick = () => { selected = ''; customSelectedIndex = -1; render(); };
       }
       const grid = document.createElement('div'); grid.className = 'school-color-picker-grid';
@@ -482,7 +482,7 @@
         button.className = 'school-color-picker-choice' + (isSelected ? ' selected' : '');
         button.style.setProperty('--choice-color', value);
         button.style.setProperty('--choice-ink', inkFor(value));
-        button.innerHTML = schoolIcon('check');
+        button.innerHTML = schoolIcon('check-bold');
         button.setAttribute('aria-label', customIndex >= 0 ? 'Προσαρμοσμένο χρώμα ' + value + ' (διπλό κλικ ή F2 για αλλαγή)' : 'Χρώμα ' + value);
         if (customIndex >= 0) button.title = 'Διπλό κλικ ή F2 για αλλαγή του χρώματος· σύρε εδώ ένα χρώμα για να το αντιγράψεις';
         button.setAttribute('aria-pressed', String(isSelected));
@@ -675,7 +675,10 @@
     'number-list': ['1.8', 'M10 6h10M10 12h10M10 18h10M3.6 4.4 5 3.5v5M3.4 8.5h3.2M3.5 15a1.6 1.6 0 0 1 3.1.3c0 .9-.8 1.4-3.1 3.2h3.2'],
     'clear-format': ['2', 'M5 5h11M10.5 5 8 18M14 14l6 6M20 14l-6 6'],
     // Κατάσταση και ενδείξεις.
-    check: ['2.6', 'M4.5 12.5l5 5L19.5 7'],
+    // Two check marks: check (the ordinary one, next to text and in lists) and check-bold (larger and heavier,
+    // where it must stand out on any colour, e.g. the selected colour of schoolColorPicker).
+    check: ['3.4', 'M4.5 12.5l5 5L19.5 7'],
+    'check-bold': ['4.2', 'M4 12.8l5.2 5.2L20 6.5'],
     clock: ['2.2', 'M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 1 0 0-17zM12 7.5V12l3 2'],
     alert: ['2.8', 'M12 4.5v9M12 19v.01'],
     warning: ['2.2', 'M12 3.5 2.5 20h19zM12 10v4.5M12 17.2v.01'],
