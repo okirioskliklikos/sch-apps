@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.32
+ * Έκδοση αρχείου: 0.33
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -1454,7 +1454,9 @@
   //                  αλλάζει άλλο στοιχείο)
   //     before       στοιχείο μπροστά από το κείμενο στην προβολή (π.χ. λαβή μετακίνησης)
   //     aside        στοιχείο της εφαρμογής σε στήλη δεξιά από το κείμενο (π.χ. βαθμολογία), σε προβολή και σε
-  //                  επεξεργασία· στην επεξεργασία τα «Αποδοχή» / «Ακύρωση» μπαίνουν πάνω από αυτό, όχι στη μπάρα.
+  //                  επεξεργασία· στην προβολή το μολυβάκι και το «×» μπαίνουν πάνω δεξιά στη στήλη, και η στήλη
+  //                  δίνει τον χώρο τους στο --school-tagged-text-tools-width (κενό δεξιά στην πρώτη γραμμή του
+  //                  aside)· στην επεξεργασία τα «Αποδοχή» / «Ακύρωση» μπαίνουν πάνω από αυτό, όχι στη μπάρα.
   //                  Το περιεχόμενό του το γράφει η εφαρμογή (π.χ. στο onEditing)· σε στενή οθόνη πάει κάτω από το κείμενο
   //     validate(value) πριν από την «Αποδοχή» (και το commit()), με την ανοιχτή τιμή {html, tags}: true ή τίποτα,
   //                  συνεχίζει· κείμενο: μήνυμα λάθους κάτω από το πεδίο και εστίαση σε αυτό· false: δεν συνεχίζει,
@@ -1589,9 +1591,11 @@
           render();
           options.onChange?.(value, {removed: true});
         }));
-        box.append(tools);
+        if (!aside) box.append(tools);
+        // With an aside, the buttons go to the top right of its column, over the first line of its content.
+        else { box.append(side([tools, aside])); box.lastElementChild.classList.add('has-tools'); }
       }
-      if (aside) box.append(side([aside]));
+      if (aside && !box.querySelector(':scope > .school-tagged-text-side')) box.append(side([aside]));
       const chips = tagChips(value.tags, tagData());
       if (chips.childElementCount) {
         const footer = document.createElement('div'); footer.className = 'school-tagged-text-tags';
