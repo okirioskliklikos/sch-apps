@@ -1,4 +1,4 @@
-<!doctype html><html lang="el" class="subapp-page"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Τμήματα v0.06</title><link rel="stylesheet" href="_ui.css">
+<!doctype html><html lang="el" class="subapp-page"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Τμήματα v0.07</title><link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
 /* Τμήματα: layout of the list and the details. Shared appearance: _ui.css and _subapp.css. */
@@ -32,7 +32,7 @@
   .classes-fields .classes-field-value>:is(input,select){grid-column:2;grid-row:1}
   .classes-fields .classes-field-value>p{grid-column:2}
 }
-/* «+ Προσθήκη» dialog: kind, and for a Γενικής Παιδείας class its grade and number side by side. */
+/* «Προσθήκη» dialog: kind, and for a Γενικής Παιδείας class its grade and number side by side. */
 .classes-add-row{display:flex;flex-wrap:wrap;gap:12px;margin-top:14px}
 .classes-add-row .school-choice-field{flex:1 1 140px;margin:0}
 .classes-add-note{font-size:12px;color:var(--school-ui-muted)}
@@ -52,7 +52,7 @@
   .classes-list-pane{max-height:calc(100dvh - var(--subapp-header-height,110px) - 32px);overflow:visible}
   .classes-list{min-height:220px}
 }
-</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" aria-label="Τμήματα — άνοιγμα κεντρικού μενού" title="Άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΤΜ</span></span><span class="brand-text"><span>Τμήματα</span><span class="small version">v0.06</span></span></button></h1></div><button id="saveClasses" class="save-main" type="button" disabled>Αποθήκευση</button><button id="cancelClasses" type="button" disabled>Αναίρεση Όλων</button><div class="header-right"><span id="classesSchoolYear" class="school-year-indicator" hidden><span>Σχολικό έτος:</span> <span id="classesSchoolYearValue"></span></span></div></header><main id="classes-root" class="page-main"><p class="connection subapp-connection">Άνοιξε τη σελίδα «Τμήματα» μέσα από το Κεντρικό Μενού, αφού ανοίξεις το αρχείο πληροφοριών του σχολείου.</p></main><script src="_ui.js"></script>
+</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" aria-label="Τμήματα — άνοιγμα κεντρικού μενού" title="Άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΤΜ</span></span><span class="brand-text"><span>Τμήματα</span><span class="small version">v0.07</span></span></button></h1></div><button id="saveClasses" class="save-main" type="button" disabled>Αποθήκευση</button><button id="cancelClasses" type="button" disabled>Αναίρεση Όλων</button><div class="header-right"><span id="classesSchoolYear" class="school-year-indicator" hidden><span>Σχολικό έτος:</span> <span id="classesSchoolYearValue"></span></span></div></header><main id="classes-root" class="page-main"><p class="connection subapp-connection">Άνοιξε τη σελίδα «Τμήματα» μέσα από το Κεντρικό Μενού, αφού ανοίξεις το αρχείο πληροφοριών του σχολείου.</p></main><script src="_ui.js"></script>
 <script src="_data.js"></script>
 <script>
 (() => {
@@ -68,7 +68,7 @@ const $ = id => document.getElementById(id), root = $('classes-root');
 // The grades in the spelling of the data (grade), with their labels.
 const GRADES = [['Α', "Α'"], ['Β', "Β'"], ['Γ', "Γ'"], ['Δ', "Δ'"], ['Ε', "Ε'"], ['Στ', "Στ'"]];
 const HOMEROOM_SERVICES = ['classroom', 'specialty'];
-const RENAME_ERROR = 'Η τάξη και ο αριθμός δεν αλλάζουν. Για νέο τμήμα χρησιμοποίησε «+ Προσθήκη».';
+const RENAME_ERROR = 'Η τάξη και ο αριθμός δεν αλλάζουν. Για νέο τμήμα χρησιμοποίησε «Προσθήκη».';
 const FILES_NOTE = 'Θα πρέπει να ενημερωθούν και τα αντίστοιχα αρχεία FET και CSV που περιείχαν αυτό το τμήμα.';
 
 let context = null, schoolYear = '', dirty = false, saving = false, editing = false;
@@ -190,7 +190,7 @@ schoolHost.on('school-classes:context', message => {
 // ---- Layout ----
 function openManager() {
   $('classesSchoolYearValue').textContent = schoolYear; $('classesSchoolYear').hidden = !schoolYear;
-  root.innerHTML = `<div class="classes-manager"><section class="classes-list-pane subapp-list-pane"><div class="classes-list-heading subapp-list-heading"><h3 id="classesTitle">Τμήματα (0)</h3><div class="subapp-transfer-actions" role="group" aria-label="Εισαγωγή τμημάτων"><button id="importClassesFet" type="button" title="Εισαγωγή τμημάτων από FET" aria-label="Εισαγωγή τμημάτων από FET">${schoolIcon('import')}</button></div></div><div id="classesList" class="classes-list subapp-list" tabindex="0" role="listbox" aria-multiselectable="true" aria-label="Λίστα τμημάτων"></div><div class="subapp-list-actions"><button id="addClass" class="subapp-add-button" type="button">+ Προσθήκη</button><button id="removeClass" class="subapp-remove-button" type="button">Αφαίρεση</button></div><p id="classesLimitWarning" class="classes-limit-warning ui-validation-warning" role="status" hidden></p><div id="classesSummary" class="subapp-notice" aria-live="polite">Η λίστα ταξινομείται αυτόματα: πρώτα τα τμήματα Γενικής Παιδείας κατά τάξη και αριθμό, μετά τα άλλα. Μπορείς να επιλέξεις πολλά με Ctrl/Cmd+κλικ ή εύρος με Shift+κλικ.</div></section><section id="classDetails" class="classes-details subapp-side-pane"></section></div>`;
+  root.innerHTML = `<div class="classes-manager"><section class="classes-list-pane subapp-list-pane"><div class="classes-list-heading subapp-list-heading"><h3 id="classesTitle">Τμήματα (0)</h3><div class="subapp-transfer-actions" role="group" aria-label="Εισαγωγή τμημάτων"><button id="importClassesFet" type="button" title="Εισαγωγή τμημάτων από FET" aria-label="Εισαγωγή τμημάτων από FET">${schoolIcon('import')}</button></div></div><div id="classesList" class="classes-list subapp-list" tabindex="0" role="listbox" aria-multiselectable="true" aria-label="Λίστα τμημάτων"></div><div class="subapp-list-actions"><button id="addClass" class="subapp-add-button" type="button">${schoolIconText('plus', 'Προσθήκη')}</button><button id="removeClass" class="subapp-remove-button" type="button">Αφαίρεση</button></div><p id="classesLimitWarning" class="classes-limit-warning ui-validation-warning" role="status" hidden></p><div id="classesSummary" class="subapp-notice" aria-live="polite">Η λίστα ταξινομείται αυτόματα: πρώτα τα τμήματα Γενικής Παιδείας κατά τάξη και αριθμό, μετά τα άλλα. Μπορείς να επιλέξεις πολλά με Ctrl/Cmd+κλικ ή εύρος με Shift+κλικ.</div></section><section id="classDetails" class="classes-details subapp-side-pane"></section></div>`;
   $('classDetails').addEventListener('focusin', event => { lastDetailFocus = event.target.matches('input,select') ? event.target.id : ''; });
   $('importClassesFet').onclick = importFromFet;
   $('addClass').onclick = addClass;
@@ -223,7 +223,7 @@ function renderList() {
   if (!draft.length) {
     list.removeAttribute('role');
     const years = context.previousYears || [];
-    list.innerHTML = `<div class="classes-import-empty subapp-empty subapp-empty-stack"><p>Δεν έχουν καταχωριστεί τμήματα.</p>${years.length ? `<label for="classesImportYear">Εισαγωγή από παλαιότερο σχολικό έτος</label><select id="classesImportYear">${years.map(item => `<option value="${schoolEscape(item.year)}">${schoolEscape(item.year)} (${item.classes.length} ${item.classes.length === 1 ? 'τμήμα' : 'τμήματα'})</option>`).join('')}</select><button id="classesImportYearButton" type="button" class="primary">Εισαγωγή τμημάτων</button><span class="helper ui-helper">Τα τμήματα έρχονται χωρίς υπεύθυνο· τον ορίζεις εδώ.</span>` : ''}<span class="helper ui-helper">Πάτησε «+ Προσθήκη» ή φέρε τα τμήματα από ένα αρχείο FET με το κουμπί εισαγωγής πάνω από τη λίστα.</span></div>`;
+    list.innerHTML = `<div class="classes-import-empty subapp-empty subapp-empty-stack"><p>Δεν έχουν καταχωριστεί τμήματα.</p>${years.length ? `<label for="classesImportYear">Εισαγωγή από παλαιότερο σχολικό έτος</label><select id="classesImportYear">${years.map(item => `<option value="${schoolEscape(item.year)}">${schoolEscape(item.year)} (${item.classes.length} ${item.classes.length === 1 ? 'τμήμα' : 'τμήματα'})</option>`).join('')}</select><button id="classesImportYearButton" type="button" class="primary">Εισαγωγή τμημάτων</button><span class="helper ui-helper">Τα τμήματα έρχονται χωρίς υπεύθυνο· τον ορίζεις εδώ.</span>` : ''}<span class="helper ui-helper">Πάτησε «Προσθήκη» ή φέρε τα τμήματα από ένα αρχείο FET με το κουμπί εισαγωγής πάνω από τη λίστα.</span></div>`;
     if (years.length) $('classesImportYearButton').onclick = importFromYear;
     return;
   }
@@ -351,7 +351,7 @@ function changeKind(item, kind) {
 }
 
 // ---- Actions ----
-// «+ Προσθήκη»: the kind first; for a Γενικής Παιδείας class the grade and number (the smallest free number of
+// «Προσθήκη»: the kind first; for a Γενικής Παιδείας class the grade and number (the smallest free number of
 // the grade is suggested), with the key as its first name.
 async function addClass() {
   if (saving || draft.length >= limit()) return;
@@ -527,7 +527,7 @@ function chooseGroups(file) {
       if (box.disabled) skipped++;
       const text = group.key && group.raw !== group.key ? `${group.raw} → ${group.key}` : group.raw;
       label.append(box, document.createTextNode(text + (exists ? ' (υπάρχει)' : !group.key ? ' (δεν είναι τμήμα)' : '')));
-      if (!group.key) label.title = 'Από το FET εισάγονται μόνο τμήματα Γενικής Παιδείας (τάξη και αριθμός, π.χ. «Α1», «Στ2»). Ένα άλλο τμήμα προστίθεται με «+ Προσθήκη».';
+      if (!group.key) label.title = 'Από το FET εισάγονται μόνο τμήματα Γενικής Παιδείας (τάξη και αριθμός, π.χ. «Α1», «Στ2»). Ένα άλλο τμήμα προστίθεται με «Προσθήκη».';
       items.append(label); boxes.push(box);
     }
     set.append(legend, items); groups.append(set);

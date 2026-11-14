@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Περίοδοι Προγραμμάτων v0.18</title>
+<title>Περίοδοι Προγραμμάτων v0.19</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -77,6 +77,7 @@
 .copy-row{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto;gap:8px;align-items:center}
 .copy-row select{width:100%;min-width:0;font-weight:400}
 .copy-arrow{color:var(--school-ui-muted)}
+.copy-arrow>svg{display:block;width:var(--school-ui-icon-size);height:var(--school-ui-icon-size)}
 .copy-add{margin-top:10px}
 .copy-summary{margin-top:16px!important;padding:10px 12px;border-radius:10px;background:var(--school-ui-label-bg);font-size:14px;line-height:1.5}
 .copy-warnings .ui-validation-warning{font-size:13px}
@@ -104,7 +105,7 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Περίοδοι Προγραμμάτων — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΠΠ</span></span><span class="brand-text"><span>Περίοδοι Προγραμμάτων</span><span class="small version">v0.18</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Περίοδοι Προγραμμάτων — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΠΠ</span></span><span class="brand-text"><span>Περίοδοι Προγραμμάτων</span><span class="small version">v0.19</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <div class="header-right"><span id="schoolYear" class="school-year-indicator" hidden><span>Σχολικό έτος:</span> <span id="schoolYearValue"></span></span></div>
@@ -240,7 +241,7 @@
           </div>
         </div>
         <div class="subapp-list-actions">
-          <button id="add" type="button" class="subapp-add-button">+ Προσθήκη</button>
+          <button id="add" type="button" class="subapp-add-button">${schoolIconText('plus', 'Προσθήκη')}</button>
           <button id="copy" type="button">Αντιγραφή…</button>
           <button id="remove" type="button" class="subapp-remove-button">Αφαίρεση</button>
         </div>
@@ -268,7 +269,7 @@
   function renderList() {
     const list = $('periodList');
     if (!draft.periods.length) {
-      list.innerHTML = '<div class="subapp-empty subapp-empty-stack"><p>Δεν υπάρχουν περίοδοι.<br>Πάτησε «+ Προσθήκη» για να δημιουργήσεις την πρώτη.</p></div>';
+      list.innerHTML = '<div class="subapp-empty subapp-empty-stack"><p>Δεν υπάρχουν περίοδοι.<br>Πάτησε «Προσθήκη» για να δημιουργήσεις την πρώτη.</p></div>';
       list.removeAttribute('aria-activedescendant');
       buttons(); return;
     }
@@ -600,11 +601,12 @@
       const remove = make('button', {type: 'button', class: 'copy-remove ui-icon-button', title: 'Αφαίρεση αντικατάστασης', 'aria-label': 'Αφαίρεση αντικατάστασης'});
       remove.innerHTML = schoolIcon('close');
       remove.onclick = () => { row.remove(); update(); };
-      row.append(a, make('span', {class: 'copy-arrow', 'aria-hidden': 'true'}, '→'), b, remove);
+      const arrow = make('span', {class: 'copy-arrow', 'aria-hidden': 'true'}); arrow.innerHTML = schoolIcon('arrow-right');
+      row.append(a, arrow, b, remove);
       rows.append(row); update();
       return row;
     };
-    const addButton = make('button', {type: 'button', class: 'copy-add'}, '+ Αντικατάσταση');
+    const addButton = make('button', {type: 'button', class: 'copy-add'}); addButton.innerHTML = schoolIconText('plus', 'Αντικατάσταση');
     addButton.onclick = () => addRow().querySelector('select').focus();
     const summary = make('p', {class: 'copy-summary'}), warnings = make('div', {class: 'copy-warnings'});
     const grid = make('div', {class: 'copy-grid'});
