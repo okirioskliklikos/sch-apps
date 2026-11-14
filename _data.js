@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων
- * Έκδοση αρχείου: 0.37
+ * Έκδοση αρχείου: 0.38
  * Όνομα κατά την εγκατάσταση: _data.js
  *
  * Φορτώνεται από όσες υποεφαρμογές διαβάζουν ή γράφουν CSV, FET, ημερομηνίες ή προγράμματα, μετά
@@ -19,7 +19,7 @@
  *                           αντικαταστάσεις, Εισαγωγή Ολοημέρου στο ωρολόγιο, εισαγωγείς ανά είδος
  *                           (από FET και από το CSV του Ολοήμερου Designer), εξαγωγή CSV του Ολοημέρου
  *                           για το FET, μαθητές των κελιών του Ολοημέρου από ονόματα, δάσκαλοι και σειρά του Προσωπικού, κανονική γραφή τμημάτων,
- *                           απασχόληση εκπαιδευτικών σε ημερομηνία και ώρα (συνεδριάσεις)
+ *                           απασχόληση εκπαιδευτικών σε ημερομηνία και ώρα (συνεδριάσεις), Ιστορικό προγράμματος
  *   window.SchoolHtml       κείμενο με μορφοποίηση (HTML του schoolRichText): καθαρισμός, έλεγχος κενού
  *   window.SchoolStudents   μαθητές (studentsByYear): ανάγνωση του CSV μαθητών του myschool, ίδιος μαθητής,
  *                           τάξη και επόμενο τμήμα, κατάσταση ΑΔΥΜ, ταξινόμηση
@@ -793,6 +793,8 @@
   // → {program, changed}: changed = πόσες δραστηριότητες άλλαξαν.
   function replaceStaff(program, replacements, options = {}) {
     const result = clone(program), map = new Map((replacements || []).filter(item => item.from && item.to && item.from !== item.to).map(item => [item.from, item.to]));
+    // The history is fixed from the source before the source changes (see ensureHistory).
+    ensureHistory(result);
     let changed = 0;
     const used = new Set();
     for (const activity of result.activities || []) {
@@ -822,6 +824,47 @@
       }
     }
     return {program: result, changed};
+  }
+
+  // ---- Ιστορικό προγράμματος (program.history) ----
+  // The events that created or changed a program of the Ωρολόγιο (kind 'school'), newest first, at most
+  // HISTORY_LIMIT. Only for information: nothing is undone from it. An entry is {at (ISO date and time), type, …}:
+  //   'import'    {importer, files:[name…], activities}            import from files
+  //   'copy'      {fromPeriod, replacements:[{fromName, toName}]}  copy from another period
+  //   'oloimero'  {design, kept, removed, added, assigned}          Εισαγωγή Ολοημέρου (also with no change)
+  //   'edit'      {activities}                                      manual changes, one entry per save
+  // Names are written as they were at the time of the event. history:[] (after «Καθαρισμός Ιστορικού») stays
+  // empty; a program without the key gets an initial history from what its source already has.
+  const HISTORY_LIMIT = 20;
+  const historyTime = entry => { const time = Date.parse(entry?.at); return Number.isNaN(time) ? 0 : time; };
+  // The history of a program (a copy), newest first. Without the key: built from the source of a program from
+  // FET (import and files, last Εισαγωγή Ολοημέρου, replacements and moves of modifiedAfterImport), with
+  // derived:true, since times and counts there are not exact.
+  function programHistory(program) {
+    if (Array.isArray(program?.history)) return clone(program.history.filter(isObject));
+    const source = program?.source, list = [];
+    if (!isObject(source) || source.type !== 'fet') return list;
+    const note = isObject(source.modifiedAfterImport) ? source.modifiedAfterImport : null;
+    if (source.importedAt) list.push({at: source.importedAt, type: 'import', importer: 'fet', files: [source.csvName, source.fetName].filter(Boolean), derived: true});
+    const replacements = (Array.isArray(note?.replacements) ? note.replacements : []).filter(isObject);
+    if (replacements.length) list.push({at: note.at || source.importedAt || '', type: 'copy', fromPeriod: '', replacements: replacements.map(item => ({fromName: item.fromName || '', toName: item.toName || ''})), derived: true});
+    if (isObject(source.oloimero) && source.oloimero.at) list.push({at: source.oloimero.at, type: 'oloimero', design: source.oloimero.name || '', derived: true});
+    if (note?.moved) list.push({at: note.at || '', type: 'edit', derived: true});
+    return list.filter(entry => entry.at).sort((a, b) => historyTime(b) - historyTime(a)).slice(0, HISTORY_LIMIT);
+  }
+  // Fixes the history of a program of the Ωρολόγιο in program.history (in place), so that a later change of its
+  // source does not appear twice in the initial history. Called before the source changes. Returns the program.
+  function ensureHistory(program) {
+    if (isObject(program) && program.kind === 'school' && !Array.isArray(program.history)) program.history = programHistory(program);
+    return program;
+  }
+  // A new entry at the start of the history of the program (in place); the HISTORY_LIMIT newest stay.
+  // Returns the program.
+  function addHistory(program, entry) {
+    if (!isObject(program) || !isObject(entry) || typeof entry.type !== 'string' || !entry.type) throw Error('Μη έγκυρη εγγραφή Ιστορικού.');
+    const {at, ...rest} = clone(entry);
+    program.history = [{at: at || nowIso(), ...rest}, ...programHistory(program)].slice(0, HISTORY_LIMIT);
+    return program;
   }
 
   // ---- Ετικέτες ημέρας και ώρας (Ώρες Διδασκαλίας) ----
@@ -975,10 +1018,13 @@
   // source.oloimero κρατά ποιο σχέδιο εισήχθη. Σε ωρολόγιο από FET που άλλαξε, το πρόγραμμα σημειώνεται
   // «τροποποιήθηκε μετά την εισαγωγή» (source.modifiedAfterImport.oloimero), γιατί δεν συμφωνεί πια με το
   // αρχείο του FET· χωρίς αλλαγές η σημείωση δεν μπαίνει.
-  //   options: {designId (το id του σχεδίου στο .data), designName, now}.
+  // Also with no change (analysis.unchanged) the last import (source.oloimero) is updated, and an Ωρολόγιο gets an
+  // 'oloimero' entry in its history (assigned:true with options.assigned).
+  //   options: {designId (το id του σχεδίου στο .data· μετά από ανάθεση προσχεδίου, το id του νέου σχεδίου
+  //   της περιόδου), designName, assigned, now}.
   function applyOloimeroReplace(program, analysis, options = {}) {
     if (!analysis?.ok) throw Error('Η Εισαγωγή Ολοημέρου δεν μπορεί να γίνει: ' + (analysis?.errors?.[0] || 'δεν έγινε ανάλυση.'));
-    const result = clone(program), removed = new Set(analysis.removed), at = options.now || nowIso();
+    const result = ensureHistory(clone(program)), removed = new Set(analysis.removed), at = options.now || nowIso();
     const name = analysis.designName || options.designName || '';
     result.activities = [...(result.activities || []).filter(activity => !removed.has(activity.id)), ...clone(analysis.added)];
     result.updatedAt = at;
@@ -991,6 +1037,10 @@
         note.oloimero = {name, at};
         result.source.modifiedAfterImport = note;
       }
+    }
+    if (result.kind === 'school') {
+      const counts = analysis.counts || {kept: (analysis.kept || []).length, removed: removed.size, added: (analysis.added || []).length};
+      addHistory(result, {at, type: 'oloimero', design: name, kept: counts.kept, removed: counts.removed, added: counts.added, ...(options.assigned ? {assigned: true} : {})});
     }
     return result;
   }
@@ -1618,7 +1668,8 @@
         teachers: fet.teachers.map(teacher => ({...teacher, staffId: teacherMatch.get(teacher.name) ?? null})),
         unavailable, subjects: fet.subjects,
         modifiedAfterImport: null, oloimero: null
-      }
+      },
+      history: [{at, type: 'import', importer: 'fet', files: [analysis.csvName, analysis.fetName].filter(Boolean), activities: programActivities.length}]
     };
   }
 
@@ -2678,6 +2729,7 @@
     periodEnd, periodAt, programAt, programsAt, periodWarnings,
     classSpelling, studentsIndex, expandStudents, studentsFromNames, studentsText, homeroomTeacher, isGeneralTeacher, sortStaff, sortStaffAlphabetically,
     conflicts, studentsClash, staffHours, unavailableTimes, availability, staffBusyAt, replaceStaff,
+    HISTORY_LIMIT, history: programHistory, ensureHistory, addHistory,
     analyzeOloimeroReplace, applyOloimeroReplace,
     OLOIMERO_CATEGORIES, OLOIMERO_MAX_SLOTS, oloimeroHours, oloimeroTeacherColor, oloimeroStudents,
     oloimeroRowsFromCsv, oloimeroRowsFromProgram, oloimeroCsvFromProgram, oloimeroCells, analyzeOloimeroImport, buildOloimeroProgram,

@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Προγράμματα στο Κεντρικό Μενού (host)
- * Έκδοση αρχείου: 0.13
+ * Έκδοση αρχείου: 0.14
  * Όνομα κατά την εγκατάσταση: _host_timetables.js
  *
  * Κώδικας μόνο του host για τα προγράμματα (timetablesByYear). Το φορτώνει το index.html μετά το
@@ -11,7 +11,7 @@
  *   yearData(data, year)                    το timetablesByYear[year] ({periods, programs})
  *   context(data, app, revision)            το school-timetables:context για μια εφαρμογή
  *   validatePeriods(periods, year)          έλεγχος της λίστας περιόδων (πετά λάθος)
- *   validateProgram(program, options)       πλήρης έλεγχος ενός προγράμματος (πετά λάθος)
+ *   validateProgram(program, options)       πλήρης έλεγχος ενός προγράμματος, μαζί με το Ιστορικό του (πετά λάθος)
  *   applySave(data, message, app)           εφαρμογή ενός school-timetables:save σε αντίγραφο
  *   staffUsage(data, year)                  σε ποια προγράμματα εμφανίζεται κάθε εκπαιδευτικός
  *   applyStaffRemovals(data, year, before, after, removals)   αναφορές σε διαγραφή εκπαιδευτικού
@@ -270,6 +270,17 @@
       if (validator) {
         try { validator(program.source, {classIds}); } catch (error) { throw Error(label + ': ' + error.message); }
       }
+    }
+    if (program.history != null) validateHistory(program.history, label);
+  }
+  // The history of a program (program.history, see SchoolTimetable.addHistory): a list of entries {at, type, …},
+  // at most SchoolTimetable.HISTORY_LIMIT. Unknown types and fields are kept as they are.
+  function validateHistory(history, label) {
+    const limit = T.HISTORY_LIMIT || 20;
+    if (!Array.isArray(history)) throw Error(label + ': μη έγκυρο Ιστορικό.');
+    if (history.length > limit) throw Error(label + ': το Ιστορικό έχει ' + history.length + ' εγγραφές, πάνω από το όριο των ' + limit + '. Βεβαιώσου ότι η εφαρμογή του προγράμματος είναι η τελευταία έκδοση.');
+    for (const entry of history) {
+      if (!isObject(entry) || !isText(entry.at, 100) || Number.isNaN(Date.parse(entry.at)) || !isText(entry.type, 50) || !entry.type.trim()) throw Error(label + ': μη έγκυρη εγγραφή στο Ιστορικό.');
     }
   }
 

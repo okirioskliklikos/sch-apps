@@ -12,7 +12,7 @@
   φτιάχνονται από το σύντομο όνομα των δασκάλων («[Α1] - …», classesFromStaff). Με το .data δοκιμής, οι
   έλεγχοι των νέων ετικετών (v2) παίρνουν το Προσωπικό από αυτό, γιατί το CSV του Ολοημέρου έχει τα σύντομα
   ονόματα του Προσωπικού.
-  Έκδοση αρχείου: 0.49
+  Έκδοση αρχείου: 0.50
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -405,6 +405,7 @@ function importScenario(title, fetText, csvText, csvName, fetName, staff, classe
   attempt('Κατασκευή', () => { program = SchoolTimetable.buildFetProgram(analysis, {unmatched: 'keep', name: 'Δοκιμή', periodId: null}); });
   if (!program) return null;
   const acts = program.activities;
+  equal('Ιστορικό: μία εγγραφή «import» με τα αρχεία και το πλήθος των δραστηριοτήτων', (program.history || []).map(h => [h.type, h.importer, h.files, h.activities, h.at === program.createdAt]), [['import', 'fet', [csvName, fetName].filter(Boolean), expected.activities, true]]);
   equal('Δίωρες δραστηριότητες (2 εγγραφές στο times)', acts.filter(a => a.times.length === 2).length, 44);
   equal('Μορφή προγράμματος: formatVersion 2, otherStudents σε κάθε δραστηριότητα', [program.formatVersion, acts.every(a => Array.isArray(a.otherStudents))], [2, true]);
   const pz = acts.find(a => program.source.activities[a.id].students === "Α'-Στ'");
@@ -623,6 +624,71 @@ function oloimeroReplaceChecks() {
   const otherSt = T.analyzeOloimeroReplace(school, {...design, activities: [act('d1', 'Αγγλικά', [[3, '14:10', '14:55']], ['s2'], {otherStudents: ['Ομάδα Χ']})]}, options);
   check('Διαφορετικό otherStudents: δεν είναι ίδια δραστηριότητα', !otherSt.kept.includes('k') && otherSt.added[0]?.otherStudents?.[0] === 'Ομάδα Χ', JSON.stringify(otherSt.counts));
   if (window.SchoolHostTimetables) { const error = hostError(u, staff, classes); check('Το ωρολόγιο μετά την εισαγωγή περνά την επικύρωση του host', !error, error); }
+}
+
+// Ιστορικό προγράμματος (program.history): δεν χρειάζονται αρχεία δοκιμής.
+function historyChecks() {
+  start('3γ. Ιστορικό προγράμματος');
+  const T = SchoolTimetable, hours = HOURS_V2, LIMIT = T.HISTORY_LIMIT;
+  equal('Όριο εγγραφών', LIMIT, 20);
+  const staff = [{id: 's1', shortName: '[Α1] - Δοκιμή', code: 'Α1', branch: 'ΠΕ70', name: 'Άλφα Δοκιμή'}, {id: 's2', shortName: '[ΠΕ06] - Αγγλικά', code: 'ΠΕ06', serviceType: 'specialty', branch: 'ΠΕ06', name: 'Βήτα Αγγλικά'}];
+  const classes = [generalClass('Α1', {homeroomStaffId: 's1'})];
+  const act = (id, subject, times, people = ['s1']) => ({id, subject, staff: people, unmatched: [], classes: [cid('Α1')], subsets: [], otherStudents: [], room: '', times: times.map(([day, from, to]) => ({day, start: from, end: to}))});
+  // Παλαιότερο ωρολόγιο από FET, χωρίς κλειδί history.
+  const old = {id: 'p', formatVersion: 2, kind: 'school', periodId: null, name: 'Δοκιμή', createdAt: '2026-10-01T08:00:00.000Z', updatedAt: '2026-11-01T09:00:00.000Z',
+    activities: [act('m', 'Γλώσσα', [[1, '08:15', '09:00']]), act('k', 'Αγγλικά', [[3, '14:10', '14:55']], ['s2'])],
+    source: {type: 'fet', csvName: 'a_timetable.csv', fetName: 'a.fet', importedAt: '2026-10-01T08:00:00.000Z', activities: {m: {fetId: '1'}, k: {fetId: '2'}},
+      modifiedAfterImport: {at: '2026-11-01T09:00:00.000Z', moved: true, replacements: [{from: 's1', fromName: 'Άλφα', to: 's2', toName: 'Βήτα'}]},
+      oloimero: {design: 'd', name: 'Σχέδιο', at: '2026-10-20T10:00:00.000Z'}}};
+  const derived = T.history(old);
+  equal('Χωρίς κλειδί history: αρχικό Ιστορικό από το source, το νεότερο πρώτο', derived.map(h => [h.type, h.at, h.derived]), [
+    ['copy', '2026-11-01T09:00:00.000Z', true], ['edit', '2026-11-01T09:00:00.000Z', true], ['oloimero', '2026-10-20T10:00:00.000Z', true], ['import', '2026-10-01T08:00:00.000Z', true]]);
+  equal('Αρχικό Ιστορικό: αρχεία, σχέδιο και αντικαταστάσεις με τα ονόματα', [derived[3].files, derived[2].design, derived[0].replacements], [['a_timetable.csv', 'a.fet'], 'Σχέδιο', [{fromName: 'Άλφα', toName: 'Βήτα'}]]);
+  check('Το T.history δεν αλλάζει το πρόγραμμα και επιστρέφει αντίγραφο', !('history' in old) && T.history({history: derived}) !== derived);
+  equal('Καθαρισμένο Ιστορικό (history:[]) μένει κενό', T.history({...clone(old), history: []}), []);
+  equal('Πρόγραμμα που δεν είναι από FET: κενό αρχικό Ιστορικό', T.history({kind: 'oloimero', source: {type: 'oloimero-designer'}}), []);
+  // addHistory: στην αρχή, το πολύ 20, με το αρχικό Ιστορικό όταν λείπει το κλειδί.
+  const added = T.addHistory(clone(old), {type: 'copy', fromPeriod: 'Α περίοδος', replacements: [], at: '2026-11-10T10:00:00.000Z'});
+  equal('addHistory σε πρόγραμμα χωρίς history: η νέα εγγραφή πρώτη, μετά το αρχικό Ιστορικό', added.history.map(h => h.type), ['copy', 'copy', 'edit', 'oloimero', 'import']);
+  const many = clone(added);
+  for (let i = 0; i < 25; i++) T.addHistory(many, {type: 'edit', activities: i + 1});
+  equal('Πάνω από 20 εγγραφές: μένουν οι 20 νεότερες', [many.history.length, many.history[0].activities, many.history[19].activities], [LIMIT, 25, 6]);
+  check('addHistory χωρίς at: η τρέχουσα ημερομηνία και ώρα', !Number.isNaN(Date.parse(many.history[0].at)));
+  let rejected = false; try { T.addHistory(clone(old), {at: '2026-11-10T10:00:00.000Z'}); } catch { rejected = true; }
+  check('addHistory χωρίς type: λάθος', rejected);
+  // Εισαγωγή Ολοημέρου: εγγραφή και όταν δεν αλλάζει καμία δραστηριότητα.
+  const design = {id: 'd', formatVersion: 2, kind: 'oloimero', periodId: null, name: 'Σχέδιο', activities: [act('d1', 'Αγγλικά', [[3, '14:10', '14:55']], ['s2'])], source: {type: 'oloimero-designer'}};
+  const options = {staff, classes, teachingHours: hours};
+  const same = T.analyzeOloimeroReplace(old, design, options);
+  check('Ίδιο σχέδιο: «είναι ήδη στο ωρολόγιο»', same.ok && same.unchanged, messages(same));
+  const sameApplied = T.applyOloimeroReplace(old, same, {designId: 'd2', now: '2026-11-14T12:00:00.000Z'});
+  equal('Χωρίς αλλαγές: ενημερώνεται η τελευταία Εισαγωγή Ολοημέρου (σχέδιο, ώρα)', [sameApplied.source.oloimero.design, sameApplied.source.oloimero.at], ['d2', '2026-11-14T12:00:00.000Z']);
+  equal('Χωρίς αλλαγές: εγγραφή «oloimero» με 1 ίδια, 0, 0, πάνω από το αρχικό Ιστορικό', sameApplied.history.map(h => h.type + (h.derived ? '*' : '')), ['oloimero', 'copy*', 'edit*', 'oloimero*', 'import*']);
+  equal('Χωρίς αλλαγές: πλήθη στην εγγραφή', [sameApplied.history[0].design, sameApplied.history[0].kept, sameApplied.history[0].removed, sameApplied.history[0].added, 'assigned' in sameApplied.history[0]], ['Σχέδιο', 1, 0, 0, false]);
+  check('Χωρίς αλλαγές: η σημείωση «τροποποιήθηκε μετά την εισαγωγή» μένει όπως ήταν', JSON.stringify(sameApplied.source.modifiedAfterImport) === JSON.stringify(old.source.modifiedAfterImport));
+  const changedDesign = {...clone(design), activities: [act('d1', 'Αγγλικά', [[3, '14:10', '14:55']], ['s2']), act('d2', 'Μελέτη', [[2, '14:10', '14:55']])]};
+  const more = T.analyzeOloimeroReplace(sameApplied, changedDesign, options);
+  const moreApplied = T.applyOloimeroReplace(sameApplied, more, {designId: 'd', assigned: true, now: '2026-11-14T13:00:00.000Z'});
+  equal('Με αλλαγές και ανάθεση: νέα εγγραφή με 1 ίδια, 0 αφαιρούνται, 1 μπαίνει, assigned', [moreApplied.history.length, moreApplied.history[0].kept, moreApplied.history[0].removed, moreApplied.history[0].added, moreApplied.history[0].assigned], [6, 1, 0, 1, true]);
+  check('Το αρχικό πρόγραμμα δεν αλλάζει', !('history' in old) && old.source.oloimero.design === 'd');
+  // Αντιγραφή με αντικαταστάσεις: το αρχικό Ιστορικό φτιάχνεται πριν αλλάξει η σημείωση, ώστε να μη διπλασιάζεται.
+  const fresh = {...clone(old), source: {...clone(old.source), modifiedAfterImport: null, oloimero: null}};
+  const copied = T.replaceStaff(fresh, [{from: 's1', to: 's2'}], {staff, now: '2026-11-14T14:00:00.000Z'}).program;
+  equal('replaceStaff: το Ιστορικό κρατά μόνο την εισαγωγή (η εγγραφή «copy» μπαίνει από την εφαρμογή)', copied.history.map(h => h.type), ['import']);
+  T.addHistory(copied, {type: 'copy', fromPeriod: 'Α περίοδος', replacements: [{fromName: 'Άλφα Δοκιμή', toName: 'Βήτα Αγγλικά'}], at: '2026-11-14T14:00:00.000Z'});
+  equal('Μετά την εγγραφή «copy» της εφαρμογής: copy, import', copied.history.map(h => h.type), ['copy', 'import']);
+  equal('Σχέδιο Ολοημέρου: δεν αποκτά Ιστορικό από replaceStaff', 'history' in T.replaceStaff(design, [{from: 's2', to: 's1'}], {staff}).program, false);
+  // Επικύρωση στο host.
+  if (!window.SchoolHostTimetables) return skip('Επικύρωση του Ιστορικού στο host', 'Το _host_timetables.js δεν φορτώθηκε.');
+  const ok = program => hostError(program, staff, classes);
+  check('Πρόγραμμα χωρίς history: δεκτό', !ok(old), ok(old));
+  check('Πρόγραμμα με Ιστορικό 20 εγγραφών, με άγνωστο είδος εγγραφής: δεκτό', !ok({...many, history: [{at: '2026-11-14T10:00:00.000Z', type: 'μελλοντικό', x: 1}, ...many.history.slice(1)]}), ok(many));
+  check('Κενό Ιστορικό: δεκτό', !ok({...clone(old), history: []}));
+  const bad = (label, history, text) => { const error = ok({...clone(old), history}); check(label, error.includes(text), error); };
+  bad('21 εγγραφές: απορρίπτεται', [...many.history, many.history[0]], 'πάνω από το όριο των 20');
+  bad('Ιστορικό που δεν είναι λίστα: απορρίπτεται', {type: 'edit'}, 'μη έγκυρο Ιστορικό');
+  bad('Εγγραφή χωρίς type: απορρίπτεται', [{at: '2026-11-14T10:00:00.000Z'}], 'μη έγκυρη εγγραφή');
+  bad('Εγγραφή με λάθος ημερομηνία: απορρίπτεται', [{at: 'χθες', type: 'edit'}], 'μη έγκυρη εγγραφή');
 }
 
 function availabilityChecks() {
@@ -1976,6 +2042,7 @@ function run() {
   attempt('Εμφάνιση μαθητών', () => studentsTextChecks(v2Program, v2Classes));
 
   attempt('Εισαγωγή Ολοημέρου στο ωρολόγιο', oloimeroReplaceChecks);
+  attempt('Ιστορικό προγράμματος', historyChecks);
   if (texts.design && texts.v2Fet) attempt('3β', () => {
     start('3β. Εισαγωγή CSV του Ολοημέρου: ετικέτες, στοιχεία σχεδίασης και μαθητές');
     const importer = SchoolTimetable.importer('oloimero', 'csv'), staff = dataStaff() || staffFromFet(texts.v2Fet), classes = classesFromStaff(staff);
