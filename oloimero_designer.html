@@ -93,9 +93,9 @@ main.ol-without-design :is(#board,#boardTimeOverlayAnchor,.board-zoom-controls,.
 .teacher-actions :is(.teacher-over-warning,.teacher-hours-ok){margin-left:0;padding-left:0}
 .teacher-over-warning{color:var(--ol-over-limit)!important}
 .teacher-hours-ok{color:var(--ol-hours-ok)!important}
-/* «!» / «✓» of the hours: schoolIcon (alert / check), 14px like list rows; the «!» with a heavier line (it was bold). */
-.teacher-over-warning>svg,.teacher-hours-ok>svg{display:block;width:var(--school-ui-icon-size-list);height:var(--school-ui-icon-size-list)}
-.teacher-over-warning>svg{stroke-width:3.2}
+/* «!» / «✓» of the hours: schoolIcon alert-bold 16px (so its line stands taller) and check 14px like list rows. */
+.teacher-over-warning>svg{display:block;width:var(--school-ui-icon-size);height:var(--school-ui-icon-size)}
+.teacher-hours-ok>svg{display:block;width:var(--school-ui-icon-size-list);height:var(--school-ui-icon-size-list)}
 .template small{grid-column:1;min-width:0}
 .teacher-long-row{
   grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;
@@ -1727,7 +1727,7 @@ function teacherSidebarStatusHtml(t,uses=teacherCount(t.id)){
   const available=teacherAvailableHours(t);
   if(available<=0)return "";
   if(uses>available){
-    return `<span class="teacher-over-warning" role="img" title="Υπέρβαση διαθέσιμων ωρών: ${uses}/${available}" aria-label="Υπέρβαση διαθέσιμων ωρών: ${uses}/${available}">${schoolIcon("alert")}</span>`;
+    return `<span class="teacher-over-warning" role="img" title="Υπέρβαση διαθέσιμων ωρών: ${uses}/${available}" aria-label="Υπέρβαση διαθέσιμων ωρών: ${uses}/${available}">${schoolIcon("alert-bold")}</span>`;
   }
   if(uses===available){
     return `<span class="teacher-hours-ok" role="img" title="Οι διαθέσιμες ώρες καλύφθηκαν ακριβώς: ${uses}/${available}" aria-label="Οι διαθέσιμες ώρες καλύφθηκαν ακριβώς: ${uses}/${available}">${schoolIcon("check")}</span>`;
@@ -2311,7 +2311,7 @@ function renderBoard(){
         if(teacherIsOverLimit(t,uses)){
           const warning=document.createElement("span");
           warning.className="teacher-over-warning";
-          warning.innerHTML=schoolIcon("alert");
+          warning.innerHTML=schoolIcon("alert-bold");
           warning.title=`Υπέρβαση διαθέσιμων ωρών: ${uses}/${teacherAvailableHours(t)}`;
           warning.setAttribute("role","img");warning.setAttribute("aria-label",warning.title);
           card.appendChild(warning);

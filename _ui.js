@@ -680,7 +680,10 @@
     check: ['3.4', 'M4.5 12.5l5 5L19.5 7'],
     'check-bold': ['4.2', 'M4 12.8l5.2 5.2L20 6.5'],
     clock: ['2.2', 'M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 1 0 0-17zM12 7.5V12l3 2'],
-    alert: ['2.8', 'M12 4.5v9M12 19v.01'],
+    // Two exclamation marks, like the check marks: alert (next to ordinary text) and alert-bold (next to bold text
+    // or on coloured cards, e.g. the hours of the Ολοήμερο Designer).
+    alert: ['3.4', 'M12 3.5v11M12 19.5v.01'],
+    'alert-bold': ['4.6', 'M12 2.3v11.9M12 21.6v.01'],
     warning: ['2.2', 'M12 3.5 2.5 20h19zM12 10v4.5M12 17.2v.01'],
     // Κίνηση, σειρά, αναίρεση.
     'chevron-left': ['2.4', 'm15 6-6 6 6 6'],
