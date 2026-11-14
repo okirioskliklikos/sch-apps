@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>FET Timetable Editor v1.06</title>
+<title>FET Timetable Editor v1.07</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -42,18 +42,14 @@ aside{display:flex;flex-direction:column;gap:0}
 .ft-workspace{min-width:0;min-height:0;overflow:auto;padding:12px 14px}
 .ft-toolbar{margin-bottom:10px}
 .ft-title{margin:0 0 2px;font-size:18px;font-weight:850;line-height:1.3}
-/* Period is always visible; the remaining source information expands on request.
+/* Under the title only the period; right under it, when it applies, the warning that the Ολοήμερο design changed
+   (a link-like button that opens «Εισαγωγή Ολοημέρου»), then the assignment note and the warnings of the timetable.
+   Files, imports and changes are in «Ιστορικό…» of «Περίοδοι Προγραμμάτων».
    The strip ends at the visible right edge of the timetable, never past the workspace. */
 .ft-source-info{margin:0 0 10px;max-width:100%}
-/* The period and the «Περισσότερα…» / «Λιγότερα…» link share one text baseline, so the line is only as tall as
-   its text and the period sits right under the title. */
-.ft-source-head{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:2px 12px;min-width:0;font-size:13px;line-height:1.5}
-.ft-source-head .ft-source{min-width:0}
-.ft-info-link{flex:none;--ui-icon-text-size:var(--school-ui-icon-size-list)}
-.ft-info-indicator{color:var(--school-ui-warning)}
-.ft-info-indicator[hidden],.ft-source-details[hidden]{display:none}
-.ft-source-details{margin-top:6px}
-.ft-source-details .ft-source + .ft-source{margin-top:4px}
+.ft-design-change{margin:2px 0 0;font-size:13px;line-height:1.5;color:var(--school-ui-warning);--ui-icon-text-size:var(--school-ui-icon-size-list)}
+.ft-design-change .ui-link-button{color:var(--school-ui-warning);text-align:left;max-width:100%}
+.ft-design-change .ui-icon-text{white-space:normal;overflow-wrap:anywhere}
 .ft-controls select{min-width:0}
 /* Controls of the board: groups with a small title above, ending at the visible right edge of the timetable
    (same width as the information strip). Groups wrap as whole units. The spring before the filters takes the free
@@ -76,7 +72,6 @@ aside{display:flex;flex-direction:column;gap:0}
 .ft-source b{font-weight:650;color:var(--school-ui-label-text)}
 .ft-source + .ft-source{margin-top:4px}
 .ft-note{margin:8px 0 0;padding:6px 9px;border:1px solid var(--ft-note-border);border-radius:8px;background:var(--ft-note-bg);color:var(--ft-note-text);font-size:13px;line-height:1.45}
-.ft-import-note{box-sizing:border-box;max-width:100%;overflow-wrap:anywhere}
 .ft-warnings .ui-validation-warning,.ft-warnings .ui-validation-error{font-size:13px}
 .ft-workspace .subapp-notice{margin:8px 0 0}
 .ft-workspace .subapp-notice:empty{display:none}
@@ -145,7 +140,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="FET Timetable Editor — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>FT</span></span><span class="brand-text"><span>FET Timetable Editor</span><span class="small version">v1.06</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="FET Timetable Editor — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>FT</span></span><span class="brand-text"><span>FET Timetable Editor</span><span class="small version">v1.07</span></span></button></h1></div>
   <select id="period" aria-label="Περίοδος" disabled hidden></select>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <span class="sep" aria-hidden="true"></span>
@@ -231,7 +226,9 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
   const printDates = new Map();            // «Ισχύει από» chosen per period in this session
   let staffById = new Map(), staffRanks = new Map();
   let gridWidthObserver = null;
-  let infoExpanded = false;
+  // The activities the history entry «edit» compares with, when the program is not stored yet (a copy of another
+  // period): the activities of the copy. With a stored program, those of the file.
+  let copyBase = null;
 
   // ---- Small helpers ----
   const periodOf = id => context?.periods?.find(period => period.id === id) || null;
@@ -463,6 +460,8 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
   }
   function touch() {
     const now = new Date().toISOString();
+    // The initial history (from the source) is fixed before the note changes, so the move is not counted twice.
+    T.ensureHistory(program);
     program.updatedAt = now;
     if (program.source?.type === 'fet') {
       const note = program.source.modifiedAfterImport || {replacements: []};
@@ -522,6 +521,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     savedJson = JSON.stringify(saved);
     program = clone(saved);
     assign = null;
+    copyBase = null;
     undoStack = []; redoStack = [];
     invalidate();
     refresh();
@@ -670,69 +670,37 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     [work.scrollLeft, work.scrollTop] = scroll;
   }
   function renderSource() {
-    const box = $('sourceInfo'), source = program.source || {}, imports = [], parts = [], period = periodOf(periodId);
-    if (source.type === 'fet') {
-      const files = [source.csvName, source.fetName].filter(Boolean).join(' · ');
-      if (files) parts.push(['Αρχεία', files]);
-      if (source.importedAt) imports.push(['Εισαγωγή', D.format(localDay(source.importedAt))]);
+    const box = $('sourceInfo'), period = periodOf(periodId), parts = [];
+    if (period) {
+      const line = el('div', 'ft-source'), span = el('span');
+      span.append(el('b', '', 'Περίοδος: '), D.format(period.from) + ' – ' + D.format(T.periodEnd(period, context.year)));
+      line.append(span);
+      parts.push(line);
     }
-    parts.push(['Δραστηριότητες', String(program.activities.length)]);
-    if (source.oloimero?.at) imports.push(['Εισαγωγή Ολοημέρου', (source.oloimero.name ? quoted(source.oloimero.name) + ', ' : '') + D.format(localDay(source.oloimero.at))]);
-    const sourceLine = entries => {
-      const line = el('div', 'ft-source');
-      for (const [label, value] of entries) {
-        const span = el('span');
-        span.append(el('b', '', label + ': '), value);
-        line.append(span);
-      }
-      return line;
-    };
-    const head = el('div', 'ft-source-head');
-    if (period) head.append(sourceLine([['Περίοδος', D.format(period.from) + ' – ' + D.format(T.periodEnd(period, context.year))]]));
-    // A link-like text button: «Περισσότερα…» shows the information, «Λιγότερα…» hides it again.
-    const toggle = el('button', 'ui-link-button ft-info-link');
-    toggle.id = 'infoToggle'; toggle.type = 'button';
-    toggle.setAttribute('aria-controls', 'sourceDetails');
-    // The warning icon (schoolIcon) and the text in one .ui-icon-text, so the icon sits on the middle of the capitals.
-    const label = el('span', 'ui-icon-text'), toggleText = el('span');
-    label.innerHTML = schoolIcon('warning');
-    const indicator = label.querySelector(':scope > svg');
-    indicator.id = 'infoIndicator'; indicator.classList.add('ft-info-indicator'); indicator.setAttribute('hidden', '');
-    indicator.removeAttribute('aria-hidden'); indicator.setAttribute('role', 'img');
-    indicator.setAttribute('aria-label', 'Υπάρχουν προειδοποιήσεις');
-    label.append(toggleText);
-    toggle.append(label);
-    const showExpanded = () => {
-      toggleText.textContent = infoExpanded ? 'Λιγότερα…' : 'Περισσότερα…';
-      toggle.setAttribute('aria-expanded', String(infoExpanded));
-    };
-    showExpanded();
-    head.append(toggle);
-    const details = el('div', 'ft-source-details');
-    details.id = 'sourceDetails'; details.hidden = !infoExpanded;
-    if (imports.length) details.append(sourceLine(imports));
-    details.append(sourceLine(parts));
-    const designNote = oloimeroChangeNote();
-    if (designNote) details.append(el('p', 'ui-validation-warning', designNote));
+    // The design of the last Εισαγωγή Ολοημέρου changed after it: a click opens «Εισαγωγή Ολοημέρου» with that
+    // design chosen. Deleted: only the text.
+    const designChange = oloimeroChange();
+    if (designChange) {
+      const line = el('div', 'ft-design-change');
+      const textHtml = schoolIconText('warning', designChange.text);
+      if (designChange.designId) {
+        const button = el('button', 'ui-link-button');
+        button.type = 'button'; button.innerHTML = textHtml;
+        button.title = 'Άνοιγμα της Εισαγωγής Ολοημέρου με αυτό το σχέδιο';
+        button.onclick = () => importOloimero(designChange.designId);
+        line.append(button);
+      } else line.innerHTML = textHtml;
+      parts.push(line);
+    }
     if (assign) {
       const draft = oloimeroOf(assign.draftId);
-      details.append(el('p', 'ft-note', 'Με την «Αποθήκευση» δημιουργείται ανεξάρτητο σχέδιο Ολοημέρου για την περίοδο από το προσχέδιο ' + quoted(draft?.name || '') +
+      parts.push(el('p', 'ft-note', 'Με την «Αποθήκευση» δημιουργείται ανεξάρτητο σχέδιο Ολοημέρου για την περίοδο από το προσχέδιο ' + quoted(draft?.name || '') +
         '· το αρχικό προσχέδιο διατηρείται' +
         (assign.replace ? (assign.replace.mode === 'draft' ? '· το σημερινό σχέδιο της περιόδου κρατιέται ως προσχέδιο ' + quoted(assign.replace.name) : '· το σημερινό σχέδιο της περιόδου διαγράφεται') : '') + '.'));
     }
-    const note = source.modifiedAfterImport, changes = [];
-    if (note?.replacements?.length) changes.push('αντικαταστάσεις ' + note.replacements.map(item => (item.fromName || '?') + ' → ' + (item.toName || '?')).join(', '));
-    if (note?.oloimero) changes.push('Εισαγωγή Ολοημέρου' + (note.oloimero.name ? ' από ' + quoted(note.oloimero.name) : ''));
-    if (note?.moved) changes.push('μετακινήσεις στον FET Timetable Editor');
-    if (changes.length) details.append(el('p', 'ft-note ft-import-note', 'Τροποποιήθηκε μετά την εισαγωγή: ' + changes.join('· ') + '.'));
     const warnings = el('div', 'ft-warnings'); warnings.id = 'warnings';
-    details.append(warnings);
-    box.replaceChildren(head, details);
-    toggle.onclick = () => {
-      infoExpanded = !infoExpanded;
-      details.hidden = !infoExpanded;
-      showExpanded();
-    };
+    parts.push(warnings);
+    box.replaceChildren(...parts);
   }
 
   function renderWarnings() {
@@ -747,7 +715,6 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     const outside = index().list.filter(item => item.outside).length;
     if (outside) list.push(['warning', outside + (outside === 1 ? ' δραστηριότητα έχει' : ' δραστηριότητες έχουν') + ' ώρες που δεν υπάρχουν στις Ώρες Διδασκαλίας ή σε ημέρα εκτός Δευτέρας–Παρασκευής· δεν εμφανίζονται στον πίνακα.']);
     $('warnings').replaceChildren(...list.map(([type, textValue]) => el('p', 'ui-validation-' + type, textValue)));
-    $('infoIndicator').toggleAttribute('hidden', !$('sourceDetails').querySelector('.ft-note, .ui-validation-warning, .ui-validation-error'));
   }
   function colorFor(textValue) {
     let hue = 0;
@@ -883,7 +850,12 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     const source = chosen && schoolProgramOf(chosen);
     if (!source || program) return;
     const now = new Date().toISOString();
-    change(() => { program = Object.assign(clone(source), {id: crypto.randomUUID(), periodId, name: '', createdAt: now, updatedAt: now}); });
+    change(() => {
+      program = Object.assign(clone(source), {id: crypto.randomUUID(), periodId, name: '', createdAt: now, updatedAt: now});
+      // The copy keeps the history of the source and gets a «copy» entry (no replacements here).
+      T.addHistory(program, {at: now, type: 'copy', fromPeriod: periodOf(chosen)?.name || '', replacements: []});
+    });
+    copyBase = clone(program.activities);
     notice('Αντιγράφηκε το ωρολόγιο της περιόδου ' + quoted(periodOf(chosen)?.name || '') + '. Πάτησε «Αποθήκευση».');
   }
 
@@ -904,9 +876,19 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     }
     return ops;
   }
+  // How many activities of the timetable changed day or hours since the last save (moves and swaps). Activities
+  // that an Εισαγωγή Ολοημέρου removed or added are not counted (they have their own history entry).
+  function movedCount() {
+    const base = saved ? saved.activities : copyBase;
+    if (!base) return 0;
+    const before = new Map(base.map(activity => [activity.id, JSON.stringify(activity.times || [])]));
+    return program.activities.filter(activity => before.has(activity.id) && before.get(activity.id) !== JSON.stringify(activity.times || [])).length;
+  }
   async function save() {
     if (busy || !dirty || !program) return;
-    const put = clone(program);
+    const put = clone(program), moved = movedCount();
+    // One «edit» entry per save with moves or swaps.
+    if (moved) T.addHistory(put, {type: 'edit', activities: moved});
     let ops;
     try { ops = [...(JSON.stringify(program) !== savedJson ? [{op: 'put', program: put}] : []), ...assignOps()]; }
     catch (error) { notice(error.message, true); return; }
@@ -924,7 +906,9 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
       // «Αναίρεση» / «Επανάληψη» work only within the changes since the last save.
       undoStack = []; redoStack = [];
       saved = clone(stored); savedJson = JSON.stringify(saved);
-      refresh();
+      // The page shows the program as stored (with the history entry of this save).
+      program = clone(stored); copyBase = null;
+      invalidate(); refresh();
       notice('Το ωρολόγιο αποθηκεύτηκε στο κοινό αρχείο .data.');
     } catch (error) {
       if (result) refresh();
@@ -939,13 +923,17 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
   // are missing come in, with the subject, students, teachers, days and hours of the design. The analysis and
   // the checks are the shared ones of SchoolTimetable (analyzeOloimeroReplace / applyOloimeroReplace).
   // The design of the last import changed (or was deleted) after it: a note for the timetable.
-  function oloimeroChangeNote() {
+  // → {text, designId} when the design changed (designId: the design to import again), {text, designId:null} when it
+  // was deleted, or null. A design that is assigned with the next «Αποθήκευση» (assign.assignedId) is compared through
+  // its draft, since it is not in the file yet.
+  function oloimeroChange() {
     const last = program?.source?.oloimero;
-    if (!last?.design) return '';
-    const design = oloimeroOf(last.design);
-    if (!design) return 'Το σχέδιο Ολοημέρου ' + (last.name ? quoted(last.name) + ' ' : '') + 'της τελευταίας Εισαγωγής Ολοημέρου δεν υπάρχει πια στο αρχείο.';
-    if (design.updatedAt && last.at && design.updatedAt > last.at) return 'Το σχέδιο ' + quoted(oloimeroName(design)) + ' άλλαξε στον Ολοήμερο Designer μετά την τελευταία Εισαγωγή Ολοημέρου (' + D.format(localDay(last.at)) + ').';
-    return '';
+    if (!last?.design) return null;
+    const pending = assign && assign.assignedId === last.design;
+    const design = oloimeroOf(pending ? assign.draftId : last.design);
+    if (!design) return {text: 'Το σχέδιο Ολοημέρου ' + (last.name ? quoted(last.name) + ' ' : '') + 'της τελευταίας Εισαγωγής Ολοημέρου δεν υπάρχει πια στο αρχείο.', designId: null};
+    if (design.updatedAt && last.at && design.updatedAt > last.at) return {text: 'Το σχέδιο ' + quoted(oloimeroName(design)) + ' άλλαξε στον Ολοήμερο Designer μετά την τελευταία Εισαγωγή Ολοημέρου (' + D.format(localDay(last.at)) + ').', designId: design.id};
+    return null;
   }
   // What the import causes in the timetable, compared with it now: new conflicts, new times where a teacher is
   // not available in FET, and teachers whose hours go above «Ωράριο στο σχολείο». What existed before is left out.
@@ -1009,7 +997,9 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     if (!choice) return null;
     return {...base, replace: choice.mode === 'draft' ? {id: old.id, mode: 'draft', name: choice.name} : {id: old.id, mode: 'delete'}};
   }
-  async function importOloimero() {
+  // preferId: the design chosen at first (from the warning that it changed); otherwise the design of the last import,
+  // or the design of the period.
+  async function importOloimero(preferId = null) {
     if (busy || !program) return;
     const title = 'Εισαγωγή Ολοημέρου';
     const designs = oloimeroDesigns();
@@ -1028,13 +1018,14 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
       select.append(node);
     };
     group('Περίοδοι', periodDesigns); group('Προσχέδια', drafts);
-    const preferred = designs.find(item => item.id === program.source?.oloimero?.design) || designs.find(item => item.periodId === periodId);
+    const lastDesign = assign && assign.assignedId === program.source?.oloimero?.design ? assign.draftId : program.source?.oloimero?.design;
+    const preferred = (preferId && designs.find(item => item.id === preferId)) || designs.find(item => item.id === lastDesign) || designs.find(item => item.periodId === periodId);
     if (preferred) select.value = preferred.id;
     field.append(select);
     const content = ['Οι δραστηριότητες του ωρολογίου που είναι σε ώρες Ολοημέρου (Πρωινή Ζώνη, Γεύμα, Ολοήμερο, Διευρυμένο) συγκρίνονται μία προς μία με τις δραστηριότητες του σχεδίου του Ολοήμερου Designer. Όσες είναι ίδιες (μάθημα, τμήματα, εκπαιδευτικοί, ημέρα και ώρα) μένουν όπως είναι· οι υπόλοιπες αντικαθίστανται από του σχεδίου. Οι δραστηριότητες του ωρολογίου εκτός Ολοημέρου δεν αλλάζουν.', field];
     if (program.source?.oloimero?.at) content.push(el('p', 'ft-dialog-info', 'Τελευταία εισαγωγή: ' + (program.source.oloimero.name ? quoted(program.source.oloimero.name) + ', ' : '') + D.format(localDay(program.source.oloimero.at)) + '.'));
-    const note = oloimeroChangeNote();
-    if (note) content.push(el('p', 'ft-dialog-warning', note));
+    const note = oloimeroChange();
+    if (note) content.push(el('p', 'ft-dialog-warning', note.text));
     const chosen = await schoolChoiceDialog({
       title, content,
       actions: [{label: 'Ακύρωση'}, {label: 'Συνέχεια', accept: true, run: () => {
@@ -1049,12 +1040,16 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     const {design, analysis} = chosen, isDraft = design.periodId == null;
     const activities = count => count === 1 ? '1 δραστηριότητα' : count + ' δραστηριότητες';
     const {kept, removed, added} = analysis.counts;
+    // The id the timetable keeps for the design: after the assignment of a draft, the new design of the period.
+    const designIdFor = next => next?.assignedId || (isDraft && assign?.draftId === design.id ? assign.assignedId : design.id);
     if (analysis.unchanged) {
-      await message('Το σχέδιο ' + quoted(analysis.designName) + ' είναι ήδη στο ωρολόγιο: ' + (kept === 1 ? 'η δραστηριότητα Ολοημέρου του ωρολογίου είναι ίδια' : 'οι ' + kept + ' δραστηριότητες Ολοημέρου του ωρολογίου είναι ίδιες') + ' με του σχεδίου.', title);
-      if (isDraft && assign?.draftId !== design.id) {
-        const next = await askAssign(design, title);
-        if (next) { change(() => { assign = next; }); notice('Το προσχέδιο ' + quoted(design.name) + ' θα ανατεθεί στην περίοδο με την «Αποθήκευση».'); }
-      }
+      // No activity changes, but the import is recorded (source.oloimero and the history), so the warning that the
+      // design changed goes away with «Αποθήκευση».
+      await message('Το σχέδιο ' + quoted(analysis.designName) + ' είναι ήδη στο ωρολόγιο: ' + (kept === 1 ? 'η δραστηριότητα Ολοημέρου του ωρολογίου είναι ίδια' : 'οι ' + kept + ' δραστηριότητες Ολοημέρου του ωρολογίου είναι ίδιες') + ' με του σχεδίου. Η εισαγωγή καταγράφεται στο Ιστορικό με την «Αποθήκευση».', title);
+      const next = isDraft && assign?.draftId !== design.id ? await askAssign(design, title) : null;
+      const recorded = T.applyOloimeroReplace(program, analysis, {designId: designIdFor(next), assigned: !!next});
+      change(() => { program = recorded; if (next) assign = next; });
+      notice('Εισαγωγή Ολοημέρου από το ' + quoted(analysis.designName) + ': καμία αλλαγή στις δραστηριότητες' + (next ? '· το προσχέδιο θα ανατεθεί στην περίοδο' : '') + '. Πάτησε «Αποθήκευση».');
       return;
     }
     const updated = T.applyOloimeroReplace(program, analysis, {designId: design.id});
@@ -1078,7 +1073,8 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     });
     if (!ok) return;
     const next = isDraft && assign?.draftId !== design.id ? await askAssign(design, title) : null;
-    change(() => { program = updated; if (next) assign = next; });
+    const final = designIdFor(next) === design.id ? updated : T.applyOloimeroReplace(program, analysis, {designId: designIdFor(next), assigned: !!next});
+    change(() => { program = final; if (next) assign = next; });
     notice('Εισαγωγή Ολοημέρου από το ' + quoted(analysis.designName) + ': ' + kept + ' ίδιες, ' + (removed === 1 ? 'αφαιρέθηκε' : 'αφαιρέθηκαν') + ' ' + activities(removed) + ' του ωρολογίου και ' + (added === 1 ? 'μπήκε' : 'μπήκαν') + ' ' + activities(added) + ' του σχεδίου' + (next ? '· το προσχέδιο θα ανατεθεί στην περίοδο' : '') + '. Πάτησε «Αποθήκευση».' + (problems ? ' Το ωρολόγιο έχει πλέον συγκρούσεις ή προειδοποιήσεις από την εισαγωγή.' : ''), !!problems);
   }
 
@@ -1260,7 +1256,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
   $('redo').onclick = redo;
   $('undoAll').onclick = undoAll;
   $('print').onclick = print;
-  $('oloimero').onclick = importOloimero;
+  $('oloimero').onclick = () => importOloimero();
   $('tabClasses').onclick = () => { view = 'classes'; render(); };
   $('tabTeachers').onclick = () => { view = 'teachers'; render(); };
   $('search').addEventListener('input', renderSide);

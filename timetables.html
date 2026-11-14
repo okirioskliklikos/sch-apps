@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Περίοδοι Προγραμμάτων v0.19</title>
+<title>Περίοδοι Προγραμμάτων v0.20</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -60,6 +60,13 @@
 .kind-card-note{margin:0;padding:6px 9px;border:1px solid var(--pg-note-border);border-radius:8px;background:var(--pg-note-bg);color:var(--pg-note-text);font-size:13px;line-height:1.45}
 .kind-card-new{margin:0;font-size:13px;color:var(--pg-new-text)}
 .kind-card-help{margin:0;font-size:13px;color:var(--school-ui-muted);line-height:1.45}
+.kind-card-history{margin:0;font-size:14px}
+.pg-history{list-style:none;margin:0;padding:0;max-height:min(60vh,520px);overflow:auto;border-top:1px solid var(--school-ui-border)}
+.pg-history li{display:grid;grid-template-columns:9.5em minmax(0,1fr);gap:4px 12px;padding:7px 2px;border-bottom:1px solid var(--school-ui-border);font-size:14px;line-height:1.45}
+.pg-history time{color:var(--school-ui-muted);white-space:nowrap}
+.pg-history-derived{display:block;font-size:12px;color:var(--school-ui-muted)}
+.pg-history-empty{margin:0;color:var(--school-ui-muted)}
+@media (max-width:560px){.pg-history li{grid-template-columns:minmax(0,1fr)}}
 .kind-card-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;margin-top:auto;padding-top:2px}
 .kind-card-empty{
   flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:130px;padding:14px;
@@ -105,7 +112,7 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Περίοδοι Προγραμμάτων — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΠΠ</span></span><span class="brand-text"><span>Περίοδοι Προγραμμάτων</span><span class="small version">v0.19</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Περίοδοι Προγραμμάτων — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΠΠ</span></span><span class="brand-text"><span>Περίοδοι Προγραμμάτων</span><span class="small version">v0.20</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <div class="header-right"><span id="schoolYear" class="school-year-indicator" hidden><span>Σχολικό έτος:</span> <span id="schoolYearValue"></span></span></div>
@@ -358,6 +365,7 @@
       button.onclick = () => {
         if (button.dataset.action === 'import') importProgram(period, kind);
         else if (button.dataset.action === 'delete') deleteProgram(period, kind);
+        else if (button.dataset.action === 'history') showHistory(period, kind);
       };
     });
   }
@@ -397,6 +405,7 @@
       ${note ? `<p class="kind-card-note">${esc(note)}</p>` : ''}
       ${isStored(program) ? '' : '<p class="kind-card-new">Νέο· αποθηκεύεται με την «Αποθήκευση».</p>'}
       ${help ? `<p class="kind-card-help">${esc(help)}</p>` : ''}
+      ${kind === 'school' ? `<p class="kind-card-history"><button type="button" class="ui-link-button" data-action="history" data-kind="${kind}">Ιστορικό…</button></p>` : ''}
       <div class="kind-card-actions"><button type="button" class="danger" data-action="delete" data-kind="${kind}">Διαγραφή</button>${importable ? `<button type="button" class="primary" data-action="import" data-kind="${kind}"${importers.length === 1 ? ` title="${esc(importers[0].label)}"` : ''}>Αντικατάσταση…</button>` : ''}</div>
     </section>`;
   }
@@ -563,6 +572,74 @@
     notice('Το πρόγραμμα ' + programText(program) + ' αφαιρέθηκε από την περίοδο ' + quoted(period.name) + '. Πάτησε «Αποθήκευση».');
   }
 
+  // ---- History of a program (program.history, see SchoolTimetable.addHistory) ----
+  // Date and time in local time, dd/mm/yyyy HH:MM; entries built from older data (derived) only show the day,
+  // since their time is not exact.
+  function historyWhen(entry) {
+    const date = new Date(entry.at);
+    if (Number.isNaN(date.getTime())) return '';
+    const day = D.format(localDay(entry.at));
+    return entry.derived ? day : day + ' ' + String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0');
+  }
+  const countText = (count, one, many) => count === 1 ? '1 ' + one : count + ' ' + many;
+  function historyText(entry) {
+    const replacementsText = list => (list || []).map(item => (item.fromName || '?') + ' → ' + (item.toName || '?')).join(', ');
+    switch (entry.type) {
+      case 'import': {
+        const importer = T.importer('school', entry.importer);
+        const files = (entry.files || []).filter(Boolean);
+        return (importer?.label || 'Εισαγωγή από αρχεία') + (files.length ? ': ' + files.join(', ') : '') + (Number.isInteger(entry.activities) ? ' (' + activitiesText(entry.activities) + ')' : '') + '.';
+      }
+      case 'copy': {
+        const list = replacementsText(entry.replacements);
+        if (!entry.fromPeriod) return 'Αντικαταστάσεις εκπαιδευτικών' + (list ? ': ' + list : '') + '.';
+        return 'Αντιγραφή από την περίοδο ' + quoted(entry.fromPeriod) + (list ? ', με αντικαταστάσεις: ' + list : '') + '.';
+      }
+      case 'oloimero': {
+        let text = 'Εισαγωγή Ολοημέρου' + (entry.design ? ' από ' + quoted(entry.design) : '');
+        if ([entry.kept, entry.removed, entry.added].every(Number.isInteger)) {
+          text += entry.removed || entry.added
+            ? ': ' + countText(entry.kept, 'ίδια', 'ίδιες') + ', ' + countText(entry.removed, 'αφαιρέθηκε', 'αφαιρέθηκαν') + ', ' + countText(entry.added, 'μπήκε', 'μπήκαν')
+            : ': χωρίς αλλαγές στις δραστηριότητες (' + countText(entry.kept, 'ίδια', 'ίδιες') + ')';
+        }
+        return text + (entry.assigned ? '· το προσχέδιο ανατέθηκε στην περίοδο' : '') + '.';
+      }
+      case 'edit':
+        return Number.isInteger(entry.activities) ? 'Αλλαγές στο ωρολόγιο (' + activitiesText(entry.activities) + ').' : 'Αλλαγές στο ωρολόγιο.';
+      default:
+        return 'Άλλη αλλαγή (' + entry.type + ').';
+    }
+  }
+  async function showHistory(period, kind) {
+    const program = programOf(period.id, kind);
+    if (!program || busy) return;
+    const entries = T.history(program);
+    const content = [];
+    if (!entries.length) content.push(Object.assign(document.createElement('p'), {className: 'pg-history-empty', textContent: 'Το Ιστορικό είναι κενό.'}));
+    else {
+      const list = document.createElement('ol');
+      list.className = 'pg-history';
+      for (const entry of entries) {
+        const item = document.createElement('li'), time = document.createElement('time'), text = document.createElement('span');
+        time.dateTime = entry.at; time.textContent = historyWhen(entry);
+        text.textContent = historyText(entry);
+        if (entry.derived) text.append(Object.assign(document.createElement('span'), {className: 'pg-history-derived', textContent: 'από παλαιότερα στοιχεία'}));
+        item.append(time, text);
+        list.append(item);
+      }
+      content.push(list);
+    }
+    const choice = await schoolChoiceDialog({
+      title: 'Ιστορικό: ' + programText(program) + ' — ' + (period.name.trim() || 'Χωρίς όνομα'), content,
+      actions: [{label: 'Καθαρισμός Ιστορικού', value: 'clear', disabled: !entries.length}, {label: 'Κλείσιμο', accept: true, value: null}]
+    });
+    if (choice !== 'clear' || programOf(period.id, kind) !== program) return;
+    if (!await schoolConfirm('Να σβηστούν όλες οι εγγραφές του Ιστορικού του προγράμματος ' + quoted(programText(program)) + ' της περιόδου ' + quoted(period.name) + '; Ο καθαρισμός γίνεται οριστικός με την «Αποθήκευση».', {title: 'Καθαρισμός Ιστορικού', accept: 'Καθαρισμός'})) return;
+    program.history = [];
+    mark(); renderCards();
+    notice('Το Ιστορικό του προγράμματος ' + quoted(programText(program)) + ' της περιόδου ' + quoted(period.name) + ' καθαρίστηκε. Πάτησε «Αποθήκευση».');
+  }
+
   // ---- Copy a period with replacements ----
   function copyPeriod() {
     if (busy || !draft.periods.length) return;
@@ -674,9 +751,17 @@
     const source = periodById(sourceId);
     if (!source) return;
     const now = new Date().toISOString(), period = {id: uid(), name, from, to};
+    const person = id => (context.staff || []).find(item => item.id === id);
+    const personName = id => person(id)?.name || person(id)?.shortName || '?';
     const copies = kindKeys.map(kind => programOf(sourceId, kind)).filter(Boolean).map(program => {
       const copy = T.replaceStaff(program, replacements, {staff: context.staff, now}).program;
-      return Object.assign(copy, {id: uid(), periodId: period.id, createdAt: now, updatedAt: now});
+      Object.assign(copy, {id: uid(), periodId: period.id, createdAt: now, updatedAt: now});
+      // The copy keeps the history of the source and gets a «copy» entry, with the replacements that changed it.
+      if (copy.kind === 'school') {
+        const used = new Set((program.activities || []).flatMap(activity => activity.staff || []));
+        T.addHistory(copy, {at: now, type: 'copy', fromPeriod: source.name, replacements: replacements.filter(item => used.has(item.from)).map(item => ({fromName: personName(item.from), toName: personName(item.to)}))});
+      }
+      return copy;
     });
     draft.periods.push(period);
     draft.programs.push(...copies);
