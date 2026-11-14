@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινό περιβάλλον χρήστη
- * Έκδοση αρχείου: 0.51
+ * Έκδοση αρχείου: 0.52
  * Όνομα κατά την εγκατάσταση: _ui.css
  */
 
@@ -340,6 +340,17 @@ button.ui-compact-button:hover:not(:disabled),
 .school-richtext .school-richtext-toolbar .school-richtext-actions button:hover:not(:disabled){
   background:#f1f1f1;border-color:var(--school-ui-control-border)
 }
+/* Text that works as a link but is a button (e.g. «Περισσότερα…» / «Λιγότερα…», which show or hide more
+   information): no frame or fill, link colour, underlined on hover. It keeps the button for the keyboard and
+   aria-expanded. Text size, line height and weight come from the surrounding text, not from the control size.
+   An icon with the text goes in a .ui-icon-text. */
+button.ui-link-button{
+  min-width:0;height:auto;min-height:0;padding:0;border:0;border-radius:3px;background:none;
+  color:var(--school-ui-primary-text);font-size:inherit;line-height:inherit;font-weight:inherit;text-align:inherit
+}
+button.ui-link-button:hover:not(:disabled){background:none;text-decoration:underline}
+button.ui-link-button:focus-visible{outline:2px solid var(--school-ui-primary-border);outline-offset:2px}
+button.ui-link-button:disabled{opacity:1;color:var(--school-ui-disabled-text);cursor:default}
 /* Square button with only an icon (schoolIcon, never a text character such as «×»): the icon is centred and
    --school-ui-icon-size. The button is as tall and wide as a control; a smaller one (e.g. 32px) sets only its
    own width and height. Disabled, it fades like the other icon buttons. */
@@ -361,7 +372,8 @@ button.ui-icon-button>svg{display:block;width:var(--school-ui-icon-size);height:
   display:inline-block;flex:none;width:var(--ui-icon-size);height:var(--ui-icon-size);
   vertical-align:calc((1cap - var(--ui-icon-size)) / 2)
 }
-.ui-icon-text>svg+span,.ui-icon-text>span+svg{margin-inline-start:.375em}
+/* A hidden icon (e.g. a warning shown only when there is one) leaves no gap before the text. */
+.ui-icon-text>svg:not([hidden])+span,.ui-icon-text>span+svg{margin-inline-start:.375em}
 :is(button.ui-compact-button,.school-richtext-actions button){--ui-icon-text-size:var(--school-ui-icon-size-list)}
 .ui-status-button{--ui-icon-text-size:var(--school-ui-icon-size-small)}
 /* Shared zoom bar: «−», the percentage (a button that resets to 100%) and «+». The application only places it
