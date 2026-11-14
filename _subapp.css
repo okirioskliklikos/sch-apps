@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινή διάταξη υποεφαρμογών
- * Έκδοση αρχείου: 0.38
+ * Έκδοση αρχείου: 0.39
  * Όνομα κατά την εγκατάσταση: _subapp.css
  */
 
@@ -177,7 +177,7 @@ main{display:grid;grid-template-columns:300px minmax(0,1fr);min-height:calc(100v
 }
 .subapp-file-drop.visible{display:flex}
 .subapp-file-drop.drag-over{background:#e7f0ff;border-color:#2768df;box-shadow:0 0 0 4px rgba(39,104,223,.14)}
-.subapp-file-drop-icon{font-size:34px;line-height:1;color:#1455c0}
+.subapp-file-drop-icon{color:#1455c0}
 /* The icon of the drop area is schoolIcon('file-import'), 22px; an application with a smaller drop area sets
    --subapp-file-drop-icon-size to another size of the scale (e.g. var(--school-ui-icon-size-20)). */
 .subapp-file-drop-icon>svg{
