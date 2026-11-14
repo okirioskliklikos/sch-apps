@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινό περιβάλλον χρήστη
- * Έκδοση αρχείου: 0.49
+ * Έκδοση αρχείου: 0.50
  * Όνομα κατά την εγκατάσταση: _ui.css
  */
 
@@ -14,10 +14,15 @@
   --school-ui-control-font-size:16px;
   --school-ui-control-line-height:22px;
   --school-ui-control-padding-y:calc((var(--school-ui-control-height) - var(--school-ui-control-line-height) - 2px) / 2);
-  /* Icons (schoolIcon) inside buttons: one scale for the suite. Ordinary buttons 32–36px tall, list rows, tag chips. */
+  /* Icons (schoolIcon): one scale for the suite, only these sizes. 16px in ordinary buttons 32–36px tall (and next
+     to 16px text), 14px in list rows and next to 14px text, 12px in tag chips and next to 12px text; 18, 20, 22px
+     where a larger icon fits better (e.g. ☰ 18px, drop area 20–22px, rich-text toolbar 22px). */
   --school-ui-icon-size:16px;
   --school-ui-icon-size-list:14px;
   --school-ui-icon-size-small:12px;
+  --school-ui-icon-size-18:18px;
+  --school-ui-icon-size-20:20px;
+  --school-ui-icon-size-22:22px;
   --school-ui-workspace-bg:#f5f6f8;
   --school-ui-label-bg:#f0f3f7;
   --school-ui-label-text:#405367;
@@ -256,9 +261,11 @@ dialog .school-color-picker-choice:hover:not(:disabled){
   outline:2px solid var(--school-ui-surface);box-shadow:0 0 0 3px var(--school-ui-focus)
 }
 .school-color-picker-choice.selected{outline:1px dashed var(--school-ui-primary-text);outline-offset:-4px}
-.school-color-picker-choice.selected::after{
-  content:"✓";position:absolute;inset:0;display:grid;place-items:center;
-  color:var(--choice-ink,var(--school-ui-text));font-size:20px;font-weight:900;text-shadow:0 1px 1px #fff8
+/* The check mark (schoolIcon('check'), put in every swatch by _ui.js) is shown only on the selected one. */
+.school-color-picker :is(.school-color-picker-choice,.school-color-picker-auto)>svg{display:none}
+.school-color-picker .school-color-picker-choice.selected>svg{
+  display:block;position:absolute;inset:0;margin:auto;width:var(--school-ui-icon-size);height:var(--school-ui-icon-size);
+  color:var(--choice-ink,var(--school-ui-text));filter:drop-shadow(0 1px 1px #fff8)
 }
 .school-color-picker-native{position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none}
 /* Next to the button that opened it (options.anchor): placed by _ui.js, with a clear backdrop. */
@@ -271,7 +278,7 @@ dialog .school-color-picker-auto{
 }
 .school-color-picker-auto-swatch{width:18px;height:18px;flex:none;border:1px solid var(--school-ui-swatch-border);border-radius:3px;background:var(--school-ui-text)}
 dialog .school-color-picker-auto.selected{border-color:var(--school-ui-primary-border);background:var(--school-ui-primary-bg);color:var(--school-ui-primary-text)}
-.school-color-picker-auto.selected::after{content:"✓";margin-left:auto;font-weight:900}
+.school-color-picker .school-color-picker-auto.selected>svg{display:block;flex:none;margin-left:auto;width:var(--school-ui-icon-size);height:var(--school-ui-icon-size)}
 /* Dragging a colour onto a «Προσαρμογή» slot (_ui.js): a swatch in that colour follows the pointer, the slots
    show a dashed frame, and the slot under the pointer a solid one, painted in the new colour until released. */
 .school-color-picker :is(.school-color-picker-choice,.school-color-picker-auto){touch-action:none}
@@ -307,7 +314,7 @@ dialog.school-color-picker-dragging .school-color-picker-custom .school-color-pi
 .school-richtext .school-richtext-toolbar button:hover:not(:disabled){background:#e6ebf0;border-color:transparent}
 .school-richtext .school-richtext-toolbar button[aria-pressed="true"]{background:#dbe7f6;color:var(--school-ui-primary-text)}
 .school-richtext .school-richtext-toolbar button:focus-visible{outline:2px solid var(--school-ui-focus);outline-offset:-2px}
-.school-richtext-toolbar svg{width:23px;height:23px;display:block}
+.school-richtext-toolbar svg{width:var(--school-ui-icon-size-22);height:var(--school-ui-icon-size-22);display:block}
 /* «U» and «A» are as tall as the other letters; their lines sit just below the icon box. */
 .school-richtext-toolbar :is(button[data-command="underline"],button.school-richtext-color) svg{overflow:visible}
 /* Colour: «A» as tall as «U», with a bar in the last colour where «U» has its line, and a narrow «▾» right
@@ -315,7 +322,7 @@ dialog.school-color-picker-dragging .school-color-picker-custom .school-color-pi
 .school-richtext-color-outline{stroke:#00000026;stroke-width:2.8}
 .school-richtext-color-bar{stroke:var(--school-richtext-color,#ff7800)}
 .school-richtext .school-richtext-toolbar button.school-richtext-color-menu{width:20px;min-width:20px;margin-left:-2px}
-.school-richtext-toolbar button.school-richtext-color-menu svg{width:15px;height:15px}
+.school-richtext-toolbar button.school-richtext-color-menu svg{width:var(--school-ui-icon-size-list);height:var(--school-ui-icon-size-list)}
 /* Text buttons of the toolbar (options.actions, e.g. «Αποδοχή» / «Ακύρωση»): at its right end, with the look
    of ordinary buttons (.primary for the main one). On a narrow toolbar they wrap as one unit. */
 .school-richtext-actions{display:inline-flex;align-items:center;gap:6px;margin-left:auto;padding-left:8px}
@@ -341,6 +348,21 @@ button.ui-icon-button,
   width:var(--school-ui-control-height);min-width:0;height:var(--school-ui-control-height);padding:0;line-height:1
 }
 button.ui-icon-button>svg{display:block;width:var(--school-ui-icon-size);height:var(--school-ui-icon-size)}
+/* Icon with text (schoolIconText, or data-school-icon on an element with text): <span class="ui-icon-text"><svg/>
+   <span>text</span></span>, also with the icon after the text. The icon sits inline in the text, with its centre on
+   the middle of the capitals (1cap) with any font, and the line keeps the baseline of the text, so the shared header
+   baseline holds. It works in block and in flex buttons, because icon and text are inside one span. The size follows
+   the text: 16px by default, 14px next to 14px text (.ui-compact-button, list rows), 12px next to 12px text
+   (.ui-status-button). Another size of the scale, only where it fits better: --ui-icon-text-size on a parent. */
+.ui-icon-text{white-space:nowrap}
+.ui-icon-text>svg{
+  --ui-icon-size:var(--ui-icon-text-size,var(--school-ui-icon-size));
+  display:inline-block;flex:none;width:var(--ui-icon-size);height:var(--ui-icon-size);
+  vertical-align:calc((1cap - var(--ui-icon-size)) / 2)
+}
+.ui-icon-text>svg+span,.ui-icon-text>span+svg{margin-inline-start:.375em}
+:is(button.ui-compact-button,.school-richtext-actions button){--ui-icon-text-size:var(--school-ui-icon-size-list)}
+.ui-status-button{--ui-icon-text-size:var(--school-ui-icon-size-small)}
 /* Shared zoom bar: «−», the percentage (a button that resets to 100%) and «+». The application only places it
    (position, offsets) and handles the clicks. Markup:
    <div class="ui-zoom"><button class="ui-icon-button" data-school-icon="minus"></button>
@@ -470,7 +492,7 @@ fieldset.ui-fields{margin:0;padding:0;min-width:0;border:0}
 }
 .school-tagged-text-tools button.school-tagged-text-tool:hover:not(:disabled){background:#e8eff6;border-color:transparent}
 .school-tagged-text-tools button.school-tagged-text-tool:disabled{opacity:.35;cursor:default}
-.school-tagged-text-tools svg{width:18px;height:18px;stroke-width:1.8}
+.school-tagged-text-tools svg{width:var(--school-ui-icon-size);height:var(--school-ui-icon-size)}
 /* Display-only tag strip across the full width of the box, separate from its text. */
 .school-tagged-text-tags{
   flex:0 0 calc(100% + var(--school-tagged-text-pad-left) + var(--school-tagged-text-pad-right));min-width:0;
@@ -566,7 +588,7 @@ fieldset.ui-fields{margin:0;padding:0;min-width:0;border:0}
 .school-tag-manager-row .ui-validation-error{grid-column:2/4;margin-top:-2px}
 .school-confirm .school-tag-manager .school-color-trigger{width:48px;padding:4px 5px}
 .school-confirm .school-tag-manager-remove{display:inline-flex;align-items:center;justify-content:center;width:var(--school-ui-control-height);height:var(--school-ui-control-height);padding:0;color:#536575}
-.school-tag-manager-remove svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.school-tag-manager-remove svg{width:var(--school-ui-icon-size);height:var(--school-ui-icon-size)}
 .school-tag-manager-tools{display:flex;align-items:center;flex-wrap:wrap;gap:6px 12px;margin-top:8px}
 .school-tag-manager-count{margin:0!important;font-size:13px}
 .school-tag-manager-count:empty{display:none}

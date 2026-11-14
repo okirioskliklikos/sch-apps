@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινή διάταξη υποεφαρμογών
- * Έκδοση αρχείου: 0.37
+ * Έκδοση αρχείου: 0.38
  * Όνομα κατά την εγκατάσταση: _subapp.css
  */
 
@@ -49,7 +49,7 @@ header{
   }
 }
 .subapp-nav-button::before{content:"\200b";width:0;overflow:hidden}
-.subapp-nav-button svg{display:block;flex:none;width:20px;height:20px}
+.subapp-nav-button svg{display:block;flex:none;width:var(--school-ui-icon-size-18);height:var(--school-ui-icon-size-18)}
 /* The header aligns everything on one baseline: icon letters, application name, version, button labels.
    A baseline-aligned row starts at the top padding (10px), so the buttons sit 10px from the top.
    Buttons and icon share one height (--school-ui-control-height, from _ui.css).
@@ -178,6 +178,12 @@ main{display:grid;grid-template-columns:300px minmax(0,1fr);min-height:calc(100v
 .subapp-file-drop.visible{display:flex}
 .subapp-file-drop.drag-over{background:#e7f0ff;border-color:#2768df;box-shadow:0 0 0 4px rgba(39,104,223,.14)}
 .subapp-file-drop-icon{font-size:34px;line-height:1;color:#1455c0}
+/* The icon of the drop area is schoolIcon('file-import'), 22px; an application with a smaller drop area sets
+   --subapp-file-drop-icon-size to another size of the scale (e.g. var(--school-ui-icon-size-20)). */
+.subapp-file-drop-icon>svg{
+  display:block;width:var(--subapp-file-drop-icon-size,var(--school-ui-icon-size-22));
+  height:var(--subapp-file-drop-icon-size,var(--school-ui-icon-size-22))
+}
 .subapp-file-drop-title{font-size:19px;font-weight:750;color:#1455c0}
 .subapp-file-drop-text{max-width:600px;font-size:14px;line-height:1.55}
 .subapp-file-drop-files{font-weight:750;color:#1455c0}
@@ -214,7 +220,7 @@ aside h2{font-size:17px;margin:0 0 10px}
 }
 .subapp-section-action svg,
 .sidebar-action-icon svg{
-  display:block;width:16px;height:16px;overflow:visible;fill:none;stroke:currentColor;
+  display:block;width:var(--school-ui-icon-size);height:var(--school-ui-icon-size);overflow:visible;fill:none;stroke:currentColor;
   stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;pointer-events:none
 }
 .sidebar-action-icon{
@@ -350,7 +356,7 @@ button.subapp-add-button,button.subapp-remove-button{
   display:inline-flex;align-items:center;justify-content:center;
   width:40px;height:40px;min-width:40px;min-height:40px;max-height:40px;padding:0;line-height:1
 }
-.subapp-order-controls svg{display:block;flex:none;width:22px;height:22px}
+.subapp-order-controls svg{display:block;flex:none;width:var(--school-ui-icon-size);height:var(--school-ui-icon-size)}
 /* A list with its order arrows in a column on its right: <div class="subapp-list-row"><list/><div class="subapp-order-controls"></div></div>.
    The list takes the remaining width and height; the arrows stay in the middle of its height.
    A heading above the list (.subapp-list-heading inside the same .subapp-list-pane) ends where the list ends,
@@ -366,7 +372,7 @@ button.subapp-add-button,button.subapp-remove-button{
   width:30px;height:30px;min-width:30px;min-height:30px;max-height:30px;
   padding:0;display:grid;place-items:center
 }
-.subapp-transfer-actions svg{display:block;flex:none;width:16.5px;height:16.5px}
+.subapp-transfer-actions svg{display:block;flex:none;width:var(--school-ui-icon-size);height:var(--school-ui-icon-size)}
 /* Shared school-year indicator in the right-hand toolbar area. */
 .school-year-indicator{
   display:inline-flex;align-items:center;justify-content:center;gap:5px;
@@ -401,6 +407,7 @@ button.subapp-add-button,button.subapp-remove-button{
 .subapp-list-item-removable:hover .subapp-list-item-remove,
 .subapp-list-item-removable:focus-within .subapp-list-item-remove{opacity:1}
 .subapp-list-item-remove:hover:not(:disabled),.subapp-list-item-remove:focus-visible{background:#d5e5fb;color:var(--school-ui-error)}
+.subapp-list-item{--ui-icon-text-size:var(--school-ui-icon-size-list)}
 .subapp-list-item.selected{background:var(--school-ui-primary-bg);border-color:var(--school-ui-primary-border)}
 /* Empty state: fills its area (at least 220px tall) with the message in the middle. */
 .subapp-empty{display:flex;align-items:center;justify-content:center;text-align:center;color:#77818a;padding:16px;line-height:1.6;min-height:220px;height:100%}

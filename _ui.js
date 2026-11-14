@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.35
+ * Έκδοση αρχείου: 0.36
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -16,6 +16,7 @@
  *   window.schoolHost                              επικοινωνία υποεφαρμογής ↔ Κεντρικού Μενού
  *   window.schoolEscape                            ασφαλές κείμενο μέσα σε HTML
  *   window.schoolIcon                              κοινά εικονίδια SVG
+ *   window.schoolIconText                          εικονίδιο μαζί με κείμενο, στη μέση των κεφαλαίων
  *   window.schoolListSelection                     πολλαπλή επιλογή σε λίστες (κλικ, Shift, Ctrl, βέλη)
  *
  * Μέσα σε iframe (υποεφαρμογή μέσα στο Κεντρικό Μενού) επιπλέον:
@@ -435,6 +436,7 @@
         if (defaultValue) swatch.style.background = defaultValue;
         const label = document.createElement('span'); label.textContent = 'Αυτόματο';
         auto.append(swatch, label);
+        auto.insertAdjacentHTML('beforeend', schoolIcon('check'));
         auto.onclick = () => { selected = ''; customSelectedIndex = -1; render(); };
       }
       const grid = document.createElement('div'); grid.className = 'school-color-picker-grid';
@@ -480,6 +482,7 @@
         button.className = 'school-color-picker-choice' + (isSelected ? ' selected' : '');
         button.style.setProperty('--choice-color', value);
         button.style.setProperty('--choice-ink', inkFor(value));
+        button.innerHTML = schoolIcon('check');
         button.setAttribute('aria-label', customIndex >= 0 ? 'Προσαρμοσμένο χρώμα ' + value + ' (διπλό κλικ ή F2 για αλλαγή)' : 'Χρώμα ' + value);
         if (customIndex >= 0) button.title = 'Διπλό κλικ ή F2 για αλλαγή του χρώματος· σύρε εδώ ένα χρώμα για να το αντιγράψεις';
         button.setAttribute('aria-pressed', String(isSelected));
@@ -646,6 +649,11 @@
   // --school-ui-icon-size* του _ui.css (π.χ. .ui-icon-button). Τα σύμβολα των κουμπιών είναι πάντα από εδώ, όχι χαρακτήρες.
   // schoolIcon(name) επιστρέφει το SVG ως κείμενο· ένα στοιχείο με data-school-icon="name" και χωρίς
   // περιεχόμενο στη σελίδα το παίρνει αυτόματα κατά τη φόρτωση.
+  // Εικονίδιο μαζί με κείμενο (π.χ. «Προσθήκη» με «+»): schoolIconText(name, text, {end}) επιστρέφει το HTML
+  // <span class="ui-icon-text"><svg/><span>κείμενο</span></span> (end:true: το εικονίδιο μετά το κείμενο). Το
+  // .ui-icon-text του _ui.css βάζει το κέντρο του εικονιδίου στη μέση των κεφαλαίων, με οποιαδήποτε γραμματοσειρά,
+  // χωρίς να αλλάζει η γραμμή βάσης του κειμένου. Ένα στοιχείο με data-school-icon="name" (ή data-school-icon-end)
+  // και με κείμενο παίρνει την ίδια μορφή αυτόματα κατά τη φόρτωση.
   const icons = {
     up: ['2.6', 'M12 20V4m-7 7 7-7 7 7'],
     down: ['2.6', 'M12 4v16m-7-7 7 7 7-7'],
@@ -665,15 +673,41 @@
     'chevron-down': ['2.4', 'm6 9 6 6 6-6'],
     'bullet-list': ['2', 'M10 6h10M10 12h10M10 18h10M4.5 5.2a.8.8 0 1 0 0 1.6.8.8 0 1 0 0-1.6zM4.5 11.2a.8.8 0 1 0 0 1.6.8.8 0 1 0 0-1.6zM4.5 17.2a.8.8 0 1 0 0 1.6.8.8 0 1 0 0-1.6z'],
     'number-list': ['1.8', 'M10 6h10M10 12h10M10 18h10M3.6 4.4 5 3.5v5M3.4 8.5h3.2M3.5 15a1.6 1.6 0 0 1 3.1.3c0 .9-.8 1.4-3.1 3.2h3.2'],
-    'clear-format': ['2', 'M5 5h11M10.5 5 8 18M14 14l6 6M20 14l-6 6']
+    'clear-format': ['2', 'M5 5h11M10.5 5 8 18M14 14l6 6M20 14l-6 6'],
+    // Κατάσταση και ενδείξεις.
+    check: ['2.6', 'M4.5 12.5l5 5L19.5 7'],
+    clock: ['2.2', 'M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 1 0 0-17zM12 7.5V12l3 2'],
+    alert: ['2.8', 'M12 4.5v9M12 19v.01'],
+    warning: ['2.2', 'M12 3.5 2.5 20h19zM12 10v4.5M12 17.2v.01'],
+    // Κίνηση, σειρά, αναίρεση.
+    'chevron-left': ['2.4', 'm15 6-6 6 6 6'],
+    'chevron-right': ['2.4', 'm9 6 6 6-6 6'],
+    'arrow-left': ['2.2', 'M20 12H4m6-6-6 6 6 6'],
+    'arrow-right': ['2.2', 'M4 12h16m-6-6 6 6-6 6'],
+    undo: ['2.2', 'M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11'],
+    redo: ['2.2', 'M15 14l5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13'],
+    grip: ['3.2', 'M9 4.5v.01M15 4.5v.01M9 9.5v.01M15 9.5v.01M9 14.5v.01M15 14.5v.01M9 19.5v.01M15 19.5v.01'],
+    // Αρχεία και προβολές.
+    'file-import': ['2', 'M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M12 11v6m-3-3 3 3 3-3'],
+    'calendar-month': ['2', 'M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zM7 3v4M17 3v4M3 10h18M7 14h3M14 14h3M7 18h3M14 18h3'],
+    'calendar-year': ['2', 'M5 4h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM3 9h18M8 9v12M13 9v12M18 9v12M3 13h18M3 17h18']
   };
   function schoolIcon(name) {
     const icon = icons[name];
     if (!icon) return '';
     return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${icon[0]}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="${icon[1]}"/></svg>`;
   }
-  for (const element of document.querySelectorAll('[data-school-icon]')) {
-    if (!element.firstElementChild) element.insertAdjacentHTML('afterbegin', schoolIcon(element.dataset.schoolIcon));
+  function schoolIconText(name, text, {end = false} = {}) {
+    const label = `<span>${schoolEscape(text)}</span>`;
+    return `<span class="ui-icon-text">${end ? label + schoolIcon(name) : schoolIcon(name) + label}</span>`;
+  }
+  for (const element of document.querySelectorAll('[data-school-icon],[data-school-icon-end]')) {
+    if (element.firstElementChild) continue;
+    const text = element.textContent.trim();
+    const end = !element.dataset.schoolIcon;
+    const name = end ? element.dataset.schoolIconEnd : element.dataset.schoolIcon;
+    if (text) element.innerHTML = schoolIconText(name, text, {end});
+    else element.insertAdjacentHTML('afterbegin', schoolIcon(name));
   }
 
   // Κείμενο με μορφοποίηση: μπάρα (B I U | χρώμα ▾ | λίστες | καθαρισμός) πάνω από πεδίο contenteditable.
@@ -1340,7 +1374,7 @@
     const generalTitle = document.createElement('h3'); generalTitle.textContent = 'Γενικές ετικέτες';
     const list = document.createElement('div'); list.className = 'school-tag-manager-list';
     const tools = document.createElement('div'); tools.className = 'school-tag-manager-tools';
-    const add = document.createElement('button'); add.type = 'button'; add.textContent = '+ Νέα ετικέτα';
+    const add = document.createElement('button'); add.type = 'button'; add.innerHTML = schoolIconText('plus', 'Νέα ετικέτα');
     const count = document.createElement('p'); count.className = 'school-tag-manager-count';
     tools.append(add, count);
     const colorsTitle = document.createElement('h3'); colorsTitle.textContent = 'Χρώματα κατηγοριών';
@@ -1653,6 +1687,7 @@
   window.schoolColor = Object.freeze({normalize: normalColor, ink: inkFor, valid: validColor});
   window.schoolEscape = schoolEscape;
   window.schoolIcon = schoolIcon;
+  window.schoolIconText = schoolIconText;
   window.schoolListSelection = schoolListSelection;
   window.schoolHost = schoolHost;
   window.schoolTags = schoolTags;
