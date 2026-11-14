@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>FET Timetable Editor v1.07</title>
+<title>FET Timetable Editor v1.08</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -20,7 +20,10 @@
   --ft-allowed-bg:#ecfdf3;--ft-allowed-ring:#a6f4c5;--ft-allowed-over-bg:#dcfae6;--ft-allowed-outline:#32d583;
   --ft-unavailable-bg:#fff4e5;--ft-unavailable-ring:#f7b955;--ft-unavailable-over-bg:#ffead5;--ft-unavailable-outline:#f79009;
   --ft-drop-bg:#eff8ff;--ft-drop-outline:#84adff;
-  --ft-note-bg:#fff7ed;--ft-note-border:#fed7aa;--ft-note-text:#9a3412
+  --ft-note-bg:#fff7ed;--ft-note-border:#fed7aa;--ft-note-text:#9a3412;
+  --ft-avail-ok-bg:#eaf3de;--ft-avail-ok-border:#97c459;
+  --ft-avail-off-bg:#fcebeb;--ft-avail-off-border:#f09595;--ft-avail-off-text:#a32d2d;
+  --ft-avail-weak-bg:#fef08a;--ft-avail-weak-border:#ca8a04;--ft-avail-weak-text:#713f12
 }
 /* Header: the period list may be long; it gives up width before anything wraps out of the page. */
 #period{flex:0 1 auto;min-width:0;max-width:min(340px,100%)}
@@ -46,7 +49,20 @@ aside{display:flex;flex-direction:column;gap:0}
    (a link-like button that opens «Εισαγωγή Ολοημέρου»), then the assignment note and the warnings of the timetable.
    Files, imports and changes are in «Ιστορικό…» of «Περίοδοι Προγραμμάτων».
    The strip ends at the visible right edge of the timetable, never past the workspace. */
-.ft-source-info{margin:0 0 10px;max-width:100%}
+.ft-source-info{margin:0;max-width:100%}
+/* Title and information on the left; in the teacher view the availability of the FET file on the right, above
+   «Ώρες». The head has the width of the visible timetable, like the controls. When the text gets narrower than
+   260px, the availability goes under it, on the left. */
+.ft-head{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:6px 16px;margin:0 0 10px;max-width:100%}
+.ft-head-text{flex:1 1 260px;min-width:0}
+/* Availability: days in columns, the hours of «Πρωινό» in rows. Green available, red with «×» not available,
+   yellow with «×» not available with weight under 100%. The 7px «×» is an exception to the icon scale. */
+.ft-avail{display:grid;grid-template-columns:12px repeat(5,13px);gap:2px 3px;align-items:center;flex:0 0 auto}
+.ft-avail-label{font-size:11px;line-height:11px;color:var(--school-ui-muted);text-align:center}
+.ft-avail-cell{display:flex;align-items:center;justify-content:center;box-sizing:border-box;width:13px;height:11px;border:1px solid var(--ft-avail-ok-border);border-radius:3px;background:var(--ft-avail-ok-bg)}
+.ft-avail-cell.off{border-color:var(--ft-avail-off-border);background:var(--ft-avail-off-bg);color:var(--ft-avail-off-text)}
+.ft-avail-cell.weak{border-color:var(--ft-avail-weak-border);background:var(--ft-avail-weak-bg);color:var(--ft-avail-weak-text)}
+.ft-avail-cell svg{display:block;width:7px;height:7px}
 .ft-design-change{margin:2px 0 0;font-size:13px;line-height:1.5;color:var(--school-ui-warning);--ui-icon-text-size:var(--school-ui-icon-size-list)}
 .ft-design-change .ui-link-button{color:var(--school-ui-warning);text-align:left;max-width:100%}
 .ft-design-change .ui-icon-text{white-space:normal;overflow-wrap:anywhere}
@@ -140,7 +156,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="FET Timetable Editor — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>FT</span></span><span class="brand-text"><span>FET Timetable Editor</span><span class="small version">v1.07</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="FET Timetable Editor — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>FT</span></span><span class="brand-text"><span>FET Timetable Editor</span><span class="small version">v1.08</span></span></button></h1></div>
   <select id="period" aria-label="Περίοδος" disabled hidden></select>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <span class="sep" aria-hidden="true"></span>
@@ -614,8 +630,13 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
       ? 'Τμήμα: ' + (current ? className(current) : '—') + (homeroomKey(current) ? ' — ' + (fullOf(homeroomKey(current)) || shortOf(homeroomKey(current))) : '')
       : 'Εκπαιδευτικός: ' + (current ? shortOf(current) + (fullOf(current) ? ' — ' + fullOf(current) : '') : '—');
     work.innerHTML = `<div class="ft-toolbar">
-        <h2 class="ft-title">${esc(title)}</h2>
-        <div id="sourceInfo" class="ft-source-info"></div>
+        <div id="head" class="ft-head">
+          <div class="ft-head-text">
+            <h2 class="ft-title">${esc(title)}</h2>
+            <div id="sourceInfo" class="ft-source-info"></div>
+          </div>
+          <div id="availability" class="ft-avail" role="img" hidden></div>
+        </div>
         <div id="controls" class="ft-controls">
           <div class="ft-control-group" role="group" aria-labelledby="modeTitle">
             <span id="modeTitle" class="ft-control-title">Λειτουργία</span>
@@ -666,7 +687,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
       };
     }
     notice(...keepNotice);
-    renderSource(); renderWarnings(); renderGrid();
+    renderSource(); renderAvailability(); renderWarnings(); renderGrid();
     [work.scrollLeft, work.scrollTop] = scroll;
   }
   function renderSource() {
@@ -703,6 +724,31 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     box.replaceChildren(...parts);
   }
 
+  // Availability of the chosen teacher in the FET file: the hours of «Πρωινό» × Δευτέρα–Παρασκευή.
+  // Teachers that are not in the .fet have no not-available times, so they are shown available everywhere.
+  function renderAvailability() {
+    const box = $('availability'), current = selected.teachers, morning = hours.filter(isMorning);
+    box.hidden = view !== 'teachers' || !current || !program || !morning.length;
+    if (box.hidden) { box.replaceChildren(); return; }
+    const off = unavailableOf(current), days = [1, 2, 3, 4, 5], cells = [el('span')], summary = [];
+    for (const day of days) cells.push(el('span', 'ft-avail-label', dayLabel(day).charAt(0)));
+    morning.forEach((hour, row) => {
+      cells.push(el('span', 'ft-avail-label', String(row + 1)));
+      for (const day of days) {
+        const hits = off.filter(item => Number(item.day) === day && item.start < hour.end && hour.start < item.end);
+        const weights = hits.map(item => item.weight === '' || item.weight == null ? 100 : Number(item.weight));
+        const state = !hits.length ? '' : weights.some(weight => !(weight < 100)) ? 'off' : 'weak';
+        const cell = el('span', 'ft-avail-cell' + (state ? ' ' + state : ''));
+        const where = dayLabel(day) + ', ' + (row + 1) + 'η ώρα (' + hour.start + '–' + hour.end + ')';
+        const what = !state ? 'διαθέσιμος' : state === 'off' ? 'μη διαθέσιμος' : 'μη διαθέσιμος (βάρος ' + Math.max(...weights) + '%)';
+        cell.title = where + ': ' + what;
+        if (state) { cell.innerHTML = schoolIcon('close'); summary.push(where + (state === 'weak' ? ' (βάρος ' + Math.max(...weights) + '%)' : '')); }
+        cells.push(cell);
+      }
+    });
+    box.replaceChildren(...cells);
+    box.setAttribute('aria-label', 'Διαθεσιμότητα στο FET: ' + (summary.length ? 'μη διαθέσιμος ' + summary.join('· ') : 'διαθέσιμος όλες τις ώρες του πρωινού') + '.');
+  }
   function renderWarnings() {
     const limits = {programs: 200, activities: 2000, warnRatio: 0.9, ...(context.limits || {})}, list = [];
     const near = (count, limit) => count >= Math.ceil(limit * limits.warnRatio);
@@ -797,10 +843,10 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     table.append(head, body);
     wrap.replaceChildren(table);
     if (gridWidthObserver) gridWidthObserver.disconnect();
-    const info = $('sourceInfo'), controls = $('controls');
+    const headBox = $('head'), controls = $('controls');
     const matchGridWidth = () => {
       const width = Math.min(table.getBoundingClientRect().width, wrap.clientWidth) + 'px';
-      info.style.width = width; controls.style.width = width;
+      headBox.style.width = width; controls.style.width = width;
     };
     matchGridWidth();
     gridWidthObserver = new ResizeObserver(matchGridWidth);
