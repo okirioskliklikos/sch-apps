@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Σχολικό Ημερολόγιο v1.22</title>
+<title>Σχολικό Ημερολόγιο v1.23</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -86,20 +86,21 @@
 .cal-day-actions .school-choice-options button.cal-has-data{background:var(--school-ui-primary-bg);border-color:var(--school-ui-primary-border);color:var(--school-ui-primary-text)}
 .school-confirm-actions .cal-delete:not(:disabled){color:#a12626}
 
-/* Notes editor */
+/* Notes editor (Προσωπικές Σημειώσεις, and the Ποινές / Επιβραβεύσεις with the same layout) */
 .school-confirm.cal-editor{width:min(1187.5px,calc(100vw - 32px))}
-.school-confirm.cal-personal-editor{height:75dvh;min-height:min(60dvh,calc(100dvh - 16px));max-height:min(85dvh,calc(100dvh - 16px));display:flex;flex-direction:column;overflow:hidden}
-.cal-personal-editor>.cal-notes-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex:none;margin-top:15px;margin-bottom:6px}
+.school-confirm:is(.cal-personal-editor,.cal-behavior-editor){height:75dvh;min-height:min(60dvh,calc(100dvh - 16px));max-height:min(85dvh,calc(100dvh - 16px));display:flex;flex-direction:column;overflow:hidden}
+:is(.cal-personal-editor,.cal-behavior-editor)>.cal-notes-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex:none;margin-top:15px;margin-bottom:6px}
 .cal-notes-heading>.editor-label{margin-bottom:0}
 .cal-notes-heading>.ui-toggle{flex:none}
-.cal-personal-editor>.cal-notes-list{flex:1;min-height:0;overflow-y:auto;padding:3px 5px 8px 2px}
-.cal-personal-editor>.school-confirm-actions{flex:none;margin-top:12px}
-.cal-personal-editor>.school-choice-error{flex:none}
+:is(.cal-personal-editor,.cal-behavior-editor)>.cal-notes-list{flex:1;min-height:0;overflow-y:auto;padding:3px 5px 8px 2px}
+:is(.cal-personal-editor,.cal-behavior-editor)>.school-confirm-actions{flex:none;margin-top:12px}
+:is(.cal-personal-editor,.cal-behavior-editor)>.school-choice-error{flex:none}
 /* Each personal note is a schoolTaggedText box (_ui.js, styles in _ui.css); here only the list, the drag & drop and
    the colours of each section. */
 .cal-note{margin:0 0 10px}
-.cal-note-placeholder{box-sizing:border-box;margin:0 0 10px;border:2px dashed #8eadd1;background:var(--cal-drop-bg);border-radius:9px;pointer-events:none}
-.cal-note.is-drag-source{position:fixed;left:-10000px;top:-10000px;visibility:hidden;pointer-events:none;margin:0}
+/* Drag & drop of the lists (listReorder): the placeholder, and the dragged item out of the layout. */
+.cal-list-placeholder{box-sizing:border-box;margin:0 0 10px;border:2px dashed #8eadd1;background:var(--cal-drop-bg);border-radius:9px;pointer-events:none}
+.cal-notes-list>.is-drag-source{position:fixed;left:-10000px;top:-10000px;visibility:hidden;pointer-events:none;margin:0}
 .cal-note-grip{user-select:none;-webkit-user-select:none}
 .cal-note-grip{align-self:center;flex:none;cursor:grab!important;border:0!important;background:transparent!important;color:#8997a3!important;padding:8px 4px!important;font-size:22px;line-height:1;touch-action:none}
 .cal-note-grip:active{cursor:grabbing!important}
@@ -107,35 +108,16 @@
 .cal-note-add{display:block;width:100%;border:1px dashed #a8b9c8!important;background:#f9fbfd!important;color:#365e83!important;text-align:center!important}
 .cal-note-empty{color:#697984;text-align:center;padding:30px 10px}
 
-/* Behavior events: shared tagged-text appearance with a separate scores column. */
-.school-confirm.cal-behavior-editor{height:75dvh;min-height:min(60dvh,calc(100dvh - 16px));max-height:min(85dvh,calc(100dvh - 16px));display:flex;flex-direction:column;overflow:hidden}
-.cal-behavior-editor>.cal-notes-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex:none;margin-top:15px;margin-bottom:6px}
-.cal-behavior-editor>.cal-notes-list{flex:1;min-height:0;overflow-y:auto;padding:3px 5px 8px 2px}
-.cal-behavior-editor>.school-confirm-actions{flex:none;margin-top:12px}
-/* Each event is one grid: description and scores above, one full-width tag strip below.
-   Keep schoolTaggedText's own tag strip in the DOM, so editing and tag selection stay shared. */
-.cal-event{display:grid;grid-template-columns:min-content minmax(0,7fr) minmax(0,3fr);min-width:0;margin:0 0 10px;border:1px solid var(--cal-list-border);border-radius:9px;background:#fafbfc;overflow:hidden}
-.cal-event>.cal-event-layout,.cal-event-description,.cal-event-description>.school-tagged-text,.cal-event .school-tagged-text-content.school-tagged-text-editor{display:contents}
-.cal-event .school-tagged-text-content:not(.school-tagged-text-editor){grid-column:2;grid-row:1;min-width:0;padding:8px 10px 10px}
-.cal-event .school-tagged-text-tools{grid-column:3;grid-row:1;justify-self:end;align-self:start;margin:8px 6px 0 0;z-index:1}
-.cal-event .school-tagged-text-editor .school-richtext{grid-column:2;grid-row:1;min-width:0;width:100%}
-/* In behavior-event editing, fill the entire height beside the participant list. */
-.cal-event.is-editing .school-tagged-text-editor .school-richtext{height:100%}
-.cal-event.is-editing .cal-event-scores{grid-row:1}
-.cal-event.is-editing .school-tagged-text-editor .school-richtext-editor{flex:1;max-height:none}
-.cal-event .school-tagged-text-tags,.cal-event .school-tagged-text-tagbar{grid-column:1/-1;grid-row:3;min-width:0;margin:0;padding:8px 12px;border:0;border-top:1px solid #d1d9e1;border-radius:0;background:#e5eaef}
-.cal-event .cal-event-description-error{grid-column:2;grid-row:2}
-.cal-event-scores{grid-column:3;grid-row:1/3;min-width:0;padding:12px 12px 10px;border-left:1px solid #dfe5ea;background:#f6f8fa;display:flex;flex-direction:column;gap:8px}
-/* Move the existing rich-text action buttons above the Τμήματα/Μαθητές sections during event editing. */
-.cal-event.is-editing .cal-event-scores>.cal-event-edit-actions{align-self:flex-end;margin:0;padding:0;flex:none}
-.cal-event.is-editing .cal-event-edit-actions button.primary{background:var(--school-ui-primary-bg);border-color:var(--school-ui-primary-border);color:var(--school-ui-primary-text)}
-.cal-event.is-editing .cal-event-edit-actions button.primary:hover:not(:disabled){background:#d8e8ff;border-color:#709bd3}
-.cal-event-group-heading{font-size:13px;font-weight:700;color:#4b5966;display:flex;align-items:center;justify-content:space-between;gap:8px}
-.cal-event:has(.school-tagged-text-tools) .cal-event-scores>.cal-event-group:first-child>.cal-event-group-heading{padding-right:66px}
+/* Ποινές / Επιβραβεύσεις: the same dialog and list as the Προσωπικές Σημειώσεις (above). Each event is a schoolTaggedText
+   with an aside (_ui.js, layout in _ui.css); here only the scores of the aside. */
+.cal-event-scores{display:flex;flex-direction:column;gap:8px}
 .cal-event-group{display:flex;flex-direction:column;gap:6px}
+.cal-event-group-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px;font-weight:700;color:#4b5966}
+.cal-event-add-participant.ui-compact-button{min-width:0;height:30px;padding:0 8px;font-size:12px}
+.cal-event-empty{font-size:12px;color:var(--school-ui-muted)}
 .cal-event-score{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;font-size:13px}
-.cal-event-score-name{flex:1 1 auto;min-width:0;overflow-wrap:normal;word-break:normal;line-height:1.3}
-/* Reuse the exact student/class SVG masks provided by the shared tag classes. */
+.cal-event-score-name{flex:1 1 auto;min-width:0;line-height:1.3}
+/* The student and τμήμα icons of the shared tag chips (SVG masks of _ui.css). */
 .cal-event-score-name:is(.school-tag-student,.school-tag-class)::before{content:"";display:inline-block;width:15px;height:15px;margin-right:5px;vertical-align:-2px;background-color:currentColor;-webkit-mask:var(--school-tag-icon) center / contain no-repeat;mask:var(--school-tag-icon) center / contain no-repeat}
 .cal-event-points{white-space:nowrap;font-weight:750;font-variant-numeric:tabular-nums;min-width:34px;text-align:center;padding:4px 6px;border:1px solid #cbd4dd;border-radius:6px;background:#e9eef3;color:#52606d}
 .cal-event-points.is-positive{background:#e5f4eb;border-color:#b7dec5;color:#216c42}
@@ -149,33 +131,12 @@
 .cal-event-score-edit input[type=text].is-zero{background:#fff4c7;border-color:#e5d18a;color:#846300}
 .cal-event-score-edit input[type=text].is-positive{background:#e5f4eb;border-color:#b7dec5;color:#216c42}
 .cal-event-score-edit input[aria-invalid=true]{border-color:var(--school-ui-error)}
-.cal-event-point-error,.cal-event-description-error{font-size:12px;margin:3px 0 0}
-.cal-event-point-error:empty,.cal-event-description-error:empty{display:none}
-.cal-event-score-block{min-width:0}
-.cal-event-add-participant{font-size:12px!important;min-height:30px;padding:4px 8px!important;align-self:flex-start}
-.cal-event-count-warning{color:#946415;font-size:12px}
-.cal-event.is-drag-source{position:fixed;left:-10000px;top:-10000px;visibility:hidden;pointer-events:none;margin:0}
-.cal-event-placeholder{box-sizing:border-box;margin:0 0 10px;border:2px dashed #8eadd1;background:var(--cal-drop-bg);border-radius:9px;pointer-events:none}
-.cal-event>.cal-note-grip{grid-column:1;grid-row:1/3;align-self:center}
-.cal-event>.cal-note-grip[hidden]{display:none}
-.cal-event:not(.is-editing) .cal-event-scores .cal-event-empty{font-size:12px;color:var(--school-ui-muted)}
-/* Both participant pickers use a taller dialog; only the list scrolls. */
-.school-confirm.cal-event-chooser-dialog{height:min(75dvh,calc(100dvh - 32px));display:flex;flex-direction:column;overflow:hidden}
-.cal-event-chooser{display:flex;flex:1;flex-direction:column;gap:9px;min-height:0}
-.cal-event-chooser-list{flex:1;min-height:0;overflow:auto;border:1px solid var(--cal-list-border);border-radius:7px;padding:6px;background:#fafbfc}
-.cal-event-chooser-list label{display:flex;align-items:center;gap:8px;margin:0;padding:4px 8px;border-radius:5px;font-size:13px;line-height:1.4}
-.cal-event-chooser-list label:hover{background:#edf3f8}
-.cal-event-chooser-list input{flex:none}
-.cal-event-chooser-summary{font-size:12px;color:var(--school-ui-muted)}
+.cal-event-point-error{font-size:12px;margin:3px 0 0}
+.cal-event-point-error:empty{display:none}
+.cal-event-count-warning{font-size:12px}
 @media(max-width:760px){
- .cal-event{grid-template-columns:min-content minmax(0,1fr)}
- .cal-event-scores{grid-column:2;grid-row:3;border-left:0;border-top:1px solid #dfe5ea}
- .cal-event.is-editing .cal-event-scores{grid-row:3}
- .cal-event .school-tagged-text-tags,.cal-event .school-tagged-text-tagbar{grid-row:4}
- .cal-event .school-tagged-text-tools{grid-column:2;grid-row:3}
- .cal-event .school-tagged-text-content:not(.school-tagged-text-editor){padding:8px}
- .cal-event-score{flex-wrap:wrap}
- .cal-event-score-edit{margin-left:auto}
+  .cal-event-score{flex-wrap:wrap}
+  .cal-event-score-edit{margin-left:auto}
 }
 /* Βιβλίο Σχολικής Ζωής and ΣΣΔ: the box and the field of the editor have the very light yellow of the Βιβλίο;
    Προσωπικές Σημειώσεις and Παιδαγωγική Συνάντηση keep the shared almost white box. */
@@ -187,8 +148,8 @@
    when the toolbar wraps on a narrow screen). */
 .cal-book-editor>.cal-notes-list{min-height:260px}
 @media(max-width:560px){.cal-book-editor>.cal-notes-list{min-height:295px}}
-.cal-personal-editor .school-confirm-actions{justify-content:flex-end}
-@media(max-width:560px){.cal-note-grip{padding:5px 2px!important}.school-confirm.cal-personal-editor{height:75dvh}}
+:is(.cal-personal-editor,.cal-behavior-editor) .school-confirm-actions{justify-content:flex-end}
+@media(max-width:560px){.cal-note-grip{padding:5px 2px!important}.school-confirm:is(.cal-personal-editor,.cal-behavior-editor){height:75dvh}}
 .cal-editor > h2{text-align:center;font-size:23px;font-weight:700;color:#34424c;margin-bottom:4px}
 .cal-editor .editor-section{margin-top:15px}
 .cal-editor .editor-label{display:block;font-weight:700;margin-bottom:6px}
@@ -307,7 +268,7 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v1.22</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v1.23</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="print" type="button" disabled>Εκτύπωση...</button>
@@ -343,8 +304,10 @@
 // Messages, requests and their time limits: schoolHost in _ui.js. Dates: SchoolDate in _data.js.
 // Data of the school year: calendarByYear[year] = {entries, ssdMeetings, pedagogicMeetings}, read and written
 // only through the Index (school-calendar:*). Staff from Προσωπικό (context.staff), programs from the
-// Programs (school-timetables:context, read only). Tags of the Προσωπικές Σημειώσεις, the Βιβλίο Σχολικής Ζωής
-// and the text of the meetings (subject:{html, tags}): each item has tags:[{type, id}…]; the registry of the year (tagsByYear[year]) comes in context.tags and its changes are sent,
+// Programs (school-timetables:context, read only). Ποινές / Επιβραβεύσεις: entries[day].behaviorEvents, with the
+// students and τμήματα of the year (context.students, context.classes) and the limits in context.limits.
+// Tags of the Προσωπικές Σημειώσεις, the Βιβλίο Σχολικής Ζωής, the Ποινές / Επιβραβεύσεις and the text of the
+// meetings (subject:{html, tags}): each item has tags:[{type, id}…]; the registry of the year (tagsByYear[year]) comes in context.tags and its changes are sent,
 // the whole registry, as tags in the same school-calendar:save (schoolTags of _ui.js, SchoolTags of _data.js).
 const $ = id => document.getElementById(id), esc = schoolEscape, post = schoolHost.post;
 const D = SchoolDate, T = SchoolTimetable, Selection = schoolListSelection, G = SchoolTags;
@@ -722,6 +685,88 @@ async function openDayActions(date) {
   }
 }
 
+// ---- Reordering the list of a dialog with drag & drop (Προσωπικές Σημειώσεις, Ποινές / Επιβραβεύσεις) ----
+// The item is dragged from its grip and leaves the list, while a placeholder of the same size follows only the
+// vertical position of the pointer, anywhere in the browser (also outside the dialog), with automatic scrolling.
+// A drop anywhere in the dialog keeps the placeholder's position; dragend or Esc cancels. The items are the children
+// of the list with data-reorder-id; the «＋ Προσθήκη» button of the list (.cal-note-add) stays last.
+//   listReorder({list, canDrag(), onDrop(ids), onEnd()}) → {bind(row, grip, id, locked), ready(dialog), dispose()}
+//   onDrop gets the ids in the new order; onEnd follows every drag (dropped or cancelled), to draw the list again.
+function listReorder({list, canDrag, onDrop, onEnd}) {
+  let dragging = null;
+  const items = () => [...list.querySelectorAll(':scope > [data-reorder-id]:not(.is-drag-source)')];
+  const finish = accept => {
+    if (!dragging) return;
+    const state = dragging; dragging = null;
+    cancelAnimationFrame(state.scrollFrame);
+    state.row.classList.remove('is-drag-source');
+    if (accept && state.placeholder.isConnected) {
+      state.placeholder.replaceWith(state.row);
+      onDrop(items().map(row => row.dataset.reorderId));
+    } else state.placeholder.remove();
+    onEnd();
+  };
+  const place = clientY => {
+    if (!dragging || !dragging.placeholder.isConnected) return;
+    const {placeholder} = dragging;
+    const next = items().find(row => { const rect = row.getBoundingClientRect(); return clientY < rect.top + rect.height / 2; })
+      || list.querySelector(':scope > .cal-note-add');
+    if (next) { if (placeholder.nextElementSibling !== next) list.insertBefore(placeholder, next); }
+    else if (placeholder !== list.lastElementChild) list.append(placeholder);
+  };
+  const scroll = () => {
+    if (!dragging) return;
+    const rect = list.getBoundingClientRect(), edge = Math.min(60, rect.height / 4), y = dragging.clientY;
+    let step = 0;
+    if (y < rect.top + edge) step = -Math.min(18, Math.ceil(18 * (rect.top + edge - y) / edge));
+    else if (y > rect.bottom - edge) step = Math.min(18, Math.ceil(18 * (y - rect.bottom + edge) / edge));
+    if (step) { list.scrollTop += step; place(y); }
+    dragging.scrollFrame = requestAnimationFrame(scroll);
+  };
+  // The vertical position of the pointer anywhere in the document; the X position is intentionally irrelevant.
+  const track = event => { if (!dragging) return; dragging.clientY = event.clientY; place(event.clientY); };
+  const escape = event => { if (dragging && event.key === 'Escape') finish(false); };
+  document.addEventListener('dragover', track, true);
+  document.addEventListener('keydown', escape);
+  return {
+    bind(row, grip, id, locked) {
+      row.dataset.reorderId = id;
+      grip.draggable = !locked; grip.disabled = locked;
+      grip.addEventListener('dragstart', event => {
+        if (dragging || !canDrag()) { event.preventDefault(); return; }
+        const rect = row.getBoundingClientRect();
+        const placeholder = document.createElement('div');
+        placeholder.className = 'cal-list-placeholder'; placeholder.style.height = `${rect.height}px`;
+        placeholder.setAttribute('aria-hidden', 'true');
+        dragging = {row, placeholder, clientY: event.clientY, scrollFrame: null};
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', id);
+        // The whole item (with its frame), not just the grip, is the drag image.
+        event.dataTransfer.setDragImage(row, event.clientX - rect.left, event.clientY - rect.top);
+        // Let Chromium capture the drag image before the item leaves the layout.
+        requestAnimationFrame(() => {
+          if (!dragging || dragging.row !== row) return;
+          list.insertBefore(placeholder, row);
+          row.classList.add('is-drag-source');
+          dragging.scrollFrame = requestAnimationFrame(scroll);
+        });
+      });
+      // Some browsers report (0,0) at the end of a drag; that position is ignored.
+      grip.addEventListener('drag', event => { if (dragging && (event.clientX !== 0 || event.clientY !== 0)) track(event); });
+      grip.addEventListener('dragend', () => finish(false));
+    },
+    // A drop anywhere in the dialog, at the position of the placeholder already shown.
+    ready(dialog) {
+      dialog.addEventListener('dragover', event => { if (!dragging) return; event.preventDefault(); event.dataTransfer.dropEffect = 'move'; });
+      dialog.addEventListener('drop', event => { if (!dragging) return; event.preventDefault(); finish(true); });
+    },
+    dispose() {
+      document.removeEventListener('dragover', track, true);
+      document.removeEventListener('keydown', escape);
+    }
+  };
+}
+
 // ---- Notes editor ----
 // One notes field: its label and its own formatting toolbar (schoolRichText of _ui.js).
 async function editPersonalNotes(date) {
@@ -759,92 +804,15 @@ async function editPersonalNotes(date) {
         renderNotes();
       }
     }, registryAccess, usage);
-    item.element.dataset.noteId = note.id;
+    item.element.dataset.reorderId = note.id;
     return {item, grip};
   };
-  // During a drag, the note is outside the list and a same-sized placeholder moves among its siblings.
-  // The array is updated only on drop; dragend/Escape restores the original order.
-  let dragging = null;
-  const finishDrag = (accept) => {
-    if (!dragging) return;
-    const state = dragging; dragging = null;
-    cancelAnimationFrame(state.scrollFrame);
-    state.row.classList.remove('is-drag-source');
-    if (accept) {
-      state.placeholder.replaceWith(state.row);
-      const byId = new Map(notes.map(note => [note.id, note]));
-      notes = [...body.querySelectorAll('.cal-note[data-note-id]')].map(row => byId.get(row.dataset.noteId)).filter(Boolean);
-    } else {
-      state.placeholder.remove();
-      const at = [...body.children].filter(element => element.classList.contains('cal-note') && element !== state.row)[state.originalIndex];
-      body.insertBefore(state.row, at || body.querySelector('.cal-note-add'));
-    }
-    renderNotes();
-  };
-  const positionPlaceholder = (clientY) => {
-    if (!dragging || !dragging.placeholder.isConnected) return;
-    const {placeholder} = dragging;
-    const siblings = [...body.querySelectorAll('.cal-note:not(.is-drag-source)')];
-    const next = siblings.find(row => clientY < row.getBoundingClientRect().top + row.getBoundingClientRect().height / 2);
-    if (next) {
-      if (placeholder.nextElementSibling !== next) body.insertBefore(placeholder, next);
-    } else {
-      const add = body.querySelector('.cal-note-add');
-      if (add && placeholder.nextElementSibling !== add) body.insertBefore(placeholder, add);
-    }
-  };
-  const scrollOnDrag = () => {
-    if (!dragging) return;
-    const state = dragging, rect = body.getBoundingClientRect();
-    const edge = Math.min(60, rect.height / 4), y = state.clientY;
-    let step = 0;
-    if (y < rect.top + edge) step = -Math.min(18, Math.ceil(18 * (rect.top + edge - y) / edge));
-    else if (y > rect.bottom - edge) step = Math.min(18, Math.ceil(18 * (y - rect.bottom + edge) / edge));
-    if (step) {
-      body.scrollTop += step;
-      positionPlaceholder(y);
-    }
-    state.scrollFrame = requestAnimationFrame(scrollOnDrag);
-  };
-  // Follow the pointer's vertical position anywhere in the document, not only over notes.
-  // The X position is intentionally irrelevant. The dialog still controls where drop is accepted.
-  const trackDragPosition = event => {
-    if (!dragging) return;
-    dragging.clientY = event.clientY;
-    positionPlaceholder(event.clientY);
-  };
-  const cancelDragOnEscape = event => { if (dragging && event.key === 'Escape') finishDrag(false); };
-  document.addEventListener('dragover', trackDragPosition, true);
-  document.addEventListener('keydown', cancelDragOnEscape);
-  const bindDrag = (row, grip, note, locked) => {
-    grip.draggable = !locked; grip.disabled = locked;
-    grip.addEventListener('dragstart', event => {
-      if (dragging || activeId !== null || !editingEnabled) { event.preventDefault(); return; }
-      const rect = row.getBoundingClientRect();
-      const placeholder = document.createElement('div');
-      placeholder.className = 'cal-note-placeholder';
-      placeholder.style.height = `${rect.height}px`;
-      placeholder.setAttribute('aria-hidden', 'true');
-      dragging = {row, placeholder, originalIndex: notes.findIndex(item => item.id === note.id), clientY: event.clientY, scrollFrame: null};
-      event.dataTransfer.effectAllowed = 'move';
-      event.dataTransfer.setData('text/plain', note.id);
-      // Use the entire rendered note (including its frame), not just the grip, as the drag image.
-      event.dataTransfer.setDragImage(row, event.clientX - rect.left, event.clientY - rect.top);
-      // Let Chromium capture the drag image before removing its source from the layout.
-      requestAnimationFrame(() => {
-        if (!dragging || dragging.row !== row) return;
-        body.insertBefore(placeholder, row);
-        row.classList.add('is-drag-source');
-        dragging.scrollFrame = requestAnimationFrame(scrollOnDrag);
-      });
-    });
-    // Native drag events remain available even when the pointer leaves the dialog.
-    // Some browsers report (0,0) at drag termination; ignore that synthetic position.
-    grip.addEventListener('drag', event => {
-      if (dragging && (event.clientX !== 0 || event.clientY !== 0)) trackDragPosition(event);
-    });
-    grip.addEventListener('dragend', () => finishDrag(false));
-  };
+  // Drag & drop of the notes: listReorder (the order changes only on drop).
+  const reorder = listReorder({
+    list: body, canDrag: () => activeId === null && editingEnabled,
+    onDrop: ids => { const byId = new Map(notes.map(note => [note.id, note])); notes = ids.map(id => byId.get(id)).filter(Boolean); },
+    onEnd: () => renderNotes()
+  });
   // While a note is edited (or a new one is written), the other notes cannot be edited, deleted or moved,
   // and «+ Προσθήκη» is inactive: the open note first ends with «Αποδοχή» or «Ακύρωση» (or «Ενημέρωση»).
   const renderNotes = () => {
@@ -855,7 +823,7 @@ async function editPersonalNotes(date) {
     for (const note of notes) {
       if (note.id === activeId && active) { body.append(active.element); continue; }
       const {item, grip} = noteItem(note, false);
-      bindDrag(item.element, grip, note, locked);
+      reorder.bind(item.element, grip, note.id, locked);
       body.append(item.element);
     }
     if (!notes.length && activeId === null) {
@@ -883,22 +851,9 @@ async function editPersonalNotes(date) {
       {label:'Ενημέρωση', accept:true, run: () => { active?.commit(); return {notes, registry}; }},
       {label:'Ακύρωση'}
     ],
-    ready: ({dialog}) => {
-      // Accept a drop anywhere in the notes dialog, at the already visible placeholder position.
-      // The pointer's final coordinates must not move the placeholder or cancel the move.
-      dialog.addEventListener('dragover', event => {
-        if (!dragging) return;
-        event.preventDefault(); event.dataTransfer.dropEffect = 'move';
-      });
-      dialog.addEventListener('drop', event => {
-        if (!dragging) return;
-        event.preventDefault(); finishDrag(true);
-      });
-      renderNotes();
-    }
+    ready: ({dialog}) => { reorder.ready(dialog); renderNotes(); }
   });
-  document.removeEventListener('dragover', trackDragPosition, true);
-  document.removeEventListener('keydown', cancelDragOnEscape);
+  reorder.dispose();
   if (!result) return;
   acceptRegistry(result.registry);
   const next = {...getEntry(key), personalNotes: result.notes};
@@ -946,330 +901,269 @@ async function editDay(date, field) {
   render(); updateDirty();
 }
 
-// ---- Behavior events: one shared description/tags and independent scores for classes/students. ----
+// ---- Ποινές / Επιβραβεύσεις (behaviorEvents) ----
+// A list of events per day, like the Προσωπικές Σημειώσεις: each event is a schoolTaggedText with the required
+// description and its tags, and, in its aside, the scores of the τμήματα and the students (points: null = not yet
+// decided, otherwise an integer from pointsMin to pointsMax; 0 is a real score). The scores change only while the
+// event is edited, on a draft that its «Αποδοχή» keeps and its «Ακύρωση» drops.
+const SCORE_GROUPS = [
+  {type: 'class', title: 'Τμήματα', add: '+ Τμήμα', pickTitle: 'Προσθήκη τμημάτων', search: 'Αναζήτηση τμήματος…'},
+  {type: 'student', title: 'Μαθητές', add: '+ Μαθητής', pickTitle: 'Προσθήκη μαθητών', search: 'Αναζήτηση μαθητή…'}
+];
+const pointsText = points => points === null ? '' : points > 0 ? '+' + points : String(points);
+const pointsTone = points => points === null ? 'is-pending' : points > 0 ? 'is-positive' : points < 0 ? 'is-negative' : 'is-zero';
+
 async function editBehaviorEvents(date) {
   const key = dateKey(date), original = clone(getEntry(key).behaviorEvents || []), originalTags = clone(tagRegistry);
-  let events = clone(original), registry = clone(originalTags), editingEnabled = !events.length;
-  let activeId = null, active = null, draftScores = null, dragging = null;
+  // registry: the registry of tags in this dialog, as in the Προσωπικές Σημειώσεις.
+  // active: the schoolTaggedText of the open event (also a new event, not yet in the list).
+  let events = clone(original), registry = clone(originalTags), editingEnabled = !original.length, activeId = null, active = null;
+  const limits = context?.limits || {};
+  const maxEvents = limits.eventsPerDay ?? 100, maxScores = limits.scoresPerEvent ?? 250;
+  const pointMin = limits.pointsMin ?? -100, pointMax = limits.pointsMax ?? 100, warnRatio = limits.warnRatio ?? 0.9;
   const body = document.createElement('div'); body.className = 'cal-notes-list'; body.id = 'calBehaviorEventsList';
-  const maxEvents = context?.limits?.eventsPerDay ?? 100;
-  const maxScores = context?.limits?.scoresPerEvent ?? 250;
-  const pointMin = context?.limits?.pointsMin ?? -100, pointMax = context?.limits?.pointsMax ?? 100;
-  const warn = context?.limits?.warnRatio ?? .9;
-  const selectedKey = score => score.type + ':' + score.id;
-  const labels = (type, id) => {
-    if (type === 'class') return (context.classes || []).find(c => c.id === id)?.name || id;
-    const student = (context.students || []).find(s => s.id === id);
-    return student ? G.studentLabel(student, context.classes || []) : id;
-  };
   const registryAccess = {
     get: () => registry,
-    set: (next, removed) => {
-      registry = next;
-      for (const event of events) event.tags = withoutGeneral(event.tags, removed);
-      if (active) active.event.tags = withoutGeneral(active.event.tags, removed);
-      renderEvents();
-    }
+    set: (next, removed) => { registry = next; for (const event of events) event.tags = withoutGeneral(event.tags, removed); renderEvents(); }
   };
-  const eventUsage = (id, current) => tagUsageOf(id, {
-    day:key, events:[...events.filter(event => event.id !== activeId), {id:activeId, tags:current.tags}]
-  });
-  const scoreProblem = raw => {
+  // The use of a tag counts the open event with its current tags.
+  const usage = (id, current) => tagUsageOf(id, {day: key, events: [...events.filter(event => event.id !== activeId), {id: activeId, tags: current.tags}]});
+  const nameOf = (type, id) => {
+    if (type === 'class') return SchoolClasses.nameOf(context?.classes || [], id) || id;
+    const student = (context?.students || []).find(item => item.id === id);
+    return student ? G.studentLabel(student, context?.classes || []) : id;
+  };
+  const pointsProblem = raw => {
     if (raw === '') return '';
     if (!/^[+-]?\d+$/.test(raw) || !Number.isSafeInteger(Number(raw))) return 'Γράψε ακέραιο αριθμό βαθμών.';
     const number = Number(raw);
-    if (number < pointMin || number > pointMax) return `Επιτρέπονται βαθμοί από ${pointMin} έως ${pointMax}.`;
-    return '';
+    return number < pointMin || number > pointMax ? `Επιτρέπονται βαθμοί από ${pointMin} έως ${pointMax}.` : '';
   };
-  const renderScoreList = (host, scoreList, editing) => {
-    // Keep the existing Accept/Cancel buttons and their click handlers when participants change.
-    const actions = editing ? host.querySelector(':scope > .cal-event-edit-actions') : null;
+  const countWarning = (count, limit, text) => {
+    if (count < Math.ceil(limit * warnRatio)) return null;
+    const warning = document.createElement('div'); warning.className = 'ui-validation-warning cal-event-count-warning';
+    warning.textContent = count >= limit ? `Συμπληρώθηκε το όριο των ${limit} ${text}.` : `${count} από ${limit} ${text}.`;
+    return warning;
+  };
+
+  // One participant in editing: «−», the field, «+» and removal. The field shows positive points with «+» (also while
+  // typing, keeping the caret), and its colour follows the value; an empty field is null.
+  const scoreEditor = (score, label, onRemove) => {
+    const block = document.createElement('div'); block.className = 'cal-event-score-block';
+    const row = document.createElement('div'); row.className = 'cal-event-score';
+    const controls = document.createElement('div'); controls.className = 'cal-event-score-edit';
+    const button = (text, title) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = text; b.title = title; b.setAttribute('aria-label', title + ': ' + label); return b; };
+    const minus = button('−', 'Μείωση κατά έναν βαθμό'), plus = button('+', 'Αύξηση κατά έναν βαθμό');
+    const input = document.createElement('input'); input.type = 'text'; input.inputMode = 'numeric'; input.autocomplete = 'off';
+    input.placeholder = '—'; input.value = pointsText(score.points); input.setAttribute('aria-label', 'Βαθμοί για ' + label);
+    const remove = document.createElement('button'); remove.type = 'button'; remove.innerHTML = schoolIcon('close');
+    remove.title = 'Αφαίρεση συμμετέχοντα'; remove.setAttribute('aria-label', 'Αφαίρεση: ' + label);
+    const error = document.createElement('div'); error.className = 'ui-validation-error cal-event-point-error'; error.setAttribute('role', 'alert');
+    const normalizeSign = () => {
+      const raw = input.value;
+      if (!/^[+-]?\d+$/.test(raw) || !Number.isSafeInteger(Number(raw))) return;
+      const number = Number(raw);
+      const next = number > 0 ? (raw.startsWith('+') ? raw : '+' + raw) : number === 0 && raw.startsWith('+') ? raw.slice(1) : raw;
+      if (next === raw) return;
+      const start = input.selectionStart, end = input.selectionEnd, shift = next.length - raw.length;
+      input.value = next;
+      if (start !== null && end !== null) input.setSelectionRange(Math.max(0, start + shift), Math.max(0, end + shift));
+    };
+    // Checks the field, shows its message and keeps a valid value in the draft; → true when valid.
+    const check = () => {
+      normalizeSign();
+      const raw = input.value.trim(), problem = pointsProblem(raw), number = Number(raw), filled = raw !== '' && !problem;
+      input.setAttribute('aria-invalid', String(!!problem)); error.textContent = problem;
+      input.classList.toggle('is-negative', filled && number < 0);
+      input.classList.toggle('is-zero', filled && number === 0);
+      input.classList.toggle('is-positive', filled && number > 0);
+      minus.disabled = filled && number <= pointMin;
+      plus.disabled = filled && number >= pointMax;
+      if (!problem) score.points = raw === '' ? null : number;
+      return !problem;
+    };
+    const step = direction => {
+      if (check()) {
+        const next = (score.points ?? 0) + direction;
+        if (next >= pointMin && next <= pointMax) { input.value = pointsText(next); check(); }
+      }
+      input.focus();
+    };
+    input.check = check;
+    input.addEventListener('input', check);
+    minus.addEventListener('click', () => step(-1));
+    plus.addEventListener('click', () => step(1));
+    remove.addEventListener('click', onRemove);
+    const name = scoreName(score.type, label);
+    controls.append(minus, input, plus, remove);
+    row.append(name, controls);
+    block.append(row, error);
+    check();
+    return block;
+  };
+  const scoreName = (type, label) => {
+    const name = document.createElement('span'); name.className = 'cal-event-score-name school-tag-' + type;
+    name.textContent = label; name.title = label;
+    return name;
+  };
+  // The two groups of scores of an event: read only in view (the «Τμήματα» only when there are τμήματα), or editable
+  // on the draft of the open event, with «+ Τμήμα» / «+ Μαθητής» (the shared picker of schoolTags, without the
+  // participants already in the event).
+  const renderScores = (host, scores, editing) => {
     host.replaceChildren();
-    if (actions) host.append(actions);
-    for (const [type, title] of [['class','Τμήματα'],['student','Μαθητές']]) {
+    for (const group of SCORE_GROUPS) {
+      const items = scores.filter(score => score.type === group.type);
+      if (!editing && !items.length && group.type === 'class') continue;
       const section = document.createElement('section'); section.className = 'cal-event-group';
       const heading = document.createElement('div'); heading.className = 'cal-event-group-heading';
-      const label = document.createElement('span'); label.textContent = title; heading.append(label);
-      const items = scoreList.filter(item => item.type === type);
-      if (type === 'class' && !editing && !items.length) continue;
-      if (editing && scoreList.length < maxScores) {
-        const add = document.createElement('button'); add.type = 'button'; add.className = 'cal-event-add-participant';
-        add.textContent = type === 'class' ? '+ Τμήμα' : '+ Μαθητής';
+      const title = document.createElement('span'); title.textContent = group.title;
+      heading.append(title);
+      if (editing) {
+        const add = document.createElement('button'); add.type = 'button'; add.className = 'ui-compact-button cal-event-add-participant';
+        add.textContent = group.add; add.disabled = scores.length >= maxScores;
         add.addEventListener('click', async () => {
-          const available = (type === 'class' ? context.classes || [] : context.students || [])
-            .filter(item => item?.id && !scoreList.some(s => s.type === type && s.id === item.id))
-            .map(item => ({id:item.id, name:labels(type,item.id)}));
-          if (!available.length) return;
-          const selected = await pickEventParticipants(type, available, maxScores-scoreList.length);
-          if (!selected?.length || activeId === null) return;
-          for (const id of selected) if (scoreList.length < maxScores && !scoreList.some(s => s.type === type && s.id === id)) scoreList.push({type,id,points:null});
-          renderScoreList(host, scoreList, true);
+          const result = await schoolTags.pick({
+            title: group.pickTitle, refs: [], data: tagData(registry), types: [group.type], exclude: scores,
+            manage: false, accept: 'Προσθήκη', max: maxScores - scores.length, selectAll: true,
+            texts: {search: group.search, selected: 'Επιλεγμένοι', limit: `νέων συμμετεχόντων (έως ${maxScores} ανά συμβάν)`}
+          });
+          if (!result?.refs.length || !active) return;
+          for (const ref of result.refs) {
+            if (scores.length < maxScores && !scores.some(score => score.type === group.type && score.id === ref.id)) scores.push({type: group.type, id: ref.id, points: null});
+          }
+          renderScores(host, scores, true);
         });
         heading.append(add);
       }
       section.append(heading);
       if (!items.length) {
         const empty = document.createElement('div'); empty.className = 'cal-event-empty';
-        empty.textContent = editing ? 'Δεν έχουν προστεθεί.' : '—'; section.append(empty);
+        empty.textContent = editing ? 'Δεν έχουν προστεθεί.' : '—';
+        section.append(empty);
       }
       for (const score of items) {
-        const block = document.createElement('div'); block.className = 'cal-event-score-block';
-        const row = document.createElement('div'); row.className = 'cal-event-score';
-        const name = document.createElement('span'); name.className = 'cal-event-score-name'; name.classList.add(type === 'class' ? 'school-tag-class' : 'school-tag-student'); name.textContent = labels(type,score.id); name.title = name.textContent;
-        row.append(name);
-        if (!editing) {
-          const value = document.createElement('span'); value.className = 'cal-event-points';
-          value.classList.add(score.points === null ? 'is-pending' : score.points > 0 ? 'is-positive' : score.points < 0 ? 'is-negative' : 'is-zero');
-          value.textContent = score.points === null ? 'Εκκρεμεί' : score.points > 0 ? '+'+score.points : String(score.points);
-          row.append(value);
-        } else {
-          const controls = document.createElement('div'); controls.className = 'cal-event-score-edit';
-          const minus = document.createElement('button'); minus.type='button'; minus.textContent='−'; minus.title='Μείωση κατά έναν βαθμό';
-          const input = document.createElement('input'); input.type='text'; input.inputMode='numeric'; input.autocomplete='off';
-          input.setAttribute('aria-label','Βαθμοί για '+name.textContent);
-          input.value = score.points === null ? '' : score.points > 0 ? '+'+score.points : String(score.points); input.placeholder='—';
-          const plus = document.createElement('button'); plus.type='button'; plus.textContent='+'; plus.title='Αύξηση κατά έναν βαθμό';
-          const remove = document.createElement('button'); remove.type='button'; remove.innerHTML=schoolIcon('close'); remove.title='Αφαίρεση συμμετέχοντα'; remove.setAttribute('aria-label','Αφαίρεση '+name.textContent);
-          const error = document.createElement('div'); error.className='ui-validation-error cal-event-point-error'; error.setAttribute('role','alert');
-          const updatePointColor = () => {
-            const raw=input.value.trim(), number=Number(raw), valid=raw!=='' && !scoreProblem(raw);
-            input.classList.toggle('is-negative',valid && number<0);
-            input.classList.toggle('is-zero',valid && number===0);
-            input.classList.toggle('is-positive',valid && number>0);
-          };
-          // Keep a visible + for positive values while preserving the caret as the user types.
-          const normalizePointSign = () => {
-            const raw = input.value;
-            if (!/^[+-]?\d+$/.test(raw) || !Number.isSafeInteger(Number(raw))) return;
-            const number = Number(raw);
-            const next = number > 0 ? (raw.startsWith('+') ? raw : '+' + raw) :
-              number === 0 && raw.startsWith('+') ? raw.slice(1) : raw;
-            if (next === raw) return;
-            const start = input.selectionStart, end = input.selectionEnd;
-            const shift = next.length - raw.length;
-            input.value = next;
-            if (start !== null && end !== null) input.setSelectionRange(Math.max(0,start+shift),Math.max(0,end+shift));
-          };
-          const apply = () => {
-            normalizePointSign();
-            const raw=input.value.trim(), problem=scoreProblem(raw);
-            input.setAttribute('aria-invalid',String(!!problem)); error.textContent=problem;
-            updatePointColor();
-            if (!problem) score.points=raw===''?null:Number(raw);
-            return !problem;
-          };
-          input.addEventListener('input',apply);
-          updatePointColor();
-          const step = direction => {
-            const raw=input.value.trim(); if (scoreProblem(raw)) {apply();input.focus();return;}
-            const next=(raw===''?0:Number(raw))+direction;
-            if (next < pointMin || next > pointMax) return;
-            input.value=next>0?'+'+next:String(next);apply();input.focus();
-          };
-          minus.addEventListener('click',()=>step(-1)); plus.addEventListener('click',()=>step(1));
-          minus.disabled=score.points!==null && score.points<=pointMin;
-          plus.disabled=score.points!==null && score.points>=pointMax;
-          input.addEventListener('input',()=>{ const valid=scoreProblem(input.value.trim())==='';const n=Number(input.value.trim()); minus.disabled=valid && input.value.trim()!=='' && n<=pointMin; plus.disabled=valid && input.value.trim()!=='' && n>=pointMax; });
-          remove.addEventListener('click',()=>{const i=scoreList.findIndex(s=>selectedKey(s)===selectedKey(score));if(i>=0)scoreList.splice(i,1);renderScoreList(host,scoreList,true);});
-          controls.append(minus,input,plus,remove);row.append(controls); block.append(row,error);
+        const label = nameOf(score.type, score.id);
+        if (editing) {
+          section.append(scoreEditor(score, label, () => {
+            const index = scores.indexOf(score);
+            if (index >= 0) scores.splice(index, 1);
+            renderScores(host, scores, true);
+          }));
+          continue;
         }
-        if (!editing) block.append(row);
-        section.append(block);
+        const row = document.createElement('div'); row.className = 'cal-event-score';
+        const value = document.createElement('span'); value.className = 'cal-event-points ' + pointsTone(score.points);
+        value.textContent = score.points === null ? 'Εκκρεμεί' : pointsText(score.points);
+        row.append(scoreName(score.type, label), value);
+        section.append(row);
       }
       host.append(section);
     }
-    if (editing && scoreList.length >= Math.ceil(maxScores*warn)) {
-      const message=document.createElement('div'); message.className='cal-event-count-warning';
-      message.textContent=scoreList.length>=maxScores ? `Συμπληρώθηκε το όριο των ${maxScores} συμμετεχόντων.` : `${scoreList.length} από ${maxScores} συμμετέχοντες.`;
-      host.append(message);
-    }
+    if (editing) { const warning = countWarning(scores.length, maxScores, 'συμμετεχόντων'); if (warning) host.append(warning); }
   };
-  const validationIssue = () => {
-    if (!active) return null;
-    const root=active.row;
-    const content=root.querySelector('.school-richtext-editor');
-    if (content && !hasHtml(sanitizeHtml(content.innerHTML))) {
-      const error=root.querySelector('.cal-event-description-error');
-      if (error) error.textContent='Η περιγραφή του συμβάντος είναι υποχρεωτική.';
-      content.setAttribute('aria-invalid','true'); content.focus();
-      return 'Η περιγραφή του συμβάντος είναι υποχρεωτική.';
-    }
-    for (const input of root.querySelectorAll('.cal-event-score-edit input')) {
-      const problem=scoreProblem(input.value.trim());
-      if (problem) {
-        input.setAttribute('aria-invalid','true');
-        input.closest('.cal-event-score-block')?.querySelector('.cal-event-point-error')?.replaceChildren(document.createTextNode(problem));
-        input.focus();return problem;
-      }
-    }
-    return null;
-  };
-  const renderEvent = (event,isNew=false) => {
-    const row=document.createElement('div');row.className='cal-event';row.dataset.eventId=event.id;
-    const grip=document.createElement('button');grip.type='button';grip.className='cal-note-grip';grip.textContent='⠿';grip.hidden=!editingEnabled;grip.title='Σύρε για αλλαγή σειράς';grip.setAttribute('aria-label','Μετακίνηση συμβάντος');
-    const layout=document.createElement('div');layout.className='cal-event-layout';
-    const description=document.createElement('div');description.className='cal-event-description';
-    const scoresArea=document.createElement('div');scoresArea.className='cal-event-scores';
-    layout.append(description,scoresArea);row.append(grip,layout);
-    let committedScores = null;
-    const text=taggedText({
-      value:event,label:'Περιγραφή συμβάντος',className:'cal-note',
-      texts:{empty:'Δεν υπάρχει περιγραφή.',edit:'Επεξεργασία συμβάντος',create:'Νέο συμβάν',remove:'Διαγραφή συμβάντος',
-        accept:'Αποδοχή συμβάντος',cancel:'Ακύρωση αλλαγών συμβάντος',removeConfirm:'Να διαγραφεί αυτό το συμβάν;',removeTitle:'Διαγραφή συμβάντος',pickTitle:'Ετικέτες συμβάντος'},
-      tools:()=>editingEnabled,locked:()=>activeId!==null,
-      onEditing: editing=>{
-        if (editing) {
-          activeId=event.id;draftScores=clone(event.scores || []);active={row,event,text};row.classList.add('is-editing');grip.hidden=true;
-          renderScoreList(scoresArea,draftScores,true);
-          renderEvents();
-          // schoolTaggedText renders the toolbar after onEditing. Move its original action
-          // buttons once that synchronous render finishes, keeping their click handlers.
-          queueMicrotask(() => {
-            if (activeId !== event.id || !text.editing) return;
-            const actions = row.querySelector('.school-richtext-toolbar .school-richtext-actions');
-            if (!actions) return;
-            actions.classList.add('cal-event-edit-actions');
-            actions.querySelectorAll('button').forEach(button => button.classList.add('ui-compact-button'));
-            scoresArea.prepend(actions);
-          });
-        } else {
-          if (activeId===event.id) {committedScores=clone(draftScores ?? event.scores ?? []);activeId=null;active=null;draftScores=null;row.classList.remove('is-editing');renderEvents();}
-        }
+
+  const eventItem = (event, isNew) => {
+    const grip = document.createElement('button'); grip.type = 'button'; grip.className = 'cal-note-grip';
+    grip.textContent = '⠿'; grip.title = 'Σύρε για αλλαγή σειράς'; grip.setAttribute('aria-label', 'Μετακίνηση συμβάντος');
+    const aside = document.createElement('div'); aside.className = 'cal-event-scores';
+    let draft = null;
+    const item = taggedText({
+      value: event, label: isNew ? 'Νέο συμβάν' : 'Περιγραφή συμβάντος', className: 'cal-note cal-event', before: grip, aside,
+      texts: {empty: 'Δεν υπάρχει περιγραφή.', edit: 'Επεξεργασία συμβάντος', create: 'Νέο συμβάν', remove: 'Διαγραφή συμβάντος',
+        accept: 'Αποδοχή συμβάντος', cancel: 'Ακύρωση αλλαγών συμβάντος', removeConfirm: 'Να διαγραφεί αυτό το συμβάν;',
+        removeTitle: 'Διαγραφή συμβάντος', pickTitle: 'Ετικέτες συμβάντος'},
+      tools: () => editingEnabled, locked: () => activeId !== null,
+      // «Αποδοχή» needs a description and valid points (their messages are already under each field).
+      validate: value => {
+        if (!value.html) return 'Η περιγραφή του συμβάντος είναι υποχρεωτική.';
+        const invalid = [...aside.querySelectorAll('.cal-event-score-edit input')].find(input => !input.check());
+        if (invalid) { invalid.focus(); return false; }
+        return true;
       },
-      onChange:(value,{removed})=>{
-        if (removed) events=events.filter(other=>other.id!==event.id);
+      onEditing: editing => {
+        if (editing) { draft = clone(event.scores || []); activeId = event.id; active = item; renderScores(aside, draft, true); }
+        else { activeId = null; active = null; }
+        renderEvents();
+      },
+      onChange: (value, {removed}) => {
+        if (removed) events = events.filter(other => other.id !== event.id);
         else {
-          const updated={id:event.id,html:value.html,tags:value.tags,scores:clone(committedScores??event.scores??[])};
-          const found=events.findIndex(other=>other.id===event.id);
-          if(found>=0)events[found]=updated;else events.push(updated);
+          const next = {id: event.id, html: value.html, tags: value.tags, scores: clone(draft ?? event.scores ?? [])};
+          const index = events.findIndex(other => other.id === event.id);
+          if (index >= 0) events[index] = next; else events.push(next);
         }
         renderEvents();
       }
-    },registryAccess,eventUsage);
-    description.append(text.element);
-    const error=document.createElement('div');error.className='ui-validation-error cal-event-description-error';error.setAttribute('role','alert'); description.append(error);
-    row.addEventListener('click', e=>{
-      if(!active || active.row!==row)return;
-      const button=e.target.closest('button');
-      if(button && button.textContent.trim()==='Αποδοχή') {
-        const issue=validationIssue();if(issue){e.preventDefault();e.stopPropagation();}
-      }
-    },true);
-    row.addEventListener('input',e=>{
-      if(e.target.closest('.school-richtext-editor')){error.textContent='';e.target.removeAttribute('aria-invalid');}
-    });
-    renderScoreList(scoresArea,event.scores||[],false);
-    return {row,grip,text};
+    }, registryAccess, usage);
+    if (!item.editing) renderScores(aside, event.scores || [], false);
+    return {item, grip};
   };
-  function renderEvents() {
-    const locked=activeId!==null;
-    editToggle.setAttribute('aria-pressed',String(editingEnabled));editToggle.disabled=locked;
-    body.replaceChildren();
-    for(const event of events){
-      if(event.id===activeId && active){active.row.querySelector('.cal-note-grip').hidden=true;body.append(active.row);continue;}
-      const created=renderEvent(event);bindDrag(created.row,created.grip,event,locked);body.append(created.row);
-    }
-    if(active&&!events.some(event=>event.id===activeId))body.append(active.row);
-    if(!events.length && !active){const empty=document.createElement('div');empty.className='cal-note-empty';empty.textContent='Δεν υπάρχουν συμβάντα για αυτή την ημέρα.';body.append(empty);}
-    if(editingEnabled){
-      const add=document.createElement('button');add.type='button';add.className='cal-note-add';
-      add.textContent='＋ Προσθήκη συμβάντος';add.disabled=locked||events.length>=maxEvents;
-      add.addEventListener('click',()=>{
-        if(activeId!==null||events.length>=maxEvents)return;
-        const used=new Set(Object.values(cal.entries).flatMap(e=>(e.behaviorEvents||[]).map(x=>x.id)));
-        let id;do{id=noteId();}while(used.has(id));
-        const item=renderEvent({id,html:'',tags:[],scores:[]},true);item.text.edit(true);
-      });body.append(add);
-      if(events.length>=Math.ceil(maxEvents*warn)){
-        const warning=document.createElement('div');warning.className='cal-event-count-warning';
-        warning.textContent=events.length>=maxEvents?`Συμπληρώθηκε το όριο των ${maxEvents} συμβάντων.`:`${events.length} από ${maxEvents} συμβάντα.`;body.append(warning);
-      }
-    }
-  }
-  const finishDrag=accept=>{
-    if(!dragging)return;const state=dragging;dragging=null;cancelAnimationFrame(state.frame);state.row.classList.remove('is-drag-source');
-    if(accept){state.placeholder.replaceWith(state.row);const byId=new Map(events.map(e=>[e.id,e]));events=[...body.querySelectorAll('.cal-event[data-event-id]')].map(row=>byId.get(row.dataset.eventId)).filter(Boolean);}
-    else state.placeholder.remove();
-    renderEvents();
-  };
-  const positionPlaceholder=y=>{
-    if(!dragging||!dragging.placeholder.isConnected)return;
-    const next=[...body.querySelectorAll('.cal-event:not(.is-drag-source)')].find(row=>y<row.getBoundingClientRect().top+row.getBoundingClientRect().height/2);
-    if(next)body.insertBefore(dragging.placeholder,next);
-    else body.insertBefore(dragging.placeholder,body.querySelector('.cal-note-add'));
-  };
-  const autoScroll=()=>{
-    if(!dragging)return;
-    const rect=body.getBoundingClientRect(),edge=Math.min(60,rect.height/4),y=dragging.y;
-    if(y<rect.top+edge)body.scrollTop-=Math.min(18,Math.ceil(18*(rect.top+edge-y)/edge));
-    else if(y>rect.bottom-edge)body.scrollTop+=Math.min(18,Math.ceil(18*(y-rect.bottom+edge)/edge));
-    positionPlaceholder(y);dragging.frame=requestAnimationFrame(autoScroll);
-  };
-  const trackDrag=e=>{if(dragging){dragging.y=e.clientY;positionPlaceholder(e.clientY);}};
-  const dragEscape=e=>{if(dragging && e.key==='Escape')finishDrag(false);};
-  function bindDrag(row,grip,event,locked) {
-    grip.disabled=locked||!editingEnabled;grip.draggable=!grip.disabled;
-    grip.addEventListener('dragstart',e=>{
-      if(dragging||activeId!==null||!editingEnabled){e.preventDefault();return;}
-      const rect=row.getBoundingClientRect(),placeholder=document.createElement('div');placeholder.className='cal-event-placeholder';placeholder.style.height=rect.height+'px';
-      dragging={row,placeholder,y:e.clientY,frame:null};e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',event.id);
-      e.dataTransfer.setDragImage(row,e.clientX-rect.left,e.clientY-rect.top);
-      requestAnimationFrame(()=>{if(!dragging||dragging.row!==row)return;body.insertBefore(placeholder,row);row.classList.add('is-drag-source');dragging.frame=requestAnimationFrame(autoScroll);});
-    });
-    grip.addEventListener('drag',e=>{if(dragging&&(e.clientX||e.clientY))trackDrag(e);});
-    grip.addEventListener('dragend',()=>finishDrag(false));
-  }
-  const heading=document.createElement('div');heading.className='cal-notes-heading';
-  const label=document.createElement('span');label.className='editor-label';label.textContent='Ποινές / Επιβραβεύσεις';
-  const editToggle=document.createElement('button');editToggle.type='button';editToggle.className='ui-toggle';editToggle.textContent='Επεξεργασία';editToggle.setAttribute('aria-controls',body.id);
-  editToggle.addEventListener('click',()=>{if(activeId!==null)return;editingEnabled=!editingEnabled;renderEvents();});
-  heading.append(label,editToggle);
-  document.addEventListener('dragover',trackDrag,true);document.addEventListener('keydown',dragEscape);
-  const result=await schoolChoiceDialog({
-    title:`${weekdayName(date)} ${D.format(key)}`,content:[heading,body],className:'cal-editor cal-behavior-editor',escape:false,
-    actions:[
-      {label:'Επαναφορά',run:()=>{if(active?.text.editing)active.text.cancel();events=clone(original);registry=clone(originalTags);activeId=null;active=null;draftScores=null;renderEvents();throw cancelled();}},
-      {label:'Ενημέρωση',accept:true,run:()=>{
-        if(active){const issue=validationIssue();if(issue)throw Error(issue);active.text.commit();}
-        for(const event of events)if(!hasHtml(event.html))throw Error('Κάθε συμβάν πρέπει να έχει περιγραφή.');
-        return {events,registry};
-      }},
-      {label:'Ακύρωση'}
-    ],
-    ready:({dialog})=>{
-      dialog.addEventListener('dragover',e=>{if(!dragging)return;e.preventDefault();e.dataTransfer.dropEffect='move';});
-      dialog.addEventListener('drop',e=>{if(!dragging)return;e.preventDefault();finishDrag(true);});
-      renderEvents();
-    }
+  const reorder = listReorder({
+    list: body, canDrag: () => activeId === null && editingEnabled,
+    onDrop: ids => { const byId = new Map(events.map(event => [event.id, event])); events = ids.map(id => byId.get(id)).filter(Boolean); },
+    onEnd: () => renderEvents()
   });
-  document.removeEventListener('dragover',trackDrag,true);document.removeEventListener('keydown',dragEscape);
-  if(!result)return;
-  acceptRegistry(result.registry);
-  const next={...getEntry(key),behaviorEvents:result.events};
-  if(!hasDayContent(next))delete cal.entries[key];else cal.entries[key]=next;
-  render();updateDirty();
-}
-
-async function pickEventParticipants(type,available,max) {
-  const body=document.createElement('div');body.className='cal-event-chooser';
-  const search=document.createElement('input');search.type='search';search.placeholder='Αναζήτηση…';search.setAttribute('aria-label','Αναζήτηση συμμετεχόντων');
-  const list=document.createElement('div');list.className='cal-event-chooser-list';
-  const count=document.createElement('div');count.className='cal-event-chooser-summary';
-  const selected=new Set(), collator=new Intl.Collator('el',{sensitivity:'base',numeric:true});
-  available.sort((a,b)=>collator.compare(a.name,b.name));
-  const filter=()=>{
-    const term=search.value.toLocaleLowerCase('el').normalize('NFD').replace(/[\u0300-\u036f]/g,'');list.replaceChildren();
-    for(const person of available){
-      if(!person.name.toLocaleLowerCase('el').normalize('NFD').replace(/[\u0300-\u036f]/g,'').includes(term))continue;
-      const line=document.createElement('label'),check=document.createElement('input');check.type='checkbox';check.checked=selected.has(person.id);check.disabled=!check.checked&&selected.size>=max;
-      check.addEventListener('change',()=>{if(check.checked)selected.add(person.id);else selected.delete(person.id);filter();});
-      const text=document.createElement('span');text.textContent=person.name;line.append(check,text);list.append(line);
+  // While an event is edited (or a new one is written), the others cannot be edited, deleted or moved, and
+  // «＋ Προσθήκη συμβάντος» and «Επεξεργασία» are inactive.
+  const renderEvents = () => {
+    const locked = activeId !== null;
+    editToggle.setAttribute('aria-pressed', String(editingEnabled));
+    editToggle.disabled = locked;
+    body.replaceChildren();
+    for (const event of events) {
+      if (event.id === activeId && active) { body.append(active.element); continue; }
+      const {item, grip} = eventItem(event, false);
+      reorder.bind(item.element, grip, event.id, locked);
+      body.append(item.element);
     }
-    count.textContent=`Επιλεγμένοι: ${selected.size} · Μέγιστη προσθήκη: ${max}`;
+    if (active && !events.some(event => event.id === activeId)) body.append(active.element);
+    if (!events.length && !active) {
+      const empty = document.createElement('div'); empty.className = 'cal-note-empty'; empty.textContent = 'Δεν υπάρχουν συμβάντα για αυτή την ημέρα.'; body.append(empty);
+    }
+    if (!editingEnabled) return;
+    const add = document.createElement('button'); add.type = 'button'; add.className = 'cal-note-add';
+    add.textContent = '＋ Προσθήκη συμβάντος'; add.disabled = locked || events.length >= maxEvents;
+    add.addEventListener('click', () => {
+      if (activeId !== null || events.length >= maxEvents) return;
+      // The id is unique in the whole school year.
+      const used = new Set([...Object.values(cal.entries).flatMap(entry => (entry.behaviorEvents || []).map(item => item.id)), ...events.map(item => item.id)]);
+      let id; do id = noteId(); while (used.has(id));
+      eventItem({id, html: '', tags: [], scores: []}, true).item.edit(true);
+    });
+    body.append(add);
+    const warning = countWarning(events.length, maxEvents, 'συμβάντων'); if (warning) body.append(warning);
   };
-  search.addEventListener('input',filter);body.append(search,count,list);
-  return await schoolChoiceDialog({title:type==='student'?'Προσθήκη μαθητών':'Προσθήκη τμημάτων',content:body,className:'cal-event-chooser-dialog',
-    actions:[{label:'Προσθήκη',accept:true,run:()=>[...selected]},{label:'Ακύρωση'}],ready:()=>{filter();search.focus();}});
+  const heading = document.createElement('span'); heading.className = 'editor-label'; heading.textContent = 'Ποινές / Επιβραβεύσεις';
+  const headingRow = document.createElement('div'); headingRow.className = 'cal-notes-heading';
+  const editToggle = document.createElement('button'); editToggle.type = 'button'; editToggle.className = 'ui-toggle';
+  editToggle.textContent = 'Επεξεργασία'; editToggle.setAttribute('aria-controls', body.id);
+  editToggle.addEventListener('click', () => { if (activeId !== null) return; editingEnabled = !editingEnabled; renderEvents(); });
+  headingRow.append(heading, editToggle);
+  const result = await schoolChoiceDialog({
+    title: `${weekdayName(date)} ${D.format(key)}`, content: [headingRow, body], className: 'cal-editor cal-behavior-editor', escape: false,
+    actions: [
+      {label: 'Επαναφορά', run: () => {
+        if (active?.editing) active.cancel();
+        events = clone(original); registry = clone(originalTags); activeId = null; active = null; renderEvents();
+        throw cancelled();
+      }},
+      // «Ενημέρωση» keeps also the open event, when its «Αποδοχή» is allowed (otherwise its message shows).
+      {label: 'Ενημέρωση', accept: true, run: () => {
+        if (active && !active.commit()) throw cancelled();
+        if (events.some(event => !hasHtml(event.html))) throw Error('Κάθε συμβάν πρέπει να έχει περιγραφή.');
+        return {events, registry};
+      }},
+      {label: 'Ακύρωση'}
+    ],
+    ready: ({dialog}) => { reorder.ready(dialog); renderEvents(); }
+  });
+  reorder.dispose();
+  if (!result) return;
+  acceptRegistry(result.registry);
+  const next = {...getEntry(key), behaviorEvents: result.events};
+  if (!hasDayContent(next)) delete cal.entries[key];
+  else cal.entries[key] = next;
+  render(); updateDirty();
 }
 
 // ---- Meetings (ΣΣΔ and Παιδαγωγική Συνάντηση) ----

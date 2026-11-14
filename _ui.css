@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινό περιβάλλον χρήστη
- * Έκδοση αρχείου: 0.45
+ * Έκδοση αρχείου: 0.46
  * Όνομα κατά την εγκατάσταση: _ui.css
  */
 
@@ -328,10 +328,12 @@ button.ui-compact-button:hover:not(:disabled),
 .school-richtext .school-richtext-toolbar .school-richtext-actions button:hover:not(:disabled){
   background:#f1f1f1;border-color:var(--school-ui-control-border)
 }
-.school-richtext .school-richtext-toolbar .school-richtext-actions button.primary{
+.school-richtext .school-richtext-toolbar .school-richtext-actions button.primary,
+.school-tagged-text-actions button.ui-compact-button.primary{
   background:var(--school-ui-primary-bg);border-color:var(--school-ui-primary-border);color:var(--school-ui-primary-text)
 }
-.school-richtext .school-richtext-toolbar .school-richtext-actions button.primary:hover:not(:disabled){background:#d8e8ff;border-color:#709bd3}
+.school-richtext .school-richtext-toolbar .school-richtext-actions button.primary:hover:not(:disabled),
+.school-tagged-text-actions button.ui-compact-button.primary:hover:not(:disabled){background:#d8e8ff;border-color:#709bd3}
 .school-richtext-editor{
   min-height:var(--school-richtext-min-height,145px);max-height:var(--school-richtext-max-height,38vh);overflow:auto;
   padding:10px;border:1px solid var(--school-ui-input-border);border-radius:0 0 8px 8px;background:var(--school-ui-surface);
@@ -463,9 +465,43 @@ fieldset.ui-fields{margin:0;padding:0;min-width:0;border:0}
 .school-tagged-text.is-resizable .school-tagged-text-editor .school-richtext-editor{
   height:calc(var(--school-tagged-text-height) + 22px);min-height:calc(3em + 22px);max-height:none;resize:vertical
 }
+/* The message of options.validate, under the field. */
+.school-tagged-text-error{margin:4px 0 2px;font-size:13px}
+.school-tagged-text-error:empty{display:none}
 @media(max-width:560px){
   .school-tagged-text{gap:3px;--school-tagged-text-pad-right:5px}
   .school-tagged-text-tools{flex-direction:column}
+}
+/* .has-aside (options.aside): a grid with the text (and the grip of options.before, the edit / delete buttons) on
+   the left, the aside of the application in a column on the right (.school-tagged-text-side) and the tags across the
+   full width below. In editing the box keeps its frame: the editor on the left, «Αποδοχή» / «Ακύρωση» above the
+   aside, and the tag bar below. The columns: --school-tagged-text-columns (grip, text, buttons, aside; the text
+   about 70% and the aside about 30%). Up to 760px the aside goes under the text. */
+.school-tagged-text.has-aside,
+.school-tagged-text.has-aside.is-editing{
+  display:grid;grid-template-columns:var(--school-tagged-text-columns,auto minmax(0,7fr) auto minmax(0,3fr));gap:0;padding:0;
+  align-items:stretch;overflow:hidden;border-color:#d7dfe5;background:var(--school-tagged-text-bg,#fbfcfd)
+}
+.school-tagged-text.has-aside>.school-tagged-text-content{grid-column:2;grid-row:1;padding:10px 6px 10px 11px}
+.school-tagged-text.has-aside.has-before>.school-tagged-text-content{padding-left:5px}
+.school-tagged-text.has-aside>:not([class*="school-tagged-text"]){grid-column:1;grid-row:1;align-self:center}
+.school-tagged-text.has-aside>.school-tagged-text-tools{grid-column:3;grid-row:1;margin:8px 6px 0 0}
+.school-tagged-text.has-aside>.school-tagged-text-side{grid-column:4;grid-row:1}
+.school-tagged-text.has-aside>:is(.school-tagged-text-tags,.school-tagged-text-tagbar){grid-column:1/-1;grid-row:2;margin:0;border:0;border-top:1px solid #d6dee7;border-radius:0}
+.school-tagged-text.has-aside>.school-tagged-text-tags{padding:8px 12px}
+.school-tagged-text.has-aside>.school-tagged-text-editor{grid-column:1/4;grid-row:1;display:flex;flex-direction:column;padding:0}
+.school-tagged-text.has-aside>.school-tagged-text-editor .school-richtext{flex:1}
+.school-tagged-text.has-aside>.school-tagged-text-editor .school-richtext-toolbar{border-width:0 0 1px;border-radius:0}
+.school-tagged-text.has-aside>.school-tagged-text-editor .school-richtext-editor{flex:1;max-height:none;border:0}
+.school-tagged-text.has-aside>.school-tagged-text-editor .school-tagged-text-error{margin:4px 11px 6px}
+.school-tagged-text-side{display:flex;flex-direction:column;gap:8px;min-width:0;padding:12px 12px 10px;border-left:1px solid #dfe5ea;background:#f6f8fa}
+.school-tagged-text-side>*{min-width:0}
+.school-tagged-text-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px}
+@media(max-width:760px){
+  .school-tagged-text.has-aside,
+  .school-tagged-text.has-aside.is-editing{grid-template-columns:auto minmax(0,1fr) auto}
+  .school-tagged-text.has-aside>.school-tagged-text-side{grid-column:1/-1;grid-row:2;border-left:0;border-top:1px solid #dfe5ea}
+  .school-tagged-text.has-aside>:is(.school-tagged-text-tags,.school-tagged-text-tagbar){grid-row:3}
 }
 .school-tag .school-tag-remove:focus-visible{outline:2px solid var(--school-ui-focus);outline-offset:1px}
 .school-confirm.school-tag-dialog{width:min(640px,calc(100vw - 32px))}
@@ -483,6 +519,7 @@ fieldset.ui-fields{margin:0;padding:0;min-width:0;border:0}
 .school-tag-option:hover{background:var(--school-ui-workspace-bg)}
 .school-tag-option input[type=checkbox]{flex:none;width:16px;height:16px;min-height:0;margin:0;padding:0}
 .school-tag-option input:disabled+.school-tag{opacity:.55}
+.school-confirm .school-tag-options>button.school-tag-select-all{align-self:flex-start;min-width:0;height:28px;margin:2px 0 4px;padding:0 10px;font-size:13px}
 .school-tag-empty{margin:2px 0 6px!important;font-size:13px;color:var(--school-ui-muted)}
 .school-tag-manager h3{margin:14px 0 6px;font-size:15px;color:var(--school-ui-label-text)}
 .school-tag-manager h3:first-child{margin-top:0}
