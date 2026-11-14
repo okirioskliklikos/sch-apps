@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Περίοδοι Προγραμμάτων v0.20</title>
+<title>Περίοδοι Προγραμμάτων v0.21</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -112,7 +112,7 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Περίοδοι Προγραμμάτων — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΠΠ</span></span><span class="brand-text"><span>Περίοδοι Προγραμμάτων</span><span class="small version">v0.20</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Περίοδοι Προγραμμάτων — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΠΠ</span></span><span class="brand-text"><span>Περίοδοι Προγραμμάτων</span><span class="small version">v0.21</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <div class="header-right"><span id="schoolYear" class="school-year-indicator" hidden><span>Σχολικό έτος:</span> <span id="schoolYearValue"></span></span></div>
@@ -228,7 +228,8 @@
     draft = clone(saved);
     newClasses = [];
     fieldErrors = {};
-    if (!periodById(selectedId)) selectedId = draft.periods[0]?.id || null;
+    // On first open (or when the selected period no longer exists) select the last period of the list, the most recent one.
+    if (!periodById(selectedId)) selectedId = draft.periods.at(-1)?.id || null;
     mark(false);
     render();
   }
@@ -395,6 +396,7 @@
       const files = [source.csvName, source.fetName].filter(Boolean);
       if (files.length) facts.push(['Αρχεία', files.join('\n')]);
       if (source.importedAt) facts.push(['Εισαγωγή', D.format(localDay(source.importedAt))]);
+      if (program.updatedAt) facts.push(['Τελ. αλλαγή', D.format(localDay(program.updatedAt))]);
       if (source.oloimero?.at) facts.push(['Ολοήμερο', (source.oloimero.name ? quoted(source.oloimero.name) + ', ' : '') + D.format(localDay(source.oloimero.at))]);
     } else if (program.updatedAt) facts.push(['Τελ. αλλαγή', D.format(localDay(program.updatedAt))]);
     const replacements = source.modifiedAfterImport?.replacements || [];
