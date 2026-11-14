@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινό περιβάλλον χρήστη
- * Έκδοση αρχείου: 0.48
+ * Έκδοση αρχείου: 0.49
  * Όνομα κατά την εγκατάσταση: _ui.css
  */
 
@@ -347,15 +347,15 @@ button.ui-icon-button>svg{display:block;width:var(--school-ui-icon-size);height:
    <button class="ui-zoom-level"><span>100%</span></button><button class="ui-icon-button" data-school-icon="plus"></button></div>
    The percentage is cut to the height of the capitals (text-box), so the «−» / «+» sit on its middle with any font. */
 .ui-zoom{
-  display:flex;align-items:center;gap:6px;padding:5px 7px;box-sizing:border-box;
+  display:flex;align-items:center;gap:4px;padding:4px 5px;box-sizing:border-box;
   background:rgba(255,255,255,.94);border:1px solid var(--school-ui-control-border);border-radius:9px;
   box-shadow:0 2px 8px rgba(0,0,0,.16)
 }
 .ui-zoom button.ui-icon-button{width:32px;height:32px}
 .ui-zoom button.ui-zoom-level{
-  display:inline-grid;place-items:center;min-width:64px;height:32px;padding:0 4px;
+  display:inline-grid;place-items:center;min-width:52px;height:32px;padding:0 2px;
   border-color:transparent;background:transparent;color:var(--school-ui-text);
-  font-size:18px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums
+  font-size:16px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums
 }
 .ui-zoom button.ui-zoom-level:hover:not(:disabled){background:#f1f1f1}
 .ui-zoom .ui-zoom-level>span{display:block;text-box:trim-both cap alphabetic}
