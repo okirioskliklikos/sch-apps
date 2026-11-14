@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Σχολικό Ημερολόγιο v1.25</title>
+<title>Σχολικό Ημερολόγιο v1.26</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -28,13 +28,12 @@
 .cal-app[hidden]{display:none}
 .cal-viewbar{display:flex;justify-content:flex-end;gap:6px;flex:none}
 .cal-view-toggle{width:var(--school-ui-control-height);padding-left:0;padding-right:0;display:inline-flex;align-items:center;justify-content:center}
-.cal-view-toggle svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.cal-view-toggle svg{display:block;width:var(--school-ui-icon-size);height:var(--school-ui-icon-size)}
 .monthbar{display:flex;align-items:center;justify-content:center;gap:12px;padding:4px 12px 11px;flex:none}
 .monthbar[hidden],.yearbar[hidden],.calendar-wrap[hidden]{display:none}
 .month-heading{display:flex;flex-direction:column;align-items:center;gap:1px}
 .month-heading h2{font-size:22px;margin:0;font-weight:650}
 .month-school-year{font-size:12px;font-weight:600;color:var(--school-ui-muted)}
-.monthnav{min-width:44px}
 .yearbar{display:flex;justify-content:center;align-items:center;padding:4px 12px 12px;flex:none}
 .yearbar h2{font-size:22px;font-weight:700;margin:0}
 .calendar-wrap{padding:0 0 64px;width:100%;overflow-x:auto;flex:none}
@@ -100,6 +99,7 @@
 .cal-notes-list>.is-drag-source{position:fixed;left:-10000px;top:-10000px;visibility:hidden;pointer-events:none;margin:0}
 .cal-note-grip{user-select:none;-webkit-user-select:none}
 .cal-note-grip{align-self:center;flex:none;cursor:grab!important;border:0!important;background:transparent!important;color:#8997a3!important;padding:8px 4px!important;font-size:22px;line-height:1;touch-action:none}
+.cal-note-grip>svg{display:block;width:var(--school-ui-icon-size-18);height:var(--school-ui-icon-size-18)}
 .cal-note-grip:active{cursor:grabbing!important}
 .cal-note-grip:disabled{cursor:default!important;opacity:.35}
 .cal-note-add{display:block;width:100%;border:1px dashed #a8b9c8!important;background:#f9fbfd!important;color:#365e83!important;text-align:center!important}
@@ -112,7 +112,7 @@
 .cal-event-group-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px;font-weight:700;color:#4b5966}
 /* The first heading leaves room for the edit / delete buttons of schoolTaggedText at the top right of the column. */
 .cal-event-scores>.cal-event-group:first-child>.cal-event-group-heading{padding-right:var(--school-tagged-text-tools-width,0px)}
-.cal-event-add-participant.ui-compact-button{min-width:0;height:30px;padding:0 8px;font-size:12px}
+.cal-event-add-participant.ui-compact-button{min-width:0;height:30px;padding:0 8px;font-size:12px;--ui-icon-text-size:var(--school-ui-icon-size-small)}
 .cal-event-empty{font-size:12px;color:var(--school-ui-muted)}
 .cal-event-score{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;font-size:13px}
 .cal-event-score-name{flex:1 1 auto;min-width:0;line-height:1.3}
@@ -267,7 +267,7 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v1.25</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v1.26</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="print" type="button" disabled>Εκτύπωση...</button>
@@ -277,13 +277,13 @@
   <p id="connection" class="subapp-connection">Άνοιξε το «Σχολικό Ημερολόγιο» από το Κεντρικό Μενού, αφού ανοίξεις το αρχείο πληροφοριών του σχολείου. Απαιτείται η τελευταία έκδοση του index.html.</p>
   <div id="calendarApp" class="cal-app" hidden>
     <div class="cal-viewbar" role="group" aria-label="Προβολή ημερολογίου">
-      <button id="monthViewBtn" class="ui-toggle cal-view-toggle" type="button" aria-label="Προβολή μήνα" aria-pressed="false" title="Προβολή μήνα"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18M7 14h3M14 14h3M7 18h3M14 18h3"/></svg></button>
-      <button id="yearViewBtn" class="ui-toggle cal-view-toggle" type="button" aria-label="Προβολή σχολικού έτους" aria-pressed="true" title="Προβολή σχολικού έτους"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 9v12M13 9v12M18 9v12M3 13h18M3 17h18"/></svg></button>
+      <button id="monthViewBtn" class="ui-toggle cal-view-toggle" data-school-icon="calendar-month" type="button" aria-label="Προβολή μήνα" aria-pressed="false" title="Προβολή μήνα"></button>
+      <button id="yearViewBtn" class="ui-toggle cal-view-toggle" data-school-icon="calendar-year" type="button" aria-label="Προβολή σχολικού έτους" aria-pressed="true" title="Προβολή σχολικού έτους"></button>
     </div>
     <div class="monthbar" id="monthBar" hidden>
-      <button class="monthnav" id="prevMonth" type="button" aria-label="Προηγούμενος μήνας">‹</button>
+      <button class="monthnav ui-icon-button" id="prevMonth" type="button" aria-label="Προηγούμενος μήνας" title="Προηγούμενος μήνας" data-school-icon="chevron-left"></button>
       <div class="month-heading"><h2 id="monthTitle">—</h2><div class="month-school-year" id="monthSchoolYear"></div></div>
-      <button class="monthnav" id="nextMonth" type="button" aria-label="Επόμενος μήνας">›</button>
+      <button class="monthnav ui-icon-button" id="nextMonth" type="button" aria-label="Επόμενος μήνας" title="Επόμενος μήνας" data-school-icon="chevron-right"></button>
     </div>
     <div class="yearbar" id="yearBar"><h2 id="yearTitle">—</h2></div>
     <section class="calendar-wrap" id="monthWrap" aria-label="Ημερολόγιο μήνα" hidden><div class="calendar" id="calendar" role="grid"></div></section>
@@ -688,7 +688,7 @@ async function openDayActions(date) {
 // The item is dragged from its grip and leaves the list, while a placeholder of the same size follows only the
 // vertical position of the pointer, anywhere in the browser (also outside the dialog), with automatic scrolling.
 // A drop anywhere in the dialog keeps the placeholder's position; dragend or Esc cancels. The items are the children
-// of the list with data-reorder-id; the «＋ Προσθήκη» button of the list (.cal-note-add) stays last.
+// of the list with data-reorder-id; the «Προσθήκη» button of the list (.cal-note-add) stays last.
 //   listReorder({list, canDrag(), onDrop(ids), onEnd()}) → {bind(row, grip, id, locked), ready(dialog), dispose()}
 //   onDrop gets the ids in the new order; onEnd follows every drag (dropped or cancelled), to draw the list again.
 function listReorder({list, canDrag, onDrop, onEnd}) {
@@ -786,7 +786,7 @@ async function editPersonalNotes(date) {
   const noteItem = (note, isNew) => {
     const what = isNew ? 'νέας σημείωσης' : 'αλλαγών σημείωσης';
     const grip = document.createElement('button'); grip.type = 'button'; grip.className = 'cal-note-grip';
-    grip.textContent = '⠿'; grip.title = 'Σύρε για αλλαγή σειράς'; grip.setAttribute('aria-label', 'Μετακίνηση σημείωσης');
+    grip.innerHTML = schoolIcon('grip'); grip.title = 'Σύρε για αλλαγή σειράς'; grip.setAttribute('aria-label', 'Μετακίνηση σημείωσης');
     const item = taggedText({
       value: note, label: isNew ? 'Νέα προσωπική σημείωση' : 'Προσωπική σημείωση', className: 'cal-note', before: grip,
       texts: {edit: 'Επεξεργασία σημείωσης', remove: 'Διαγραφή σημείωσης', accept: 'Αποδοχή ' + what, cancel: 'Ακύρωση ' + what,
@@ -830,7 +830,7 @@ async function editPersonalNotes(date) {
     }
     if (active && !notes.some(note => note.id === activeId)) body.append(active.element);
     const add = document.createElement('button'); add.type = 'button'; add.className = 'cal-note-add';
-    add.textContent = '＋ Προσθήκη σημείωσης';
+    add.innerHTML = schoolIconText('plus', 'Προσθήκη σημείωσης');
     add.disabled = locked;
     add.addEventListener('click', () => { if (activeId === null) noteItem({id: noteId(), html: '', tags: []}, true).item.edit(true); });
     if (editingEnabled) body.append(add);
@@ -906,8 +906,8 @@ async function editDay(date, field) {
 // decided, otherwise an integer from pointsMin to pointsMax; 0 is a real score). The scores change only while the
 // event is edited, on a draft that its «Αποδοχή» keeps and its «Ακύρωση» drops.
 const SCORE_GROUPS = [
-  {type: 'class', title: 'Τμήματα', add: '+ Τμήμα', pickTitle: 'Προσθήκη τμημάτων', search: 'Αναζήτηση τμήματος…'},
-  {type: 'student', title: 'Μαθητές', add: '+ Μαθητής', pickTitle: 'Προσθήκη μαθητών', search: 'Αναζήτηση μαθητή…'}
+  {type: 'class', title: 'Τμήματα', add: 'Τμήμα', pickTitle: 'Προσθήκη τμημάτων', search: 'Αναζήτηση τμήματος…'},
+  {type: 'student', title: 'Μαθητές', add: 'Μαθητής', pickTitle: 'Προσθήκη μαθητών', search: 'Αναζήτηση μαθητή…'}
 ];
 const pointsText = points => points === null ? '' : points > 0 ? '+' + points : String(points);
 const pointsTone = points => points === null ? 'is-pending' : points > 0 ? 'is-positive' : points < 0 ? 'is-negative' : 'is-zero';
@@ -1019,7 +1019,7 @@ async function editBehaviorEvents(date) {
       heading.append(title);
       if (editing) {
         const add = document.createElement('button'); add.type = 'button'; add.className = 'ui-compact-button cal-event-add-participant';
-        add.textContent = group.add; add.disabled = scores.length >= maxScores;
+        add.innerHTML = schoolIconText('plus', group.add); add.disabled = scores.length >= maxScores;
         add.addEventListener('click', async () => {
           const result = await schoolTags.pick({
             title: group.pickTitle, refs: [], data: tagData(registry), types: [group.type], exclude: scores,
@@ -1063,7 +1063,7 @@ async function editBehaviorEvents(date) {
 
   const eventItem = (event, isNew) => {
     const grip = document.createElement('button'); grip.type = 'button'; grip.className = 'cal-note-grip';
-    grip.textContent = '⠿'; grip.title = 'Σύρε για αλλαγή σειράς'; grip.setAttribute('aria-label', 'Μετακίνηση συμβάντος');
+    grip.innerHTML = schoolIcon('grip'); grip.title = 'Σύρε για αλλαγή σειράς'; grip.setAttribute('aria-label', 'Μετακίνηση συμβάντος');
     const aside = document.createElement('div'); aside.className = 'cal-event-scores';
     let draft = null;
     const item = taggedText({
@@ -1103,7 +1103,7 @@ async function editBehaviorEvents(date) {
     onEnd: () => renderEvents()
   });
   // While an event is edited (or a new one is written), the others cannot be edited, deleted or moved, and
-  // «＋ Προσθήκη συμβάντος» and «Επεξεργασία» are inactive.
+  // «Προσθήκη συμβάντος» and «Επεξεργασία» are inactive.
   const renderEvents = () => {
     const locked = activeId !== null;
     editToggle.setAttribute('aria-pressed', String(editingEnabled));
@@ -1121,7 +1121,7 @@ async function editBehaviorEvents(date) {
     }
     if (!editingEnabled) return;
     const add = document.createElement('button'); add.type = 'button'; add.className = 'cal-note-add';
-    add.textContent = '＋ Προσθήκη συμβάντος'; add.disabled = locked || events.length >= maxEvents;
+    add.innerHTML = schoolIconText('plus', 'Προσθήκη συμβάντος'); add.disabled = locked || events.length >= maxEvents;
     add.addEventListener('click', () => {
       if (activeId !== null || events.length >= maxEvents) return;
       // The id is unique in the whole school year.
@@ -1238,10 +1238,12 @@ async function openMeeting(kind, date) {
   const anchors = {available: null, present: null, absent: null};
   const displayName = id => staffById.get(id)?.name || id;
   const listTitle = {available:'Διαθέσιμοι', present:'Παρόντες', absent:'Απόντες'};
-  const moves = {available:[['present','Παρόντες →'],['absent','Απόντες →']], present:[['available','← Διαθέσιμοι'],['absent','Απόντες →']], absent:[['available','← Διαθέσιμοι'],['present','← Παρόντες']]};
+  // Move buttons: «Διαθέσιμοι» is to the left, so its arrow (schoolIcon) comes before the text; the others after it.
+  const moves = {available:[['present','Παρόντες'],['absent','Απόντες']], present:[['available','Διαθέσιμοι'],['absent','Απόντες']], absent:[['available','Διαθέσιμοι'],['present','Παρόντες']]};
+  const moveLabel = (to, label, from) => to === 'available' || (from === 'absent' && to === 'present') ? schoolIconText('arrow-left', label) : schoolIconText('arrow-right', label, {end: true});
 
   const body = document.createElement('div'); body.className = 'ssd-body';
-  body.innerHTML = `<div class="ssd-meta"><div class="ssd-left-meta">${ssd ? `<div class="ssd-act"><strong>Αριθμός πράξης:</strong> <span data-role="act"></span></div>` : ''}<div class="ssd-director"><strong>${esc(directorTitleFor(directorName))}:</strong> <span>${esc(directorName)}</span></div></div><div class="ssd-date-time"><strong>Ημερομηνία:</strong><span>${esc(longDate(date))}</span><label for="ssdStartTime">Ώρα έναρξης:</label><input id="ssdStartTime" type="text" inputmode="numeric" autocomplete="off" maxlength="5" placeholder="HH:MM" value="${esc(meeting.startTime || DEFAULT_TIMES.start)}" aria-label="Ώρα έναρξης συνεδρίασης, 24ωρη μορφή"><label for="ssdEndTime">Ώρα λήξης:</label><input id="ssdEndTime" type="text" inputmode="numeric" autocomplete="off" maxlength="5" placeholder="HH:MM" value="${esc(meeting.endTime || DEFAULT_TIMES.end)}" aria-label="Ώρα λήξης συνεδρίασης, 24ωρη μορφή"></div></div><div class="ssd-error" data-role="serviceError" role="alert"></div><div class="ssd-subject"><span class="ssd-subject-label">${spec.subject}</span></div><div class="ssd-schedule"><button type="button" class="ui-toggle" data-role="compositionToggle" aria-expanded="false" aria-controls="ssdAttendance">${ssd ? 'Σύνθεση Συνεδρίασης' : 'Σύνθεση Συνάντησης'}</button><strong class="ssd-composition-summary" data-role="compositionSummary" role="status" aria-live="polite"></strong><button type="button" data-role="checkProgram" hidden>Έλεγχος από το πρόγραμμα</button></div><div class="ssd-attendance" id="ssdAttendance" hidden>${Object.keys(listTitle).map(name => `<section class="ssd-list-panel"><h3 data-title="${name}">${listTitle[name]} (0)</h3><div class="ssd-teacher-list" data-list="${name}" role="listbox" aria-multiselectable="true" aria-label="${listTitle[name]}" tabindex="0"></div><div class="ssd-list-controls">${moves[name].map(([to, label]) => `<button type="button" class="ssd-move" data-from="${name}" data-to="${to}">${label}</button>`).join('')}${name === 'available' ? '<button type="button" class="ssd-reset-all">← Διαθέσιμοι (Όλοι)</button>' : ''}</div></section>`).join('')}</div>`;
+  body.innerHTML = `<div class="ssd-meta"><div class="ssd-left-meta">${ssd ? `<div class="ssd-act"><strong>Αριθμός πράξης:</strong> <span data-role="act"></span></div>` : ''}<div class="ssd-director"><strong>${esc(directorTitleFor(directorName))}:</strong> <span>${esc(directorName)}</span></div></div><div class="ssd-date-time"><strong>Ημερομηνία:</strong><span>${esc(longDate(date))}</span><label for="ssdStartTime">Ώρα έναρξης:</label><input id="ssdStartTime" type="text" inputmode="numeric" autocomplete="off" maxlength="5" placeholder="HH:MM" value="${esc(meeting.startTime || DEFAULT_TIMES.start)}" aria-label="Ώρα έναρξης συνεδρίασης, 24ωρη μορφή"><label for="ssdEndTime">Ώρα λήξης:</label><input id="ssdEndTime" type="text" inputmode="numeric" autocomplete="off" maxlength="5" placeholder="HH:MM" value="${esc(meeting.endTime || DEFAULT_TIMES.end)}" aria-label="Ώρα λήξης συνεδρίασης, 24ωρη μορφή"></div></div><div class="ssd-error" data-role="serviceError" role="alert"></div><div class="ssd-subject"><span class="ssd-subject-label">${spec.subject}</span></div><div class="ssd-schedule"><button type="button" class="ui-toggle" data-role="compositionToggle" aria-expanded="false" aria-controls="ssdAttendance">${ssd ? 'Σύνθεση Συνεδρίασης' : 'Σύνθεση Συνάντησης'}</button><strong class="ssd-composition-summary" data-role="compositionSummary" role="status" aria-live="polite"></strong><button type="button" data-role="checkProgram" hidden>Έλεγχος από το πρόγραμμα</button></div><div class="ssd-attendance" id="ssdAttendance" hidden>${Object.keys(listTitle).map(name => `<section class="ssd-list-panel"><h3 data-title="${name}">${listTitle[name]} (0)</h3><div class="ssd-teacher-list" data-list="${name}" role="listbox" aria-multiselectable="true" aria-label="${listTitle[name]}" tabindex="0"></div><div class="ssd-list-controls">${moves[name].map(([to, label]) => `<button type="button" class="ssd-move" data-from="${name}" data-to="${to}">${moveLabel(to, label, name)}</button>`).join('')}${name === 'available' ? `<button type="button" class="ssd-reset-all">${schoolIconText('arrow-left', 'Διαθέσιμοι (Όλοι)')}</button>` : ''}</div></section>`).join('')}</div>`;
   const q = selector => body.querySelector(selector);
   const listOf = name => q(`[data-list="${name}"]`);
   // Κείμενο Συνεδρίασης / Συνάντησης: text with formatting and tags (schoolTaggedText), 4 lines high and resizable;

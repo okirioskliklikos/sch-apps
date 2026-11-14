@@ -1,4 +1,4 @@
-<!doctype html><html lang="el" class="subapp-page"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Documents Templater v0.39</title><link rel="stylesheet" href="_ui.css">
+<!doctype html><html lang="el" class="subapp-page"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Documents Templater v0.40</title><link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <script src="_lib_jszip.min.js"></script>
 <style>
@@ -32,7 +32,7 @@
 /* Empty list: a compact drop box in the middle of the list (margin:auto centres it both ways).
    While files are dragged over, the whole list lights up (.drag-over), so the drop target stays large. */
 .files-list .subapp-file-drop{flex:none;width:min(280px,calc(100% - 24px));min-height:0;margin:auto;padding:18px 16px;gap:8px;border-radius:14px}
-.files-list .subapp-file-drop-icon{font-size:26px}
+.files-list .subapp-file-drop-icon{--subapp-file-drop-icon-size:var(--school-ui-icon-size-20)}
 .files-list .subapp-file-drop-title{font-size:16px}
 .files-list .subapp-file-drop-text{font-size:13px}
 .file-item{flex:none;padding-top:4px;padding-bottom:4px;font-size:13px}
@@ -118,6 +118,8 @@
 .dt-subject.dragging{border-color:var(--school-ui-primary-border);background:var(--school-ui-primary-bg);box-shadow:0 2px 8px rgba(0,0,0,.15)}
 .school-confirm button.dt-subject-handle,.school-confirm button.dt-subject-remove{flex:none;display:inline-flex;align-items:center;justify-content:center;width:24px;height:26px;min-height:0;padding:0;border:1px solid transparent;background:transparent;color:var(--school-ui-muted);font-size:13px;line-height:1;cursor:grab;touch-action:none}
 .school-confirm button.dt-subject-remove{cursor:pointer}
+.school-confirm button.dt-subject-handle{height:24px}
+.school-confirm button.dt-subject-handle>svg{display:block;width:var(--school-ui-icon-size);height:var(--school-ui-icon-size)}
 .school-confirm button.dt-subject-remove>svg{display:block;width:var(--school-ui-icon-size-list);height:var(--school-ui-icon-size-list)}
 .school-confirm button.dt-subject-handle:hover,.school-confirm button.dt-subject-remove:hover{border-color:var(--school-ui-control-border);background:var(--school-ui-surface)}
 .dt-subject-label{flex:1;display:flex;align-items:center;gap:6px;min-width:0;cursor:pointer}
@@ -142,7 +144,7 @@
 .dt-field-template{display:block;color:var(--school-ui-muted);font-size:13px;padding-left:6px}
 .school-confirm button.dt-copy{flex:none;display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;padding:0;border:1px solid transparent;border-radius:6px;background:transparent;color:#536575;opacity:0}
 .school-confirm button.dt-copy.text{width:auto;padding:0 6px;font-size:12px}
-.school-confirm button.dt-copy svg{width:16px;height:16px}
+.school-confirm button.dt-copy svg{width:var(--school-ui-icon-size);height:var(--school-ui-icon-size)}
 .dt-field:hover .dt-copy,.dt-field:focus-within .dt-copy,.school-confirm button.dt-copy.copied{opacity:1}
 .school-confirm button.dt-copy:hover{border-color:var(--school-ui-control-border);background:var(--school-ui-surface)}
 .school-confirm button.dt-copy.copied{color:var(--dt-copied)}
@@ -157,7 +159,7 @@
  .dt-table td.dt-col-help,.dt-table td.dt-col-example{grid-column:1 / -1}
  .dt-table td.dt-col-example:empty{display:none}
 }
-</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Documents Templater — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>DT</span></span><span class="brand-text"><span>Documents Templater</span><span class="small version">v0.39</span></span></button></h1></div><button id="reset" type="button" disabled>Αναίρεση Όλων</button><span class="sep" aria-hidden="true"></span><button id="openCatalog" type="button" title="Όλα τα πεδία από το κοινό αρχείο, για μεταφορά ή αντιγραφή στα πρότυπα">Πεδία…</button><div class="header-right"><button id="findFields" class="primary subapp-change-dot" type="button" disabled>Ανεύρεση πεδίων</button><button id="produce" class="success subapp-change-dot" type="button" disabled>Παραγωγή Εγγράφων</button></div></header>
+</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Documents Templater — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>DT</span></span><span class="brand-text"><span>Documents Templater</span><span class="small version">v0.40</span></span></button></h1></div><button id="reset" type="button" disabled>Αναίρεση Όλων</button><span class="sep" aria-hidden="true"></span><button id="openCatalog" type="button" title="Όλα τα πεδία από το κοινό αρχείο, για μεταφορά ή αντιγραφή στα πρότυπα">Πεδία…</button><div class="header-right"><button id="findFields" class="primary subapp-change-dot" type="button" disabled>Ανεύρεση πεδίων</button><button id="produce" class="success subapp-change-dot" type="button" disabled>Παραγωγή Εγγράφων</button></div></header>
 <main id="layout" class="subapp-wide-aside">
 <aside id="filesPane" aria-label="Στοιχεία σχολείου και αρχεία">
  <section id="schoolSection" class="side-section" aria-labelledby="schoolTitle" hidden>
@@ -173,7 +175,7 @@
   <h2 id="filesTitle">Αρχεία (0)</h2>
   <p class="hint">Πρότυπα Word/Excel ή CSV με τιμές πεδίων.</p>
   <div id="filesList" class="files-list subapp-list" tabindex="0" aria-label="Αρχεία προτύπων"></div>
-  <div class="subapp-list-actions"><button id="addFiles" class="subapp-add-button" type="button">+ Προσθήκη</button><button id="removeFiles" class="subapp-remove-button" type="button" disabled>Αφαίρεση</button></div>
+  <div class="subapp-list-actions"><button id="addFiles" class="subapp-add-button" type="button" data-school-icon="plus">Προσθήκη</button><button id="removeFiles" class="subapp-remove-button" type="button" disabled>Αφαίρεση</button></div>
  </section>
  <p id="notice" class="subapp-notice" role="status"></p>
 </aside>
@@ -872,9 +874,9 @@ window.TemplaterModel=(()=>{
   if(!files.length){
    list.removeAttribute('role');list.removeAttribute('aria-multiselectable');
    const drop=document.createElement('div');drop.id='fileDrop';drop.className='subapp-file-drop visible';
-   const icon=document.createElement('span');icon.className='subapp-file-drop-icon';icon.setAttribute('aria-hidden','true');icon.textContent='⇩';
+   const icon=document.createElement('span');icon.className='subapp-file-drop-icon';icon.setAttribute('aria-hidden','true');icon.innerHTML=schoolIcon('file-import');
    const title=document.createElement('span');title.className='subapp-file-drop-title';title.textContent='Σύρε εδώ τα αρχεία σου';
-   const text=document.createElement('span');text.className='subapp-file-drop-text';text.textContent=hosted?'ή πάτησε «+ Προσθήκη» για επιλογή από τον δίσκο.':'Η σελίδα άνοιξε χωρίς το Κεντρικό Μενού: πρόσθεσε αρχεία με μεταφορά και απόθεση.';
+   const text=document.createElement('span');text.className='subapp-file-drop-text';text.textContent=hosted?'ή πάτησε «Προσθήκη» για επιλογή από τον δίσκο.':'Η σελίδα άνοιξε χωρίς το Κεντρικό Μενού: πρόσθεσε αρχεία με μεταφορά και απόθεση.';
    const kinds=document.createElement('span');kinds.className='subapp-file-drop-files';kinds.textContent='.docx · .xlsx · .csv';
    drop.append(icon,title,text,kinds);list.append(drop);updateButtons();return;
   }
@@ -1184,7 +1186,7 @@ window.TemplaterModel=(()=>{
   button.onclick=async()=>{
    const ok=await copyData(text,html);
    clearTimeout(timer);
-   if(ok){button.textContent='✓';button.classList.remove('text');button.classList.add('copied');button.title='Αντιγράφηκε';timer=setTimeout(setIdle,1500)}
+   if(ok){button.innerHTML=schoolIcon('check');button.classList.remove('text');button.classList.add('copied');button.title='Αντιγράφηκε';timer=setTimeout(setIdle,1500)}
    status.className='dt-fields-status'+(ok?'':' ui-validation-warning');
    status.textContent=ok?'Αντιγράφηκε: '+label:'Η αντιγραφή δεν έγινε. Σύρε το πεδίο στο έγγραφο ή γράψ\' το με το χέρι.';
   };
@@ -1309,7 +1311,7 @@ window.TemplaterModel=(()=>{
    for(const key of keys){
     const item=byCode.get(key),blank=key.startsWith('b:'),on=blank||subjectView.on.has(key.slice(2));
     const li=el('li','dt-subject'+(on?'':' off'));li.dataset.key=key;
-    const handle=el('button','dt-subject-handle');handle.type='button';handle.textContent='⋮⋮';handle.dataset.focus=kind+'|'+key+'|handle';
+    const handle=el('button','dt-subject-handle');handle.type='button';handle.innerHTML=schoolIcon('grip');handle.dataset.focus=kind+'|'+key+'|handle';
     handle.title='Σύρε για αλλαγή σειράς (ή Alt+↑/↓)';handle.setAttribute('aria-label','Μετακίνηση: '+(blank?'Κενή γραμμή':item.name)+' (Alt+↑/↓)');
     handle.addEventListener('keydown',event=>{if(event.altKey&&(event.key==='ArrowUp'||event.key==='ArrowDown')){event.preventDefault();move(key,event.key==='ArrowUp'?-1:1)}});
     handle.addEventListener('pointerdown',event=>startSubjectDrag(event,li,listBox,kind,key));
