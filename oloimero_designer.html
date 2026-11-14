@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ολοήμερο Designer v1.88</title>
+<title>Ολοήμερο Designer v1.89</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -119,13 +119,8 @@ main.ol-without-design :is(#board,#boardTimeOverlayAnchor,.board-zoom-controls,.
 #boardWrap{padding:18px 18px 18px 0;overflow:auto;min-width:0;cursor:grab}
 #boardWrap.panning{cursor:grabbing;user-select:none}
 #boardWrap.file-drag-over{background:var(--school-ui-primary-bg)}
-.board-zoom-controls{
-  position:fixed;right:18px;z-index:60;display:flex;align-items:center;gap:6px;padding:5px 7px;
-  background:rgba(255,255,255,.94);border:1px solid var(--school-ui-control-border);border-radius:9px;
-  box-shadow:0 2px 8px rgba(0,0,0,.16)
-}
-.board-zoom-controls button{min-width:30px;height:30px;padding:2px 8px;font-size:18px;line-height:1}
-#zoomLevel{min-width:48px;text-align:center;font-size:13px;font-weight:700;color:var(--school-ui-text);cursor:pointer;user-select:none}
+/* Zoom: the shared .ui-zoom of _ui.css; here only its place. */
+.board-zoom-controls{position:fixed;right:18px;z-index:60}
 .board-usage-summary{
   position:fixed;left:318px;z-index:60;min-width:178px;display:grid;gap:4px;padding:8px 11px;
   background:rgba(255,255,255,.95);border:1px solid var(--school-ui-border);border-radius:9px;
@@ -591,7 +586,7 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
 <body>
 
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΟΛ</span></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v1.88</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΟΛ</span></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v1.89</span></span></button></h1></div>
   <select id="program" aria-label="Σχέδιο" hidden></select>
   <span class="save-control">
     <button id="saveData" class="save-main" type="button" disabled>Αποθήκευση</button>
@@ -689,10 +684,10 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
     </div>
   </div>
 
-  <div class="board-zoom-controls" aria-label="Μεγέθυνση πίνακα">
-    <button type="button" id="zoomOut" title="Σμίκρυνση πίνακα">−</button>
-    <span id="zoomLevel">100%</span>
-    <button type="button" id="zoomIn" title="Μεγέθυνση πίνακα">+</button>
+  <div class="board-zoom-controls ui-zoom" aria-label="Μεγέθυνση πίνακα">
+    <button type="button" id="zoomOut" class="ui-icon-button" title="Σμίκρυνση πίνακα" aria-label="Σμίκρυνση πίνακα" data-school-icon="minus"></button>
+    <button type="button" id="zoomLevel" class="ui-zoom-level" title="Επαναφορά ζουμ στο 100%"><span>100%</span></button>
+    <button type="button" id="zoomIn" class="ui-icon-button" title="Μεγέθυνση πίνακα" aria-label="Μεγέθυνση πίνακα" data-school-icon="plus"></button>
   </div>
 
   <span class="status" id="status" role="status" aria-live="polite">Έτοιμο</span>
@@ -1226,7 +1221,7 @@ function applyBoardZoom(){
   boardTable.style.zoom=zoom;
   boardTimeOverlay.style.zoom=zoom;
   const label=document.querySelector("#zoomLevel");
-  if(label)label.textContent=boardZoom+"%";
+  if(label)label.firstElementChild.textContent=boardZoom+"%";
   document.querySelector("#zoomOut").disabled=boardZoom<=30;
   document.querySelector("#zoomIn").disabled=boardZoom>=200;
   requestAnimationFrame(updateFloatingControlsForBoardScrollbar);

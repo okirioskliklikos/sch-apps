@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινή διάταξη υποεφαρμογών
- * Έκδοση αρχείου: 0.36
+ * Έκδοση αρχείου: 0.37
  * Όνομα κατά την εγκατάσταση: _subapp.css
  */
 
@@ -385,7 +385,7 @@ button.subapp-add-button,button.subapp-remove-button{
   /* 1px smaller than the text around the list, in every application. */
   font-size:calc(1em - 1px)
 }
-/* List row with its own remove button («×»), shown on hover or keyboard focus.
+/* List row with its own remove button (schoolIcon('close')), shown on hover or keyboard focus.
    Use a non-button element with .subapp-list-item .subapp-list-item-removable, holding a button.subapp-list-item-remove. */
 .subapp-list-item-removable{
   display:flex;align-items:center;gap:8px;border:1px solid transparent;border-radius:7px;
@@ -395,8 +395,9 @@ button.subapp-add-button,button.subapp-remove-button{
 .subapp-list-item-remove{
   flex:none;display:grid;place-items:center;width:22px;height:22px;margin:0;padding:0;
   border:0;border-radius:5px;background:transparent;color:var(--school-ui-muted);
-  font-size:17px;line-height:1;opacity:0
+  line-height:1;opacity:0
 }
+.subapp-list-item-remove>svg{display:block;width:var(--school-ui-icon-size-list);height:var(--school-ui-icon-size-list)}
 .subapp-list-item-removable:hover .subapp-list-item-remove,
 .subapp-list-item-removable:focus-within .subapp-list-item-remove{opacity:1}
 .subapp-list-item-remove:hover:not(:disabled),.subapp-list-item-remove:focus-visible{background:#d5e5fb;color:var(--school-ui-error)}

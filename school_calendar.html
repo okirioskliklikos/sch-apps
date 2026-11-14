@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Σχολικό Ημερολόγιο v1.24</title>
+<title>Σχολικό Ημερολόγιο v1.25</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -65,11 +65,8 @@
 .year-day.invalid{background:var(--cal-invalid)}
 .year-day.invalid:hover{box-shadow:none}
 
-/* Zoom: controls with a size of their own. */
-.zoom{position:fixed;right:18px;bottom:12px;background:var(--school-ui-surface);border:1px solid var(--school-ui-border);box-shadow:0 1px 5px #0002;border-radius:10px;padding:4px;display:flex;gap:5px;align-items:center;z-index:20}
-.zoom[hidden]{display:none}
-.zoom button{min-width:36px}
-.zoom #zoomLabel{min-width:58px;color:var(--school-ui-muted);border-color:transparent;background:transparent}
+/* Zoom: the shared .ui-zoom of _ui.css; here only its place. */
+.zoom{position:fixed;right:18px;bottom:12px;z-index:20}
 
 @media(max-width:720px){
   .calendar{grid-template-rows:calc(30px * var(--scale));grid-auto-rows:minmax(calc(74px * var(--scale)),auto)}
@@ -126,7 +123,7 @@
 .cal-event-points.is-negative{background:#fae9e7;border-color:#e5c2bd;color:#ad3d33}
 .cal-event-points.is-pending{font-size:11px;font-weight:600}
 .cal-event-score-edit{display:flex;align-items:center;gap:2px;flex:none}
-.cal-event-score-edit button{padding:0!important;width:32px;min-width:32px;height:32px;line-height:1}
+.cal-event-score-edit button.ui-icon-button{width:32px;height:32px}
 .cal-event-score-edit input[type=text]{flex:0 0 40px;width:40px;min-width:40px;max-width:40px;height:32px;min-height:32px;padding:3px;text-align:center;font-variant-numeric:tabular-nums}
 .cal-behavior-editor .cal-event-score-edit input[type=text]:focus-visible{outline-offset:-2px}
 .cal-event-score-edit input[type=text].is-negative{background:#fae9e7;border-color:#e5c2bd;color:#ad3d33}
@@ -270,7 +267,7 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v1.24</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v1.25</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="print" type="button" disabled>Εκτύπωση...</button>
@@ -296,7 +293,7 @@
     </section>
   </div>
 </main>
-<div class="zoom" id="zoomBar" hidden><button id="zoomOut" type="button" aria-label="Σμίκρυνση">−</button><button id="zoomLabel" type="button" title="Επαναφορά ζουμ στο 100%">100%</button><button id="zoomIn" type="button" aria-label="Μεγέθυνση">+</button></div>
+<div class="zoom ui-zoom" id="zoomBar" hidden><button id="zoomOut" class="ui-icon-button" type="button" aria-label="Σμίκρυνση" title="Σμίκρυνση" data-school-icon="minus"></button><button id="zoomLabel" class="ui-zoom-level" type="button" title="Επαναφορά ζουμ στο 100%"><span>100%</span></button><button id="zoomIn" class="ui-icon-button" type="button" aria-label="Μεγέθυνση" title="Μεγέθυνση" data-school-icon="plus"></button></div>
 <div id="printRoot" hidden></div>
 <script src="_ui.js"></script>
 <script src="_data.js"></script>
@@ -532,7 +529,7 @@ function applyZoom(value, report = true) {
   const changed = next !== zoom;
   zoom = next;
   document.documentElement.style.setProperty('--scale', zoom / 100);
-  $('zoomLabel').textContent = zoom + '%';
+  $('zoomLabel').firstElementChild.textContent = zoom + '%';
   $('zoomOut').disabled = zoom <= zoomLimits.min; $('zoomIn').disabled = zoom >= zoomLimits.max;
   if (report && changed) { post({type:'school-calendar:zoom', zoom}); if (context && currentView === 'year') renderYear(); }
 }
@@ -954,11 +951,11 @@ async function editBehaviorEvents(date) {
     const block = document.createElement('div'); block.className = 'cal-event-score-block';
     const row = document.createElement('div'); row.className = 'cal-event-score';
     const controls = document.createElement('div'); controls.className = 'cal-event-score-edit';
-    const button = (text, title) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = text; b.title = title; b.setAttribute('aria-label', title + ': ' + label); return b; };
-    const minus = button('−', 'Μείωση κατά έναν βαθμό'), plus = button('+', 'Αύξηση κατά έναν βαθμό');
+    const button = (icon, title) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'ui-icon-button'; b.innerHTML = schoolIcon(icon); b.title = title; b.setAttribute('aria-label', title + ': ' + label); return b; };
+    const minus = button('minus', 'Μείωση κατά έναν βαθμό'), plus = button('plus', 'Αύξηση κατά έναν βαθμό');
     const input = document.createElement('input'); input.type = 'text'; input.inputMode = 'numeric'; input.autocomplete = 'off';
     input.placeholder = '—'; input.value = pointsText(score.points); input.setAttribute('aria-label', 'Βαθμοί για ' + label);
-    const remove = document.createElement('button'); remove.type = 'button'; remove.innerHTML = schoolIcon('close');
+    const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'ui-icon-button'; remove.innerHTML = schoolIcon('close');
     remove.title = 'Αφαίρεση συμμετέχοντα'; remove.setAttribute('aria-label', 'Αφαίρεση: ' + label);
     const error = document.createElement('div'); error.className = 'ui-validation-error cal-event-point-error'; error.setAttribute('role', 'alert');
     const normalizeSign = () => {

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Περίοδοι Προγραμμάτων v0.17</title>
+<title>Περίοδοι Προγραμμάτων v0.18</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -77,8 +77,6 @@
 .copy-row{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto;gap:8px;align-items:center}
 .copy-row select{width:100%;min-width:0;font-weight:400}
 .copy-arrow{color:var(--school-ui-muted)}
-.copy-row .copy-remove{width:var(--school-ui-control-height);padding-left:0;padding-right:0;display:grid;place-items:center}
-.copy-row .copy-remove svg{width:16px;height:16px}
 .copy-add{margin-top:10px}
 .copy-summary{margin-top:16px!important;padding:10px 12px;border-radius:10px;background:var(--school-ui-label-bg);font-size:14px;line-height:1.5}
 .copy-warnings .ui-validation-warning{font-size:13px}
@@ -106,7 +104,7 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Περίοδοι Προγραμμάτων — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΠΠ</span></span><span class="brand-text"><span>Περίοδοι Προγραμμάτων</span><span class="small version">v0.17</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Περίοδοι Προγραμμάτων — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΠΠ</span></span><span class="brand-text"><span>Περίοδοι Προγραμμάτων</span><span class="small version">v0.18</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <div class="header-right"><span id="schoolYear" class="school-year-indicator" hidden><span>Σχολικό έτος:</span> <span id="schoolYearValue"></span></span></div>
@@ -599,7 +597,7 @@
     const rows = make('div', {class: 'copy-rows'});
     const addRow = () => {
       const row = make('div', {class: 'copy-row'}), a = staffSelect('Εκπαιδευτικός που αντικαθίσταται'), b = staffSelect('Εκπαιδευτικός που μπαίνει στη θέση του');
-      const remove = make('button', {type: 'button', class: 'copy-remove', title: 'Αφαίρεση αντικατάστασης', 'aria-label': 'Αφαίρεση αντικατάστασης'});
+      const remove = make('button', {type: 'button', class: 'copy-remove ui-icon-button', title: 'Αφαίρεση αντικατάστασης', 'aria-label': 'Αφαίρεση αντικατάστασης'});
       remove.innerHTML = schoolIcon('close');
       remove.onclick = () => { row.remove(); update(); };
       row.append(a, make('span', {class: 'copy-arrow', 'aria-hidden': 'true'}, '→'), b, remove);

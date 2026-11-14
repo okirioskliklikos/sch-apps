@@ -1,4 +1,4 @@
-<!doctype html><html lang="el" class="subapp-page"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Documents Templater v0.38</title><link rel="stylesheet" href="_ui.css">
+<!doctype html><html lang="el" class="subapp-page"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Documents Templater v0.39</title><link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <script src="_lib_jszip.min.js"></script>
 <style>
@@ -117,7 +117,8 @@
 .dt-subject.off .dt-subject-name{color:var(--school-ui-muted)}
 .dt-subject.dragging{border-color:var(--school-ui-primary-border);background:var(--school-ui-primary-bg);box-shadow:0 2px 8px rgba(0,0,0,.15)}
 .school-confirm button.dt-subject-handle,.school-confirm button.dt-subject-remove{flex:none;display:inline-flex;align-items:center;justify-content:center;width:24px;height:26px;min-height:0;padding:0;border:1px solid transparent;background:transparent;color:var(--school-ui-muted);font-size:13px;line-height:1;cursor:grab;touch-action:none}
-.school-confirm button.dt-subject-remove{cursor:pointer;font-size:16px}
+.school-confirm button.dt-subject-remove{cursor:pointer}
+.school-confirm button.dt-subject-remove>svg{display:block;width:var(--school-ui-icon-size-list);height:var(--school-ui-icon-size-list)}
 .school-confirm button.dt-subject-handle:hover,.school-confirm button.dt-subject-remove:hover{border-color:var(--school-ui-control-border);background:var(--school-ui-surface)}
 .dt-subject-label{flex:1;display:flex;align-items:center;gap:6px;min-width:0;cursor:pointer}
 .dt-subject-label input{flex:none;margin:0}
@@ -156,7 +157,7 @@
  .dt-table td.dt-col-help,.dt-table td.dt-col-example{grid-column:1 / -1}
  .dt-table td.dt-col-example:empty{display:none}
 }
-</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Documents Templater — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>DT</span></span><span class="brand-text"><span>Documents Templater</span><span class="small version">v0.38</span></span></button></h1></div><button id="reset" type="button" disabled>Αναίρεση Όλων</button><span class="sep" aria-hidden="true"></span><button id="openCatalog" type="button" title="Όλα τα πεδία από το κοινό αρχείο, για μεταφορά ή αντιγραφή στα πρότυπα">Πεδία…</button><div class="header-right"><button id="findFields" class="primary subapp-change-dot" type="button" disabled>Ανεύρεση πεδίων</button><button id="produce" class="success subapp-change-dot" type="button" disabled>Παραγωγή Εγγράφων</button></div></header>
+</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Documents Templater — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>DT</span></span><span class="brand-text"><span>Documents Templater</span><span class="small version">v0.39</span></span></button></h1></div><button id="reset" type="button" disabled>Αναίρεση Όλων</button><span class="sep" aria-hidden="true"></span><button id="openCatalog" type="button" title="Όλα τα πεδία από το κοινό αρχείο, για μεταφορά ή αντιγραφή στα πρότυπα">Πεδία…</button><div class="header-right"><button id="findFields" class="primary subapp-change-dot" type="button" disabled>Ανεύρεση πεδίων</button><button id="produce" class="success subapp-change-dot" type="button" disabled>Παραγωγή Εγγράφων</button></div></header>
 <main id="layout" class="subapp-wide-aside">
 <aside id="filesPane" aria-label="Στοιχεία σχολείου και αρχεία">
  <section id="schoolSection" class="side-section" aria-labelledby="schoolTitle" hidden>
@@ -885,7 +886,7 @@ window.TemplaterModel=(()=>{
    const name=document.createElement('span');name.className='file-name';// Show the row number unless the file name already starts with the same number (e.g. «2. Πρακτικό» in row 2).
    const number=index+1;name.textContent=new RegExp('^\\s*0*'+number+'\\s*[.)]').test(file.name)?file.name:`${number}. ${file.name}`;
    const kind=document.createElement('span');kind.className='file-kind';kind.textContent=ext(file)==='docx'?'Word':ext(file)==='xlsx'?'Excel':'CSV τιμών';
-   const remove=document.createElement('button');remove.type='button';remove.className='subapp-list-item-remove';remove.tabIndex=-1;remove.textContent='×';
+   const remove=document.createElement('button');remove.type='button';remove.className='subapp-list-item-remove';remove.tabIndex=-1;remove.innerHTML=schoolIcon('close');
    remove.title='Αφαίρεση από τη λίστα';remove.setAttribute('aria-label','Αφαίρεση του «'+file.name+'» από τη λίστα');
    remove.onclick=event=>{event.stopPropagation();removeFiles(new Set([file]))};
    b.append(name,kind,remove);
@@ -1315,7 +1316,7 @@ window.TemplaterModel=(()=>{
     li.append(handle);
     if(blank){
      li.append(el('span','dt-subject-name dt-subject-blank','Κενή γραμμή'));
-     const remove=el('button','dt-subject-remove');remove.type='button';remove.textContent='×';remove.title='Αφαίρεση της κενής γραμμής';remove.setAttribute('aria-label','Αφαίρεση της κενής γραμμής');
+     const remove=el('button','dt-subject-remove');remove.type='button';remove.innerHTML=schoolIcon('close');remove.title='Αφαίρεση της κενής γραμμής';remove.setAttribute('aria-label','Αφαίρεση της κενής γραμμής');
      remove.onclick=()=>{subjectView.order.splice(subjectView.order.indexOf(key),1);rerender(kind+'|add')};
      li.append(remove);
     }else{

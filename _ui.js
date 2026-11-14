@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.33
+ * Έκδοση αρχείου: 0.34
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -642,7 +642,8 @@
   const escapes = {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'};
   function schoolEscape(value) { return String(value ?? '').replace(/[&<>"']/g, c => escapes[c]); }
 
-  // Κοινά εικονίδια (24×24, χρώμα από το currentColor). Το μέγεθος το δίνει το CSS του κουμπιού.
+  // Κοινά εικονίδια (24×24, χρώμα από το currentColor). Το μέγεθος το δίνει το CSS του κουμπιού, από την κλίμακα
+  // --school-ui-icon-size* του _ui.css (π.χ. .ui-icon-button). Τα σύμβολα των κουμπιών είναι πάντα από εδώ, όχι χαρακτήρες.
   // schoolIcon(name) επιστρέφει το SVG ως κείμενο· ένα στοιχείο με data-school-icon="name" και χωρίς
   // περιεχόμενο στη σελίδα το παίρνει αυτόματα κατά τη φόρτωση.
   const icons = {
@@ -653,6 +654,8 @@
     menu: ['2.2', 'M4 6h16M4 12h16M4 18h16'],
     edit: ['2.2', 'M4 20l4.5-1 10-10a2.1 2.1 0 0 0-3-3l-10 10L4 20zM14.5 7.5l3 3'],
     close: ['2.2', 'M6 6l12 12M18 6 6 18'],
+    minus: ['2.2', 'M5 12h14'],
+    plus: ['2.2', 'M12 5v14M5 12h14'],
     copy: ['2', 'M9 8h10a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1zM16 8V4a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h3'],
     // Μορφοποίηση κειμένου (schoolRichText).
     bold: ['3.3', 'M7 4h5.5a4 4 0 0 1 0 8H7zM7 12h6.5a4 4 0 0 1 0 8H7z'],
@@ -1149,7 +1152,7 @@
         chip.classList.add('is-removable');
         const text = document.createElement('span'); text.className = 'school-tag-label'; text.textContent = label;
         const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'school-tag-remove';
-        remove.textContent = '×'; remove.title = 'Αφαίρεση ετικέτας: ' + label;
+        remove.innerHTML = schoolIcon('close'); remove.title = 'Αφαίρεση ετικέτας: ' + label;
         remove.setAttribute('aria-label', remove.title);
         remove.addEventListener('click', () => onRemove(ref));
         chip.replaceChildren(text, remove);

@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινό περιβάλλον χρήστη
- * Έκδοση αρχείου: 0.47
+ * Έκδοση αρχείου: 0.48
  * Όνομα κατά την εγκατάσταση: _ui.css
  */
 
@@ -14,6 +14,10 @@
   --school-ui-control-font-size:16px;
   --school-ui-control-line-height:22px;
   --school-ui-control-padding-y:calc((var(--school-ui-control-height) - var(--school-ui-control-line-height) - 2px) / 2);
+  /* Icons (schoolIcon) inside buttons: one scale for the suite. Ordinary buttons 32–36px tall, list rows, tag chips. */
+  --school-ui-icon-size:16px;
+  --school-ui-icon-size-list:14px;
+  --school-ui-icon-size-small:12px;
   --school-ui-workspace-bg:#f5f6f8;
   --school-ui-label-bg:#f0f3f7;
   --school-ui-label-text:#405367;
@@ -328,6 +332,33 @@ button.ui-compact-button:hover:not(:disabled),
 .school-richtext .school-richtext-toolbar .school-richtext-actions button:hover:not(:disabled){
   background:#f1f1f1;border-color:var(--school-ui-control-border)
 }
+/* Square button with only an icon (schoolIcon, never a text character such as «×»): the icon is centred and
+   --school-ui-icon-size. The button is as tall and wide as a control; a smaller one (e.g. 32px) sets only its
+   own width and height. Disabled, it fades like the other icon buttons. */
+button.ui-icon-button,
+.school-confirm button.ui-icon-button{
+  display:inline-grid;place-items:center;flex:none;box-sizing:border-box;
+  width:var(--school-ui-control-height);min-width:0;height:var(--school-ui-control-height);padding:0;line-height:1
+}
+button.ui-icon-button>svg{display:block;width:var(--school-ui-icon-size);height:var(--school-ui-icon-size)}
+/* Shared zoom bar: «−», the percentage (a button that resets to 100%) and «+». The application only places it
+   (position, offsets) and handles the clicks. Markup:
+   <div class="ui-zoom"><button class="ui-icon-button" data-school-icon="minus"></button>
+   <button class="ui-zoom-level"><span>100%</span></button><button class="ui-icon-button" data-school-icon="plus"></button></div>
+   The percentage is cut to the height of the capitals (text-box), so the «−» / «+» sit on its middle with any font. */
+.ui-zoom{
+  display:flex;align-items:center;gap:6px;padding:5px 7px;box-sizing:border-box;
+  background:rgba(255,255,255,.94);border:1px solid var(--school-ui-control-border);border-radius:9px;
+  box-shadow:0 2px 8px rgba(0,0,0,.16)
+}
+.ui-zoom button.ui-icon-button{width:32px;height:32px}
+.ui-zoom button.ui-zoom-level{
+  display:inline-grid;place-items:center;min-width:64px;height:32px;padding:0 4px;
+  border-color:transparent;background:transparent;color:var(--school-ui-text);
+  font-size:18px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums
+}
+.ui-zoom button.ui-zoom-level:hover:not(:disabled){background:#f1f1f1}
+.ui-zoom .ui-zoom-level>span{display:block;text-box:trim-both cap alphabetic}
 .school-richtext .school-richtext-toolbar .school-richtext-actions button.primary,
 .school-tagged-text-actions button.ui-compact-button.primary{
   background:var(--school-ui-primary-bg);border-color:var(--school-ui-primary-border);color:var(--school-ui-primary-text)
@@ -406,8 +437,9 @@ fieldset.ui-fields{margin:0;padding:0;min-width:0;border:0}
   display:inline-flex;align-items:center;justify-content:center;flex:none;
   width:18px;height:18px;min-width:18px;min-height:18px;margin:0;padding:0;
   border:0;border-radius:50%;background:transparent;color:inherit;
-  font:inherit;font-size:17px;line-height:1;cursor:pointer
+  font:inherit;line-height:1;cursor:pointer
 }
+.school-tag .school-tag-remove>svg{display:block;width:var(--school-ui-icon-size-small);height:var(--school-ui-icon-size-small)}
 .school-tag .school-tag-remove:hover:not(:disabled),
 .school-confirm .school-tag .school-tag-remove:hover:not(:disabled){background:#00000015;border-color:transparent}
 
