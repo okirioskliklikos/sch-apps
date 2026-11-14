@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ολοήμερο Designer v1.89</title>
+<title>Ολοήμερο Designer v1.90</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -93,6 +93,8 @@ main.ol-without-design :is(#board,#boardTimeOverlayAnchor,.board-zoom-controls,.
 .teacher-actions :is(.teacher-over-warning,.teacher-hours-ok){margin-left:0;padding-left:0}
 .teacher-over-warning{color:var(--ol-over-limit)!important}
 .teacher-hours-ok{color:var(--ol-hours-ok)!important}
+/* «!» / «✓» of the hours: schoolIcon (alert / check), 14px like list rows, with a heavier line (they were bold). */
+.teacher-over-warning>svg,.teacher-hours-ok>svg{display:block;width:var(--school-ui-icon-size-list);height:var(--school-ui-icon-size-list);stroke-width:3.2}
 .template small{grid-column:1;min-width:0}
 .teacher-long-row{
   grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;
@@ -586,7 +588,7 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
 <body>
 
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΟΛ</span></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v1.89</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΟΛ</span></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v1.90</span></span></button></h1></div>
   <select id="program" aria-label="Σχέδιο" hidden></select>
   <span class="save-control">
     <button id="saveData" class="save-main" type="button" disabled>Αποθήκευση</button>
@@ -611,11 +613,11 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
 
   <span class="sep"></span>
   <span class="save-control undo-control">
-    <button id="undoPlacement" type="button" disabled title="Αναίρεση της τελευταίας αλλαγής">↶ Αναίρεση</button>
+    <button id="undoPlacement" type="button" disabled title="Αναίρεση της τελευταίας αλλαγής" data-school-icon="undo">Αναίρεση</button>
     <button id="undoMenuButton" class="save-menu-button" type="button" aria-haspopup="true" aria-expanded="false" title="Περισσότερες επιλογές αναίρεσης" disabled aria-label="Περισσότερες επιλογές αναίρεσης"></button>
     <span id="undoMenu" class="save-menu" hidden><button id="undoAll" type="button" disabled>Αναίρεση όλων</button></span>
   </span>
-  <button id="redoPlacement" type="button" disabled title="Επανάληψη της αλλαγής που αναιρέθηκε">↷ Επανάληψη</button>
+  <button id="redoPlacement" type="button" disabled title="Επανάληψη της αλλαγής που αναιρέθηκε" data-school-icon="redo">Επανάληψη</button>
   <span class="sep"></span>
   <span class="print-control">
     <button id="printBoard" type="button" disabled>Εκτύπωση...</button>
@@ -649,7 +651,7 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
     </span>
   </h2>
   <div id="subjects"></div>
-  <button id="newSubject" class="sidebar-add">+ Νέο Μάθημα</button>
+  <button id="newSubject" class="sidebar-add" data-school-icon="plus">Νέο Μάθημα</button>
   <hr class="sidebar-divider">
 
   <h2 class="section-title section-heading">
@@ -666,7 +668,7 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
     <button type="button" class="section-style-edit subapp-section-action" data-section="union" title="Σειρά και μορφοποίηση Συνενώσεων" aria-label="Σειρά και μορφοποίηση Συνενώσεων" data-school-icon="edit"></button>
   </h2>
   <div id="unions"></div>
-  <button id="newUnion" class="sidebar-add">+ Νέα Συνένωση</button>
+  <button id="newUnion" class="sidebar-add" data-school-icon="plus">Νέα Συνένωση</button>
 </aside>
 
 <section id="boardWrap" class="subapp-workspace">
@@ -676,7 +678,7 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
   <table id="board"><tbody></tbody></table>
 
   <div id="emptyProjectDrop" class="subapp-file-drop" aria-live="polite">
-    <div class="subapp-file-drop-icon" aria-hidden="true">⇩</div>
+    <div class="subapp-file-drop-icon" aria-hidden="true" data-school-icon="file-import"></div>
     <div class="subapp-file-drop-title">Ο πίνακας είναι κενός</div>
     <div class="subapp-file-drop-text">
       Σύρε εκπαιδευτικούς, μαθήματα, τάξεις και τμήματα από την αριστερή μπάρα στα κελιά.<br>
@@ -1724,10 +1726,10 @@ function teacherSidebarStatusHtml(t,uses=teacherCount(t.id)){
   const available=teacherAvailableHours(t);
   if(available<=0)return "";
   if(uses>available){
-    return `<span class="teacher-over-warning" title="Υπέρβαση διαθέσιμων ωρών: ${uses}/${available}">!</span>`;
+    return `<span class="teacher-over-warning" role="img" title="Υπέρβαση διαθέσιμων ωρών: ${uses}/${available}" aria-label="Υπέρβαση διαθέσιμων ωρών: ${uses}/${available}">${schoolIcon("alert")}</span>`;
   }
   if(uses===available){
-    return `<span class="teacher-hours-ok" title="Οι διαθέσιμες ώρες καλύφθηκαν ακριβώς: ${uses}/${available}">✓</span>`;
+    return `<span class="teacher-hours-ok" role="img" title="Οι διαθέσιμες ώρες καλύφθηκαν ακριβώς: ${uses}/${available}" aria-label="Οι διαθέσιμες ώρες καλύφθηκαν ακριβώς: ${uses}/${available}">${schoolIcon("check")}</span>`;
   }
   return "";
 }
@@ -1903,12 +1905,12 @@ function sidebarUsageText(uses){
 const SIDEBAR_SECTIONS={
   subject:{
     records:()=>subjects,container:()=>subjectsEl,count:"#subjectCount",itemClass:"subject-item",
-    empty:'<div class="hint"><b>Δεν υπάρχουν μαθήματα.</b><br>Πάτησε «+ Νέο μάθημα».</div>',
+    empty:'<div class="hint"><b>Δεν υπάρχουν μαθήματα.</b><br>Πάτησε «Νέο Μάθημα».</div>',
     meta:item=>sidebarUsageText(subjectCount(item.id)),open:id=>openSubject(id),remove:id=>deleteSubject(id)
   },
   union:{
     records:()=>unions,container:()=>unionsEl,count:"#unionCount",itemClass:"union-item",
-    empty:'<div class="hint"><b>Δεν υπάρχουν συνενώσεις.</b><br>Πάτησε «+ Νέα Συνένωση».</div>',
+    empty:'<div class="hint"><b>Δεν υπάρχουν συνενώσεις.</b><br>Πάτησε «Νέα Συνένωση».</div>',
     meta:item=>{
       const names=unionParts(item);
       return `${names.length?esc(names.join(" + ")):"Χωρίς τάξεις ή τμήματα"} · ${sidebarUsageText(unionUsageCount(item.id))}`;
@@ -2308,8 +2310,9 @@ function renderBoard(){
         if(teacherIsOverLimit(t,uses)){
           const warning=document.createElement("span");
           warning.className="teacher-over-warning";
-          warning.textContent="!";
+          warning.innerHTML=schoolIcon("alert");
           warning.title=`Υπέρβαση διαθέσιμων ωρών: ${uses}/${teacherAvailableHours(t)}`;
+          warning.setAttribute("role","img");warning.setAttribute("aria-label",warning.title);
           card.appendChild(warning);
         }
         card.style.background=t.color;

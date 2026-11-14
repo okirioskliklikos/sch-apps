@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>FET Timetable Editor v1.04</title>
+<title>FET Timetable Editor v1.05</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -48,9 +48,9 @@ aside{display:flex;flex-direction:column;gap:0}
 .ft-source-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px 12px;min-width:0}
 .ft-source-head .ft-source{min-width:0}
 .ft-info-button{display:inline-flex;align-items:center;gap:5px;flex:none;white-space:nowrap}
-.ft-info-indicator{color:var(--school-ui-warning);font-size:15px;line-height:1}
+.ft-info-indicator{color:var(--school-ui-warning)}
 .ft-info-indicator[hidden],.ft-source-details[hidden]{display:none}
-.ft-info-chevron{display:inline-block;transition:transform .15s ease}
+.ft-info-chevron{--ui-icon-text-size:var(--school-ui-icon-size-list);transition:transform .15s ease}
 .ft-info-button[aria-expanded="true"] .ft-info-chevron{transform:rotate(180deg)}
 .ft-source-details{margin-top:6px}
 .ft-source-details .ft-source + .ft-source{margin-top:4px}
@@ -145,12 +145,12 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="FET Timetable Editor — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>FT</span></span><span class="brand-text"><span>FET Timetable Editor</span><span class="small version">v1.04</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="FET Timetable Editor — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>FT</span></span><span class="brand-text"><span>FET Timetable Editor</span><span class="small version">v1.05</span></span></button></h1></div>
   <select id="period" aria-label="Περίοδος" disabled hidden></select>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <span class="sep" aria-hidden="true"></span>
-  <button id="undo" type="button" disabled title="Αναίρεση της τελευταίας ενέργειας">↶ Αναίρεση</button>
-  <button id="redo" type="button" disabled title="Επανάληψη της ενέργειας που αναιρέθηκε">↷ Επανάληψη</button>
+  <button id="undo" type="button" disabled title="Αναίρεση της τελευταίας ενέργειας" data-school-icon="undo">Αναίρεση</button>
+  <button id="redo" type="button" disabled title="Επανάληψη της ενέργειας που αναιρέθηκε" data-school-icon="redo">Επανάληψη</button>
   <button id="undoAll" type="button" disabled>Αναίρεση όλων</button>
   <span class="sep" aria-hidden="true"></span>
   <button id="oloimero" type="button" disabled>Εισαγωγή Ολοημέρου…</button>
@@ -693,12 +693,15 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     toggle.id = 'infoToggle'; toggle.type = 'button';
     toggle.setAttribute('aria-controls', 'sourceDetails');
     toggle.setAttribute('aria-expanded', String(infoExpanded));
-    const indicator = el('span', 'ft-info-indicator', '⚠');
-    indicator.id = 'infoIndicator'; indicator.hidden = true;
+    // Icons (schoolIcon) and text in one .ui-icon-text, so both icons sit on the middle of the capitals.
+    const label = el('span', 'ui-icon-text');
+    label.innerHTML = schoolIcon('warning') + '<span>Πληροφορίες</span>' + schoolIcon('chevron-down');
+    const [indicator, chevron] = label.querySelectorAll(':scope > svg');
+    indicator.id = 'infoIndicator'; indicator.classList.add('ft-info-indicator'); indicator.setAttribute('hidden', '');
+    indicator.removeAttribute('aria-hidden'); indicator.setAttribute('role', 'img');
     indicator.setAttribute('aria-label', 'Υπάρχουν προειδοποιήσεις');
-    const chevron = el('span', 'ft-info-chevron', '▾');
-    chevron.setAttribute('aria-hidden', 'true');
-    toggle.append(indicator, el('span', '', 'Πληροφορίες'), chevron);
+    chevron.classList.add('ft-info-chevron');
+    toggle.append(label);
     head.append(toggle);
     const details = el('div', 'ft-source-details');
     details.id = 'sourceDetails'; details.hidden = !infoExpanded;
@@ -739,7 +742,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     const outside = index().list.filter(item => item.outside).length;
     if (outside) list.push(['warning', outside + (outside === 1 ? ' δραστηριότητα έχει' : ' δραστηριότητες έχουν') + ' ώρες που δεν υπάρχουν στις Ώρες Διδασκαλίας ή σε ημέρα εκτός Δευτέρας–Παρασκευής· δεν εμφανίζονται στον πίνακα.']);
     $('warnings').replaceChildren(...list.map(([type, textValue]) => el('p', 'ui-validation-' + type, textValue)));
-    $('infoIndicator').hidden = !($('sourceDetails').querySelector('.ft-note, .ui-validation-warning, .ui-validation-error'));
+    $('infoIndicator').toggleAttribute('hidden', !$('sourceDetails').querySelector('.ft-note, .ui-validation-warning, .ui-validation-error'));
   }
   function colorFor(textValue) {
     let hue = 0;
