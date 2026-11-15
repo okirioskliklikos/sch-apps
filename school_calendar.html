@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Σχολικό Ημερολόγιο v1.27</title>
+<title>Σχολικό Ημερολόγιο v1.28</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -50,23 +50,24 @@
 :is(.day,.year-day):focus{outline:2px solid var(--cal-selected);outline-offset:-2px}
 :is(.day,.year-day).selected-day{box-shadow:inset 0 0 0 2px var(--cal-selected)}
 
-/* Indicators of the sections of a day (DAY_SECTIONS): in the month, chips with icon and count at the bottom of the
-   cell; in the school year, and in a month cell where the chips do not fit (.cal-compact), dots at the fixed place of
-   each section. Each one opens its section. A section's colours come from its .cal-ind-<tone> rule. */
+/* Indicators of the sections of a day (DAY_SECTIONS), each at the fixed place of its section in a grid at the bottom
+   of the cell (the first row of the sections is the bottom row): in the month, chips with icon and count; in the
+   school year, and in a month cell where the chips do not fit (.cal-compact), dots. Each one opens its section.
+   A section's colours come from its .cal-ind-<tone> rule. */
 .cal-ind-personal{--ind-bg:var(--cal-personal);--ind-ink:var(--cal-personal-ink);--ind-line:var(--cal-personal-line);--ind-dot:var(--cal-personal-dot)}
 .cal-ind-school{--ind-bg:var(--cal-school);--ind-ink:var(--cal-school-ink);--ind-line:var(--cal-school-line);--ind-dot:var(--cal-school-dot)}
 .cal-ind-behavior{--ind-bg:var(--cal-behavior);--ind-ink:var(--cal-behavior-ink);--ind-line:var(--cal-behavior-line);--ind-dot:var(--cal-behavior-dot)}
 .cal-ind-ssd{--ind-bg:var(--cal-ssd-bg);--ind-ink:var(--cal-ssd);--ind-line:var(--cal-ssd-line);--ind-dot:var(--cal-ssd)}
 .cal-ind-ped{--ind-bg:var(--cal-ped-bg);--ind-ink:var(--cal-ped);--ind-line:var(--cal-ped-line);--ind-dot:var(--cal-ped)}
-.cal-indicators{position:absolute;left:calc(6px * var(--scale));right:calc(6px * var(--scale));bottom:calc(6px * var(--scale));display:flex;flex-wrap:wrap;align-content:flex-end;gap:calc(3px * var(--scale))}
-.cal-ind{display:inline-flex;align-items:center;gap:calc(3px * var(--scale));height:calc(20px * var(--scale));min-width:0;margin:0;padding:0 calc(5px * var(--scale));border:1px solid var(--ind-line);border-radius:4px;background:var(--ind-bg);color:var(--ind-ink);font:inherit;font-size:calc(12px * var(--scale));font-weight:700;line-height:1;cursor:pointer}
+.cal-indicators{position:absolute;left:calc(6px * var(--scale));right:calc(6px * var(--scale));bottom:calc(6px * var(--scale));display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(var(--ind-rows),var(--ind-height));gap:calc(3px * var(--scale));--ind-height:calc(20px * var(--scale))}
+.cal-ind{grid-column:var(--ind-col);grid-row:var(--ind-row);display:inline-flex;align-items:center;justify-content:center;overflow:hidden;gap:calc(3px * var(--scale));width:100%;height:100%;min-width:0;margin:0;padding:0 calc(5px * var(--scale));border:1px solid var(--ind-line);border-radius:4px;background:var(--ind-bg);color:var(--ind-ink);font:inherit;font-size:calc(12px * var(--scale));font-weight:700;line-height:1;cursor:pointer}
 .cal-ind:hover{border-color:var(--ind-ink)}
 .cal-ind:focus-visible{outline:2px solid var(--cal-selected);outline-offset:1px}
 .cal-ind svg{display:block;flex:none;width:calc(var(--school-ui-icon-size-list) * var(--scale));height:calc(var(--school-ui-icon-size-list) * var(--scale))}
-:is(.year-day,.day.cal-compact) .cal-indicators{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(var(--ind-rows),var(--ind-height));gap:0}
+:is(.year-day,.day.cal-compact) .cal-indicators{gap:0}
 .year-day .cal-indicators{left:1px;right:1px;bottom:1px;--ind-height:11px}
 .day.cal-compact .cal-indicators{--ind-height:calc(14px * var(--scale))}
-:is(.year-day,.day.cal-compact) .cal-ind{grid-column:var(--ind-col);grid-row:var(--ind-row);width:100%;height:auto;padding:0;border:0;border-radius:0;background:none;justify-content:center}
+:is(.year-day,.day.cal-compact) .cal-ind{overflow:visible;padding:0;border:0;border-radius:0;background:none}
 :is(.year-day,.day.cal-compact) .cal-ind :is(svg,.cal-ind-count){display:none}
 :is(.year-day,.day.cal-compact) .cal-ind::before{content:"";width:min(8px,80%);aspect-ratio:1;border-radius:50%;background:var(--ind-dot)}
 :is(.year-day,.day.cal-compact) .cal-ind:hover::before{box-shadow:0 0 0 2px var(--ind-line)}
@@ -283,7 +284,7 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v1.27</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v1.28</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="print" type="button" disabled>Εκτύπωση...</button>
@@ -428,8 +429,8 @@ const hasBook = book => !!book && hasHtml(book.html);
 const hasEvents = events => Array.isArray(events) && events.length > 0;
 const hasDayContent = entry => hasPersonal(entry.personalNotes) || hasBook(entry.schoolLifeBook) || hasEvents(entry.behaviorEvents);
 // Sections of a day, in the order of the day menu. Each one: key (its choice in the menu), label, aria (in the label
-// of the day cell), tone (CSS rule .cal-ind-<tone> with its colours), icon (schoolIcon), slot [column, row] of its dot
-// (school year, and a month cell where the chips do not fit), count(key) (0: nothing on the day), number (the chip
+// of the day cell), tone (CSS rule .cal-ind-<tone> with its colours), icon (schoolIcon), slot [column, row] of its chip
+// and dot (row 1 is the bottom row, filled first), count(key) (0: nothing on the day), number (the chip
 // shows the count) and open(date) (its window). A new section is one more entry here and one .cal-ind-<tone> rule.
 const DAY_SECTIONS = [
   {key:'personalNotes', label:'Προσωπικές Σημειώσεις', aria:'προσωπικές σημειώσεις', tone:'personal', icon:'note', slot:[1, 1], number:true,
@@ -578,7 +579,7 @@ function dayIndicators(date, sections) {
   for (const {section, count} of sections) {
     const button = document.createElement('button');
     button.type = 'button'; button.tabIndex = -1; button.className = `cal-ind cal-ind-${section.tone}`;
-    button.style.setProperty('--ind-col', section.slot[0]); button.style.setProperty('--ind-row', section.slot[1]);
+    button.style.setProperty('--ind-col', section.slot[0]); button.style.setProperty('--ind-row', DAY_ROWS - section.slot[1] + 1);
     const title = section.number ? `${section.label}: ${count}` : section.label;
     button.title = title; button.setAttribute('aria-label', `Άνοιγμα: ${title}`);
     button.innerHTML = schoolIcon(section.icon) + (section.number ? `<span class="cal-ind-count">${count}</span>` : '');
@@ -603,7 +604,8 @@ function fitMonthIndicators() {
     const box = cell.querySelector('.cal-indicators'), number = cell.querySelector('.day-number');
     if (!box || !number) continue;
     cell.classList.remove('cal-compact');
-    if (box.offsetTop < number.offsetTop + number.offsetHeight + 2) cell.classList.add('cal-compact');
+    const narrow = [...box.children].some(chip => chip.scrollWidth > chip.clientWidth);
+    if (narrow || box.offsetTop < number.offsetTop + number.offsetHeight + 2) cell.classList.add('cal-compact');
   }
 }
 function selectCell(container, cell, date) {
