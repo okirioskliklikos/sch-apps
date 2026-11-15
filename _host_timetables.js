@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Προγράμματα στο Κεντρικό Μενού (host)
- * Έκδοση αρχείου: 0.14
+ * Έκδοση αρχείου: 0.15
  * Όνομα κατά την εγκατάσταση: _host_timetables.js
  *
  * Κώδικας μόνο του host για τα προγράμματα (timetablesByYear). Το φορτώνει το index.html μετά το
@@ -8,7 +8,9 @@
  * οι υποεφαρμογές· μόνο το data_test.html, για να ελέγξει τις καθαρές συναρτήσεις του.
  * Δεν έχει περιβάλλον χρήστη. Ορίζει το window.SchoolHostTimetables:
  *   permissions(app)                        τι επιτρέπεται σε μια εφαρμογή
- *   yearData(data, year)                    το timetablesByYear[year] ({periods, programs})
+ *   yearData(data, year)                    το timetablesByYear[year] ({periods, programs, individualCatalog})
+ *   individualCatalog(data, year)           ο κατάλογος του έτους των Ατομικών Προγραμμάτων (μαθήματα, Συνενώσεις)
+ *   validateCatalog(catalog, options)       έλεγχος του καταλόγου των Ατομικών Προγραμμάτων (πετά λάθος)
  *   context(data, app, revision)            το school-timetables:context για μια εφαρμογή
  *   validatePeriods(periods, year)          έλεγχος της λίστας περιόδων (πετά λάθος)
  *   validateProgram(program, options)       πλήρης έλεγχος ενός προγράμματος, μαζί με το Ιστορικό του (πετά λάθος)
@@ -26,7 +28,8 @@
  *                                           _host_students.js, μέσω του index. Με spec.encoding:'auto' το
  *                                           κείμενο διαβάζεται ως UTF-8 και, αν δεν είναι, ως Windows-1253
  *   viewKey(app)                            το κλειδί της εφαρμογής στο lastViewByYear (το είδος της), ή null
- *   lastView(data, year, key)               η τελευταία επιλογή μιας εφαρμογής (π.χ. 'period:…' ή 'draft:…')
+ *   lastView(data, year, key)               η τελευταία επιλογή μιας εφαρμογής (π.χ. 'period:…', 'draft:…' ή,
+ *                                           στα Ατομικά Προγράμματα, 'period:…|staff:…')
  *   withView(data, year, key, view)         αντίγραφο του data με νέα τελευταία επιλογή
  *   install(bridge)                         σύνδεση με το index (πρωτόκολλο school-timetables:* και αιτήματα
  *                                           αρχείων)
@@ -95,9 +98,54 @@
   // Όνομα προγράμματος για μηνύματα: «όνομα» (είδος), ή «είδος» όταν δεν έχει όνομα.
   const programName = program => program?.name ? quoted(program.name) + ' (' + kindLabel(program.kind) + ')' : quoted(kindLabel(program?.kind));
 
+  // ---- Κατάλογος των Ατομικών Προγραμμάτων (timetablesByYear[year].individualCatalog) ----
+  // {subjects:[{id, name, color, hidden}], unions:[{id, name, grades, classIds}], hidden:{grades, classes}}, κοινός για
+  // όλες τις περιόδους του έτους. Τον γράφει μόνο η εφαρμογή-κάτοχος του είδους individual (individualCatalog του
+  // school-timetables:save). Πεδία που δεν γνωρίζει το host μένουν όπως είναι.
+  const CATALOG_LIMITS = Object.freeze({subjects: 500, unions: 500});
+  function individualCatalog(data, year) {
+    const value = isObject(data?.timetablesByYear?.[year]) ? data.timetablesByYear[year].individualCatalog : null;
+    const catalog = isObject(value) ? value : {};
+    return {
+      ...catalog,
+      subjects: Array.isArray(catalog.subjects) ? catalog.subjects : [],
+      unions: Array.isArray(catalog.unions) ? catalog.unions : [],
+      hidden: isObject(catalog.hidden) ? catalog.hidden : {grades: [], classes: []}
+    };
+  }
+  // Έλεγχος του καταλόγου. Απορρίπτει μόνο ό,τι χαλά τα δεδομένα (μορφή, διπλά id, χρώμα, άγνωστη Τάξη)· τα ονόματα
+  // τα ελέγχει η εφαρμογή. Τμήματα που δεν υπάρχουν πια στις Συνενώσεις και στο hidden γίνονται δεκτά και αγνοούνται,
+  // όπως στα κρυφά Τμήματα του Ολοήμερου Designer.
+  function validateCatalog(catalog) {
+    const fail = what => { throw Error('Ο κατάλογος των Ατομικών Προγραμμάτων δεν είναι έγκυρος (' + what + ').'); };
+    const grades = value => Array.isArray(value) && value.length <= GRADES.length && value.every(grade => GRADES.includes(grade));
+    const ids = value => Array.isArray(value) && value.length <= 100 && value.every(id => isText(id, 200) && !!id);
+    if (!isObject(catalog)) fail('μορφή');
+    const subjects = catalog.subjects ?? [], unions = catalog.unions ?? [];
+    if (!Array.isArray(subjects) || subjects.length > CATALOG_LIMITS.subjects) fail('μαθήματα');
+    const subjectIds = new Set();
+    for (const item of subjects) {
+      if (!isObject(item) || !isText(item.id, 200) || !item.id || subjectIds.has(item.id) || !isText(item.name, 300) || !item.name.trim()) fail('μαθήματα');
+      subjectIds.add(item.id);
+      if (item.color != null && item.color !== '' && !/^#[0-9a-f]{6}$/i.test(String(item.color))) fail('χρώμα μαθήματος');
+      if (item.hidden != null && typeof item.hidden !== 'boolean') fail('μαθήματα');
+    }
+    if (!Array.isArray(unions) || unions.length > CATALOG_LIMITS.unions) fail('Συνενώσεις');
+    const unionIds = new Set();
+    for (const union of unions) {
+      if (!isObject(union) || !isText(union.id, 200) || !union.id || unionIds.has(union.id) || !isText(union.name, 300) || !union.name.trim()) fail('Συνενώσεις');
+      unionIds.add(union.id);
+      if (union.grades != null && !grades(union.grades)) fail('Συνενώσεις');
+      if (union.classIds != null && !ids(union.classIds)) fail('Συνενώσεις');
+    }
+    if (catalog.hidden != null && !(isObject(catalog.hidden) && (catalog.hidden.grades == null || grades(catalog.hidden.grades)) && (catalog.hidden.classes == null || ids(catalog.hidden.classes)))) fail('hidden');
+    return {subjectIds, unionIds};
+  }
+
   // ---- Τελευταία επιλογή (lastViewByYear) ----
   // Η εφαρμογή-κάτοχος ενός είδους θυμάται τι έδειχνε τελευταία (περίοδο ή προσχέδιο), ώστε να ανοίγει εκεί.
-  // Στο .data: lastViewByYear[year][είδος] = 'period:<id>' | 'draft:<id>'. Δεν μετρά ως αλλαγή δεδομένων:
+  // Στο .data: lastViewByYear[year][είδος] = 'period:<id>' | 'draft:<id>' (στα Ατομικά Προγράμματα και ο εκπαιδευτικός:
+  // 'period:<id>|staff:<id>', που το δέχεται το ίδιο μοτίβο). Δεν μετρά ως αλλαγή δεδομένων:
   // το index το γράφει στο αρχείο με την επόμενη αποθήκευση ή όταν η εφαρμογή κλείνει (school-timetables:view).
   const VIEW_PATTERN = /^(period|draft):[^\s]{1,200}$/;
   function viewKey(app) {
@@ -127,6 +175,8 @@
       periods: timetables.periods,
       programs: timetables.programs.filter(program => known(program?.kind) && (program.periodId != null || drafts.has(program.kind))),
       draftCounts,
+      // The catalog of the Ατομικά Προγράμματα (subjects and Συνενώσεις of the year), for every application.
+      individualCatalog: individualCatalog(data, year),
       // For the warnings near the limits: every program of the year (also drafts and unknown kinds).
       programCount: timetables.programs.length,
       // The last design or period this application showed ('' when there is none).
@@ -232,15 +282,41 @@
     }
   };
 
-  // Πλήρης έλεγχος ενός προγράμματος. options: {staffIds:Set, periodIds:Set, classIds:Set} (classIds: τα id των
-  // Τμημάτων του έτους, μαζί με τα νέα της ίδιας αποθήκευσης).
-  function validateProgram(program, {staffIds, periodIds, classIds}) {
+  SOURCE_VALIDATORS.individual = function (source, ctx) {
+    const fail = what => { throw Error('τα στοιχεία των Ατομικών Προγραμμάτων δεν είναι έγκυρα (' + what + ').'); };
+    const classIds = ctx.classIds, unionIds = ctx.unionIds, staffIds = ctx.staffIds;
+    const chip = item => isObject(item) && (item.type === 'grade' ? GRADES.includes(item.grade)
+      : item.type === 'class' ? isText(item.id, 200) && !!item.id && (!classIds || classIds.has(item.id))
+      : item.type === 'union' && isText(item.id, 200) && !!item.id && (!unionIds || unionIds.has(item.id)));
+    const chips = value => Array.isArray(value) && value.length <= 50 && value.every(chip);
+    if (source.version !== 1) fail('version');
+    if (source.placements != null) {
+      if (!isObject(source.placements)) fail('placements');
+      for (const place of Object.values(source.placements)) {
+        if (!isObject(place) || (place.subjectId != null && !isText(place.subjectId, 200)) || (place.chips != null && !chips(place.chips))) fail('placements');
+      }
+    }
+    if (source.pending != null) {
+      if (!Array.isArray(source.pending) || source.pending.length > LIMITS.activities) fail('pending');
+      for (const item of source.pending) {
+        if (!isObject(item) || !isText(item.staffId, 1000) || (staffIds && !staffIds.has(item.staffId)) || !integer(item.day, 1, 7) || !validTime(item.start) || !validTime(item.end) || item.start >= item.end || !chips(item.chips)) fail('pending');
+      }
+    }
+  };
+
+  // Πλήρης έλεγχος ενός προγράμματος. options: {staffIds:Set, periodIds:Set, classIds:Set, unionIds:Set} (classIds: τα
+  // id των Τμημάτων του έτους, μαζί με τα νέα της ίδιας αποθήκευσης· unionIds: οι Συνενώσεις του καταλόγου των
+  // Ατομικών Προγραμμάτων, για το source τους).
+  // Ατομικά Προγράμματα (individual): πάντα σε περίοδο (χωρίς προσχέδια), ένας εκπαιδευτικός ανά δραστηριότητα,
+  // και subjectFromClasses (με κενό subject) μόνο εδώ.
+  function validateProgram(program, {staffIds, periodIds, classIds, unionIds}) {
     if (!isObject(program) || !isText(program.id, 200) || !program.id.trim()) throw Error('Ένα πρόγραμμα δεν έχει έγκυρη ταυτότητα.');
     const label = 'Το πρόγραμμα ' + programName(program);
     if (program.formatVersion !== 2) throw Error(label + ' έχει ' + (program.formatVersion === 1 ? 'την παλιά μορφή τμημάτων' : 'άγνωστη μορφή') + '. Βεβαιώσου ότι το index.html και η εφαρμογή του προγράμματος είναι η τελευταία έκδοση.');
     if (!known(program.kind)) throw Error('Ένα πρόγραμμα έχει άγνωστο είδος ' + quoted(String(program.kind)) + '.');
     if (program.periodId != null && (!isText(program.periodId, 200) || !periodIds.has(program.periodId))) throw Error(label + ' ανήκει σε περίοδο που δεν υπάρχει.');
     if (program.name != null && !isText(program.name, 300)) throw Error(label + ' έχει μη έγκυρο όνομα.');
+    if (program.kind === 'individual' && program.periodId == null) throw Error('Τα Ατομικά Προγράμματα δεν έχουν προσχέδια: ανήκουν πάντα σε περίοδο. Βεβαιώσου ότι η εφαρμογή είναι η τελευταία έκδοση.');
     if (program.periodId == null && !String(program.name || '').trim()) throw Error('Ένα προσχέδιο (' + kindLabel(program.kind) + ') χρειάζεται όνομα.');
     for (const key of ['createdAt', 'updatedAt']) if (program[key] != null && !isText(program[key], 100)) throw Error(label + ' έχει μη έγκυρη ημερομηνία.');
     if (!Array.isArray(program.activities)) throw Error(label + ' δεν έχει έγκυρη λίστα δραστηριοτήτων.');
@@ -256,6 +332,11 @@
       if (unknown != null) throw Error(where + ': εκπαιδευτικός που δεν υπάρχει στο Προσωπικό του σχολικού έτους.');
       for (const key of ['unmatched', 'classes', 'subsets', 'otherStudents']) if (activity[key] != null && !textList(activity[key])) throw Error(where + ': μη έγκυρη λίστα (' + key + ').');
       if (classIds && (activity.classes || []).some(id => !classIds.has(id))) throw Error(where + ': τμήμα που δεν υπάρχει στα «Τμήματα» του σχολικού έτους.');
+      if (activity.subjectFromClasses != null) {
+        if (program.kind !== 'individual' || typeof activity.subjectFromClasses !== 'boolean') throw Error(where + ': το «μάθημα της τάξης» (subjectFromClasses) υπάρχει μόνο στα Ατομικά Προγράμματα.');
+        if (activity.subjectFromClasses && String(activity.subject ?? '') !== '') throw Error(where + ': δραστηριότητα με «μάθημα της τάξης» δεν έχει δικό της μάθημα.');
+      }
+      if (program.kind === 'individual' && (activity.staff.length !== 1 || (activity.unmatched || []).length)) throw Error(where + ': κάθε δραστηριότητα των Ατομικών Προγραμμάτων έχει ακριβώς έναν εκπαιδευτικό του Προσωπικού.');
       if (activity.room != null && !isText(activity.room)) throw Error(where + ': μη έγκυρη αίθουσα.');
       if (!Array.isArray(activity.times) || activity.times.length > LIMITS.times) throw Error(where + ': μη έγκυρες ώρες.');
       for (const time of activity.times) {
@@ -268,7 +349,7 @@
       if (!isObject(program.source)) throw Error(label + ': μη έγκυρα στοιχεία πηγής.');
       const validator = SOURCE_VALIDATORS[program.source.type];
       if (validator) {
-        try { validator(program.source, {classIds}); } catch (error) { throw Error(label + ': ' + error.message); }
+        try { validator(program.source, {classIds, unionIds, staffIds}); } catch (error) { throw Error(label + ': ' + error.message); }
       }
     }
     if (program.history != null) validateHistory(program.history, label);
@@ -302,7 +383,13 @@
     const addsClasses = Array.isArray(message.newClasses) && message.newClasses.length > 0;
     if (message.newClasses != null) checkJson(message.newClasses, 'Τα νέα τμήματα');
     if (addsClasses && !ops.length) throw Error('Τα νέα τμήματα μιας εισαγωγής αποθηκεύονται μόνο μαζί με το πρόγραμμά τους.');
-    if (!ops.length && !changesPeriods) throw Error('Δεν υπάρχουν αλλαγές για αποθήκευση.');
+    const changesCatalog = message.individualCatalog !== undefined;
+    if (changesCatalog) {
+      if (!T.kinds.individual?.owner || app !== T.kinds.individual.owner) throw Error('Ο κατάλογος των Ατομικών Προγραμμάτων αλλάζει μόνο από την εφαρμογή «' + (T.kinds.individual?.ownerTitle || 'Ατομικά Προγράμματα') + '».');
+      checkJson(message.individualCatalog, 'Ο κατάλογος των Ατομικών Προγραμμάτων');
+      validateCatalog(message.individualCatalog);
+    }
+    if (!ops.length && !changesPeriods && !changesCatalog) throw Error('Δεν υπάρχουν αλλαγές για αποθήκευση.');
     if (!rights.kinds.length && !rights.assign.length) throw Error('Η εφαρμογή δεν έχει δικαίωμα να αλλάξει προγράμματα.');
 
     const candidate = clone(data), current = yearData(candidate, year);
@@ -416,13 +503,17 @@
     // Πλήρης έλεγχος μόνο στα προγράμματα που αλλάζουν.
     const staffIds = new Set(staffOf(candidate, year).map(person => person.id));
     const classIds = new Set(classesOf(candidate, year).map(item => item.id));
-    for (const program of puts) validateProgram(program, {staffIds, periodIds, classIds});
+    const catalog = changesCatalog ? clone(message.individualCatalog) : individualCatalog(candidate, year);
+    const unionIds = new Set(catalog.unions.filter(isObject).map(union => union.id));
+    // A new catalog is checked against every program of the Ατομικά Προγράμματα (a removed Συνένωση may be in use).
+    const checked = changesCatalog ? [...new Set([...puts, ...[...result.values()].filter(program => program?.kind === 'individual')])] : puts;
+    for (const program of checked) validateProgram(program, {staffIds, periodIds, classIds, unionIds});
 
     // Η σειρά των προγραμμάτων μένει ίδια· τα νέα μπαίνουν στο τέλος.
     const programs = [...current.programs.filter(program => !isObject(program) || typeof program.id !== 'string' || result.has(program.id)).map(program => isObject(program) && typeof program.id === 'string' ? result.get(program.id) : program),
       ...[...result.values()].filter(program => !before.has(program.id))];
     if (!isObject(candidate.timetablesByYear)) candidate.timetablesByYear = {};
-    candidate.timetablesByYear[year] = {...current, periods, programs};
+    candidate.timetablesByYear[year] = {...current, periods, programs, ...(changesCatalog ? {individualCatalog: catalog} : {})};
     return candidate;
   }
 
@@ -446,6 +537,8 @@
   //   before / after: το Προσωπικό του έτους πριν και μετά· removals: [{id, mode:'unmatch'|'remove'}].
   //   unmatch: το id φεύγει από το staff και στο unmatched μπαίνει το shortName του.
   //   remove: το id φεύγει, και σβήνονται οι δραστηριότητες που έμειναν χωρίς ανθρώπους από αυτή τη διαγραφή.
+  //   Ατομικά Προγράμματα (individual): οι δραστηριότητες και τα ελλιπή κελιά του εκπαιδευτικού σβήνονται πάντα, και
+  //   με unmatch, γιατί ένα ατομικό πρόγραμμα είναι πάντα το πρόγραμμα ενός εκπαιδευτικού του Προσωπικού.
   //   Ισχύει για όλα τα προγράμματα του έτους, και για τα προσχέδια. Τα source.teachers (FET, Ολοήμερο
   //   Designer) δεν δείχνουν πια τον εκπαιδευτικό. Διαγραμμένος εκπαιδευτικός που εμφανίζεται σε
   //   προγράμματα χωρίς mode: πετά λάθος.
@@ -467,6 +560,20 @@
     for (const program of data.timetablesByYear[year].programs || []) {
       if (!Array.isArray(program?.activities)) continue;
       let changed = false;
+      if (program.kind === 'individual') {
+        program.activities = program.activities.filter(activity => {
+          if (!Array.isArray(activity?.staff) || !activity.staff.some(id => removedIds.has(id))) return true;
+          changed = true; summary.activities++; summary.removedActivities++;
+          if (isObject(program.source?.placements)) delete program.source.placements[activity.id];
+          return false;
+        });
+        if (Array.isArray(program.source?.pending)) {
+          const kept = program.source.pending.filter(item => !removedIds.has(item?.staffId));
+          if (kept.length !== program.source.pending.length) { program.source.pending = kept; changed = true; }
+        }
+        if (changed) { program.updatedAt = at; summary.programs++; }
+        continue;
+      }
       if (targets.size) program.activities = program.activities.filter(activity => {
         if (!Array.isArray(activity?.staff) || !activity.staff.some(id => targets.has(id))) return true;
         changed = true; summary.activities++;
@@ -707,7 +814,7 @@
   }
 
   window.SchoolHostTimetables = Object.freeze({
-    PROGRAMS_APP, LIMITS, WARN_RATIO, permissions, yearData, context,
+    PROGRAMS_APP, LIMITS, WARN_RATIO, CATALOG_LIMITS, permissions, yearData, individualCatalog, validateCatalog, context,
     validatePeriods, validateProgram, applySave, viewKey, lastView, withView,
     staffUsage, applyStaffRemovals, importFile, oloimeroFile, droppedImportFile, rememberedFile, install
   });

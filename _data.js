@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων
- * Έκδοση αρχείου: 0.40
+ * Έκδοση αρχείου: 0.41
  * Όνομα κατά την εγκατάσταση: _data.js
  *
  * Φορτώνεται από όσες υποεφαρμογές διαβάζουν ή γράφουν CSV, FET, ημερομηνίες ή προγράμματα, μετά
@@ -265,7 +265,7 @@
   const KINDS = Object.freeze({
     school: Object.freeze({label: 'Ωρολόγιο', owner: 'fet_timetable_editor.html', ownerTitle: 'FET Timetable Editor', counts: true, importers: Object.freeze([fetImporter()])}),
     oloimero: Object.freeze({label: 'Ολοήμερο', owner: 'oloimero_designer.html', ownerTitle: 'Ολοήμερο Designer', counts: false, importers: Object.freeze([oloimeroImporter()])}),
-    individual: Object.freeze({label: 'Ατομικά Προγράμματα', owner: null, ownerTitle: '', counts: true, importers: Object.freeze([])})
+    individual: Object.freeze({label: 'Ατομικά Προγράμματα', owner: 'individual_programs.html', ownerTitle: 'Ατομικά Προγράμματα', counts: true, importers: Object.freeze([])})
   });
   const countsInHours = kind => !!KINDS[kind]?.counts;
   // Οι εισαγωγείς ενός είδους, και ένας συγκεκριμένος εισαγωγέας (ή null).
@@ -829,8 +829,9 @@
   // Αντίγραφο προγράμματος με αντικαταστάσεις εκπαιδευτικών [{from:id, to:id}] (Α → Β).
   //   options.staff: το Προσωπικό, για τα ονόματα της σημείωσης. Ένα πρόγραμμα από FET που άλλαξε
   //   σημειώνεται «τροποποιήθηκε μετά την εισαγωγή» (source.modifiedAfterImport), μαζί με τις αντικαταστάσεις.
-  //   Σε σχέδιο του Ολοήμερου Designer αλλάζουν και οι επιλεγμένοι εκπαιδευτικοί του source.
-  // → {program, changed}: changed = πόσες δραστηριότητες άλλαξαν.
+  //   Σε σχέδιο του Ολοήμερου Designer αλλάζουν και οι επιλεγμένοι εκπαιδευτικοί του source, και στα Ατομικά
+  //   Προγράμματα τα ελλιπή κελιά (source.pending).
+  // → {program, changed}: changed = πόσες δραστηριότητες (και ελλιπή κελιά) άλλαξαν.
   function replaceStaff(program, replacements, options = {}) {
     const result = clone(program), map = new Map((replacements || []).filter(item => item.from && item.to && item.from !== item.to).map(item => [item.from, item.to]));
     // The history is fixed from the source before the source changes (see ensureHistory).
@@ -842,6 +843,10 @@
       activity.staff.forEach(id => { if (map.has(id)) used.add(id); });
       activity.staff = unique(activity.staff.map(id => map.get(id) || id));
       changed++;
+    }
+    // The incomplete cells of the Ατομικά Προγράμματα belong to one teacher each.
+    if (result.source?.type === 'individual' && Array.isArray(result.source.pending)) {
+      for (const item of result.source.pending) if (map.has(item?.staffId)) { used.add(item.staffId); item.staffId = map.get(item.staffId); changed++; }
     }
     if (changed) {
       const person = id => (options.staff || []).find(item => item.id === id);

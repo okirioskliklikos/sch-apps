@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Τμήματα στο Κεντρικό Μενού (host)
- * Έκδοση αρχείου: 0.07
+ * Έκδοση αρχείου: 0.08
  * Όνομα κατά την εγκατάσταση: _host_classes.js
  *
  * Κώδικας μόνο του host για τα Τμήματα (classesByYear). Το φορτώνει το index.html μετά το _data.js και πριν
@@ -85,11 +85,17 @@
   }
 
   // Τα id τμημάτων που αναφέρει το source ενός σχεδίου του Ολοήμερου Designer: κελιά (θέσεις και ελλιπή κελιά)
-  // και Συνενώσεις. Το hidden δεν μετρά.
+  // και Συνενώσεις. Το hidden δεν μετρά. Στα Ατομικά Προγράμματα (individual): τα chips των κελιών και των ελλιπών
+  // κελιών (οι Συνενώσεις τους είναι στον κατάλογο του έτους και δεν εμποδίζουν την αφαίρεση ενός τμήματος).
   function designClassIds(source) {
     const ids = new Set();
-    if (source?.type !== 'oloimero-designer') return ids;
     const cells = list => { for (const item of Array.isArray(list) ? list : []) if (item?.type === 'class' && typeof item.id === 'string') ids.add(item.id); };
+    if (source?.type === 'individual') {
+      for (const place of Object.values(isObject(source.placements) ? source.placements : {})) cells(place?.chips);
+      for (const item of Array.isArray(source.pending) ? source.pending : []) cells(item?.chips);
+      return ids;
+    }
+    if (source?.type !== 'oloimero-designer') return ids;
     for (const place of Object.values(isObject(source.placements) ? source.placements : {})) cells(place?.students);
     for (const item of Array.isArray(source.pending) ? source.pending : []) cells(item?.students);
     for (const union of Array.isArray(source.unions) ? source.unions : []) {
@@ -99,7 +105,7 @@
     return ids;
   }
   // Σε ποια προγράμματα (και προσχέδια) του έτους εμφανίζεται κάθε τμήμα: τα classes των δραστηριοτήτων και, στα
-  // σχέδια του Ολοήμερου Designer, τα κελιά και οι Συνενώσεις.
+  // σχέδια του Ολοήμερου Designer, τα κελιά και οι Συνενώσεις, και στα Ατομικά Προγράμματα τα chips των κελιών.
   // → {[id τμήματος]: [{programId, kind, kindLabel, name, periodId, periodName, activities}]}· activities: πόσες
   //   δραστηριότητες έχουν το τμήμα (0 όταν το αναφέρει μόνο το σχέδιο, π.χ. μια Συνένωση που δεν μπήκε σε κελί).
   function classUsage(data, year) {
