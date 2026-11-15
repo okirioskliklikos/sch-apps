@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων
- * Έκδοση αρχείου: 0.38
+ * Έκδοση αρχείου: 0.39
  * Όνομα κατά την εγκατάσταση: _data.js
  *
  * Φορτώνεται από όσες υποεφαρμογές διαβάζουν ή γράφουν CSV, FET, ημερομηνίες ή προγράμματα, μετά
@@ -19,7 +19,8 @@
  *                           αντικαταστάσεις, Εισαγωγή Ολοημέρου στο ωρολόγιο, εισαγωγείς ανά είδος
  *                           (από FET και από το CSV του Ολοήμερου Designer), εξαγωγή CSV του Ολοημέρου
  *                           για το FET, μαθητές των κελιών του Ολοημέρου από ονόματα, δάσκαλοι και σειρά του Προσωπικού, κανονική γραφή τμημάτων,
- *                           απασχόληση εκπαιδευτικών σε ημερομηνία και ώρα (συνεδριάσεις), Ιστορικό προγράμματος
+ *                           απασχόληση εκπαιδευτικών σε ημερομηνία και ώρα (συνεδριάσεις), Ιστορικό προγράμματος,
+ *                           μάθημα δραστηριότητας (και «μάθημα της τάξης» των Ατομικών Προγραμμάτων)
  *   window.SchoolHtml       κείμενο με μορφοποίηση (HTML του schoolRichText): καθαρισμός, έλεγχος κενού
  *   window.SchoolStudents   μαθητές (studentsByYear): ανάγνωση του CSV μαθητών του myschool, ίδιος μαθητής,
  *                           τάξη και επόμενο τμήμα, κατάσταση ΑΔΥΜ, ταξινόμηση
@@ -654,6 +655,45 @@
     return [...pieces, ...others, ...(missing ? ['?'] : []), ...shownSubsets, ...other].join(', ');
   }
 
+  // ---- Μάθημα δραστηριότητας ----
+  // Το μάθημα που δείχνουν όλες οι εφαρμογές για μια δραστηριότητα. Χωρίς subjectFromClasses: το subject όπως
+  // είναι. Με subjectFromClasses:true (μόνο στο είδος individual, «μάθημα της τάξης»): το μάθημα που κάνουν την
+  // ίδια ώρα τα τμήματα της δραστηριότητας στο Ωρολόγιο (kind 'school') των ctx.programs (ο καλών δίνει τα
+  // προγράμματα της ίδιας περιόδου· τα άλλα είδη αγνοούνται). Υπολογίζεται κατά την ανάγνωση, ώστε να μένει
+  // σωστό όταν αλλάξει το Ωρολόγιο, και δεν αποθηκεύεται.
+  //   ctx: {programs, classes}. → {text, groups:[{subjects:[…], classIds:[…]}], missing:[classId…]}
+  //   Τα τμήματα με τα ίδια μαθήματα γίνονται μία ομάδα. Μία ομάδα → «Γλώσσα»· περισσότερες →
+  //   «Γλώσσα (Β1, Β2), Μαθηματικά (Γ1)». Τμήμα με δύο μαθήματα την ίδια ώρα (π.χ. υποσύνολα) → «Αγγλικά / Γαλλικά».
+  //   Τμήμα χωρίς μάθημα εκείνη την ώρα: μόνο στο missing· κανένα μάθημα → κενό κείμενο.
+  function activitySubjectDetails(activity, ctx = {}) {
+    if (!activity?.subjectFromClasses) return {text: String(activity?.subject ?? '').trim(), groups: [], missing: []};
+    const times = (activity.times || []).filter(isObject);
+    const school = (Array.isArray(ctx.programs) ? ctx.programs : [ctx.programs]).filter(program => program?.kind === 'school');
+    const byId = classesById(ctx.classes || []);
+    const ids = unique((activity.classes || []).filter(Boolean));
+    const order = new Map(sortClasses(ids.map(id => byId.get(id)).filter(Boolean)).map((record, index) => [record.id, index]));
+    ids.sort((a, b) => (order.has(a) ? order.get(a) : Infinity) - (order.has(b) ? order.get(b) : Infinity));
+    const groups = new Map(), missing = [];
+    for (const id of ids) {
+      const subjects = [];
+      for (const program of school) for (const other of program.activities || []) {
+        if (!(other.classes || []).includes(id) || !(other.times || []).some(time => times.some(own => timesOverlap(own, time)))) continue;
+        const name = String(other.subject ?? '').trim();
+        if (name) subjects.push(name);
+      }
+      if (!subjects.length) { missing.push(id); continue; }
+      const sorted = unique(subjects).sort((a, b) => classCollator.compare(a, b)), key = JSON.stringify(sorted);
+      if (!groups.has(key)) groups.set(key, {subjects: sorted, classIds: []});
+      groups.get(key).classIds.push(id);
+    }
+    const list = [...groups.values()];
+    const subjectText = group => group.subjects.join(' / ');
+    const text = list.length === 1 ? subjectText(list[0])
+      : list.map(group => `${subjectText(group)} (${group.classIds.map(id => byId.has(id) ? String(byId.get(id).name ?? '') : '?').join(', ')})`).join(', ');
+    return {text, groups: list, missing};
+  }
+  const activitySubject = (activity, ctx = {}) => activitySubjectDetails(activity, ctx).text;
+
   // ---- Υπεύθυνος τμήματος μέσα σε πρόγραμμα ----
   //   classId: το id του τμήματος· ctx: {classes, staff}.
   // → {id} για εκπαιδευτικό του Προσωπικού, {name} για όνομα χωρίς αντιστοίχιση, ή null.
@@ -827,12 +867,15 @@
   }
 
   // ---- Ιστορικό προγράμματος (program.history) ----
-  // The events that created or changed a program of the Ωρολόγιο (kind 'school'), newest first, at most
+  // The events that created or changed a program of the Ωρολόγιο (kind 'school') or of the Ατομικά Προγράμματα
+  // (kind 'individual'), newest first, at most
   // HISTORY_LIMIT. Only for information: nothing is undone from it. An entry is {at (ISO date and time), type, …}:
   //   'import'    {importer, files:[name…], activities}            import from files
-  //   'copy'      {fromPeriod, replacements:[{fromName, toName}]}  copy from another period
+  //   'copy'      {fromPeriod, replacements:[{fromName, toName}]}  copy from another period (individual:
+  //               {fromPeriod, staff:[name…]}, the teachers that were copied)
   //   'oloimero'  {design, kept, removed, added, assigned}          Εισαγωγή Ολοημέρου (also with no change)
-  //   'edit'      {activities}                                      manual changes, one entry per save
+  //   'edit'      {activities}                                      manual changes, one entry per save (individual:
+  //               {staff:[name…]}, the teachers whose program changed)
   // Names are written as they were at the time of the event. history:[] (after «Καθαρισμός Ιστορικού») stays
   // empty; a program without the key gets an initial history from what its source already has.
   const HISTORY_LIMIT = 20;
@@ -1095,6 +1138,8 @@
   //   items: [{type:'grade', grade} | {type:'class', id} | {type:'union', id}]· lists: {unions} (του source)·
   //   classes: τα Τμήματα του έτους (ή SchoolClasses.resolver). Μια τάξη αναπτύσσεται στα τμήματα που υπάρχουν·
   //   τάξη χωρίς τμήματα → το όνομά της στο otherStudents.
+  // Δέχεται κάθε τμήμα (και όσα δεν είναι Γενικής Παιδείας, π.χ. Τμήμα Ένταξης)· τον περιορισμό σε τμήματα Γενικής
+  // Παιδείας τον κάνει ο Ολοήμερος Designer. Τη χρησιμοποιούν και τα Ατομικά Προγράμματα (chips των κελιών).
   function oloimeroStudents(items, lists, classes) {
     const resolver = classResolver(classes), byId = classesById(resolver.classes);
     const unions = new Map((lists?.unions || []).filter(isObject).map(item => [item.id, item]));
@@ -2727,7 +2772,7 @@
     STAY_MINUTES, EARLY_ARRIVAL_MINUTES,
     parseTimeRange, hourTimes, timedHours, hourGroups,
     periodEnd, periodAt, programAt, programsAt, periodWarnings,
-    classSpelling, studentsIndex, expandStudents, studentsFromNames, studentsText, homeroomTeacher, isGeneralTeacher, sortStaff, sortStaffAlphabetically,
+    classSpelling, studentsIndex, expandStudents, studentsFromNames, studentsText, activitySubject, activitySubjectDetails, homeroomTeacher, isGeneralTeacher, sortStaff, sortStaffAlphabetically,
     conflicts, studentsClash, staffHours, unavailableTimes, availability, staffBusyAt, replaceStaff,
     HISTORY_LIMIT, history: programHistory, ensureHistory, addHistory,
     analyzeOloimeroReplace, applyOloimeroReplace,

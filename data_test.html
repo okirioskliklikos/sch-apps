@@ -12,7 +12,7 @@
   φτιάχνονται από το σύντομο όνομα των δασκάλων («[Α1] - …», classesFromStaff). Με το .data δοκιμής, οι
   έλεγχοι των νέων ετικετών (v2) παίρνουν το Προσωπικό από αυτό, γιατί το CSV του Ολοημέρου έχει τα σύντομα
   ονόματα του Προσωπικού.
-  Έκδοση αρχείου: 0.50
+  Έκδοση αρχείου: 0.51
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -328,6 +328,47 @@ function classesChecks() {
   equal('Μετά από μετονομασία «Ε1» → «Ε-1»: το «Ε1-Γαλ» βρίσκει το τμήμα με το κλειδί', names('Ε1-Γαλ', renamedClasses(CLASS_LIST)), {classes: ['Ε-1'], subsets: ['Ε1-Γαλ'], otherStudents: []});
   equal('«Υποδοχή» → otherStudents', names('Υποδοχή'), {classes: [], subsets: [], otherStudents: ['Υποδοχή']});
   equal('Τάξη χωρίς τμήματα («Β\'» χωρίς Β1, Β2) → otherStudents', names("Β'+Α1", noB), {classes: ['Α1'], subsets: [], otherStudents: ["Β'"]});
+}
+
+// Μάθημα δραστηριότητας (activitySubject) και «μάθημα της τάξης» των Ατομικών Προγραμμάτων.
+function activitySubjectChecks() {
+  start('Μάθημα δραστηριότητας (activitySubject)');
+  const T = SchoolTimetable, classes = [...CLASS_LIST, ENTAXI];
+  const at = (day, start, end) => ({day, start, end});
+  const act = (subject, names, time, extra = {}) => ({id: subject + names.join(''), subject, staff: [], classes: names.map(cid), times: [time], ...extra});
+  const school = {kind: 'school', activities: [
+    act('Γλώσσα', ['Β1'], at(1, '08:15', '09:00')), act('Γλώσσα', ['Β2'], at(1, '08:15', '09:00')),
+    act('Μαθηματικά', ['Γ1'], at(1, '08:15', '09:00')),
+    act('Αγγλικά', ['Δ1'], at(1, '08:15', '09:00'), {subsets: ['Δ1-Αγγ']}), act('Γαλλικά', ['Δ1'], at(1, '08:15', '09:00'), {subsets: ['Δ1-Γαλ']}),
+    act('Ιστορία', ['Ε1'], at(1, '08:15', '09:00')), act('Φυσική', ['Ε1'], at(1, '09:00', '09:45')),
+    act('Μουσική', ['Α1', 'Α2'], at(2, '10:00', '10:45'))
+  ]};
+  const others = [
+    {kind: 'oloimero', activities: [act('Ολοήμερο μάθημα', ['Στ1'], at(1, '08:15', '09:00'))]},
+    {kind: 'individual', activities: [act('Τμήμα Ένταξης', ['Στ1'], at(1, '08:15', '09:00'))]}
+  ];
+  const programs = [school, ...others];
+  const own = (names, time = at(1, '08:15', '09:00')) => ({id: 'x', subject: '', subjectFromClasses: true, staff: ['p'], classes: names.map(cid), times: [time]});
+  const subject = (activity, list = programs) => T.activitySubject(activity, {programs: list, classes});
+  equal('Χωρίς subjectFromClasses: το subject όπως είναι (και χωρίς programs)', [T.activitySubject({subject: ' Διοικητικό Έργο '}), T.activitySubject({subject: 'Γλώσσα', classes: [cid('Γ1')], times: [at(1, '08:15', '09:00')]}, {programs, classes})], ['Διοικητικό Έργο', 'Γλώσσα']);
+  equal('Ένα τμήμα → το μάθημά του: «Γλώσσα»', subject(own(['Β1'])), 'Γλώσσα');
+  equal('Δύο τμήματα με ίδιο μάθημα → ένα όνομα: «Γλώσσα»', subject(own(['Β2', 'Β1'])), 'Γλώσσα');
+  equal('Διαφορετικά μαθήματα → «Γλώσσα (Β1, Β2), Μαθηματικά (Γ1)», με τη σειρά των Τμημάτων', subject(own(['Γ1', 'Β2', 'Β1'])), 'Γλώσσα (Β1, Β2), Μαθηματικά (Γ1)');
+  equal('Τάξη (Α1, Α2) με ίδιο μάθημα → «Μουσική»', subject(own(['Α1', 'Α2'], at(2, '10:00', '10:45'))), 'Μουσική');
+  equal('Τμήμα με δύο μαθήματα την ίδια ώρα (υποσύνολα) → «Αγγλικά / Γαλλικά»', subject(own(['Δ1'])), 'Αγγλικά / Γαλλικά');
+  equal('Μαζί με άλλο τμήμα → «Γλώσσα (Β1), Αγγλικά / Γαλλικά (Δ1)»', subject(own(['Δ1', 'Β1'])), 'Γλώσσα (Β1), Αγγλικά / Γαλλικά (Δ1)');
+  equal('Μερική επικάλυψη ωρών μετρά: 08:30–09:30 → «Ιστορία / Φυσική»', subject(own(['Ε1'], at(1, '08:30', '09:30'))), 'Ιστορία / Φυσική');
+  equal('Συνεχόμενες ώρες δεν επικαλύπτονται: 09:00–09:45 → «Φυσική»', subject(own(['Ε1'], at(1, '09:00', '09:45'))), 'Φυσική');
+  const details = T.activitySubjectDetails(own(['Β1', 'Α1']), {programs, classes});
+  equal('Τμήμα χωρίς μάθημα εκείνη την ώρα: λείπει από το κείμενο, στο missing', [details.text, details.missing, details.groups], ['Γλώσσα', [cid('Α1')], [{subjects: ['Γλώσσα'], classIds: [cid('Β1')]}]]);
+  equal('Κανένα μάθημα → κενό κείμενο', [subject(own(['Α1'])), T.activitySubjectDetails(own(['Α1']), {programs, classes}).missing], ['', [cid('Α1')]]);
+  equal('Μόνο το Ωρολόγιο: Ολοήμερο και άλλα ατομικά αγνοούνται (Στ1 → κενό)', subject(own(['Στ1'])), '');
+  equal('Χωρίς Ωρολόγιο στα programs → κενό', subject(own(['Β1']), others), '');
+  equal('Δέχεται και ένα μόνο πρόγραμμα (όχι πίνακα)', T.activitySubject(own(['Β1']), {programs: school, classes}), 'Γλώσσα');
+  equal('Τμήμα που δεν είναι στα Τμήματα, σε δεύτερη ομάδα → «?»', T.activitySubject({...own(['Β1']), classes: [cid('Β1'), cid('Γ1')]}, {programs, classes: classes.filter(item => item.id !== cid('Γ1'))}), 'Γλώσσα (Β1), Μαθηματικά (?)');
+  start('Μαθητές των chips (oloimeroStudents) στα Ατομικά Προγράμματα');
+  const chips = T.oloimeroStudents([{type: 'class', id: ENTAXI.id}, {type: 'class', id: cid('Β1')}, {type: 'union', id: 'u'}], {unions: [{id: 'u', name: 'Γ1+Δ1', grades: [], classIds: [cid('Γ1'), cid('Δ1')]}]}, classes);
+  equal('Δέχεται τμήμα που δεν είναι Γενικής Παιδείας (Τμήμα Ένταξης) και Συνένωση χωρίς subsets / otherStudents', [namesOf(chips.classes, classes).sort(), chips.subsets, chips.otherStudents], [['Β1', 'Γ1', 'Δ1', 'Τμήμα Ένταξης'].sort(), [], []]);
 }
 
 // Εμφάνιση μαθητών (studentsText).
@@ -2040,6 +2081,7 @@ function run() {
   } else { start('2. Νέες ετικέτες (v2)'); skip('Εισαγωγή από FET και Εισαγωγή Ολοημέρου', 'Λείπουν αρχεία: ' + [FILES.v2Fet, FILES.v2Csv].join(', ')); }
 
   attempt('Εμφάνιση μαθητών', () => studentsTextChecks(v2Program, v2Classes));
+  attempt('Μάθημα δραστηριότητας', activitySubjectChecks);
 
   attempt('Εισαγωγή Ολοημέρου στο ωρολόγιο', oloimeroReplaceChecks);
   attempt('Ιστορικό προγράμματος', historyChecks);
