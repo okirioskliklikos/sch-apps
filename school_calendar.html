@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Σχολικό Ημερολόγιο v1.26</title>
+<title>Σχολικό Ημερολόγιο v1.27</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -14,9 +14,11 @@
 :root{
   --app-mark-bg:var(--school-app-calendar);--scale:1;
   --cal-line:#c7cdd2;--cal-weekday-bg:#f0f2f4;--cal-other-month:#f4f5f5;--cal-invalid:#f4f6f8;
-  --cal-personal:#e5f3e3;--cal-school:#fff3bd;--cal-book-panel:#fffef8;--cal-both-line:#73816f;
+  --cal-personal:#e5f3e3;--cal-personal-ink:#2f6a2a;--cal-personal-line:#b9dbb4;--cal-personal-dot:#5fa557;
+  --cal-school:#fff3bd;--cal-school-ink:#7a5a00;--cal-school-line:#ecd77a;--cal-school-dot:#e3b318;--cal-book-panel:#fffef8;
+  --cal-behavior:#ece9fb;--cal-behavior-ink:#4a3fa8;--cal-behavior-line:#c9c2f0;--cal-behavior-dot:#6b5fd6;
   --cal-hover:#91b6e7;--cal-selected:#4a86d1;
-  --cal-ssd:#c62828;--cal-ped:#111111;--cal-meeting-ink:#25313a;
+  --cal-ssd:#c62828;--cal-ssd-bg:#fde8e8;--cal-ssd-line:#f3b9b9;--cal-ped:#111111;--cal-ped-bg:#ececec;--cal-ped-line:#c8c8c8;
   --cal-director:#c32222;
   --cal-list-bg:#fafbfc;--cal-list-border:#d8dde1;--cal-panel-border:#cbd2d8;--cal-drop:#3479c5;--cal-drop-bg:#eef5ff;
   --cal-group-line:#aeb6bd;--cal-status-ok:#27733e;
@@ -44,23 +46,37 @@
 .day{position:relative;border-right:1px solid var(--cal-line);border-bottom:1px solid var(--cal-line);padding:calc(7px * var(--scale));cursor:default;overflow:hidden}
 .day.other-month{opacity:.47;background-color:var(--cal-other-month)}
 .day-number{font-weight:700;font-size:calc(15px * var(--scale));position:absolute;left:calc(8px * var(--scale));top:calc(7px * var(--scale))}
-:is(.day,.year-day).has-personal{background:var(--cal-personal)}
-:is(.day,.year-day).has-school{background:var(--cal-school)}
-:is(.day,.year-day).has-both{background:linear-gradient(135deg,var(--cal-personal) 0 49.5%,var(--cal-both-line) 49.5% 50.5%,var(--cal-school) 50.5% 100%)}
 :is(.day,.year-day):hover{box-shadow:inset 0 0 0 2px var(--cal-hover)}
 :is(.day,.year-day):focus{outline:2px solid var(--cal-selected);outline-offset:-2px}
 :is(.day,.year-day).selected-day{box-shadow:inset 0 0 0 2px var(--cal-selected)}
-.meeting-icon{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:calc(36px * var(--scale));height:calc(36px * var(--scale));display:flex;align-items:center;justify-content:center;color:var(--cal-meeting-ink);pointer-events:none}
-.meeting-icon svg{width:100%;height:100%;display:block}
-.year-day.has-meeting{position:relative}
-.year-day .meeting-icon{width:28px;height:28px}
+
+/* Indicators of the sections of a day (DAY_SECTIONS): in the month, chips with icon and count at the bottom of the
+   cell; in the school year, and in a month cell where the chips do not fit (.cal-compact), dots at the fixed place of
+   each section. Each one opens its section. A section's colours come from its .cal-ind-<tone> rule. */
+.cal-ind-personal{--ind-bg:var(--cal-personal);--ind-ink:var(--cal-personal-ink);--ind-line:var(--cal-personal-line);--ind-dot:var(--cal-personal-dot)}
+.cal-ind-school{--ind-bg:var(--cal-school);--ind-ink:var(--cal-school-ink);--ind-line:var(--cal-school-line);--ind-dot:var(--cal-school-dot)}
+.cal-ind-behavior{--ind-bg:var(--cal-behavior);--ind-ink:var(--cal-behavior-ink);--ind-line:var(--cal-behavior-line);--ind-dot:var(--cal-behavior-dot)}
+.cal-ind-ssd{--ind-bg:var(--cal-ssd-bg);--ind-ink:var(--cal-ssd);--ind-line:var(--cal-ssd-line);--ind-dot:var(--cal-ssd)}
+.cal-ind-ped{--ind-bg:var(--cal-ped-bg);--ind-ink:var(--cal-ped);--ind-line:var(--cal-ped-line);--ind-dot:var(--cal-ped)}
+.cal-indicators{position:absolute;left:calc(6px * var(--scale));right:calc(6px * var(--scale));bottom:calc(6px * var(--scale));display:flex;flex-wrap:wrap;align-content:flex-end;gap:calc(3px * var(--scale))}
+.cal-ind{display:inline-flex;align-items:center;gap:calc(3px * var(--scale));height:calc(20px * var(--scale));min-width:0;margin:0;padding:0 calc(5px * var(--scale));border:1px solid var(--ind-line);border-radius:4px;background:var(--ind-bg);color:var(--ind-ink);font:inherit;font-size:calc(12px * var(--scale));font-weight:700;line-height:1;cursor:pointer}
+.cal-ind:hover{border-color:var(--ind-ink)}
+.cal-ind:focus-visible{outline:2px solid var(--cal-selected);outline-offset:1px}
+.cal-ind svg{display:block;flex:none;width:calc(var(--school-ui-icon-size-list) * var(--scale));height:calc(var(--school-ui-icon-size-list) * var(--scale))}
+:is(.year-day,.day.cal-compact) .cal-indicators{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(var(--ind-rows),var(--ind-height));gap:0}
+.year-day .cal-indicators{left:1px;right:1px;bottom:1px;--ind-height:11px}
+.day.cal-compact .cal-indicators{--ind-height:calc(14px * var(--scale))}
+:is(.year-day,.day.cal-compact) .cal-ind{grid-column:var(--ind-col);grid-row:var(--ind-row);width:100%;height:auto;padding:0;border:0;border-radius:0;background:none;justify-content:center}
+:is(.year-day,.day.cal-compact) .cal-ind :is(svg,.cal-ind-count){display:none}
+:is(.year-day,.day.cal-compact) .cal-ind::before{content:"";width:min(8px,80%);aspect-ratio:1;border-radius:50%;background:var(--ind-dot)}
+:is(.year-day,.day.cal-compact) .cal-ind:hover::before{box-shadow:0 0 0 2px var(--ind-line)}
 
 /* School year */
 .year-selected-date{width:calc(88% * var(--scale));margin:8px auto 0;text-align:right;color:var(--school-ui-muted);font-size:14px;font-weight:600}
 .year-grid{display:grid;width:calc(88% * var(--scale));margin:0 auto;grid-template-columns:minmax(110px,1.1fr) repeat(31,minmax(0,1fr));border-top:1px solid var(--cal-line);border-left:1px solid var(--cal-line);background:var(--school-ui-surface)}
 .year-corner,.year-day-header{height:calc(34px * var(--scale));display:flex;align-items:center;justify-content:center;background:var(--cal-weekday-bg);border-right:1px solid var(--cal-line);border-bottom:1px solid var(--cal-line);font-size:calc(13px * var(--scale));font-weight:700}
 .year-month-label{display:flex;align-items:center;padding-left:8px;font-size:calc(13px * var(--scale));font-weight:700;background:var(--cal-weekday-bg);border-right:1px solid var(--cal-line);border-bottom:1px solid var(--cal-line);white-space:nowrap}
-.year-day{width:100%;height:100%;border-right:1px solid var(--cal-line);border-bottom:1px solid var(--cal-line);cursor:default}
+.year-day{position:relative;overflow:hidden;width:100%;height:100%;border-right:1px solid var(--cal-line);border-bottom:1px solid var(--cal-line);cursor:default}
 .year-day.invalid{background:var(--cal-invalid)}
 .year-day.invalid:hover{box-shadow:none}
 
@@ -267,7 +283,7 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v1.26</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v1.27</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="print" type="button" disabled>Εκτύπωση...</button>
@@ -411,6 +427,26 @@ const hasPersonal = notes => Array.isArray(notes) && notes.some(note => hasHtml(
 const hasBook = book => !!book && hasHtml(book.html);
 const hasEvents = events => Array.isArray(events) && events.length > 0;
 const hasDayContent = entry => hasPersonal(entry.personalNotes) || hasBook(entry.schoolLifeBook) || hasEvents(entry.behaviorEvents);
+// Sections of a day, in the order of the day menu. Each one: key (its choice in the menu), label, aria (in the label
+// of the day cell), tone (CSS rule .cal-ind-<tone> with its colours), icon (schoolIcon), slot [column, row] of its dot
+// (school year, and a month cell where the chips do not fit), count(key) (0: nothing on the day), number (the chip
+// shows the count) and open(date) (its window). A new section is one more entry here and one .cal-ind-<tone> rule.
+const DAY_SECTIONS = [
+  {key:'personalNotes', label:'Προσωπικές Σημειώσεις', aria:'προσωπικές σημειώσεις', tone:'personal', icon:'note', slot:[1, 1], number:true,
+    count: key => (getEntry(key).personalNotes || []).filter(note => hasHtml(note.html)).length, open: date => editDay(date, 'personalNotes')},
+  {key:'schoolLifeBook', label:'Βιβλίο Σχολικής Ζωής', aria:'βιβλίο σχολικής ζωής', tone:'school', icon:'book', slot:[2, 1], number:false,
+    count: key => hasBook(getEntry(key).schoolLifeBook) ? 1 : 0, open: date => editDay(date, 'schoolLifeBook')},
+  {key:'behaviorEvents', label:'Ποινές / Επιβραβεύσεις', aria:'ποινές / επιβραβεύσεις', tone:'behavior', icon:'scale', slot:[3, 1], number:true,
+    count: key => (getEntry(key).behaviorEvents || []).length, open: date => editBehaviorEvents(date)},
+  {key:'ped', label:'Παιδαγωγική Συνάντηση', aria:'παιδαγωγική συνάντηση', tone:'ped', icon:'meeting', slot:[1, 2], number:false,
+    count: key => cal.pedagogicMeetings[key] ? 1 : 0, open: date => openMeeting('ped', date)},
+  {key:'ssd', label:'Συνεδρίαση Συλλόγου Διδασκόντων', aria:'συνεδρίαση Συλλόγου Διδασκόντων', tone:'ssd', icon:'meeting', slot:[2, 2], number:false,
+    count: key => cal.ssdMeetings[key] ? 1 : 0, open: date => openMeeting('ssd', date)}
+];
+// Rows of the dots: always all of them, so that every dot keeps its place.
+const DAY_ROWS = Math.max(...DAY_SECTIONS.map(section => section.slot[1]));
+// The sections that have content on a day, with their count.
+const daySections = key => DAY_SECTIONS.map(section => ({section, count: section.count(key)})).filter(item => item.count > 0);
 const noteId = () => crypto.randomUUID();
 // A cancelled confirmation inside a dialog: the dialog stays open and shows no error.
 const cancelled = () => Object.assign(Error('Η ενέργεια ακυρώθηκε.'), {name:'AbortError'});
@@ -531,31 +567,44 @@ function applyZoom(value, report = true) {
   document.documentElement.style.setProperty('--scale', zoom / 100);
   $('zoomLabel').firstElementChild.textContent = zoom + '%';
   $('zoomOut').disabled = zoom <= zoomLimits.min; $('zoomIn').disabled = zoom >= zoomLimits.max;
-  if (report && changed) { post({type:'school-calendar:zoom', zoom}); if (context && currentView === 'year') renderYear(); }
+  if (report && changed) { post({type:'school-calendar:zoom', zoom}); if (context) { if (currentView === 'year') renderYear(); else fitMonthIndicators(); } }
 }
 
 // ---- Rendering ----
-function meetingIcon(hasSsd, hasPed) {
-  const icon = document.createElement('span'); icon.className = 'meeting-icon';
-  const label = hasSsd && hasPed ? 'Συνεδρίαση Συλλόγου Διδασκόντων και Παιδαγωγική Συνάντηση' : hasSsd ? 'Συνεδρίαση Συλλόγου Διδασκόντων' : 'Παιδαγωγική Συνάντηση';
-  icon.title = label; icon.setAttribute('aria-label', `Υπάρχει ${label}`);
-  const id = 'meeting-gradient-' + Math.random().toString(36).slice(2);
-  const fill = hasSsd && hasPed ? `url(#${id})` : hasSsd ? 'var(--cal-ssd)' : 'var(--cal-ped)';
-  const gradient = hasSsd && hasPed ? `<defs><linearGradient id="${id}" x1="0" y1="0" x2="36" y2="24" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="var(--cal-ssd)"/><stop offset="50%" stop-color="var(--cal-ssd)"/><stop offset="50%" stop-color="var(--cal-ped)"/><stop offset="100%" stop-color="var(--cal-ped)"/></linearGradient></defs>` : '';
-  icon.innerHTML = `<svg viewBox="0 0 36 24" aria-hidden="true">${gradient}<g fill="${fill}"><circle cx="9" cy="7.2" r="3.1"/><circle cx="27" cy="7.2" r="3.1"/><path d="M1.7 20.1v-1.7c0-3.6 3.3-6.4 7.3-6.4 2.1 0 4 .7 5.3 1.8-1.5 1.7-2.4 3.8-2.4 6.1v1.2H2.7c-.6 0-1-.4-1-1Zm32.6 0v-1.7c0-3.6-3.3-6.4-7.3-6.4-2.1 0-4 .7-5.3 1.8 1.5 1.7 2.4 3.8 2.4 6.1v1.2h9.2c.6 0 1-.4 1-1Z"/><circle cx="18" cy="5.6" r="4.6"/><path d="M11.3 21v-2.1c0-4.3 3-7.5 6.7-7.5s6.7 3.2 6.7 7.5V21c0 .6-.4 1-1 1H12.3c-.6 0-1-.4-1-1Z"/></g></svg>`;
-  return icon;
+// The indicators of a day cell: one button per section with content, which opens that section.
+function dayIndicators(date, sections) {
+  const box = document.createElement('div'); box.className = 'cal-indicators';
+  box.style.setProperty('--ind-rows', DAY_ROWS);
+  for (const {section, count} of sections) {
+    const button = document.createElement('button');
+    button.type = 'button'; button.tabIndex = -1; button.className = `cal-ind cal-ind-${section.tone}`;
+    button.style.setProperty('--ind-col', section.slot[0]); button.style.setProperty('--ind-row', section.slot[1]);
+    const title = section.number ? `${section.label}: ${count}` : section.label;
+    button.title = title; button.setAttribute('aria-label', `Άνοιγμα: ${title}`);
+    button.innerHTML = schoolIcon(section.icon) + (section.number ? `<span class="cal-ind-count">${count}</span>` : '');
+    button.addEventListener('click', event => { event.stopPropagation(); openSection(section, date); });
+    button.addEventListener('dblclick', event => event.stopPropagation());
+    box.append(button);
+  }
+  return box;
 }
-// Colours, meeting icon and label of one day cell (month and school year).
+// Indicators and label of one day cell (month and school year).
 function decorateDay(cell, date, label) {
-  const key = dateKey(date), entry = getEntry(key), personal = hasPersonal(entry.personalNotes), school = hasBook(entry.schoolLifeBook);
-  const hasSsd = !!cal.ssdMeetings[key], hasPed = !!cal.pedagogicMeetings[key], hasBehavior = hasEvents(entry.behaviorEvents);
+  const key = dateKey(date), sections = daySections(key);
   cell.dataset.key = key; cell.tabIndex = 0; cell.setAttribute('role', 'gridcell');
-  cell.setAttribute('aria-label', `${label}${personal ? ' — προσωπικές σημειώσεις' : ''}${school ? ' — βιβλίο σχολικής ζωής' : ''}${hasBehavior ? ' — ποινές / επιβραβεύσεις' : ''}${hasSsd ? ' — συνεδρίαση Συλλόγου Διδασκόντων' : ''}${hasPed ? ' — παιδαγωγική συνάντηση' : ''}`);
-  if (hasSsd || hasPed) { cell.classList.add('has-meeting'); cell.append(meetingIcon(hasSsd, hasPed)); }
-  if (personal) cell.classList.add('has-personal');
-  if (school) cell.classList.add('has-school');
-  if (personal && school) cell.classList.add('has-both');
+  cell.setAttribute('aria-label', label + sections.map(({section, count}) => ` — ${section.aria}${section.number ? ` (${count})` : ''}`).join(''));
+  if (sections.length) cell.append(dayIndicators(date, sections));
   if (key === dateKey(selectedDate)) cell.classList.add('selected-day');
+}
+// A month cell keeps its height: when its chips would reach the day number (narrow window, small zoom), it shows
+// the dots of the school year instead.
+function fitMonthIndicators() {
+  for (const cell of $('calendar').querySelectorAll('.day')) {
+    const box = cell.querySelector('.cal-indicators'), number = cell.querySelector('.day-number');
+    if (!box || !number) continue;
+    cell.classList.remove('cal-compact');
+    if (box.offsetTop < number.offsetTop + number.offsetHeight + 2) cell.classList.add('cal-compact');
+  }
 }
 function selectCell(container, cell, date) {
   selectedDate = date;
@@ -588,7 +637,7 @@ function renderMonth() {
     cell.addEventListener('dblclick', () => { if (calendarClickTimer) { clearTimeout(calendarClickTimer); calendarClickTimer = null; } openDayActions(date); });
     cell.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); openDayActions(date); } });
     calendar.append(cell);
-  }
+  }  fitMonthIndicators();
 }
 function updateYearSelectedDate(d = selectedDate) { $('yearSelectedDate').textContent = `${weekdayName(d)}, ${d.getDate()} ${MONTHS_GEN[d.getMonth()]} ${d.getFullYear()}`; }
 function renderYear() {
@@ -664,24 +713,23 @@ async function openDayActions(date) {
   const key = dateKey(date);
   while (true) {
     // On returning from an entry, refresh the indicators and show the same day's choices again.
-    const entry = getEntry(key);
-    const has = [hasPersonal(entry.personalNotes), hasBook(entry.schoolLifeBook), !!cal.ssdMeetings[key], !!cal.pedagogicMeetings[key], hasEvents(entry.behaviorEvents)];
+    const has = DAY_SECTIONS.map(section => section.count(key) > 0);
     const choice = await schoolChoiceDialog({
       title: longDate(date), className: 'cal-day-actions',
-      choices: [
-        {label: 'Προσωπικές Σημειώσεις', value: 'personalNotes'},
-        {label: 'Βιβλίο Σχολικής Ζωής', value: 'schoolLifeBook'},
-        {label: 'Ποινές / Επιβραβεύσεις', value: 'behaviorEvents'},
-        {label: 'Παιδαγωγική Συνάντηση', value: 'ped'},
-        {label: 'Συνεδρίαση Συλλόγου Διδασκόντων', value: 'ssd'}
-      ],
-      ready: ({dialog}) => dialog.querySelectorAll('.school-choice-options button').forEach((button, index) => button.classList.toggle('cal-has-data', has[[0, 1, 4, 3, 2][index]]))
+      choices: DAY_SECTIONS.map(section => ({label: section.label, value: section.key})),
+      ready: ({dialog}) => dialog.querySelectorAll('.school-choice-options button').forEach((button, index) => button.classList.toggle('cal-has-data', has[index]))
     });
-    if (choice === 'personalNotes' || choice === 'schoolLifeBook') await editDay(date, choice);
-    else if (choice === 'behaviorEvents') await editBehaviorEvents(date);
-    else if (choice === 'ssd' || choice === 'ped') await openMeeting(choice, date);
-    else break;
+    const section = DAY_SECTIONS.find(item => item.key === choice);
+    if (!section) break;
+    await section.open(date);
   }
+}
+// A click on an indicator of a day opens its section directly, and its window returns to the calendar.
+async function openSection(section, date) {
+  if (!context || busy) return;
+  if (!inYear(date)) { await openDayActions(date); return; }
+  selectedDate = date; render();
+  await section.open(date);
 }
 
 // ---- Reordering the list of a dialog with drag & drop (Προσωπικές Σημειώσεις, Ποινές / Επιβραβεύσεις) ----
@@ -1611,7 +1659,7 @@ $('yearViewBtn').addEventListener('click', () => setView('year'));
 $('zoomLabel').addEventListener('click', () => applyZoom(100));
 $('zoomOut').addEventListener('click', () => applyZoom(zoom - zoomLimits.step));
 $('zoomIn').addEventListener('click', () => applyZoom(zoom + zoomLimits.step));
-window.addEventListener('resize', () => { if (context && currentView === 'year') renderYear(); });
+window.addEventListener('resize', () => { if (!context) return; if (currentView === 'year') renderYear(); else fitMonthIndicators(); });
 buttons();
 post({type:'school-calendar:ready'});
 post({type:'school-timetables:ready'});
