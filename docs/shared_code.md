@@ -97,7 +97,7 @@
   - Ιστορικό προγράμματος: `HISTORY_LIMIT` (20), `history(program)` (το Ιστορικό ως αντίγραφο· όταν λείπει το κλειδί `history`, το αρχικό Ιστορικό από το `source`, με `derived:true` στις εγγραφές), `addHistory(program, entry)` (νέα εγγραφή στην αρχή, μένουν οι 20 νεότερες) και `ensureHistory(program)` (γράφει στο πρόγραμμα του Ωρολογίου το αρχικό Ιστορικό πριν αλλάξει το `source`· το καλούν το `replaceStaff` και το `applyOloimeroReplace`). Το `buildFetProgram` ξεκινά το Ιστορικό με την εγγραφή `import`, και το `applyOloimeroReplace` προσθέτει την εγγραφή `oloimero` και όταν δεν αλλάζει καμία δραστηριότητα (βλέπε «Ιστορικό προγράμματος» στο `docs/timetables.md`),
   - Εισαγωγή Ολοημέρου: `analyzeOloimeroReplace`, `applyOloimeroReplace`,
   - σχέδια του Ολοήμερου Designer: `oloimeroRowsFromCsv`, `oloimeroRowsFromProgram`, `oloimeroHours`, `oloimeroStudents`, `oloimeroTeacherColor`, `oloimeroCsvFromProgram`, `oloimeroCells` (τα στοιχεία των κελιών και οι Συνενώσεις από ονόματα, στην εισαγωγή CSV), `analyzeOloimeroImport`, `buildOloimeroProgram` (ο εισαγωγέας «CSV Ολοημέρου»), με τις σταθερές `OLOIMERO_CATEGORIES` και `OLOIMERO_MAX_SLOTS`,
-  - εμφάνιση μαθητών: `studentsText`, και ανάλυση ονομάτων ομάδων μαθητών σε τμήματα και υποσύνολα: `studentsFromNames`,
+  - εμφάνιση μαθητών: `studentsText`, μάθημα δραστηριότητας: `activitySubject` / `activitySubjectDetails` (και το «μάθημα της τάξης» των Ατομικών Προγραμμάτων), και ανάλυση ονομάτων ομάδων μαθητών σε τμήματα και υποσύνολα: `studentsFromNames`,
   - η εισαγωγή από FET, σε δύο φάσεις: `analyzeFetImport` (ανάλυση) και `buildFetProgram` (κατασκευή)· τις χρησιμοποιεί ο εισαγωγέας «FET» του Ωρολογίου.
 
   Κάθε ανάλυση επιστρέφει `{ok, errors, warnings, info, …}`· με λάθη η ενέργεια δεν γίνεται.

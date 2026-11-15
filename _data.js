@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων
- * Έκδοση αρχείου: 0.39
+ * Έκδοση αρχείου: 0.40
  * Όνομα κατά την εγκατάσταση: _data.js
  *
  * Φορτώνεται από όσες υποεφαρμογές διαβάζουν ή γράφουν CSV, FET, ημερομηνίες ή προγράμματα, μετά
@@ -2402,6 +2402,8 @@
   const docSubjectKeys = (c, code) => { const codes = String(code).split('+').map(compareKey); return new Set(c.subjects.filter(item => codes.includes(compareKey(item.code))).map(item => compareKey(item.name))); };
   // In documents a whole grade is written without the apostrophe: «Ε'» → «Ε», «Α'-Στ'» → «Α-Στ» (the apps keep «Ε'»).
   const docGradePlain = text => String(text).replace(/(^|[\s,(-])(Α|Β|Γ|Δ|Ε|Στ)['΄’](?=$|[\s,)-])/g, '$1$2');
+  // The subject of an activity, always through activitySubject (the program of the documents is the Ωρολόγιο).
+  const docSubject = (c, activity) => activitySubject(activity, {programs: c.program ? [c.program] : [], classes: c.classes});
   const docTeachers = (c, activity, short) => [...(activity.staff || []).map(id => { const person = c.staffById.get(id); return person ? String((short ? person.shortName : person.name) || person.shortName || person.name || '') : ''; }), ...(activity.unmatched || [])];
 
   function docGridValue(c, data, spec) {
@@ -2409,7 +2411,7 @@
     if (!slot) return '';
     const cell = data.list.filter(activity => (activity.times || []).some(time => time.day === spec.day.day && slotOverlaps(time, slot)));
     const students = activity => studentsText(activity, {classes: c.classes});
-    const subject = activity => String(activity.subject ?? '').trim();
+    const subject = activity => docSubject(c, activity);
     if (data.type === 'staff') {
       if (spec.variant === 'Μάθημα') return docJoin(cell.map(subject), ' / ');
       // The classes of the hour without subsets («Ε1-Γαλ, Ε2-Γαλ» → «Ε»), and a whole grade without apostrophe.
@@ -2437,7 +2439,7 @@
   }
   function docSubjectHoursValue(c, data, spec) {
     const keys = docSubjectKeys(c, spec.code);
-    let items = docTimes(data, data.list.filter(activity => keys.has(compareKey(activity.subject))));
+    let items = docTimes(data, data.list.filter(activity => keys.has(compareKey(docSubject(c, activity)))));
     if (spec.day) items = items.filter(item => item.time.day === spec.day.day);
     items = docInZone(c, items, spec.zone);
     if (!spec.which) return String(items.length);
@@ -2491,7 +2493,7 @@
     const rank = activity => Math.min(1e9, ...(activity.classes || []).map(id => order.has(id) ? order.get(id) : 1e9));
     const text = activity => studentsText(activity, {classes: c.classes});
     for (const [cellKey, items] of loose) {
-      items.sort((a, b) => rank(a.activity) - rank(b.activity) || text(a.activity).localeCompare(text(b.activity), 'el') || String(a.activity.subject || '').localeCompare(String(b.activity.subject || ''), 'el'));
+      items.sort((a, b) => rank(a.activity) - rank(b.activity) || text(a.activity).localeCompare(text(b.activity), 'el') || docSubject(c, a.activity).localeCompare(docSubject(c, b.activity), 'el'));
       let number = 1;
       for (const item of items) {
         while (layout.cells.get(cellKey)?.has(number)) number++;
@@ -2551,7 +2553,7 @@
     const where = (day, key) => { const slot = c.slots.find(item => item.key === key); return DOC_DAYS.find(item => item.day === day).label + ', ' + key + (slot ? ' (' + slot.time + ')' : ''); };
     const describe = activity => {
       const parts = [studentsText(activity, {classes: c.classes}), docJoin(docTeachers(c, activity, false), ', ')].filter(Boolean);
-      return quoted(activity.subject || '—') + (parts.length ? ' (' + parts.join(' · ') + ')' : '');
+      return quoted(docSubject(c, activity) || '—') + (parts.length ? ' (' + parts.join(' · ') + ')' : '');
     };
     const byPlace = (a, b) => a.day - b.day || (slotIndex.get(a.key) ?? 0) - (slotIndex.get(b.key) ?? 0);
     const moved = layout.moved.map(item => ({...item, key: item.slot.key})).filter(item => limits.has(item.day + '|' + item.key)).sort((a, b) => byPlace(a, b) || a.number - b.number);
@@ -2602,7 +2604,7 @@
         // With a zone: only those who teach the lesson at an hour of that zone.
         const keys = docSubjectKeys(c, spec.code), slots = docZoneSlots(c, spec.zone);
         const inZone = activity => !spec.zone || (activity.times || []).some(time => slots.some(slot => slotOverlaps(time, slot)));
-        out.set(name, docJoin(data.list.filter(activity => keys.has(compareKey(activity.subject)) && inZone(activity)).flatMap(activity => docTeachers(c, activity, false)), ', '));
+        out.set(name, docJoin(data.list.filter(activity => keys.has(compareKey(docSubject(c, activity))) && inZone(activity)).flatMap(activity => docTeachers(c, activity, false)), ', '));
       }
     }
     return out;

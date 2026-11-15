@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>FET Timetable Editor v1.10</title>
+<title>FET Timetable Editor v1.11</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -163,7 +163,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="FET Timetable Editor — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>FT</span></span><span class="brand-text"><span>FET Timetable Editor</span><span class="small version">v1.10</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="FET Timetable Editor — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>FT</span></span><span class="brand-text"><span>FET Timetable Editor</span><span class="small version">v1.11</span></span></button></h1></div>
   <select id="period" aria-label="Περίοδος" disabled hidden></select>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <span class="sep" aria-hidden="true"></span>
@@ -338,6 +338,9 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
 
   // Programs of the period that count in the hours: this timetable and the other kinds of the period.
   const countedPrograms = () => [program, ...(context?.programs || []).filter(item => item.periodId === periodId && item.kind !== 'school' && T.countsInHours(item.kind))].filter(Boolean);
+  // The subject of an activity, always through the shared SchoolTimetable.activitySubject (the «μάθημα της τάξης»
+  // of the Ατομικά Προγράμματα comes from this timetable).
+  const subjectOf = activity => T.activitySubject(activity, {programs: countedPrograms(), classes: yearClasses()});
   function hoursOf(key) {
     if (key.startsWith('id:')) return T.staffHours(countedPrograms()).get(key.slice(3)) || 0;
     const name = key.slice(5);
@@ -438,7 +441,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
   ].filter(Boolean).join(' · ');
   // What the user sees of an activity at some times: subject, teachers, students, room, day and hours.
   const seen = (activity, times) => JSON.stringify([
-    activity.subject || '', [...(activity.staff || [])].sort(), [...(activity.unmatched || [])].sort(),
+    subjectOf(activity), [...(activity.staff || [])].sort(), [...(activity.unmatched || [])].sort(),
     [...(activity.classes || [])].sort(), [...(activity.subsets || [])].sort(), [...(activity.otherStudents || [])].sort(), activity.room || '',
     times.map(({day, start, end}) => day + ' ' + start + '-' + end).sort()
   ]);
@@ -809,9 +812,9 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
       else if (isMorning(hour) && !anySpecialty && item.keys.some(key => isClassroom(key) && key !== homeroomKey(current))) card.classList.add('non-homeroom');
     }
     if (index().conflictIds.has(item.id)) card.classList.add('conflict');
-    card.style.setProperty('--card', colorFor(activity.subject));
+    card.style.setProperty('--card', colorFor(subjectOf(activity)));
     card.draggable = true;
-    card.title = [activity.subject, item.keys.map(shortOf).join(', '), studentsLabel(activity)].filter(Boolean).join(' — ') + '\nΣύρε για μετακίνηση.';
+    card.title = [subjectOf(activity), item.keys.map(shortOf).join(', '), studentsLabel(activity)].filter(Boolean).join(' — ') + '\nΣύρε για μετακίνηση.';
     card.addEventListener('dragstart', event => {
       draggedId = item.id;
       event.dataTransfer.effectAllowed = 'move';
@@ -819,7 +822,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
       requestAnimationFrame(() => highlight(item.id));
     });
     card.addEventListener('dragend', () => { draggedId = null; clearHighlight(); });
-    if (showSubject()) card.append(el('div', 'ft-subject', (entryIndex === 0 ? '' : '↳ ') + (activity.subject || '—')));
+    if (showSubject()) card.append(el('div', 'ft-subject', (entryIndex === 0 ? '' : '↳ ') + (subjectOf(activity) || '—')));
     if (view === 'classes') {
       if (showTeachers()) {
         const keys = shownTeachers(item.keys, current, hour);
@@ -1019,18 +1022,18 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
   // not available in FET, and teachers whose hours go above «Ωράριο στο σχολείο». What existed before is left out.
   // The activities of the import get new ids, so a conflict is compared by who, when and the two subjects.
   function updateEffects(before, after) {
-    const conflictKey = item => [item.type, item.who, item.day, item.start, ...[item.a.subject || '', item.b.subject || ''].sort()].join('|');
+    const conflictKey = item => [item.type, item.who, item.day, item.start, ...[subjectOf(item.a), subjectOf(item.b)].sort()].join('|');
     const had = new Set(T.conflicts(before).map(conflictKey));
     const whoText = item => item.type === 'class' ? 'τμήμα ' + className(item.who) : (item.type === 'staff' ? shortOf(keyOfId(item.who)) : item.who);
     const conflicts = unique(T.conflicts(after).filter(item => !had.has(conflictKey(item)))
-      .map(item => whoText(item) + ': ' + dayLabel(item.day) + ' ' + item.start + ' — ' + (item.a.subject || '—') + ' / ' + (item.b.subject || '—')));
+      .map(item => whoText(item) + ': ' + dayLabel(item.day) + ' ' + item.start + ' — ' + (subjectOf(item.a) || '—') + ' / ' + (subjectOf(item.b) || '—')));
     const offTimes = prog => {
       const result = new Set(), source = prog.source || {};
       const namesOf = key => key.startsWith('id:') ? (source.teachers || []).filter(teacher => teacher.staffId === key.slice(3)).map(teacher => teacher.name) : [key.slice(5)];
       for (const activity of prog.activities || []) for (const key of teacherKeys(activity)) {
         const names = namesOf(key);
         for (const time of activity.times || []) for (const off of source.unavailable || []) {
-          if (names.includes(off.teacher) && off.day === time.day && time.start < off.end && off.start < time.end) result.add(shortOf(key) + ': ' + dayLabel(time.day) + ' ' + time.start + ' (' + (activity.subject || '—') + ')');
+          if (names.includes(off.teacher) && off.day === time.day && time.start < off.end && off.start < time.end) result.add(shortOf(key) + ': ' + dayLabel(time.day) + ' ' + time.start + ' (' + (subjectOf(activity) || '—') + ')');
         }
       }
       return result;
@@ -1254,7 +1257,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
           const home = homeroomKey(id);
           const table = printTable(selectedHours, (day, hour) => activitiesAt(item => (item.activity.classes || []).includes(id), day, hour)
             .filter(item => !home || !item.keys.includes(home))
-            .map(item => '<div class="activity">' + (item.activity.subject ? '<div class="subject">' + esc(item.activity.subject) + '</div>' : '') + '<div>' + esc(item.keys.map(shortOf).join(', ')) + '</div></div>').join(''));
+            .map(item => '<div class="activity">' + (subjectOf(item.activity) ? '<div class="subject">' + esc(subjectOf(item.activity)) + '</div>' : '') + '<div>' + esc(item.keys.map(shortOf).join(', ')) + '</div></div>').join(''));
           return '<section class="block">' + blockHead(className(id), home ? fullOf(home) || shortOf(home) : '', effective) + table + '</section>';
         });
         const css = `h1{font-size:18pt}.subtitle,.date{font-size:9.5pt}th,td{padding:4px;font-size:9.5pt;line-height:1.15}thead th{font-size:12pt}.hour{width:24mm;font-size:10.5pt}tbody th,tbody td{height:10mm}.subject{font-size:11pt}`;
@@ -1282,7 +1285,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
         const blocks = chosen.map(key => {
           const specialty = isSpecialty(key);
           const table = printTable(selectedHours, (day, hour) => activitiesAt(item => item.keys.includes(key), day, hour)
-            .map(item => '<div class="activity">' + (!specialty && item.activity.subject ? '<div class="subject">' + esc(item.activity.subject) + '</div>' : '') +
+            .map(item => '<div class="activity">' + (!specialty && subjectOf(item.activity) ? '<div class="subject">' + esc(subjectOf(item.activity)) + '</div>' : '') +
               '<div' + (specialty ? ' class="subject"' : '') + '>' + esc(studentsLabel(item.activity)) + '</div></div>').join(''));
           return '<section class="block">' + blockHead(shortOf(key), fullOf(key), effective) + table + '<div class="load">Διδακτικό ωράριο: ' + esc(hoursOf(key) + '/' + targetOf(key)) + '</div></section>';
         });
