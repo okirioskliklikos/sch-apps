@@ -367,7 +367,7 @@ body.session-locked #app-shell { visibility:hidden; pointer-events:none; }
     <div class="sidebar-head">
       <div class="brand">
         <span class="brand-name">Εφαρμογές σχολείου</span>
-        <span class="sidebar-version" aria-label="Έκδοση 1.07">v1.07</span>
+        <span class="sidebar-version" aria-label="Έκδοση 1.08">v1.08</span>
       </div>
     </div>
     <div id="sidebar-school" class="sidebar-school" hidden><span id="nav-school-name" class="sidebar-school-name"></span><span id="nav-school-year" class="sidebar-school-year"></span></div>
@@ -483,8 +483,8 @@ globalThis.SchoolDataCodec = (() => {
   let editingData = false;
   let rememberedHandle = null;
   let fileLoadGeneration = 0;
-  // The last selection of the program applications (lastViewByYear in .data) and the zoom of the Σχολικό
-  // Ημερολόγιο (calendarSettings) are not a change of data: they are kept in sharedData and written with the
+  // The last selection of the program applications (lastViewByYear in .data), the zoom of their boards
+  // (timetableSettings) and the zoom of the Σχολικό Ημερολόγιο (calendarSettings) are not a change of data: they are kept in sharedData and written with the
   // next save, or when the application is left (writeViews).
   let viewsChanged = 0, viewsWritten = 0, viewWrite = Promise.resolve(), dataWrites = 0;
   // Programs (timetablesByYear): validation and the school-timetables:* protocol live in _host_timetables.js.
@@ -827,7 +827,7 @@ globalThis.SchoolDataCodec = (() => {
       const views = viewsChanged;
       const name = await writeData(data, password, filename, existingHandle);
       // The written file has the selections of sharedData when it was saved from it.
-      if (sharedData && JSON.stringify([data.lastViewByYear || null, data.calendarSettings || null]) === JSON.stringify([sharedData.lastViewByYear || null, sharedData.calendarSettings || null])) viewsWritten = views;
+      if (sharedData && JSON.stringify([data.lastViewByYear || null, data.timetableSettings || null, data.calendarSettings || null]) === JSON.stringify([sharedData.lastViewByYear || null, sharedData.timetableSettings || null, sharedData.calendarSettings || null])) viewsWritten = views;
       return name;
     } finally { dataWrites--; }
   }
@@ -853,6 +853,11 @@ globalThis.SchoolDataCodec = (() => {
   function rememberView(year, key, view) {
     if (!sharedData || !Timetables || sharedData.school.year !== year) return;
     sharedData = Timetables.withView(sharedData, year, key, view);
+    viewsChanged++;
+  }
+  function rememberTimetableZoom(key, zoom) {
+    if (!sharedData || !Timetables) return;
+    sharedData = Timetables.withZoom(sharedData, key, zoom);
     viewsChanged++;
   }
   function rememberCalendarZoom(zoom) {
@@ -1648,7 +1653,8 @@ const StaffStorage = (() => {
       } finally { staffSaving = false; }
     },
     activity: recordActivity,
-    view: rememberView
+    view: rememberView,
+    zoom: rememberTimetableZoom
   });
 
   // Σχολικό Ημερολόγιο (calendarByYear): menu, unsaved changes, data and zoom of school-calendar:*.

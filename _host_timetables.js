@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Προγράμματα στο Κεντρικό Μενού (host)
- * Έκδοση αρχείου: 0.15
+ * Έκδοση αρχείου: 0.16
  * Όνομα κατά την εγκατάσταση: _host_timetables.js
  *
  * Κώδικας μόνο του host για τα προγράμματα (timetablesByYear). Το φορτώνει το index.html μετά το
@@ -31,6 +31,9 @@
  *   lastView(data, year, key)               η τελευταία επιλογή μιας εφαρμογής (π.χ. 'period:…', 'draft:…' ή,
  *                                           στα Ατομικά Προγράμματα, 'period:…|staff:…')
  *   withView(data, year, key, view)         αντίγραφο του data με νέα τελευταία επιλογή
+ *   zoom(data, key)                         το ζουμ του πίνακα μιας εφαρμογής-κατόχου (timetableSettings.zoom[είδος],
+ *                                           κοινό για όλα τα σχολικά έτη), ή η προεπιλογή του είδους
+ *   withZoom(data, key, value)              αντίγραφο του data με νέο ζουμ
  *   install(bridge)                         σύνδεση με το index (πρωτόκολλο school-timetables:* και αιτήματα
  *                                           αρχείων)
  * Ο κατάλογος ειδών και οι εισαγωγείς τους διαβάζονται από το SchoolTimetable.kinds του _data.js.
@@ -162,6 +165,22 @@
     return {...data, lastViewByYear: {...byYear, [year]: {...forYear, [key]: view}}};
   }
 
+  // ---- Ζουμ του πίνακα (timetableSettings) ----
+  // Η εφαρμογή-κάτοχος ενός είδους με πίνακα (Ολοήμερος Designer, Ατομικά Προγράμματα) θυμάται το ζουμ της, κοινό για
+  // όλα τα σχολικά έτη: timetableSettings = {zoom:{[είδος]: ποσοστό}}, έξω από το timetablesByYear. Όπως το
+  // lastViewByYear, δεν μετρά ως αλλαγή δεδομένων (school-timetables:zoom).
+  const ZOOM = Object.freeze({min: 30, max: 200, step: 10, fallback: Object.freeze({oloimero: 80}), defaultValue: 100});
+  const validZoom = value => Number.isInteger(value) && value >= ZOOM.min && value <= ZOOM.max && value % ZOOM.step === 0;
+  function zoom(data, key) {
+    const value = isObject(data?.timetableSettings) && isObject(data.timetableSettings.zoom) ? data.timetableSettings.zoom[key] : null;
+    return validZoom(value) ? value : (ZOOM.fallback[key] ?? ZOOM.defaultValue);
+  }
+  function withZoom(data, key, value) {
+    const settings = isObject(data?.timetableSettings) ? data.timetableSettings : {};
+    const zooms = isObject(settings.zoom) ? settings.zoom : {};
+    return {...data, timetableSettings: {...settings, zoom: {...zooms, [key]: value}}};
+  }
+
   // school-timetables:context για μια εφαρμογή: τα προγράμματα περιόδων όλων των γνωστών ειδών και τα
   // προσχέδια των ειδών της εφαρμογής (και των ειδών που αναθέτει). Προγράμματα άγνωστου είδους δεν στέλνονται.
   function context(data, app, revision) {
@@ -181,6 +200,9 @@
       programCount: timetables.programs.length,
       // The last design or period this application showed ('' when there is none).
       lastView: viewKey(app) ? lastView(data, year, viewKey(app)) : '',
+      // The zoom of the board of the owner application (common for every school year), and its limits.
+      zoom: viewKey(app) ? zoom(data, viewKey(app)) : null,
+      zoomLimits: {min: ZOOM.min, max: ZOOM.max, step: ZOOM.step},
       limits: {programs: LIMITS.programs, periods: LIMITS.periods, activities: LIMITS.activities, classes: classLimit(), warnRatio: WARN_RATIO}
     });
   }
@@ -751,7 +773,9 @@
   //   targetOrigin           το origin των απαντήσεων ('*' σε file://),
   //   state()                → {data, revision, app, locked, busy} του index τη στιγμή της κλήσης,
   //   save(candidate)        Promise: γράφει το νέο data στο κοινό αρχείο και το κάνει τρέχον,
-  //   activity()             μηδενίζει το ρολόι αδράνειας
+  //   activity()             μηδενίζει το ρολόι αδράνειας,
+  //   view(year, key, view)  νέα τελευταία επιλογή (lastViewByYear), χωρίς αλλαγή δεδομένων,
+  //   zoom(key, value)       νέο ζουμ του πίνακα (timetableSettings), χωρίς αλλαγή δεδομένων
   // }
   // Αιτήματα αρχείων, ανά τύπο μηνύματος: η εφαρμογή που τα στέλνει και η συνάρτηση που τα εξυπηρετεί.
   const FILE_REQUESTS = {
@@ -797,6 +821,13 @@
         if (lastView(state.data, state.data.school.year, key) !== message.view) bridge.view?.(state.data.school.year, key, message.view);
         return;
       }
+      // The zoom of the board changed: kept like the last selection, for every school year.
+      if (message.type === 'school-timetables:zoom') {
+        const key = viewKey(app);
+        if (!state.data || !key || !validZoom(message.zoom)) return;
+        if (zoom(state.data, key) !== message.zoom) bridge.zoom?.(key, message.zoom);
+        return;
+      }
       if (message.type !== 'school-timetables:save' || typeof message.requestId !== 'string') return;
       bridge.activity?.();
       try {
@@ -815,7 +846,7 @@
 
   window.SchoolHostTimetables = Object.freeze({
     PROGRAMS_APP, LIMITS, WARN_RATIO, CATALOG_LIMITS, permissions, yearData, individualCatalog, validateCatalog, context,
-    validatePeriods, validateProgram, applySave, viewKey, lastView, withView,
+    validatePeriods, validateProgram, applySave, viewKey, lastView, withView, ZOOM, zoom, withZoom,
     staffUsage, applyStaffRemovals, importFile, oloimeroFile, droppedImportFile, rememberedFile, install
   });
 })();

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ολοήμερο Designer v1.91</title>
+<title>Ολοήμερο Designer v1.92</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -589,7 +589,7 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
 <body>
 
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΟΛ</span></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v1.91</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΟΛ</span></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v1.92</span></span></button></h1></div>
   <select id="program" aria-label="Σχέδιο" hidden></select>
   <span class="save-control">
     <button id="saveData" class="save-main" type="button" disabled>Αποθήκευση</button>
@@ -1230,9 +1230,13 @@ function applyBoardZoom(){
   requestAnimationFrame(updateFloatingControlsForBoardScrollbar);
 }
 
+// The zoom is kept by the index for every school year (timetableSettings, school-timetables:zoom).
 function setBoardZoom(value){
-  boardZoom=Math.max(30,Math.min(200,Math.round(value/10)*10));
+  const next=Math.max(30,Math.min(200,Math.round(value/10)*10));
+  if(next===boardZoom){applyBoardZoom();return}
+  boardZoom=next;
   applyBoardZoom();
+  post({type:"school-timetables:zoom",zoom:boardZoom});
 }
 const templatesEl=document.querySelector("#templates");
 const subjectsEl=document.querySelector("#subjects");
@@ -4040,7 +4044,10 @@ function receive(value){
   const keep=current&&!current.isNew?{programId:current.id}:null,first=!current&&selectedPeriodId==null;
   applyContext(value);
   if(!context){renderAll();return}
-  if(first)reportedView=String(context.lastView||"");
+  if(first){
+    reportedView=String(context.lastView||"");
+    if(Number.isInteger(context.zoom))boardZoom=Math.max(30,Math.min(200,context.zoom));
+  }
   loadClean(keep&&savedProgram(keep.id)?keep:(first&&lastViewTarget())||savedTarget());
   setStatus(hoursError?"Οι Ώρες Διδασκαλίας χρειάζονται διόρθωση":"Έτοιμο");
 }

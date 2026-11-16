@@ -12,7 +12,7 @@
   φτιάχνονται από το σύντομο όνομα των δασκάλων («[Α1] - …», classesFromStaff). Με το .data δοκιμής, οι
   έλεγχοι των νέων ετικετών (v2) παίρνουν το Προσωπικό από αυτό, γιατί το CSV του Ολοημέρου έχει τα σύντομα
   ονόματα του Προσωπικού.
-  Έκδοση αρχείου: 0.53
+  Έκδοση αρχείου: 0.54
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -1789,6 +1789,16 @@ function hostIndividualChecks() {
   rejects('Το FET Editor δεν γράφει ατομικά προγράμματα', trySave(withCatalog, {ops: [put(program)]}, FET_APP), 'δεν μπορεί να γράψει');
   // Τελευταία επιλογή με εκπαιδευτικό
   equal('Τελευταία επιλογή «period:…|staff:…»', [H.viewKey(APP), H.lastView(H.withView(saved, year, 'individual', 'period:pa|staff:s1'), year, 'individual')], ['individual', 'period:pa|staff:s1']);
+  // Ζουμ του πίνακα (timetableSettings, κοινό για όλα τα σχολικά έτη)
+  const OLO = T.kinds.oloimero.owner;
+  equal('Ζουμ χωρίς τιμή: 100% στα Ατομικά, 80% στον Ολοήμερο, κανένα στις Περιόδους Προγραμμάτων', [H.context(saved, APP, 1).zoom, H.context(saved, OLO, 1).zoom, H.context(saved, PROG, 1).zoom], [100, 80, null]);
+  equal('Όρια ζουμ στο context', H.context(saved, APP, 1).zoomLimits, {min: 30, max: 200, step: 10});
+  const zoomed = H.withZoom(H.withZoom(saved, 'individual', 140), 'oloimero', 60);
+  equal('Με ζουμ: στο context της εφαρμογής του μόνο, και σε άλλο σχολικό έτος', [H.context(zoomed, APP, 1).zoom, H.context(zoomed, OLO, 1).zoom, H.zoom({...zoomed, school: {...zoomed.school, year: '2027-2028'}}, 'individual')], [140, 60, 140]);
+  check('withZoom δεν αλλάζει το αρχικό data και δεν αγγίζει το timetablesByYear', !saved.timetableSettings && JSON.stringify(zoomed.timetablesByYear) === JSON.stringify(saved.timetablesByYear));
+  equal('Ζουμ εκτός ορίων ή όχι πολλαπλάσιο του 10: η προεπιλογή', [H.zoom({timetableSettings: {zoom: {individual: 250}}}, 'individual'), H.zoom({timetableSettings: {zoom: {individual: 75}}}, 'individual'), H.zoom({timetableSettings: {zoom: {oloimero: 'x'}}}, 'oloimero')], [100, 100, 80]);
+  accepts('Αποθήκευση με ζουμ στο data: γίνεται δεκτή και το ζουμ μένει', trySave(zoomed, {ops: [], individualCatalog: catalog}, APP));
+  check('Η αποθήκευση κρατά το timetableSettings', H.zoom(trySave(zoomed, {ops: [], individualCatalog: catalog}, APP).data || {}, 'individual') === 140);
   // Χρήση τμημάτων
   if (HC) {
     const usage = HC.classUsage(saved, year), kinds = id => (usage[id] || []).map(item => item.kind + ':' + item.activities);

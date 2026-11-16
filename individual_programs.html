@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ατομικά Προγράμματα v0.1</title>
+<title>Ατομικά Προγράμματα v0.2</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -17,7 +17,9 @@
   --ip-pending-bg:#f5f5f5;--ip-chip-border:#8f9aa6;
   --ip-conflict-bg:#fff1f0;--ip-conflict-ring:#f04438;--ip-conflict-text:#b42318;
   --ip-drop-bg:#eff8ff;--ip-drop-outline:#84adff;
-  --ip-over:#d00000;--ip-ok:#0a8a20
+  --ip-over:#d00000;--ip-ok:#0a8a20;
+  --ip-highlight-bg:#e2f6e5;--ip-highlight-ring:#58a96a;--ip-copy-mark:#1769d2;--ip-flash:#f79009;
+  --ip-floating-bottom:12px;--ip-scrollbar-lift:0px
 }
 /* Header: the lists give up width before anything wraps out of the page. */
 #period{flex:0 1 auto;min-width:0;max-width:min(300px,100%)}
@@ -60,15 +62,17 @@ aside .section-title{margin-top:18px}
 .ip-item.ip-colored{background:var(--ip-tone-bg);border-color:var(--ip-tone-border);color:var(--ip-tone-ink)}
 .ip-item.ip-colored .ip-item-meta{color:inherit;opacity:.78}
 .ip-section-empty{margin:4px 0 0;font-size:13px;color:var(--school-ui-muted);line-height:1.45}
+/* Double click on an item: green ring on the item and green background on its cells. */
+.ip-item.ip-highlight-active{box-shadow:inset 0 0 0 3px var(--ip-highlight-ring)}
 
 /* Workspace */
-.ip-workspace{min-width:0;min-height:0;overflow:auto;padding:12px 14px}
+.ip-workspace{min-width:0;min-height:0;overflow:auto;padding:12px 14px 140px;cursor:grab}
+.ip-workspace.panning{cursor:grabbing;user-select:none}
+.ip-workspace :is(button,select,input,a){cursor:pointer}
 .ip-title{margin:0 0 2px;font-size:18px;font-weight:850;line-height:1.3}
 .ip-title small{font-size:14px;font-weight:400;color:var(--school-ui-muted);margin-left:8px}
 .ip-info{margin:0;font-size:13px;color:var(--school-ui-muted);line-height:1.5}
 .ip-info b{font-weight:650;color:var(--school-ui-label-text)}
-.ip-hours{margin:2px 0 0;font-size:14px;line-height:1.5}
-.ip-hours b{font-weight:750}
 .ip-warnings .ui-validation-warning,.ip-warnings .ui-validation-error{font-size:13px}
 .ip-workspace .subapp-notice{margin:8px 0}
 .ip-workspace .subapp-notice:empty{display:none}
@@ -76,19 +80,21 @@ aside .section-title{margin-top:18px}
 .ip-grid-wrap{margin-top:8px}
 
 /* Grid: days in the columns, the hours of Ώρες Διδασκαλίας in the rows (without the breaks). */
-table.ip-grid{border-collapse:separate;border-spacing:0;background:var(--school-ui-surface);border:1px solid var(--ip-line);border-radius:10px;min-width:max-content}
+table.ip-grid{--ip-zoom:1;cursor:default;user-select:none;border-collapse:separate;border-spacing:0;background:var(--school-ui-surface);border:1px solid var(--ip-line);border-radius:10px;min-width:max-content}
 .ip-grid th,.ip-grid td{border-right:1px solid var(--ip-line);border-bottom:1px solid var(--ip-line);vertical-align:top}
 .ip-grid tr:last-child>td,.ip-grid tr:last-child>th{border-bottom:0}
 .ip-grid th:last-child,.ip-grid td:last-child{border-right:0}
 .ip-grid tr.ip-boundary>th,.ip-grid tr.ip-boundary>td{border-top:2px solid var(--ip-boundary)}
-.ip-grid thead th{position:sticky;top:-12px;z-index:4;background:var(--ip-head-bg);padding:8px;text-align:center;min-width:var(--ip-cell);font-size:14px}
-.ip-grid .ip-hour{position:sticky;left:-14px;z-index:3;background:var(--ip-head-bg);width:var(--ip-hour);min-width:var(--ip-hour);padding:8px;text-align:left;font-size:13px;font-weight:650;white-space:nowrap}
+.ip-grid thead th{position:sticky;top:calc(-12px / var(--ip-zoom));z-index:4;background:var(--ip-head-bg);padding:8px;text-align:center;min-width:var(--ip-cell);font-size:14px}
+.ip-grid .ip-hour{position:sticky;left:calc(-14px / var(--ip-zoom));z-index:3;background:var(--ip-head-bg);width:var(--ip-hour);min-width:var(--ip-hour);padding:8px;text-align:left;font-size:13px;font-weight:650;white-space:nowrap}
 .ip-grid thead .ip-hour{z-index:5}
 .ip-grid td.ip-slot{width:var(--ip-cell);min-width:var(--ip-cell);max-width:var(--ip-cell);height:64px;padding:5px;background:var(--school-ui-surface)}
 .ip-grid td.ip-slot.ip-locked{background:var(--ip-locked-bg);cursor:not-allowed}
 .ip-grid td.ip-slot.ip-pending{background:var(--ip-pending-bg)}
 .ip-grid td.ip-slot.ip-conflict{background:var(--ip-conflict-bg);box-shadow:inset 0 0 0 2px var(--ip-conflict-ring)}
+.ip-grid td.ip-slot.ip-highlight{background:var(--ip-highlight-bg)}
 .ip-grid td.ip-slot.dragover{outline:3px solid var(--ip-drop-outline);outline-offset:-3px;background:var(--ip-drop-bg)}
+.ip-grid td.ip-slot.ip-flash{outline:3px solid var(--ip-flash);outline-offset:-3px}
 /* An hour of the teacher in the Ωρολόγιο: grey and locked, with its subject and students. */
 .ip-school{color:var(--ip-locked-text);font-size:12px;line-height:1.25;text-align:center;overflow-wrap:anywhere}
 .ip-school+.ip-school,.ip-school+.ip-entry,.ip-entry+.ip-entry{margin-top:6px}
@@ -114,6 +120,21 @@ table.ip-grid{border-collapse:separate;border-spacing:0;background:var(--school-
 }
 .ip-x>svg{display:block;width:var(--school-ui-icon-size-small);height:var(--school-ui-icon-size-small)}
 .ip-x:hover:not(:disabled){background:#00000015}
+/* Drag inside the grid (own pointer mechanism, so that Ctrl copies reliably in Chrome). */
+.ip-drag-handle{cursor:grab;touch-action:none}
+.ip-pointer-dragging,.ip-pointer-dragging *{cursor:grabbing!important}
+.ip-drag-source{opacity:.48}
+.ip-ghost{
+  position:fixed;z-index:10000;pointer-events:none;margin:0;padding:4px;box-sizing:border-box;opacity:.92;transform:translate(14px,14px);
+  background:var(--school-ui-surface);border:1px solid var(--school-ui-border);border-radius:7px;box-shadow:0 4px 14px #0003
+}
+.ip-ghost.ip-ghost-chip{padding:0;border:0;background:transparent;box-shadow:none}
+.ip-ghost-copy{
+  display:none;position:absolute;right:-9px;bottom:-9px;width:22px;height:22px;align-items:center;justify-content:center;
+  border:2px solid var(--school-ui-surface);border-radius:50%;background:var(--ip-copy-mark);color:var(--school-ui-surface);box-shadow:0 2px 7px #0005
+}
+.ip-ghost-copy>svg{width:var(--school-ui-icon-size-small);height:var(--school-ui-icon-size-small)}
+.ip-ghost.copy .ip-ghost-copy{display:flex}
 .ip-cell-note{font-size:11px;line-height:1.3;text-align:center;overflow-wrap:anywhere}
 .ip-cell-note.warning{color:var(--school-ui-warning)}
 .ip-cell-note.error{color:var(--ip-conflict-text);font-weight:650}
@@ -130,11 +151,40 @@ table.ip-grid{border-collapse:separate;border-spacing:0;background:var(--school-
 .ip-manager-row input{margin:0}
 .ip-manager-row .ip-manager-name{min-width:0;overflow-wrap:anywhere}
 .ip-manager .hint{margin:0 0 10px}
+.ip-pick-actions{display:flex;gap:8px;margin:0 0 6px}
+.ip-pick-list{max-height:min(48vh,420px);overflow:auto;border:1px solid var(--school-ui-border);border-radius:8px;padding:4px 10px}
+.ip-pick-list label{align-items:baseline;margin:4px 0;font-weight:400}
+.ip-form .ip-field-title{display:block;margin:12px 0 5px;font-weight:650}
+.ip-pick-list small{color:var(--school-ui-muted);font-size:13px;font-weight:400}
+.ip-pick-list .ip-pick-here{color:var(--school-ui-warning)}
+
+/* Floating controls: «Σύνοψη ωρών» down left (next to the sidebar), zoom down right (the shared .ui-zoom). */
+.ip-zoom{position:fixed;right:18px;z-index:60}
+.ip-summary{
+  position:fixed;left:318px;z-index:60;min-width:170px;display:grid;gap:4px;padding:8px 11px;
+  background:rgba(255,255,255,.95);border:1px solid var(--school-ui-border);border-radius:9px;
+  box-shadow:0 2px 8px rgba(0,0,0,.14);color:var(--school-ui-text);font-size:13px;line-height:1.25;user-select:none
+}
+.ip-summary,.ip-zoom{bottom:calc(var(--ip-floating-bottom) + var(--ip-scrollbar-lift))}
+main.ip-single~.ip-summary{left:18px}
+.ip-summary-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:14px}
+.ip-summary-label{font-weight:600}
+.ip-summary-value{min-width:44px;text-align:right;color:var(--school-ui-primary-text);font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ip-summary-row.ip-total{margin-top:2px;padding-top:5px;border-top:1px solid var(--school-ui-row-border)}
+.ip-summary-row.ip-total :is(.ip-summary-label,.ip-summary-value){font-weight:800}
+.ip-summary-row.ip-total.ip-over :is(.ip-summary-label,.ip-summary-value){color:var(--ip-over)}
+.ip-summary-row.ip-total.ip-ok .ip-summary-value svg{color:var(--ip-ok)}
+.ip-summary-row.ip-pending-row{cursor:pointer;border-radius:4px}
+.ip-summary-row.ip-pending-row :is(.ip-summary-label,.ip-summary-value){color:var(--school-ui-warning)}
+.ip-summary-row.ip-pending-row:hover .ip-summary-label{text-decoration:underline}
+.ip-summary-row.ip-pending-row:focus-visible{outline:2px solid var(--school-ui-focus);outline-offset:2px}
 
 @media(max-width:900px){:root{--ip-cell:128px;--ip-hour:104px}}
 @media(max-width:800px){
   .ip-workspace{overflow:visible}
   .ip-grid-wrap{overflow:auto}
+  .ip-summary,main.ip-single~.ip-summary{left:12px}
+  .ip-zoom{right:12px}
   .ip-grid thead th{top:0}
   .ip-grid .ip-hour{left:0}
 }
@@ -142,7 +192,7 @@ table.ip-grid{border-collapse:separate;border-spacing:0;background:var(--school-
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ατομικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΑΠ</span></span><span class="brand-text"><span>Ατομικά Προγράμματα</span><span class="small version">v0.1</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ατομικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΑΠ</span></span><span class="brand-text"><span>Ατομικά Προγράμματα</span><span class="small version">v0.2</span></span></button></h1></div>
   <select id="period" aria-label="Περίοδος" disabled hidden></select>
   <span id="staffControl" class="ip-staff-control" hidden>
     <button id="staffButton" class="ip-staff-button" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="staffMenu" disabled>Εκπαιδευτικός</button>
@@ -156,6 +206,8 @@ table.ip-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     <span id="undoMenu" class="save-menu" hidden><button id="undoAll" type="button" disabled>Αναίρεση όλων</button></span>
   </span>
   <button id="redo" type="button" disabled title="Επανάληψη της αλλαγής που αναιρέθηκε" data-school-icon="redo">Επανάληψη</button>
+  <span class="sep" aria-hidden="true"></span>
+  <button id="copyFrom" type="button" disabled title="Αντιγραφή ατομικών προγραμμάτων εκπαιδευτικών από άλλη περίοδο">Αντιγραφή από άλλη περίοδο…</button>
   <div class="header-right"><span id="schoolYear" class="school-year-indicator" hidden><span>Σχολικό έτος:</span> <span id="schoolYearValue"></span></span></div>
 </header>
 <main id="root" class="ip-single">
@@ -163,6 +215,7 @@ table.ip-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     <h2 class="section-heading">
       <span class="section-label">Μαθήματα <span id="subjectCount"></span></span>
       <span class="section-heading-actions">
+        <button type="button" id="importSubjects" class="subapp-section-action" title="Προσθήκη από Ωρολόγιο…" aria-label="Προσθήκη μαθημάτων από το Ωρολόγιο της περιόδου" data-school-icon="import"></button>
         <button type="button" id="manageSubjects" class="subapp-section-action" title="Σειρά και εμφάνιση Μαθημάτων" aria-label="Σειρά και εμφάνιση Μαθημάτων" data-school-icon="edit"></button>
       </span>
     </h2>
@@ -190,6 +243,17 @@ table.ip-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     <p class="subapp-connection">Άνοιξε τα Ατομικά Προγράμματα από το Κεντρικό Μενού, αφού ανοίξεις το αρχείο πληροφοριών του σχολείου. Απαιτείται η τελευταία έκδοση του index.html.</p>
   </section>
 </main>
+<div id="summary" class="ip-summary" aria-label="Σύνοψη ωρών" aria-live="polite" hidden>
+  <div class="ip-summary-row"><span class="ip-summary-label">Ωρολόγιο:</span><span id="sumSchool" class="ip-summary-value">0</span></div>
+  <div class="ip-summary-row"><span class="ip-summary-label">Ατομικό:</span><span id="sumOwn" class="ip-summary-value">0</span></div>
+  <div id="sumTotalRow" class="ip-summary-row ip-total"><span class="ip-summary-label">Σύνολο:</span><span id="sumTotal" class="ip-summary-value">0</span></div>
+  <div id="sumPendingRow" class="ip-summary-row ip-pending-row" role="button" tabindex="0" title="Μετάβαση στο πρώτο ελλιπές κελί" hidden><span class="ip-summary-label">Ελλιπή κελιά:</span><span id="sumPending" class="ip-summary-value">0</span></div>
+</div>
+<div id="zoomBar" class="ip-zoom ui-zoom" aria-label="Μεγέθυνση πίνακα" hidden>
+  <button type="button" id="zoomOut" class="ui-icon-button" title="Σμίκρυνση πίνακα" aria-label="Σμίκρυνση πίνακα" data-school-icon="minus"></button>
+  <button type="button" id="zoomLevel" class="ui-zoom-level" title="Επαναφορά ζουμ στο 100%"><span>100%</span></button>
+  <button type="button" id="zoomIn" class="ui-icon-button" title="Μεγέθυνση πίνακα" aria-label="Μεγέθυνση πίνακα" data-school-icon="plus"></button>
+</div>
 <script src="_ui.js"></script>
 <script src="_data.js"></script>
 <script>
@@ -203,6 +267,10 @@ table.ip-grid{border-collapse:separate;border-spacing:0;background:var(--school-
   // from them with SchoolTimetable.individualRefresh (_data.js) after every change.
   // Every change happens in the page; «Αποθήκευση» writes the program of the period, the catalog, and the
   // programs of the other periods that a change of the catalog affects (e.g. a renamed subject), all or nothing.
+  // As in the Ολοήμερο Designer (the code is written here for now; to become shared in _ui.js): items move inside
+  // the grid with an own pointer mechanism (Ctrl copies), double click on a sidebar item highlights its cells,
+  // the board zooms (kept by the index for every school year, school-timetables:zoom) and pans from the empty
+  // space around it, and «Σύνοψη ωρών» floats down left.
   const T = SchoolTimetable, C = SchoolClasses, D = SchoolDate, esc = schoolEscape, $ = id => document.getElementById(id);
   const post = schoolHost.post;
   const quoted = value => '«' + value + '»';
@@ -241,6 +309,9 @@ table.ip-grid{border-collapse:separate;border-spacing:0;background:var(--school-
   let hours = [], hoursError = '';
   let staffById = new Map();
   let dragging = null;           // the item dragged from the sidebar: {type, id}
+  let copied = {};               // staff id → their cells right after «Αντιγραφή από άλλη περίοδο» (not an «edit»)
+  const highlights = new Set();  // 'type:id' of the sidebar items whose cells are highlighted
+  let zoom = 100, zoomLoaded = false;
 
   // ---- Small helpers ----
   const periodOf = id => context?.periods?.find(period => period.id === id) || null;
@@ -405,7 +476,7 @@ table.ip-grid{border-collapse:separate;border-spacing:0;background:var(--school-
   }
 
   // ---- Changes, undo, dirty state ----
-  const snapshot = () => JSON.stringify({program, catalog});
+  const snapshot = () => JSON.stringify({program, catalog, copied});
   function change(apply) {
     const before = snapshot();
     if (apply() === false) return false;
@@ -417,14 +488,14 @@ table.ip-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     refresh();
     return true;
   }
-  function restore(value) { const state = JSON.parse(value); program = state.program; catalog = state.catalog; refresh(); }
+  function restore(value) { const state = JSON.parse(value); program = state.program; catalog = state.catalog; copied = state.copied || {}; refresh(); }
   function undo() { if (busy || !undoStack.length) return; redoStack.push(snapshot()); restore(undoStack.pop()); }
   function redo() { if (busy || !redoStack.length) return; undoStack.push(snapshot()); restore(redoStack.pop()); }
   async function undoAll() {
     if (busy || !dirty) return;
     if (!await schoolConfirm('Να αναιρεθούν όλες οι αλλαγές από την τελευταία αποθήκευση;', {title: 'Αναίρεση όλων', accept: 'Αναίρεση όλων'})) return;
     undoStack.push(snapshot()); redoStack = [];
-    program = clone(saved); catalog = clone(savedCatalog);
+    program = clone(saved); catalog = clone(savedCatalog); copied = {};
     refresh();
     notice('Αναιρέθηκαν όλες οι αλλαγές από την τελευταία αποθήκευση.');
   }
@@ -444,6 +515,8 @@ table.ip-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     $('redo').disabled = busy || !redoStack.length;
     $('period').disabled = busy || !shownPeriods().length || !!hoursError;
     $('staffButton').disabled = busy || !context?.staff?.length || !periodId || !!hoursError;
+    $('copyFrom').disabled = busy || !context?.staff?.length || !periodId || readOnly() || !!hoursError || !copySources().length;
+    $('importSubjects').disabled = busy || !periodId || readOnly();
     $('root').classList.toggle('busy', busy);
   }
   function refresh() { updateDirty(); render(); }
@@ -471,6 +544,7 @@ table.ip-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     loadHours();
     savedCatalog = normalCatalog(context.individualCatalog); savedCatalogJson = JSON.stringify(savedCatalog);
     catalog = clone(savedCatalog);
+    if (!zoomLoaded) { zoomLoaded = true; if (Number.isInteger(context.zoom)) zoom = context.zoom; }
     const periods = shownPeriods();
     const last = /^period:([^|]+)(?:\|staff:(.+))?$/.exec(context.lastView || '');
     if (!periodId && last && periods.some(period => period.id === last[1])) { periodId = last[1]; staffId = staffById.has(last[2]) ? last[2] : ''; }
@@ -485,7 +559,8 @@ table.ip-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     saved = id ? clone(individualOf(id)) : null;
     savedJson = JSON.stringify(saved);
     program = clone(saved);
-    undoStack = []; redoStack = [];
+    undoStack = []; redoStack = []; copied = {};
+    highlights.clear();
     if (!staffById.has(staffId)) staffId = (staffGroups()[0]?.list[0] || sortedStaff()[0])?.id || '';
     refresh();
     reportView();
@@ -605,6 +680,7 @@ table.ip-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     else if (!periodId) empty('Καμία περίοδος δεν έχει Ωρολόγιο.<br>Τα ατομικά προγράμματα ορίζονται σε περίοδο που έχει ήδη Ωρολόγιο· η εισαγωγή του από FET γίνεται στις «Περιόδους Προγραμμάτων».');
     else if (!context.staff?.length) empty('Δεν υπάρχει Προσωπικό για το σχολικό έτος.<br>Συμπλήρωσέ το πρώτα στο «Προσωπικό».');
     else { renderSide(); renderWorkspace(work); }
+    renderSummary(ready && !!context.periods?.length && !!context.staff?.length);
     buttons();
   }
 
@@ -614,6 +690,7 @@ table.ip-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     item.draggable = true;
     item.dataset.type = type; item.dataset.id = id;
     if (toneStyle(item, color)) item.classList.add('ip-colored');
+    if (highlights.has(type + ':' + id)) item.classList.add('ip-highlight-active');
     item.append(el('span', 'ip-item-name', name));
     if (actions) item.append(actions);
     item.append(el('span', 'ip-item-meta', meta));
@@ -624,6 +701,7 @@ table.ip-grid{border-collapse:separate;border-spacing:0;background:var(--school-
       event.dataTransfer.effectAllowed = 'copy';
     });
     item.addEventListener('dragend', () => { dragging = null; document.querySelectorAll('.ip-slot.dragover').forEach(td => td.classList.remove('dragover')); });
+    item.addEventListener('dblclick', event => { if (!event.target.closest('button')) toggleHighlight(type, id, name); });
     return item;
   }
   function itemActions(onEdit, onDelete) {
@@ -666,7 +744,6 @@ table.ip-grid{border-collapse:separate;border-spacing:0;background:var(--school-
   // Workspace
   function renderWorkspace(work) {
     const person = staffById.get(staffId), period = periodOf(periodId);
-    const schoolHours = schoolHoursOf(staffId), own = individualHoursOf(staffId), target = targetOf(staffId), total = schoolHours + own, mark = hoursMark(staffId);
     const {slots, outside} = slotsOf(staffId);
     const notes = [];
     if (readOnly()) notes.push(['warning', 'Η περίοδος δεν έχει Ωρολόγιο: τα ατομικά προγράμματά της φαίνονται, αλλά δεν αλλάζουν. Μπορείς να τα διαγράψεις στις «Περιόδους Προγραμμάτων».']);
@@ -676,12 +753,8 @@ table.ip-grid{border-collapse:separate;border-spacing:0;background:var(--school-
       return entries.length > 1 || schoolAt(staffId, day, hours[h]).length || (!isMorning(hours[h]) && entries.length);
     }).length;
     if (conflicts) notes.push(['error', conflicts === 1 ? '1 κελί έχει λάθος (σημειώνεται με κόκκινο).' : conflicts + ' κελιά έχουν λάθος (σημειώνονται με κόκκινο).']);
-    const pending = (program?.source?.pending || []).filter(item => item.staffId === staffId).length;
-    if (pending) notes.push(['warning', pending === 1 ? '1 ελλιπές κελί (χωρίς μάθημα): δεν μετρά στις ώρες και δεν αποθηκεύεται ως δραστηριότητα.' : pending + ' ελλιπή κελιά (χωρίς μάθημα): δεν μετρούν στις ώρες και δεν αποθηκεύονται ως δραστηριότητες.']);
-    const markHtml = mark ? ' ' + `<span class="ip-${mark}" title="${mark === 'over' ? 'Πάνω από το «Ωράριο στο σχολείο»' : 'Ίσο με το «Ωράριο στο σχολείο»'}">${schoolIconText(mark === 'over' ? 'alert-bold' : 'check', '', {end: true})}</span>` : '';
     work.innerHTML = `<h2 class="ip-title">${esc(personName(person))}${person?.name && person.name !== person.shortName ? `<small>${esc(person.name)}</small>` : ''}</h2>
       <p class="ip-info"><b>Περίοδος:</b> ${esc(period?.name || '')} (${esc(period ? periodText(period) : '')})</p>
-      <p class="ip-hours">Ώρες: ${schoolHours} Ωρολόγιο + ${own} Ατομικό = <b>${total}</b>${target == null ? ' (χωρίς «Ωράριο στο σχολείο» στο Προσωπικό)' : ' / ' + target}${markHtml}</p>
       <div class="ip-warnings">${notes.map(([kind, textValue]) => `<p class="ui-validation-${kind}">${esc(textValue)}</p>`).join('')}</div>
       <p id="notice" class="subapp-notice" role="status"></p>
       <div id="gridWrap" class="ip-grid-wrap"></div>`;
@@ -702,6 +775,7 @@ table.ip-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     });
     table.append(head, body);
     $('gridWrap').replaceChildren(table);
+    applyZoom();
   }
   function cellFor(day, hour, entries) {
     const td = el('td', 'ip-slot');
@@ -719,7 +793,8 @@ table.ip-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     const conflict = entries.length > 1 || (entries.length && (school.length || !isMorning(hour)));
     if (conflict) td.classList.add('ip-conflict');
     if (entries.length && entries.every(entry => entry.kind === 'pending')) td.classList.add('ip-pending');
-    for (const entry of entries) td.append(entryFor(day, hour, entry, entries.length > 1 ? 'Δύο δραστηριότητες την ίδια ώρα.' : school.length ? 'Την ίδια ώρα ο εκπαιδευτικός έχει Ωρολόγιο.' : !isMorning(hour) ? 'Ώρα εκτός Πρωινού.' : ''));
+    if (highlighted(entries)) td.classList.add('ip-highlight');
+    entries.forEach((entry, index) => td.append(entryFor(day, hour, entry, index, entries.length > 1 ? 'Δύο δραστηριότητες την ίδια ώρα.' : school.length ? 'Την ίδια ώρα ο εκπαιδευτικός έχει Ωρολόγιο.' : !isMorning(hour) ? 'Ώρα εκτός Πρωινού.' : '')));
     if (!locked) {
       td.addEventListener('dragover', event => { if (!dragging) return; event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; td.classList.add('dragover'); });
       td.addEventListener('dragleave', () => td.classList.remove('dragover'));
@@ -734,12 +809,19 @@ table.ip-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     }
     return td;
   }
-  function entryFor(day, hour, entry, error) {
+  function entryFor(day, hour, entry, index, error) {
     const box = el('div', 'ip-entry'), content = contentOf(entry), editable = !readOnly();
+    // The subject, the «μάθημα της τάξης» or «Χωρίς μάθημα» drags the whole cell; a chip drags only itself.
+    const handle = node => {
+      if (!editable) return node;
+      node.classList.add('ip-drag-handle');
+      node.addEventListener('pointerdown', event => beginDrag(event, node, box, {kind: 'entry', day, h: hour.index, index}));
+      return node;
+    };
     const activity = entry.kind === 'activity' ? entry.activity : null;
     if (content.subjectId) {
       const subject = subjectById(content.subjectId);
-      const line = el('div', 'ip-subject');
+      const line = handle(el('div', 'ip-subject'));
       toneStyle(line, subject?.color);
       line.append(el('span', 'ip-subject-name', subject?.name || activity?.subject || '?'));
       if (editable) {
@@ -754,13 +836,13 @@ table.ip-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     } else if (activity) {
       // «Μάθημα της τάξης»: what the τμήματα of the cell have at this hour in the Ωρολόγιο, in italics.
       const details = T.activitySubjectDetails(activity, {programs: schoolOf(periodId) ? [schoolOf(periodId)] : [], classes: yearClasses()});
-      const line = el('div', 'ip-class-subject', details.text || 'Μάθημα της τάξης');
+      const line = handle(el('div', 'ip-class-subject', details.text || 'Μάθημα της τάξης'));
       line.title = 'Μάθημα της τάξης: το μάθημα που έχουν τα τμήματα αυτή την ώρα στο Ωρολόγιο.';
       box.append(line);
       if (details.missing.length) box.append(el('div', 'ip-cell-note warning', 'Χωρίς μάθημα στο Ωρολόγιο: ' + details.missing.map(id => C.nameOf(yearClasses(), id) || '?').join(', ')));
     } else {
       // An incomplete cell: chips without a subject (a τμήμα that is not Γενικής Παιδείας always needs one).
-      box.append(el('div', 'ip-pending-label', 'Χωρίς μάθημα'));
+      box.append(handle(el('div', 'ip-pending-label', 'Χωρίς μάθημα')));
       const needs = classSubjectAllowed(staffId) ? content.chips.filter(chip => !chipInfo(chip).general).map(chip => chipInfo(chip).name) : [];
       if (needs.length) box.append(el('div', 'ip-cell-note warning', (needs.length === 1 ? 'Το ' + quoted(needs[0]) + ' θέλει' : 'Τα ' + needs.map(quoted).join(', ') + ' θέλουν') + ' δηλωμένο μάθημα.'));
     }
@@ -770,6 +852,8 @@ table.ip-grid{border-collapse:separate;border-spacing:0;background:var(--school-
         const info = chipInfo(chip), span = el('span', 'ip-chip' + (info.union ? ' ip-union' : ''));
         span.append(el('span', '', info.name));
         if (editable) {
+          span.classList.add('ip-drag-handle');
+          span.addEventListener('pointerdown', event => beginDrag(event, span, span, {kind: 'chip', day, h: hour.index, index, chip}));
           const x = iconButton('ip-x', 'close', 'Αφαίρεση: ' + info.name);
           x.onclick = () => change(() => writeCell(staffId, day, hour, entry, {...content, chips: content.chips.filter(item => chipKey(item) !== chipKey(chip))}));
           span.append(x);
@@ -1076,7 +1160,11 @@ table.ip-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     if (program && programDirty()) {
       put = T.individualRefresh(program, {catalog, classes: yearClasses()}).program;
       // One «edit» entry per save, with the teachers whose cells changed (names as they are now).
-      const changed = sortedStaff().filter(person => staffSignature(saved, person.id) !== staffSignature(put, person.id));
+      // A teacher copied from another period has its «copy» entry already: only later changes make an «edit».
+      const changed = sortedStaff().filter(person => {
+        const after = staffSignature(put, person.id);
+        return staffSignature(saved, person.id) !== after && copied[person.id] !== after;
+      });
       if (changed.length) { put.updatedAt = now; T.addHistory(put, {at: now, type: 'edit', staff: changed.map(person => String(person.name || person.shortName || ''))}); }
       ops.push({op: 'put', program: put});
     }
@@ -1098,7 +1186,7 @@ table.ip-grid{border-collapse:separate;border-spacing:0;background:var(--school-
       const stored = put ? (result.programs || []).find(item => item.id === put.id) : null;
       if (put && (!stored || JSON.stringify(stored) !== JSON.stringify(put))) throw Error('Η αποθήκευση ολοκληρώθηκε, αλλά το πρόγραμμα του αρχείου δεν είναι ίδιο με αυτό της σελίδας. Βεβαιώσου ότι το index.html είναι η τελευταία έκδοση.');
       // «Αναίρεση» / «Επανάληψη» work only within the changes since the last save.
-      undoStack = []; redoStack = [];
+      undoStack = []; redoStack = []; copied = {};
       saved = clone(individualOf(periodId)); savedJson = JSON.stringify(saved);
       program = clone(saved);
       savedCatalog = normalCatalog(result.individualCatalog); savedCatalogJson = JSON.stringify(savedCatalog);
@@ -1111,6 +1199,412 @@ table.ip-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     } finally { setBusy(false); }
   }
 
+  // ---- «Σύνοψη ωρών» (down left, for the teacher shown) ----
+  const pendingOf = id => (program?.source?.pending || []).filter(item => item.staffId === id).length;
+  function renderSummary(show) {
+    $('summary').hidden = $('zoomBar').hidden = !show;
+    if (!show) return;
+    const school = schoolHoursOf(staffId), own = individualHoursOf(staffId), total = school + own, target = targetOf(staffId), mark = hoursMark(staffId);
+    $('sumSchool').textContent = school;
+    $('sumOwn').textContent = own;
+    const row = $('sumTotalRow'), textValue = target == null ? String(total) : total + '/' + target;
+    row.classList.toggle('ip-over', mark === 'over');
+    row.classList.toggle('ip-ok', mark === 'ok');
+    $('sumTotal').innerHTML = mark ? schoolIconText(mark === 'over' ? 'alert-bold' : 'check', textValue, {end: true}) : esc(textValue);
+    row.title = target == null ? 'Χωρίς «Ωράριο στο σχολείο» στο Προσωπικό'
+      : mark === 'over' ? 'Πάνω από το «Ωράριο στο σχολείο» (' + target + ')'
+      : mark === 'ok' ? 'Ίσο με το «Ωράριο στο σχολείο»' : '«Ωράριο στο σχολείο»: ' + target;
+    const pending = pendingOf(staffId);
+    $('sumPendingRow').hidden = !pending;
+    $('sumPending').textContent = pending;
+    requestAnimationFrame(updateLift);
+  }
+  // The floating controls go up over the horizontal scrollbar of the workspace.
+  function updateLift() {
+    const work = $('workspace'), scrolls = work.scrollWidth > work.clientWidth + 1;
+    document.documentElement.style.setProperty('--ip-scrollbar-lift', (scrolls ? Math.max(12, work.offsetHeight - work.clientHeight) : 0) + 'px');
+  }
+  // The first cell of the teacher (by day, then hour) whose entries pass test → {day, h} or null.
+  function firstCell(test) {
+    const {slots} = slotsOf(staffId);
+    for (const day of DAYS) for (let h = 0; h < hours.length; h++) {
+      const entries = slots.get(slotKey(day, h));
+      if (entries && test(entries)) return {day, h};
+    }
+    return null;
+  }
+  function scrollToCell(cell) {
+    const td = cell && $('gridWrap')?.querySelector(`td.ip-slot[data-day="${cell.day}"][data-h="${cell.h}"]`);
+    if (!td) return;
+    td.scrollIntoView({block: 'center', inline: 'center'});
+    td.classList.add('ip-flash');
+    setTimeout(() => td.classList.remove('ip-flash'), 1500);
+  }
+  function goToPending() {
+    const cell = firstCell(entries => entries.some(entry => entry.kind === 'pending'));
+    if (!cell) return;
+    scrollToCell(cell);
+    notice('Πρώτο ελλιπές κελί: ' + dayLabel(cell.day) + ' ' + hours[cell.h].start + '-' + hours[cell.h].end + '.');
+  }
+
+  // ---- Highlight (double click on a sidebar item) ----
+  // The τμήματα of the chips of a cell: a Τάξη gives the τμήματα it has now in «Τμήματα».
+  function chipClassIds(chips) {
+    const ids = new Set(), grades = C.grades(yearClasses());
+    const addGrade = grade => grades.find(entry => entry.grade === grade)?.classes.forEach(record => ids.add(record.id));
+    for (const chip of chips) {
+      if (chip.type === 'grade') addGrade(chip.grade);
+      else if (chip.type === 'class') ids.add(chip.id);
+      else { const union = unionById(chip.id); (union?.grades || []).forEach(addGrade); (union?.classIds || []).forEach(id => ids.add(id)); }
+    }
+    return ids;
+  }
+  // Whether what a cell holds has a sidebar item: a subject, a Συνένωση, a Τάξη (alone or in a Συνένωση), or a
+  // τμήμα (its students, through a Τάξη, the τμήμα or a Συνένωση). Incomplete cells count too.
+  function contentHas(content, type, id) {
+    if (type === 'subject') return content.subjectId === id;
+    if (type === 'union') return content.chips.some(chip => chip.type === 'union' && chip.id === id);
+    if (type === 'grade') return content.chips.some(chip => chip.type === 'grade' ? chip.grade === id : chip.type === 'union' && !!unionById(chip.id)?.grades?.includes(id));
+    return chipClassIds(content.chips).has(id);
+  }
+  const splitKey = key => { const at = key.indexOf(':'); return [key.slice(0, at), key.slice(at + 1)]; };
+  const highlighted = entries => !!highlights.size && entries.some(entry => [...highlights].some(key => contentHas(contentOf(entry), ...splitKey(key))));
+  function toggleHighlight(type, id, name) {
+    const key = type + ':' + id, on = !highlights.has(key);
+    if (on) highlights.add(key); else highlights.delete(key);
+    render();
+    if (!on) { notice('Η επισήμανση αφαιρέθηκε: ' + name + '.'); return; }
+    const cell = firstCell(entries => entries.some(entry => contentHas(contentOf(entry), type, id)));
+    if (cell) requestAnimationFrame(() => scrollToCell(cell));
+    notice('Επισήμανση: ' + name + (cell ? '. Διπλό κλικ ξανά για να σβήσει, ή στον κενό χώρο γύρω από τον πίνακα για να σβήσουν όλες.' : ' (δεν υπάρχει σε κελί του εκπαιδευτικού).'));
+  }
+
+  // ---- Zoom (the shared .ui-zoom) and panning of the board ----
+  const zoomLimits = () => {
+    const limits = context?.zoomLimits;
+    return limits && Number.isInteger(limits.min) && Number.isInteger(limits.max) && Number.isInteger(limits.step) ? limits : {min: 30, max: 200, step: 10};
+  };
+  function applyZoom() {
+    const table = $('gridWrap')?.querySelector('table.ip-grid'), limits = zoomLimits();
+    if (table) { table.style.zoom = String(zoom / 100); table.style.setProperty('--ip-zoom', String(zoom / 100)); }
+    $('zoomLevel').firstElementChild.textContent = zoom + '%';
+    $('zoomOut').disabled = zoom <= limits.min;
+    $('zoomIn').disabled = zoom >= limits.max;
+    requestAnimationFrame(updateLift);
+  }
+  // The index keeps the zoom for every school year (timetableSettings), without marking a change of data.
+  function setZoom(value) {
+    const limits = zoomLimits(), next = Math.max(limits.min, Math.min(limits.max, Math.round(value / limits.step) * limits.step));
+    if (next === zoom) return;
+    zoom = next;
+    applyZoom();
+    post({type: 'school-timetables:zoom', zoom});
+  }
+  // Panning only from the empty space around the board: not from the grid, buttons or fields. Up to 800px the
+  // workspace scrolls; below, the grid scrolls sideways and the page (main) up and down.
+  let pan = null;
+  const narrow = () => getComputedStyle($('workspace')).overflowY === 'visible';
+  $('workspace').addEventListener('mousedown', event => {
+    if (event.button !== 0 || !$('gridWrap') || event.target.closest('.ip-grid,button,select,input,textarea,a,label')) return;
+    const across = narrow() ? $('gridWrap') : $('workspace'), down = narrow() ? $('root') : $('workspace');
+    pan = {x: event.clientX, y: event.clientY, across, down, left: across.scrollLeft, top: down.scrollTop};
+    $('workspace').classList.add('panning');
+    event.preventDefault();
+  });
+  document.addEventListener('mousemove', event => {
+    if (!pan) return;
+    pan.across.scrollLeft = pan.left - (event.clientX - pan.x);
+    pan.down.scrollTop = pan.top - (event.clientY - pan.y);
+  });
+  const endPan = () => { if (!pan) return; pan = null; $('workspace').classList.remove('panning'); };
+  document.addEventListener('mouseup', endPan);
+  document.addEventListener('mouseleave', endPan);
+  // Double click on the empty space around the board: all highlights go away.
+  $('workspace').addEventListener('dblclick', event => {
+    if (!highlights.size || event.target.closest('.ip-grid,button,select,input,textarea,a,label')) return;
+    event.preventDefault();
+    highlights.clear();
+    render();
+    notice('Αφαιρέθηκαν όλες οι επισημάνσεις.');
+  });
+
+  // ---- Drag inside the grid ----
+  // Own pointer mechanism, as in the Ολοήμερο Designer, because Ctrl with HTML5 drag and drop is unreliable in
+  // Chrome. The sidebar keeps HTML5 drag and drop. A cell (subject and chips together) moves to another hour, or
+  // is exchanged with what the target has; with Ctrl it is copied (replacing what the target has). A chip alone
+  // moves, or with Ctrl is copied, to another cell. Locked hours and cells with two entries accept nothing; a
+  // drop outside the grid removes the item from its cell.
+  let pointerDrag = null, dropCell = null, ctrlDown = false;
+  const cellPlace = td => ({day: Number(td.dataset.day), h: Number(td.dataset.h)});
+  function cellAt(x, y) {
+    const td = document.elementFromPoint(x, y)?.closest?.('td.ip-slot') || null;
+    return td && $('gridWrap')?.contains(td) ? td : null;
+  }
+  // '' when the cell accepts the drag, 'same' for its own cell, otherwise the message.
+  function dropProblem(drag, td) {
+    const {day, h} = cellPlace(td), hour = hours[h];
+    if (!hour) return 'same';
+    if (day === drag.day && h === drag.h) return 'same';
+    const locked = lockedReason(staffId, day, hour);
+    if (locked === 'zone') return 'Οι ώρες εκτός Πρωινού είναι κλειδωμένες και δεν δέχονται ατομικό πρόγραμμα.';
+    if (locked) return 'Η ώρα είναι του εκπαιδευτικού στο Ωρολόγιο και δεν δέχεται ατομικό πρόγραμμα.';
+    if ((slotsOf(staffId).slots.get(slotKey(day, h)) || []).length > 1) return 'Το κελί έχει δύο δραστηριότητες. Διόρθωσέ το πρώτα.';
+    return '';
+  }
+  function setDropCell(td) {
+    if (dropCell === td) return;
+    dropCell?.classList.remove('dragover');
+    dropCell = td;
+    dropCell?.classList.add('dragover');
+  }
+  function setCopy(value) {
+    if (!pointerDrag?.started) return;
+    pointerDrag.copy = !!value;
+    pointerDrag.ghost?.classList.toggle('copy', pointerDrag.copy);
+  }
+  function beginDrag(event, handleNode, element, payload) {
+    if (event.button !== 0 || pointerDrag || busy || readOnly() || event.target.closest('button')) return;
+    pointerDrag = {...payload, handle: handleNode, element, pointerId: event.pointerId, x: event.clientX, y: event.clientY, started: false, ghost: null, copy: event.ctrlKey || event.metaKey};
+    handleNode.setPointerCapture?.(event.pointerId);
+    event.stopPropagation();
+  }
+  function makeGhost(drag, event) {
+    const rect = drag.element.getBoundingClientRect(), scale = zoom / 100;
+    const ghost = el('div', 'ip-ghost' + (drag.kind === 'chip' ? ' ip-ghost-chip' : ''));
+    ghost.style.zoom = String(scale);
+    ghost.style.width = Math.max(44, Math.round(rect.width / scale)) + 'px';
+    const preview = drag.element.cloneNode(true);
+    preview.classList.remove('ip-drag-source');
+    preview.querySelectorAll('button').forEach(button => button.remove());
+    const mark = el('span', 'ip-ghost-copy'); mark.innerHTML = schoolIcon('plus');
+    ghost.append(preview, mark);
+    document.body.append(ghost);
+    moveGhost(ghost, event);
+    return ghost;
+  }
+  function moveGhost(ghost, event) { const scale = zoom / 100; ghost.style.left = event.clientX / scale + 'px'; ghost.style.top = event.clientY / scale + 'px'; }
+  function cleanupDrag() {
+    const drag = pointerDrag;
+    pointerDrag = null;
+    setDropCell(null);
+    if (!drag) return;
+    drag.element.classList.remove('ip-drag-source');
+    drag.ghost?.remove();
+    document.body.classList.remove('ip-pointer-dragging');
+    if (drag.handle.hasPointerCapture?.(drag.pointerId)) drag.handle.releasePointerCapture(drag.pointerId);
+  }
+  document.addEventListener('pointermove', event => {
+    const drag = pointerDrag;
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    if (!drag.started) {
+      if (Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < 5) return;
+      drag.started = true;
+      drag.element.classList.add('ip-drag-source');
+      drag.ghost = makeGhost(drag, event);
+      document.body.classList.add('ip-pointer-dragging');
+    }
+    event.preventDefault();
+    moveGhost(drag.ghost, event);
+    setCopy(event.ctrlKey || event.metaKey || ctrlDown);
+    const td = cellAt(event.clientX, event.clientY);
+    setDropCell(td && !dropProblem(drag, td) ? td : null);
+  }, {capture: true});
+  document.addEventListener('pointerup', event => {
+    const drag = pointerDrag;
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    if (!drag.started) { cleanupDrag(); return; }
+    event.preventDefault(); event.stopPropagation();
+    const td = cellAt(event.clientX, event.clientY), copy = !!(event.ctrlKey || event.metaKey || ctrlDown || drag.copy);
+    const rect = $('gridWrap')?.querySelector('table.ip-grid')?.getBoundingClientRect();
+    const overGrid = !!rect && event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
+    cleanupDrag();
+    if (td) {
+      const problem = dropProblem(drag, td);
+      if (!problem) gridDrop(drag, cellPlace(td), copy);
+      else if (problem !== 'same') notice(problem);
+    } else if (overGrid) notice('Οι επικεφαλίδες του πίνακα δεν δέχονται τίποτα.');
+    else removeDragged(drag);
+  }, {capture: true});
+  document.addEventListener('pointercancel', event => { if (pointerDrag && event.pointerId === pointerDrag.pointerId) cleanupDrag(); }, {capture: true});
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Control') { ctrlDown = true; setCopy(true); }
+    if (event.key === 'Escape' && pointerDrag?.started) { event.preventDefault(); event.stopPropagation(); cleanupDrag(); notice('Η μεταφορά ακυρώθηκε.'); }
+  }, true);
+  document.addEventListener('keyup', event => { if (event.key === 'Control') { ctrlDown = false; setCopy(false); } }, true);
+  window.addEventListener('blur', () => { ctrlDown = false; });
+
+  const sameContent = (a, b) => (a.subjectId || null) === (b.subjectId || null)
+    && JSON.stringify(sortChips(a.chips).map(chipKey)) === JSON.stringify(sortChips(b.chips).map(chipKey));
+  // Moves an entry of a cell (activity or incomplete cell) to another hour; an activity keeps its id.
+  function placeAt(entry, from, to) {
+    const hour = hours[to.h];
+    if (entry.kind === 'pending') { Object.assign(entry.item, {day: to.day, start: hour.start, end: hour.end}); return; }
+    const time = (entry.activity.times || []).find(item => item.day === from.day && hourIndexOf(item) === from.h);
+    if (time) Object.assign(time, {day: to.day, start: hour.start, end: hour.end});
+  }
+  function dragSource(drag) {
+    const {slots} = slotsOf(staffId);
+    return (slots.get(slotKey(drag.day, drag.h)) || [])[drag.index] || null;
+  }
+  function gridDrop(drag, to, copy) {
+    const source = dragSource(drag);
+    if (!source) return;
+    const target = (slotsOf(staffId).slots.get(slotKey(to.day, to.h)) || [])[0] || null;
+    const from = {day: drag.day, h: drag.h}, toHour = hours[to.h];
+    if (drag.kind === 'entry') {
+      const content = contentOf(source);
+      if (copy) {
+        notice(change(() => writeCell(staffId, to.day, toHour, target, content)) ? 'Το κελί αντιγράφηκε με Ctrl.' : 'Το κελί-στόχος έχει ήδη το ίδιο περιεχόμενο.');
+        return;
+      }
+      if (target && sameContent(content, contentOf(target))) { notice('Τα δύο κελιά έχουν το ίδιο περιεχόμενο· δεν άλλαξε τίποτα.'); return; }
+      if (change(() => { placeAt(source, from, to); if (target) placeAt(target, to, from); })) notice(target ? 'Ανταλλάχθηκαν τα δύο κελιά.' : 'Το κελί μετακινήθηκε.');
+      return;
+    }
+    const chip = drag.chip, key = chipKey(chip), name = chipInfo(chip).name, targetContent = contentOf(target);
+    const has = targetContent.chips.some(item => chipKey(item) === key);
+    if (has && copy) { notice('Το κελί έχει ήδη ' + quoted(name) + '.'); return; }
+    const done = change(() => {
+      if (!has) writeCell(staffId, to.day, toHour, target, {...targetContent, chips: [...targetContent.chips, chip]});
+      if (!copy) { const content = contentOf(source); writeCell(staffId, from.day, hours[from.h], source, {...content, chips: content.chips.filter(item => chipKey(item) !== key)}); }
+    });
+    if (done) notice(copy ? 'Το ' + quoted(name) + ' αντιγράφηκε με Ctrl.' : has ? 'Το ' + quoted(name) + ' υπήρχε ήδη στο κελί-στόχο· αφαιρέθηκε από το αρχικό.' : 'Το ' + quoted(name) + ' μετακινήθηκε.');
+  }
+  // A drop outside the grid removes the item from its cell (as in the Ολοήμερο Designer).
+  function removeDragged(drag) {
+    const source = dragSource(drag);
+    if (!source) return;
+    const content = contentOf(source), hour = hours[drag.h];
+    if (drag.kind === 'entry') {
+      if (change(() => writeCell(staffId, drag.day, hour, source, {subjectId: null, chips: []}))) notice('Το κελί άδειασε (αφέθηκε έξω από τον πίνακα).');
+      return;
+    }
+    const key = chipKey(drag.chip);
+    if (change(() => writeCell(staffId, drag.day, hour, source, {...content, chips: content.chips.filter(item => chipKey(item) !== key)}))) notice('Το ' + quoted(chipInfo(drag.chip).name) + ' αφαιρέθηκε από το κελί.');
+  }
+
+  // ---- Checkbox lists of the dialogs ----
+  function checkList(rows) {
+    const list = el('div', 'subapp-check-list ip-pick-list');
+    for (const row of rows) {
+      const label = el('label'), box = el('input');
+      box.type = 'checkbox'; box.value = row.value; box.checked = !!row.checked;
+      const textBox = el('span'); textBox.append(document.createTextNode(row.text));
+      if (row.note) { textBox.append(document.createTextNode(' ')); textBox.append(el('small', row.noteClass || '', row.note)); }
+      label.append(box, textBox);
+      list.append(label);
+    }
+    return list;
+  }
+  function checkTools(getList) {
+    const box = el('div', 'ip-pick-actions');
+    for (const [label, value] of [['Επιλογή όλων', true], ['Καμία', false]]) {
+      const button = el('button', 'ui-compact-button', label); button.type = 'button';
+      button.onclick = () => getList().querySelectorAll('input[type=checkbox]').forEach(input => { input.checked = value; });
+      box.append(button);
+    }
+    return box;
+  }
+  const checkedValues = list => [...list.querySelectorAll('input[type=checkbox]:checked')].map(input => input.value);
+
+  // ---- «Προσθήκη από Ωρολόγιο…» ----
+  // The subjects of the Ωρολόγιο of the period (source.subjects of the FET import) that the catalog does not have
+  // (by name, without tones and case; a hidden subject counts as there). Without a .fet file.
+  function importSubjects() {
+    if (busy || readOnly()) return;
+    const school = schoolOf(periodId), all = Array.isArray(school?.source?.subjects) ? school.source.subjects : [];
+    const have = new Set(catalog.subjects.map(item => nameKey(item.name))), missing = [];
+    for (const item of all) {
+      const name = String(item?.name ?? '').replace(/\s+/g, ' ').trim(), key = nameKey(name);
+      if (!name || have.has(key)) continue;
+      have.add(key);
+      const longName = String(item?.longName ?? '').replace(/\s+/g, ' ').trim();
+      missing.push({value: name, text: name, note: longName && nameKey(longName) !== key ? longName : '', checked: false});
+    }
+    if (!missing.length) { notice(all.length ? 'Όλα τα μαθήματα του Ωρολογίου της περιόδου υπάρχουν ήδη στα Μαθήματα.' : 'Το Ωρολόγιο της περιόδου δεν έχει κατάλογο μαθημάτων.'); return; }
+    const list = checkList(missing), form = el('div', 'ip-form');
+    form.append(el('p', 'hint', 'Τα μαθήματα του Ωρολογίου της περιόδου ' + quoted(periodOf(periodId)?.name || '') + ' που δεν υπάρχουν στα Μαθήματα. Τα Μαθήματα είναι κοινά για όλες τις περιόδους του σχολικού έτους.'), checkTools(() => list), list);
+    return formDialog({
+      title: 'Προσθήκη από Ωρολόγιο', content: form, accept: 'Προσθήκη',
+      apply: () => {
+        const names = checkedValues(list);
+        if (!names.length) throw Error('Επίλεξε τουλάχιστον ένα μάθημα.');
+        if (catalog.subjects.length + names.length > 500) throw Error('Ο κατάλογος θα ξεπερνούσε τα 500 μαθήματα, το όριο του σχολικού έτους.');
+        change(() => { for (const name of names) catalog.subjects.push({id: uid(), name, color: '', hidden: false}); });
+        notice(names.length === 1 ? 'Προστέθηκε το μάθημα ' + quoted(names[0]) + '. Σύρε το στα κελιά.' : 'Προστέθηκαν ' + names.length + ' μαθήματα. Σύρε τα στα κελιά.');
+      }
+    });
+  }
+
+  // ---- «Αντιγραφή από άλλη περίοδο…» ----
+  // The other periods with individual programs (also those without Ωρολόγιο, read only here).
+  const copySources = () => (context?.periods || []).filter(period => period.id !== periodId && programContent(individualOf(period.id)));
+  // What each teacher has in a program: {hours, pending}.
+  function staffCounts(value) {
+    const counts = new Map(), get = id => { if (!counts.has(id)) counts.set(id, {hours: 0, pending: 0}); return counts.get(id); };
+    for (const activity of value?.activities || []) for (const id of activity.staff || []) get(id).hours += (activity.times || []).length;
+    for (const item of value?.source?.pending || []) if (item?.staffId) get(item.staffId).pending++;
+    return counts;
+  }
+  const countText = count => [count.hours ? hoursText(count.hours) : '', count.pending ? count.pending + (count.pending === 1 ? ' ελλιπές κελί' : ' ελλιπή κελιά') : ''].filter(Boolean).join(', ');
+  // Cells of a teacher with an error (two entries, an hour of the Ωρολόγιο, outside Πρωινό), and hours outside the grid.
+  function problemCount(id) {
+    const {slots, outside} = slotsOf(id);
+    let count = outside.length;
+    for (const [key, entries] of slots) { const [day, h] = key.split(':').map(Number); if (entries.length > 1 || lockedReason(id, day, hours[h])) count++; }
+    return count;
+  }
+  async function copyFromPeriod() {
+    if (busy || readOnly()) return;
+    const sources = copySources();
+    if (!sources.length) return;
+    const order = (context.periods || []).map(period => period.id), here = order.indexOf(periodId);
+    const select = el('select');
+    for (const period of sources) {
+      const option = el('option', '', period.name + (schoolOf(period.id) ? '' : ' (χωρίς Ωρολόγιο)') + ' — ' + periodText(period));
+      option.value = period.id; select.append(option);
+    }
+    select.value = ([...sources].reverse().find(period => order.indexOf(period.id) < here) || sources[sources.length - 1]).id;
+    const listBox = el('div');
+    const draw = () => {
+      const counts = staffCounts(individualOf(select.value));
+      listBox.replaceChildren(checkList(sortedStaff().filter(person => counts.has(person.id)).map(person => ({
+        value: person.id, text: personName(person), checked: false,
+        note: countText(counts.get(person.id)) + (hasIndividual(person.id) ? ' · έχει ήδη κελιά σε αυτή την περίοδο' : ''),
+        noteClass: hasIndividual(person.id) ? 'ip-pick-here' : ''
+      }))));
+    };
+    select.onchange = draw;
+    draw();
+    const form = el('div', 'ip-form'), staffField = el('div', 'school-choice-field');
+    staffField.append(el('span', 'ip-field-title', 'Εκπαιδευτικοί'), checkTools(() => listBox), listBox);
+    form.append(field('Από την περίοδο', select), staffField,
+      el('p', 'hint', 'Οι δραστηριότητες και τα ελλιπή κελιά των επιλεγμένων αντικαθιστούν όσα έχουν στην περίοδο ' + quoted(periodOf(periodId)?.name || '') + '. Τα μαθήματα και οι Συνενώσεις είναι κοινά για όλο το σχολικό έτος.'));
+    let chosen = [], fromId = '';
+    const accepted = await formDialog({
+      title: 'Αντιγραφή από άλλη περίοδο', content: form, accept: 'Αντιγραφή',
+      apply: () => {
+        chosen = checkedValues(listBox); fromId = select.value;
+        if (!chosen.length) throw Error('Επίλεξε τουλάχιστον έναν εκπαιδευτικό.');
+      }
+    });
+    if (!accepted || !chosen.length) return;
+    const already = sortedStaff().filter(person => chosen.includes(person.id) && hasIndividual(person.id));
+    const period = periodOf(fromId), current = periodOf(periodId);
+    if (already.length && !await schoolConfirm((already.length === 1 ? 'Ο εκπαιδευτικός ' + quoted(personName(already[0])) + ' έχει' : 'Οι εκπαιδευτικοί ' + already.map(person => quoted(personName(person))).join(', ') + ' έχουν') + ' ήδη κελιά στην περίοδο ' + quoted(current?.name || '') + '. Να αντικατασταθούν με αυτά της περιόδου ' + quoted(period?.name || '') + ';', {title: 'Αντιγραφή από άλλη περίοδο', accept: 'Αντικατάσταση'})) return;
+    let result = null;
+    const done = change(() => {
+      result = T.individualCopy(program, individualOf(fromId), chosen, {periodId, staff: context.staff || [], fromPeriod: period?.name || ''});
+      program = result.program;
+      for (const id of chosen) copied[id] = staffSignature(program, id);
+    });
+    if (!done || !result) return;
+    const problems = chosen.reduce((sum, id) => sum + problemCount(id), 0);
+    notice('Αντιγράφηκαν από την περίοδο ' + quoted(period?.name || '') + ' τα ατομικά προγράμματα ' + (chosen.length === 1 ? '1 εκπαιδευτικού' : chosen.length + ' εκπαιδευτικών')
+      + ' (' + hoursText(result.activities) + (result.pending ? ', ' + result.pending + (result.pending === 1 ? ' ελλιπές κελί' : ' ελλιπή κελιά') : '') + '). Πάτησε «Αποθήκευση».'
+      + (problems ? ' Προσοχή: ' + (problems === 1 ? '1 κελί πέφτει' : problems + ' κελιά πέφτουν') + ' σε ώρες του Ωρολογίου αυτής της περιόδου ή εκτός Πρωινού και σημειώνονται με κόκκινο.' : ''));
+  }
+
   // ---- Events ----
   $('save').onclick = save;
   $('undo').onclick = () => { closeUndoMenu(); undo(); };
@@ -1121,6 +1615,15 @@ table.ip-grid{border-collapse:separate;border-spacing:0;background:var(--school-
   $('manageSubjects').onclick = manageSubjects;
   $('manageClasses').onclick = manageClasses;
   $('manageUnions').onclick = manageUnions;
+  $('importSubjects').onclick = () => { void importSubjects(); };
+  $('copyFrom').onclick = () => { void copyFromPeriod(); };
+  $('zoomOut').onclick = () => setZoom(zoom - zoomLimits().step);
+  $('zoomIn').onclick = () => setZoom(zoom + zoomLimits().step);
+  $('zoomLevel').onclick = () => setZoom(100);
+  $('sumPendingRow').onclick = goToPending;
+  $('sumPendingRow').addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); goToPending(); } });
+  if ('ResizeObserver' in window) new ResizeObserver(updateLift).observe($('workspace'));
+  window.addEventListener('resize', updateLift);
   function closeUndoMenu() { $('undoMenu').hidden = true; $('undoMenuButton').setAttribute('aria-expanded', 'false'); }
   $('undoMenuButton').addEventListener('click', event => {
     event.stopPropagation();
