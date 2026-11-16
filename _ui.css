@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινό περιβάλλον χρήστη
- * Έκδοση αρχείου: 0.52
+ * Έκδοση αρχείου: 0.53
  * Όνομα κατά την εγκατάσταση: _ui.css
  */
 
@@ -70,6 +70,7 @@
   --school-app-oloimero:linear-gradient(145deg,#b78a53,#967044);
   --school-app-calendar:linear-gradient(145deg,#8b79b8,#66538f);
   --school-app-timetables:linear-gradient(145deg,#818fdb,#626fb8);
+  --school-app-individual:linear-gradient(145deg,#c98a6b,#a2654a);
 }
 
 *{box-sizing:border-box}

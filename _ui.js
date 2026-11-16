@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.38
+ * Έκδοση αρχείου: 0.39
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -1695,7 +1695,9 @@
   window.schoolReplaceProgram = schoolReplaceProgram;
   window.schoolColorPicker = schoolColorPicker;
   window.schoolRichText = schoolRichText;
-  window.schoolColor = Object.freeze({normalize: normalColor, ink: inkFor, valid: validColor});
+  // tones(color): the light tones of a colour as on the tag chips ({bg, border, ink}), for anything that is shown
+  // like a tag (e.g. the subjects of the Ατομικά Προγράμματα).
+  window.schoolColor = Object.freeze({normalize: normalColor, ink: inkFor, valid: validColor, tones: tagTones});
   window.schoolEscape = schoolEscape;
   window.schoolIcon = schoolIcon;
   window.schoolIconText = schoolIconText;

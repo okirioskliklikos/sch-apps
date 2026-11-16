@@ -1,0 +1,1144 @@
+<!doctype html>
+<html lang="el" class="subapp-page">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ατομικά Προγράμματα v0.1</title>
+<link rel="stylesheet" href="_ui.css">
+<link rel="stylesheet" href="_subapp.css">
+<style>
+/* Ατομικά Προγράμματα: the individual programs (kind 'individual') of a period, one teacher at a time, from the
+   shared file (.data). Shared appearance: _ui.css / _subapp.css. --ip-* : colours whose meaning exists only here. */
+:root{
+  --app-mark-bg:var(--school-app-individual);
+  --ip-cell:150px;--ip-hour:112px;
+  --ip-head-bg:#f9fafb;--ip-line:var(--school-ui-border);--ip-boundary:#98a2b3;
+  --ip-locked-bg:#f2f4f7;--ip-locked-text:#667085;
+  --ip-pending-bg:#f5f5f5;--ip-chip-border:#8f9aa6;
+  --ip-conflict-bg:#fff1f0;--ip-conflict-ring:#f04438;--ip-conflict-text:#b42318;
+  --ip-drop-bg:#eff8ff;--ip-drop-outline:#84adff;
+  --ip-over:#d00000;--ip-ok:#0a8a20
+}
+/* Header: the lists give up width before anything wraps out of the page. */
+#period{flex:0 1 auto;min-width:0;max-width:min(300px,100%)}
+.ip-staff-control{position:relative;display:inline-flex;min-width:0;max-width:min(320px,100%);flex:0 1 auto}
+/* The teacher list: a button with the look of a select (the marks of the hours are SVG, which a select cannot show). */
+.ip-staff-button{
+  min-width:180px;max-width:100%;padding-right:32px;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  background-image:var(--school-ui-dropdown-arrow);background-repeat:no-repeat;background-position:right 10px center;background-size:10px 10px
+}
+.ip-staff-menu{
+  position:absolute;top:calc(100% + 5px);left:0;z-index:90;min-width:280px;max-width:min(420px,calc(100vw - 24px));
+  max-height:min(70vh,560px);overflow:auto;padding:5px;background:var(--school-ui-surface);
+  border:1px solid #d8dee8;border-radius:8px;box-shadow:0 8px 24px #25364a24
+}
+.ip-staff-menu:focus{outline:none}
+.ip-staff-group{margin:6px 8px 3px;font-size:12px;font-weight:700;color:var(--school-ui-muted)}
+.ip-staff-group:first-child{margin-top:2px}
+.ip-staff-option{display:flex;align-items:baseline;gap:8px;padding:5px 9px;border-radius:6px;cursor:pointer;user-select:none}
+.ip-staff-option .ip-staff-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ip-staff-option.active{background:#e8f1ff;color:#154c91}
+.ip-staff-option[aria-selected="true"]{font-weight:750}
+.ip-staff-empty{margin:8px;color:var(--school-ui-muted);font-size:14px}
+/* Marks of the hours: red «!» over the «Ωράριο στο σχολείο», green tick when equal. */
+.ip-over svg{color:var(--ip-over)}
+.ip-ok svg{color:var(--ip-ok)}
+
+main.ip-single{grid-template-columns:minmax(0,1fr)}
+
+/* Sidebar: Μαθήματα, Τάξεις και Τμήματα, Συνενώσεις */
+.ip-items{display:flex;flex-direction:column;gap:8px}
+aside .section-title{margin-top:18px}
+.ip-item{
+  border:1px solid var(--school-ui-border);border-radius:9px;padding:9px;background:var(--school-ui-surface);
+  display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5px;align-items:center;cursor:grab;user-select:none
+}
+.ip-item.ip-grade-item{background:var(--school-ui-label-bg)}
+.ip-item-name{font-weight:700;overflow-wrap:anywhere}
+.ip-item-actions{display:flex;align-items:center;justify-content:flex-end;gap:4px;white-space:nowrap}
+.ip-item-meta{grid-column:1/-1;color:var(--school-ui-muted);font-size:13px;overflow-wrap:anywhere}
+.ip-item.ip-colored{background:var(--ip-tone-bg);border-color:var(--ip-tone-border);color:var(--ip-tone-ink)}
+.ip-item.ip-colored .ip-item-meta{color:inherit;opacity:.78}
+.ip-section-empty{margin:4px 0 0;font-size:13px;color:var(--school-ui-muted);line-height:1.45}
+
+/* Workspace */
+.ip-workspace{min-width:0;min-height:0;overflow:auto;padding:12px 14px}
+.ip-title{margin:0 0 2px;font-size:18px;font-weight:850;line-height:1.3}
+.ip-title small{font-size:14px;font-weight:400;color:var(--school-ui-muted);margin-left:8px}
+.ip-info{margin:0;font-size:13px;color:var(--school-ui-muted);line-height:1.5}
+.ip-info b{font-weight:650;color:var(--school-ui-label-text)}
+.ip-hours{margin:2px 0 0;font-size:14px;line-height:1.5}
+.ip-hours b{font-weight:750}
+.ip-warnings .ui-validation-warning,.ip-warnings .ui-validation-error{font-size:13px}
+.ip-workspace .subapp-notice{margin:8px 0}
+.ip-workspace .subapp-notice:empty{display:none}
+.ip-empty{min-height:320px}
+.ip-grid-wrap{margin-top:8px}
+
+/* Grid: days in the columns, the hours of Ώρες Διδασκαλίας in the rows (without the breaks). */
+table.ip-grid{border-collapse:separate;border-spacing:0;background:var(--school-ui-surface);border:1px solid var(--ip-line);border-radius:10px;min-width:max-content}
+.ip-grid th,.ip-grid td{border-right:1px solid var(--ip-line);border-bottom:1px solid var(--ip-line);vertical-align:top}
+.ip-grid tr:last-child>td,.ip-grid tr:last-child>th{border-bottom:0}
+.ip-grid th:last-child,.ip-grid td:last-child{border-right:0}
+.ip-grid tr.ip-boundary>th,.ip-grid tr.ip-boundary>td{border-top:2px solid var(--ip-boundary)}
+.ip-grid thead th{position:sticky;top:-12px;z-index:4;background:var(--ip-head-bg);padding:8px;text-align:center;min-width:var(--ip-cell);font-size:14px}
+.ip-grid .ip-hour{position:sticky;left:-14px;z-index:3;background:var(--ip-head-bg);width:var(--ip-hour);min-width:var(--ip-hour);padding:8px;text-align:left;font-size:13px;font-weight:650;white-space:nowrap}
+.ip-grid thead .ip-hour{z-index:5}
+.ip-grid td.ip-slot{width:var(--ip-cell);min-width:var(--ip-cell);max-width:var(--ip-cell);height:64px;padding:5px;background:var(--school-ui-surface)}
+.ip-grid td.ip-slot.ip-locked{background:var(--ip-locked-bg);cursor:not-allowed}
+.ip-grid td.ip-slot.ip-pending{background:var(--ip-pending-bg)}
+.ip-grid td.ip-slot.ip-conflict{background:var(--ip-conflict-bg);box-shadow:inset 0 0 0 2px var(--ip-conflict-ring)}
+.ip-grid td.ip-slot.dragover{outline:3px solid var(--ip-drop-outline);outline-offset:-3px;background:var(--ip-drop-bg)}
+/* An hour of the teacher in the Ωρολόγιο: grey and locked, with its subject and students. */
+.ip-school{color:var(--ip-locked-text);font-size:12px;line-height:1.25;text-align:center;overflow-wrap:anywhere}
+.ip-school+.ip-school,.ip-school+.ip-entry,.ip-entry+.ip-entry{margin-top:6px}
+.ip-school-subject{font-weight:750;font-size:13px}
+.ip-entry{display:flex;flex-direction:column;align-items:stretch;gap:4px}
+.ip-subject{
+  display:flex;align-items:center;gap:4px;padding:3px 4px 3px 7px;border:1px solid var(--ip-tone-border,var(--school-ui-border));
+  border-radius:6px;background:var(--ip-tone-bg,var(--school-ui-surface));color:var(--ip-tone-ink,inherit);font-size:13px;font-weight:750;line-height:1.2
+}
+.ip-subject-name{flex:1;min-width:0;text-align:center;overflow-wrap:anywhere}
+.ip-class-subject{font-style:italic;font-size:13px;line-height:1.25;text-align:center;overflow-wrap:anywhere}
+.ip-pending-label{font-size:12px;color:var(--school-ui-muted);text-align:center}
+.ip-chips{display:flex;flex-wrap:wrap;justify-content:center;gap:4px}
+.ip-chip{
+  display:inline-flex;align-items:center;gap:2px;max-width:100%;padding:1px 2px 1px 6px;border:1px solid var(--ip-chip-border);
+  border-radius:5px;background:var(--school-ui-surface);font-size:12px;line-height:18px;overflow-wrap:anywhere
+}
+.ip-chip.ip-union{border-style:dashed;background:#f7f7f7}
+/* «×» of an item in a cell: 18px button with the 12px close icon, like the tag chips. */
+.ip-x{
+  appearance:none;display:inline-flex;align-items:center;justify-content:center;flex:none;width:18px;height:18px;min-height:0;
+  margin:0;padding:0;border:0;border-radius:4px;background:transparent;color:inherit;cursor:pointer
+}
+.ip-x>svg{display:block;width:var(--school-ui-icon-size-small);height:var(--school-ui-icon-size-small)}
+.ip-x:hover:not(:disabled){background:#00000015}
+.ip-cell-note{font-size:11px;line-height:1.3;text-align:center;overflow-wrap:anywhere}
+.ip-cell-note.warning{color:var(--school-ui-warning)}
+.ip-cell-note.error{color:var(--ip-conflict-text);font-weight:650}
+
+/* Dialogs (inside schoolChoiceDialog) */
+.school-confirm.ip-dialog{width:min(560px,calc(100vw - 32px))}
+.ip-form{display:grid;gap:6px}
+.ip-form label{margin:6px 0 0}
+.ip-form .hint{margin:2px 0 0}
+.ip-union-grades{display:flex;flex-wrap:wrap;gap:0 16px}
+.ip-manager .subapp-list{max-height:50vh;overflow:auto;min-height:120px}
+.ip-manager-row{display:flex;align-items:center;gap:8px;padding:5px 7px;border:1px solid transparent;border-radius:6px;cursor:pointer;user-select:none}
+.ip-manager-row.selected{background:var(--school-ui-primary-bg);border-color:var(--school-ui-primary-border);color:var(--school-ui-primary-text);font-weight:750}
+.ip-manager-row input{margin:0}
+.ip-manager-row .ip-manager-name{min-width:0;overflow-wrap:anywhere}
+.ip-manager .hint{margin:0 0 10px}
+
+@media(max-width:900px){:root{--ip-cell:128px;--ip-hour:104px}}
+@media(max-width:800px){
+  .ip-workspace{overflow:visible}
+  .ip-grid-wrap{overflow:auto}
+  .ip-grid thead th{top:0}
+  .ip-grid .ip-hour{left:0}
+}
+</style>
+</head>
+<body>
+<header class="page-head">
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ατομικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΑΠ</span></span><span class="brand-text"><span>Ατομικά Προγράμματα</span><span class="small version">v0.1</span></span></button></h1></div>
+  <select id="period" aria-label="Περίοδος" disabled hidden></select>
+  <span id="staffControl" class="ip-staff-control" hidden>
+    <button id="staffButton" class="ip-staff-button" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="staffMenu" disabled>Εκπαιδευτικός</button>
+    <span id="staffMenu" class="ip-staff-menu" role="listbox" aria-label="Εκπαιδευτικός" tabindex="-1" hidden></span>
+  </span>
+  <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
+  <span class="sep" aria-hidden="true"></span>
+  <span class="save-control undo-control">
+    <button id="undo" type="button" disabled title="Αναίρεση της τελευταίας αλλαγής" data-school-icon="undo">Αναίρεση</button>
+    <button id="undoMenuButton" class="save-menu-button" type="button" aria-haspopup="true" aria-expanded="false" title="Περισσότερες επιλογές αναίρεσης" aria-label="Περισσότερες επιλογές αναίρεσης" disabled></button>
+    <span id="undoMenu" class="save-menu" hidden><button id="undoAll" type="button" disabled>Αναίρεση όλων</button></span>
+  </span>
+  <button id="redo" type="button" disabled title="Επανάληψη της αλλαγής που αναιρέθηκε" data-school-icon="redo">Επανάληψη</button>
+  <div class="header-right"><span id="schoolYear" class="school-year-indicator" hidden><span>Σχολικό έτος:</span> <span id="schoolYearValue"></span></span></div>
+</header>
+<main id="root" class="ip-single">
+  <aside id="side" hidden aria-label="Μαθήματα, τάξεις, τμήματα και συνενώσεις">
+    <h2 class="section-heading">
+      <span class="section-label">Μαθήματα <span id="subjectCount"></span></span>
+      <span class="section-heading-actions">
+        <button type="button" id="manageSubjects" class="subapp-section-action" title="Σειρά και εμφάνιση Μαθημάτων" aria-label="Σειρά και εμφάνιση Μαθημάτων" data-school-icon="edit"></button>
+      </span>
+    </h2>
+    <div id="subjects" class="ip-items"></div>
+    <button id="newSubject" type="button" class="sidebar-add" data-school-icon="plus">Νέο μάθημα</button>
+    <hr class="sidebar-divider">
+    <h2 class="section-title section-heading">
+      <span class="section-label">Τάξεις και Τμήματα <span id="classCount"></span></span>
+      <span class="section-heading-actions">
+        <button type="button" id="manageClasses" class="subapp-section-action" title="Εμφάνιση Τάξεων και Τμημάτων" aria-label="Εμφάνιση Τάξεων και Τμημάτων" data-school-icon="edit"></button>
+      </span>
+    </h2>
+    <div id="classes" class="ip-items"></div>
+    <hr class="sidebar-divider">
+    <h2 class="section-title section-heading">
+      <span class="section-label">Συνενώσεις <span id="unionCount"></span></span>
+      <span class="section-heading-actions">
+        <button type="button" id="manageUnions" class="subapp-section-action" title="Σειρά Συνενώσεων" aria-label="Σειρά Συνενώσεων" data-school-icon="edit"></button>
+      </span>
+    </h2>
+    <div id="unions" class="ip-items"></div>
+    <button id="newUnion" type="button" class="sidebar-add" data-school-icon="plus">Νέα Συνένωση</button>
+  </aside>
+  <section id="workspace" class="ip-workspace subapp-workspace">
+    <p class="subapp-connection">Άνοιξε τα Ατομικά Προγράμματα από το Κεντρικό Μενού, αφού ανοίξεις το αρχείο πληροφοριών του σχολείου. Απαιτείται η τελευταία έκδοση του index.html.</p>
+  </section>
+</main>
+<script src="_ui.js"></script>
+<script src="_data.js"></script>
+<script>
+(() => {
+  'use strict';
+  // The individual programs come from the shared file (school-timetables:*), through schoolHost (_ui.js): one
+  // program of kind 'individual' per period, with the activities of every teacher that has an individual program,
+  // and the catalog of the year (individualCatalog: subjects with colour, Συνενώσεις, hidden Τάξεις / Τμήματα).
+  // What a cell holds is kept in program.source: placements[activity id] = {subjectId|null, chips} and pending
+  // (incomplete cells). The subject, the τμήματα and the «μάθημα της τάξης» of the activities are computed again
+  // from them with SchoolTimetable.individualRefresh (_data.js) after every change.
+  // Every change happens in the page; «Αποθήκευση» writes the program of the period, the catalog, and the
+  // programs of the other periods that a change of the catalog affects (e.g. a renamed subject), all or nothing.
+  const T = SchoolTimetable, C = SchoolClasses, D = SchoolDate, esc = schoolEscape, $ = id => document.getElementById(id);
+  const post = schoolHost.post;
+  const quoted = value => '«' + value + '»';
+  const clone = value => structuredClone(value);
+  const uid = () => crypto.randomUUID();
+  const DAYS = [1, 2, 3, 4, 5];
+  const dayLabel = day => T.dayLabels[day - 1];
+  const GRADE_ORDER = ['Α', 'Β', 'Γ', 'Δ', 'Ε', 'Στ'];
+  const gradeLabel = grade => grade + "'";
+  const hoursText = count => count + (count === 1 ? ' ώρα' : ' ώρες');
+  const nameKey = value => SchoolText.withoutTones(String(value ?? '')).toLocaleLowerCase('el').replace(/\s+/g, ' ').trim();
+  const el = (tag, className, textValue) => {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (textValue != null) node.textContent = textValue;
+    return node;
+  };
+  const iconButton = (className, icon, title) => {
+    const button = el('button', className);
+    button.type = 'button'; button.title = title; button.setAttribute('aria-label', title);
+    button.innerHTML = schoolIcon(icon);
+    return button;
+  };
+  const EMPTY_CATALOG = () => ({subjects: [], unions: [], hidden: {grades: [], classes: []}});
+
+  // ---- State ----
+  let context = null;            // the last context of the host
+  let periodId = null;           // the period shown
+  let staffId = '';              // the teacher shown
+  let saved = null, savedJson = 'null';             // the individual program of the period in the file (or null)
+  let program = null;            // the program as shown in the page (null until the first change of a new one)
+  let savedCatalog = EMPTY_CATALOG(), savedCatalogJson = JSON.stringify(savedCatalog);
+  let catalog = EMPTY_CATALOG(); // the catalog of the year as shown in the page
+  let undoStack = [], redoStack = [];               // JSON snapshots of {program, catalog}
+  let busy = false, dirty = false;
+  let hours = [], hoursError = '';
+  let staffById = new Map();
+  let dragging = null;           // the item dragged from the sidebar: {type, id}
+
+  // ---- Small helpers ----
+  const periodOf = id => context?.periods?.find(period => period.id === id) || null;
+  const programOfKind = (kind, id) => (context?.programs || []).find(item => item.kind === kind && item.periodId === id) || null;
+  const schoolOf = id => programOfKind('school', id);
+  const individualOf = id => programOfKind('individual', id);
+  const periodText = period => D.format(period.from) + ' – ' + D.format(T.periodEnd(period, context.year));
+  // Periods shown: those with an Ωρολόγιο, and those with individual programs but no Ωρολόγιο (read only).
+  const shownPeriods = () => (context?.periods || []).filter(period => schoolOf(period.id) || individualOf(period.id));
+  const readOnly = () => !schoolOf(periodId);
+  const notice = (textValue, error = false) => { const node = $('notice'); if (!node) return; node.textContent = textValue; node.classList.toggle('error', error); };
+  const yearClasses = () => context?.classes || [];
+  const classById = id => yearClasses().find(item => item.id === id) || null;
+  const personName = person => String(person?.shortName || person?.name || person?.code || '?');
+  const sortedStaff = () => T.sortStaff(context?.staff || []);
+  const subjectById = id => catalog.subjects.find(item => item.id === id) || null;
+  const unionById = id => catalog.unions.find(item => item.id === id) || null;
+  const hiddenGrades = () => new Set(catalog.hidden?.grades || []);
+  const hiddenClasses = () => new Set(catalog.hidden?.classes || []);
+  // «Μάθημα της τάξης»: only for Ειδική Αγωγή – Τμήμα Ένταξης, Παράλληλη Στήριξη and ΕΒΠ.
+  const classSubjectAllowed = id => T.individualClassSubject(staffById.get(id));
+  const toneStyle = (node, color) => {
+    if (!schoolColor.valid(color)) return false;
+    const tones = schoolColor.tones(color);
+    node.style.setProperty('--ip-tone-bg', tones.bg);
+    node.style.setProperty('--ip-tone-border', tones.border);
+    node.style.setProperty('--ip-tone-ink', tones.ink);
+    return true;
+  };
+
+  // ---- Hours (from Ώρες Διδασκαλίας) ----
+  function loadHours() {
+    try { hours = T.timedHours(context.teachingHours).filter(hour => hour.category !== 'break').map((hour, index) => ({...hour, index})); hoursError = ''; }
+    catch (error) { hours = []; hoursError = error.message; }
+  }
+  const isMorning = hour => hour.category === 'morning';
+  const hourGroup = hour => hour.category === 'early' ? 0 : isMorning(hour) ? 1 : 2;
+  const boundaryBefore = (hour, index) => index > 0 && hourGroup(hours[index - 1]) !== hourGroup(hour);
+  function hourIndexOf(time) {
+    let index = hours.findIndex(hour => hour.start === time.start && hour.end === time.end);
+    if (index < 0) index = hours.findIndex(hour => hour.start === time.start);
+    return index;
+  }
+  const overlaps = (time, day, hour) => time.day === day && time.start < hour.end && hour.start < time.end;
+
+  // ---- Chips (Τάξεις, Τμήματα, Συνενώσεις) ----
+  const chipKey = chip => chip.type + ':' + (chip.type === 'grade' ? chip.grade : chip.id);
+  // Name, order and whether the chip can give the «μάθημα της τάξης» (Τάξη, τμήμα Γενικής Παιδείας, Συνένωση).
+  function chipInfo(chip) {
+    if (chip.type === 'grade') {
+      const index = GRADE_ORDER.indexOf(chip.grade);
+      return {name: gradeLabel(chip.grade), rank: index * 1000, general: true, union: false};
+    }
+    if (chip.type === 'class') {
+      const record = classById(chip.id);
+      if (!record) return {name: '?', rank: 9500, general: false, union: false, missing: true};
+      const general = C.isGeneral(record);
+      return {name: String(record.name || '?'), rank: general ? GRADE_ORDER.indexOf(C.key(record).replace(/\d+$/, '')) * 1000 + 1 + record.number : 9000, general, union: false};
+    }
+    const index = catalog.unions.findIndex(item => item.id === chip.id);
+    return index < 0 ? {name: '?', rank: 99999, general: false, union: true, missing: true} : {name: catalog.unions[index].name, rank: 10000 + index, general: true, union: true};
+  }
+  const sortChips = chips => [...chips].sort((a, b) => chipInfo(a).rank - chipInfo(b).rank || chipInfo(a).name.localeCompare(chipInfo(b).name, 'el', {numeric: true}));
+  const chipOf = (type, id) => type === 'grade' ? {type, grade: id} : {type, id};
+
+  // ---- The cells of a teacher ----
+  // A cell is one hour of one day; it holds the activities and the incomplete cells (pending) of the teacher there.
+  // Normally at most one; two (e.g. after a replacement of teachers in «Περίοδοι Προγραμμάτων») is an error.
+  const slotKey = (day, h) => day + ':' + h;
+  function slotsOf(id) {
+    const slots = new Map(), outside = [];
+    const add = (day, h, entry) => { const key = slotKey(day, h); if (!slots.has(key)) slots.set(key, []); slots.get(key).push(entry); };
+    for (const activity of program?.activities || []) {
+      if (!(activity.staff || []).includes(id)) continue;
+      const place = program.source?.placements?.[activity.id] || null;
+      for (const time of activity.times || []) {
+        const h = hourIndexOf(time);
+        if (h < 0 || time.day < 1 || time.day > 5) { outside.push(activity); continue; }
+        add(time.day, h, {kind: 'activity', activity, place});
+      }
+    }
+    (program?.source?.pending || []).forEach(item => {
+      if (item.staffId !== id) return;
+      const h = hourIndexOf(item);
+      if (h < 0 || item.day < 1 || item.day > 5) { outside.push(item); return; }
+      add(item.day, h, {kind: 'pending', item});
+    });
+    return {slots, outside};
+  }
+  const contentOf = entry => entry?.kind === 'activity' ? {subjectId: entry.place?.subjectId ?? null, chips: clone(entry.place?.chips || [])}
+    : entry?.kind === 'pending' ? {subjectId: null, chips: clone(entry.item.chips || [])} : {subjectId: null, chips: []};
+  // The activities of the teacher in the Ωρολόγιο of the period, at an hour.
+  const schoolAt = (id, day, hour) => (schoolOf(periodId)?.activities || []).filter(activity => (activity.staff || []).includes(id) && (activity.times || []).some(time => overlaps(time, day, hour)));
+  const lockedReason = (id, day, hour) => readOnly() ? 'readonly' : !isMorning(hour) ? 'zone' : schoolAt(id, day, hour).length ? 'school' : '';
+
+  // Writes what a cell holds: a subject makes an activity; chips without a subject make the «μάθημα της τάξης» for
+  // the service types that have it (only with Τάξεις, τμήματα Γενικής Παιδείας and Συνενώσεις), otherwise an
+  // incomplete cell; nothing makes the cell empty. An activity that stays an activity keeps its id.
+  function writeCell(id, day, hour, entry, next) {
+    if (!program) program = T.individualProgram(periodId);
+    const source = program.source, chips = sortChips(next.chips);
+    const kind = next.subjectId ? 'activity'
+      : chips.length && classSubjectAllowed(id) && chips.every(chip => chipInfo(chip).general) ? 'activity'
+      : chips.length ? 'pending' : '';
+    if (entry?.kind === 'activity' && kind === 'activity') {
+      source.placements[entry.activity.id] = {subjectId: next.subjectId || null, chips};
+      return;
+    }
+    if (entry?.kind === 'activity') {
+      program.activities = program.activities.filter(item => item !== entry.activity);
+      delete source.placements[entry.activity.id];
+    } else if (entry?.kind === 'pending') {
+      source.pending = source.pending.filter(item => item !== entry.item);
+    }
+    if (kind === 'activity') {
+      const activity = {id: uid(), subject: '', staff: [id], classes: [], times: [{day, start: hour.start, end: hour.end}]};
+      program.activities.push(activity);
+      source.placements[activity.id] = {subjectId: next.subjectId || null, chips};
+    } else if (kind === 'pending') {
+      source.pending.push({staffId: id, day, start: hour.start, end: hour.end, chips});
+    }
+  }
+  // Subject, τμήματα and «μάθημα της τάξης» of every activity, from the cells and the catalog (_data.js).
+  function refreshProgram() {
+    if (program) program = T.individualRefresh(program, {catalog, classes: yearClasses()}).program;
+  }
+
+  // ---- Hours of a teacher ----
+  const schoolHoursOf = id => T.staffHours(schoolOf(periodId) ? [schoolOf(periodId)] : []).get(id) || 0;
+  const individualHoursOf = id => (program?.activities || []).filter(activity => (activity.staff || []).includes(id)).reduce((sum, activity) => sum + (activity.times || []).length, 0);
+  const targetOf = id => { const value = staffById.get(id)?.schoolHours; return value === '' || value == null || !Number.isFinite(Number(value)) ? null : Number(value); };
+  // 'over' (more than «Ωράριο στο σχολείο»), 'ok' (exactly), or ''.
+  function hoursMark(id) {
+    const target = targetOf(id);
+    if (target == null) return '';
+    const total = schoolHoursOf(id) + individualHoursOf(id);
+    return total > target ? 'over' : total === target ? 'ok' : '';
+  }
+  const hasIndividual = id => (program?.activities || []).some(activity => (activity.staff || []).includes(id)) || (program?.source?.pending || []).some(item => item.staffId === id);
+  const hasSchool = id => (schoolOf(periodId)?.activities || []).some(activity => (activity.staff || []).includes(id));
+  // Groups of the teacher list, each in the order of Προσωπικό.
+  function staffGroups() {
+    const groups = [{title: 'Με ατομικό πρόγραμμα', list: []}, {title: 'Χωρίς πρόγραμμα', list: []}, {title: 'Με Ωρολόγιο', list: []}];
+    for (const person of sortedStaff()) groups[hasIndividual(person.id) ? 0 : hasSchool(person.id) ? 2 : 1].list.push(person);
+    return groups.filter(group => group.list.length);
+  }
+  // Hours of an item of the sidebar in the program of the teacher (activities only; incomplete cells do not count).
+  function usageOf(type, id) {
+    let count = 0;
+    for (const activity of program?.activities || []) {
+      if (!(activity.staff || []).includes(staffId)) continue;
+      const place = program.source?.placements?.[activity.id];
+      if (!place) continue;
+      const chips = place.chips || [];
+      const match = type === 'subject' ? place.subjectId === id
+        : type === 'union' ? chips.some(chip => chip.type === 'union' && chip.id === id)
+        : type === 'grade' ? chips.some(chip => chip.type === 'grade' ? chip.grade === id : chip.type === 'union' && !!unionById(chip.id)?.grades?.includes(id))
+        : (activity.classes || []).includes(id);
+      if (match) count += (activity.times || []).length;
+    }
+    return count;
+  }
+
+  // ---- Changes, undo, dirty state ----
+  const snapshot = () => JSON.stringify({program, catalog});
+  function change(apply) {
+    const before = snapshot();
+    if (apply() === false) return false;
+    refreshProgram();
+    if (snapshot() === before) return false;
+    undoStack.push(before);
+    if (undoStack.length > 100) undoStack.shift();
+    redoStack = [];
+    refresh();
+    return true;
+  }
+  function restore(value) { const state = JSON.parse(value); program = state.program; catalog = state.catalog; refresh(); }
+  function undo() { if (busy || !undoStack.length) return; redoStack.push(snapshot()); restore(undoStack.pop()); }
+  function redo() { if (busy || !redoStack.length) return; undoStack.push(snapshot()); restore(redoStack.pop()); }
+  async function undoAll() {
+    if (busy || !dirty) return;
+    if (!await schoolConfirm('Να αναιρεθούν όλες οι αλλαγές από την τελευταία αποθήκευση;', {title: 'Αναίρεση όλων', accept: 'Αναίρεση όλων'})) return;
+    undoStack.push(snapshot()); redoStack = [];
+    program = clone(saved); catalog = clone(savedCatalog);
+    refresh();
+    notice('Αναιρέθηκαν όλες οι αλλαγές από την τελευταία αποθήκευση.');
+  }
+  const programContent = value => !!value && (value.activities?.length || value.source?.pending?.length);
+  const programDirty = () => saved ? JSON.stringify(program) !== savedJson : !!programContent(program);
+  const catalogDirty = () => JSON.stringify(catalog) !== savedCatalogJson;
+  function updateDirty() {
+    const value = programDirty() || catalogDirty();
+    if (value !== dirty) { dirty = value; post({type: 'school-individual:dirty', dirty}); }
+  }
+  function buttons() {
+    $('save').classList.toggle('dirty', dirty);
+    $('save').setAttribute('aria-label', dirty ? 'Αποθήκευση — υπάρχουν μη αποθηκευμένες αλλαγές' : 'Αποθήκευση');
+    $('save').disabled = $('undoAll').disabled = busy || !dirty;
+    $('undo').disabled = busy || !undoStack.length;
+    $('undoMenuButton').disabled = busy || (!undoStack.length && !dirty);
+    $('redo').disabled = busy || !redoStack.length;
+    $('period').disabled = busy || !shownPeriods().length || !!hoursError;
+    $('staffButton').disabled = busy || !context?.staff?.length || !periodId || !!hoursError;
+    $('root').classList.toggle('busy', busy);
+  }
+  function refresh() { updateDirty(); render(); }
+  function setBusy(value) { busy = value; buttons(); $('workspace').toggleAttribute('aria-busy', value); }
+  // The selection of the page, kept by the index (lastViewByYear), without marking a change of data.
+  function reportView() { if (periodId) post({type: 'school-timetables:view', view: 'period:' + periodId + (staffId ? '|staff:' + staffId : '')}); }
+
+  // ---- Context from the host ----
+  function applyContext(value) {
+    context = value;
+    staffById = new Map((context.staff || []).map(person => [person.id, person]));
+    $('schoolYearValue').textContent = context.year || '';
+    $('schoolYear').hidden = !context.year;
+  }
+  function normalCatalog(value) {
+    const result = EMPTY_CATALOG();
+    if (!value || typeof value !== 'object') return result;
+    result.subjects = (value.subjects || []).map(item => ({id: item.id, name: String(item.name || ''), color: schoolColor.valid(item.color) ? String(item.color).toLowerCase() : '', hidden: !!item.hidden}));
+    result.unions = (value.unions || []).map(item => ({id: item.id, name: String(item.name || ''), grades: [...(item.grades || [])], classIds: [...(item.classIds || [])]}));
+    result.hidden = {grades: [...(value.hidden?.grades || [])], classes: [...(value.hidden?.classes || [])]};
+    return result;
+  }
+  function receive(value) {
+    applyContext(value);
+    loadHours();
+    savedCatalog = normalCatalog(context.individualCatalog); savedCatalogJson = JSON.stringify(savedCatalog);
+    catalog = clone(savedCatalog);
+    const periods = shownPeriods();
+    const last = /^period:([^|]+)(?:\|staff:(.+))?$/.exec(context.lastView || '');
+    if (!periodId && last && periods.some(period => period.id === last[1])) { periodId = last[1]; staffId = staffById.has(last[2]) ? last[2] : ''; }
+    if (!periods.some(period => period.id === periodId)) {
+      const current = T.periodAt(context.periods || [], D.today());
+      periodId = (current && schoolOf(current.id) ? current : [...periods].reverse().find(period => schoolOf(period.id)) || periods[0])?.id || null;
+    }
+    loadPeriod(periodId);
+  }
+  function loadPeriod(id) {
+    periodId = id;
+    saved = id ? clone(individualOf(id)) : null;
+    savedJson = JSON.stringify(saved);
+    program = clone(saved);
+    undoStack = []; redoStack = [];
+    if (!staffById.has(staffId)) staffId = (staffGroups()[0]?.list[0] || sortedStaff()[0])?.id || '';
+    refresh();
+    reportView();
+  }
+  schoolHost.on('school-timetables:context', event => { if (!dirty && !busy) receive(event.context); });
+
+  // ---- Header: period and teacher ----
+  function renderPeriods() {
+    const select = $('period'), periods = shownPeriods();
+    select.replaceChildren(...periods.map(period => {
+      const option = el('option', '', period.name + (schoolOf(period.id) ? '' : ' (χωρίς Ωρολόγιο)'));
+      option.value = period.id; option.title = periodText(period); return option;
+    }));
+    if (!periods.length) select.append(el('option', '', 'Καμία περίοδος με Ωρολόγιο'));
+    select.value = periodId || '';
+    select.hidden = false;
+  }
+  function markText(id, textValue) {
+    const mark = hoursMark(id);
+    const span = el('span', 'ip-staff-name' + (mark ? ' ip-' + mark : ''));
+    span.innerHTML = mark ? schoolIconText(mark === 'over' ? 'alert-bold' : 'check', textValue, {end: true}) : esc(textValue);
+    if (mark) span.title = mark === 'over' ? 'Πάνω από το «Ωράριο στο σχολείο»' : 'Ίσο με το «Ωράριο στο σχολείο»';
+    return span;
+  }
+  function renderStaffButton() {
+    const button = $('staffButton'), person = staffById.get(staffId);
+    $('staffControl').hidden = !context || !!hoursError || !periodId;
+    button.replaceChildren(person ? markText(person.id, personName(person)) : document.createTextNode(context?.staff?.length ? 'Εκπαιδευτικός' : 'Δεν υπάρχει Προσωπικό'));
+    button.title = person ? (person.name || personName(person)) : '';
+  }
+  let activeOption = '';
+  function openStaffMenu() {
+    const menu = $('staffMenu'), button = $('staffButton');
+    if (button.disabled) return;
+    menu.replaceChildren();
+    const groups = staffGroups();
+    if (!groups.length) menu.append(el('p', 'ip-staff-empty', 'Δεν υπάρχει Προσωπικό για το σχολικό έτος.'));
+    groups.forEach((group, index) => {
+      const heading = el('div', 'ip-staff-group', group.title); heading.id = 'staffGroup' + index;
+      const box = el('div'); box.setAttribute('role', 'group'); box.setAttribute('aria-labelledby', heading.id);
+      for (const person of group.list) {
+        const option = el('div', 'ip-staff-option');
+        option.id = 'staffOption-' + person.id; option.dataset.id = person.id;
+        option.setAttribute('role', 'option'); option.setAttribute('aria-selected', String(person.id === staffId));
+        option.title = person.name || '';
+        option.append(markText(person.id, personName(person)));
+        option.addEventListener('mousedown', event => event.preventDefault());
+        option.addEventListener('click', () => chooseStaff(person.id));
+        option.addEventListener('mousemove', () => setActiveOption(person.id));
+        box.append(option);
+      }
+      menu.append(heading, box);
+    });
+    menu.hidden = false;
+    button.setAttribute('aria-expanded', 'true');
+    setActiveOption(staffById.has(staffId) ? staffId : groups[0]?.list[0]?.id || '');
+    menu.focus();
+    menu.querySelector('.ip-staff-option.active')?.scrollIntoView({block: 'nearest'});
+  }
+  function closeStaffMenu(focus = false) {
+    if ($('staffMenu').hidden) return;
+    $('staffMenu').hidden = true;
+    $('staffButton').setAttribute('aria-expanded', 'false');
+    if (focus) $('staffButton').focus();
+  }
+  function setActiveOption(id) {
+    activeOption = id;
+    const menu = $('staffMenu');
+    menu.querySelectorAll('.ip-staff-option').forEach(option => option.classList.toggle('active', option.dataset.id === id));
+    if (id) menu.setAttribute('aria-activedescendant', 'staffOption-' + id); else menu.removeAttribute('aria-activedescendant');
+  }
+  function chooseStaff(id) {
+    closeStaffMenu(true);
+    if (!id || id === staffId) return;
+    staffId = id;
+    render();
+    reportView();
+  }
+  $('staffButton').addEventListener('click', () => $('staffMenu').hidden ? openStaffMenu() : closeStaffMenu());
+  $('staffButton').addEventListener('keydown', event => {
+    if (['ArrowDown', 'ArrowUp'].includes(event.key)) { event.preventDefault(); openStaffMenu(); }
+  });
+  $('staffMenu').addEventListener('keydown', event => {
+    const options = [...$('staffMenu').querySelectorAll('.ip-staff-option')].map(option => option.dataset.id);
+    const index = options.indexOf(activeOption);
+    const move = next => { event.preventDefault(); setActiveOption(options[Math.max(0, Math.min(options.length - 1, next))]); $('staffMenu').querySelector('.ip-staff-option.active')?.scrollIntoView({block: 'nearest'}); };
+    if (event.key === 'ArrowDown') move(index + 1);
+    else if (event.key === 'ArrowUp') move(index - 1);
+    else if (event.key === 'Home') move(0);
+    else if (event.key === 'End') move(options.length - 1);
+    else if (event.key === 'PageDown') move(index + 10);
+    else if (event.key === 'PageUp') move(index - 10);
+    else if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); chooseStaff(activeOption); }
+    else if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeStaffMenu(true); }
+    else if (event.key === 'Tab') closeStaffMenu();
+    else if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      // Type-ahead: the next teacher whose short name starts with the letter.
+      const letter = nameKey(event.key), start = index + 1;
+      const found = [...options.slice(start), ...options.slice(0, start)].find(id => nameKey(personName(staffById.get(id))).replace(/^\[[^\]]*\]\s*-?\s*/, '').startsWith(letter) || nameKey(personName(staffById.get(id))).startsWith(letter));
+      if (found) move(options.indexOf(found));
+    }
+  });
+  $('staffMenu').addEventListener('focusout', event => { if (!$('staffControl').contains(event.relatedTarget)) closeStaffMenu(); });
+  document.addEventListener('mousedown', event => { if (!$('staffControl').contains(event.target)) closeStaffMenu(); });
+
+  // ---- Rendering ----
+  function render() {
+    if (!context) return;
+    renderPeriods();
+    renderStaffButton();
+    const work = $('workspace'), side = $('side'), root = $('root');
+    const ready = !hoursError && !!periodId && !!staffById.get(staffId);
+    side.hidden = !ready || readOnly(); root.classList.toggle('ip-single', side.hidden);
+    const empty = textValue => { work.innerHTML = `<div class="subapp-empty subapp-empty-stack ip-empty"><p>${textValue}</p></div>`; };
+    if (hoursError) empty(esc(hoursError));
+    else if (!context.periods?.length) empty('Δεν υπάρχουν περίοδοι για το σχολικό έτος.<br>Δημιούργησέ τες στις «Περιόδους Προγραμμάτων».');
+    else if (!periodId) empty('Καμία περίοδος δεν έχει Ωρολόγιο.<br>Τα ατομικά προγράμματα ορίζονται σε περίοδο που έχει ήδη Ωρολόγιο· η εισαγωγή του από FET γίνεται στις «Περιόδους Προγραμμάτων».');
+    else if (!context.staff?.length) empty('Δεν υπάρχει Προσωπικό για το σχολικό έτος.<br>Συμπλήρωσέ το πρώτα στο «Προσωπικό».');
+    else { renderSide(); renderWorkspace(work); }
+    buttons();
+  }
+
+  // Sidebar
+  function sidebarItem({type, id, name, meta, className = '', color = '', actions = null}) {
+    const item = el('div', 'ip-item' + (className ? ' ' + className : ''));
+    item.draggable = true;
+    item.dataset.type = type; item.dataset.id = id;
+    if (toneStyle(item, color)) item.classList.add('ip-colored');
+    item.append(el('span', 'ip-item-name', name));
+    if (actions) item.append(actions);
+    item.append(el('span', 'ip-item-meta', meta));
+    item.addEventListener('dragstart', event => {
+      if (event.target.closest?.('button')) { event.preventDefault(); return; }
+      dragging = {type, id};
+      event.dataTransfer.setData('text/plain', type + ':' + id);
+      event.dataTransfer.effectAllowed = 'copy';
+    });
+    item.addEventListener('dragend', () => { dragging = null; document.querySelectorAll('.ip-slot.dragover').forEach(td => td.classList.remove('dragover')); });
+    return item;
+  }
+  function itemActions(onEdit, onDelete) {
+    const box = el('span', 'ip-item-actions');
+    const edit = iconButton('sidebar-action-icon', 'edit', 'Επεξεργασία'), remove = iconButton('sidebar-action-icon', 'close', 'Διαγραφή');
+    edit.onclick = onEdit; remove.onclick = onDelete;
+    box.append(edit, remove);
+    return box;
+  }
+  function renderSide() {
+    // Μαθήματα: those that are not hidden, in the order of the catalog.
+    const subjects = catalog.subjects.filter(item => !item.hidden);
+    $('subjectCount').textContent = '(' + subjects.length + ')';
+    $('subjects').replaceChildren(...(subjects.length ? subjects.map(subject => sidebarItem({
+      type: 'subject', id: subject.id, name: subject.name, meta: hoursText(usageOf('subject', subject.id)), color: subject.color,
+      actions: itemActions(() => openSubject(subject.id), () => deleteSubject(subject.id))
+    })) : [el('p', 'ip-section-empty', catalog.subjects.length ? 'Όλα τα μαθήματα είναι κρυφά. Πάτησε το μολυβάκι για να τα εμφανίσεις.' : 'Δεν υπάρχουν μαθήματα. Πάτησε «Νέο μάθημα».')]));
+    // Τάξεις και Τμήματα: on top the τμήματα that are not Γενικής Παιδείας, only those of which the teacher is the
+    // homeroom teacher (or that have none); under them each Τάξη with its τμήματα, in the order of «Τμήματα».
+    const hidden = hiddenClasses(), hiddenG = hiddenGrades(), rows = [];
+    for (const record of C.sort(yearClasses()).filter(item => !C.isGeneral(item))) {
+      if (hidden.has(record.id) || (record.homeroomStaffId && record.homeroomStaffId !== staffId)) continue;
+      rows.push(sidebarItem({type: 'class', id: record.id, name: String(record.name || '?'), meta: hoursText(usageOf('class', record.id)) + (record.homeroomStaffId ? '' : ' · χωρίς υπεύθυνο')}));
+    }
+    for (const entry of C.grades(yearClasses())) {
+      if (!hiddenG.has(entry.grade)) rows.push(sidebarItem({type: 'grade', id: entry.grade, name: entry.label || gradeLabel(entry.grade), meta: hoursText(usageOf('grade', entry.grade)), className: 'ip-grade-item'}));
+      for (const record of entry.classes) if (!hidden.has(record.id)) rows.push(sidebarItem({type: 'class', id: record.id, name: String(record.name || '?'), meta: hoursText(usageOf('class', record.id))}));
+    }
+    $('classCount').textContent = '(' + rows.length + ')';
+    $('classes').replaceChildren(...(rows.length ? rows : [el('p', 'ip-section-empty', yearClasses().length ? 'Όλες οι τάξεις και τα τμήματα είναι κρυφά. Πάτησε το μολυβάκι για να τα εμφανίσεις.' : 'Δεν υπάρχουν τμήματα στα «Τμήματα» του σχολικού έτους.')]));
+    // Συνενώσεις: in the order of the catalog, common for the whole year.
+    $('unionCount').textContent = '(' + catalog.unions.length + ')';
+    $('unions').replaceChildren(...(catalog.unions.length ? catalog.unions.map(union => sidebarItem({
+      type: 'union', id: union.id, name: union.name, meta: (unionParts(union).join(' + ') || 'Χωρίς τάξεις ή τμήματα') + ' · ' + hoursText(usageOf('union', union.id)),
+      actions: itemActions(() => openUnion(union.id), () => deleteUnion(union.id))
+    })) : [el('p', 'ip-section-empty', 'Δεν υπάρχουν συνενώσεις. Πάτησε «Νέα Συνένωση».')]));
+  }
+  const unionParts = union => [...(union.grades || []).map(gradeLabel), ...(union.classIds || []).map(id => classById(id)).filter(Boolean).map(record => String(record.name || '?'))];
+
+  // Workspace
+  function renderWorkspace(work) {
+    const person = staffById.get(staffId), period = periodOf(periodId);
+    const schoolHours = schoolHoursOf(staffId), own = individualHoursOf(staffId), target = targetOf(staffId), total = schoolHours + own, mark = hoursMark(staffId);
+    const {slots, outside} = slotsOf(staffId);
+    const notes = [];
+    if (readOnly()) notes.push(['warning', 'Η περίοδος δεν έχει Ωρολόγιο: τα ατομικά προγράμματά της φαίνονται, αλλά δεν αλλάζουν. Μπορείς να τα διαγράψεις στις «Περιόδους Προγραμμάτων».']);
+    if (outside.length) notes.push(['warning', outside.length === 1 ? '1 ώρα του ατομικού προγράμματος δεν αντιστοιχεί σε ώρα Δευτέρας–Παρασκευής των Ωρών Διδασκαλίας και δεν φαίνεται στον πίνακα.' : outside.length + ' ώρες του ατομικού προγράμματος δεν αντιστοιχούν σε ώρες Δευτέρας–Παρασκευής των Ωρών Διδασκαλίας και δεν φαίνονται στον πίνακα.']);
+    const conflicts = [...slots.entries()].filter(([key, entries]) => {
+      const [day, h] = key.split(':').map(Number);
+      return entries.length > 1 || schoolAt(staffId, day, hours[h]).length || (!isMorning(hours[h]) && entries.length);
+    }).length;
+    if (conflicts) notes.push(['error', conflicts === 1 ? '1 κελί έχει λάθος (σημειώνεται με κόκκινο).' : conflicts + ' κελιά έχουν λάθος (σημειώνονται με κόκκινο).']);
+    const pending = (program?.source?.pending || []).filter(item => item.staffId === staffId).length;
+    if (pending) notes.push(['warning', pending === 1 ? '1 ελλιπές κελί (χωρίς μάθημα): δεν μετρά στις ώρες και δεν αποθηκεύεται ως δραστηριότητα.' : pending + ' ελλιπή κελιά (χωρίς μάθημα): δεν μετρούν στις ώρες και δεν αποθηκεύονται ως δραστηριότητες.']);
+    const markHtml = mark ? ' ' + `<span class="ip-${mark}" title="${mark === 'over' ? 'Πάνω από το «Ωράριο στο σχολείο»' : 'Ίσο με το «Ωράριο στο σχολείο»'}">${schoolIconText(mark === 'over' ? 'alert-bold' : 'check', '', {end: true})}</span>` : '';
+    work.innerHTML = `<h2 class="ip-title">${esc(personName(person))}${person?.name && person.name !== person.shortName ? `<small>${esc(person.name)}</small>` : ''}</h2>
+      <p class="ip-info"><b>Περίοδος:</b> ${esc(period?.name || '')} (${esc(period ? periodText(period) : '')})</p>
+      <p class="ip-hours">Ώρες: ${schoolHours} Ωρολόγιο + ${own} Ατομικό = <b>${total}</b>${target == null ? ' (χωρίς «Ωράριο στο σχολείο» στο Προσωπικό)' : ' / ' + target}${markHtml}</p>
+      <div class="ip-warnings">${notes.map(([kind, textValue]) => `<p class="ui-validation-${kind}">${esc(textValue)}</p>`).join('')}</div>
+      <p id="notice" class="subapp-notice" role="status"></p>
+      <div id="gridWrap" class="ip-grid-wrap"></div>`;
+    renderGrid(slots);
+  }
+  function renderGrid(slots) {
+    const table = el('table', 'ip-grid'), head = el('thead'), headRow = el('tr');
+    headRow.append(el('th', 'ip-hour', 'Ώρα'), ...DAYS.map(day => el('th', '', dayLabel(day))));
+    head.append(headRow);
+    const body = el('tbody');
+    hours.forEach((hour, h) => {
+      const row = el('tr');
+      if (boundaryBefore(hour, h)) row.className = 'ip-boundary';
+      // The interval of the hour, as in the FET Timetable Editor, without numbering.
+      row.append(el('th', 'ip-hour', hour.start + '-' + hour.end));
+      for (const day of DAYS) row.append(cellFor(day, hour, slots.get(slotKey(day, h)) || []));
+      body.append(row);
+    });
+    table.append(head, body);
+    $('gridWrap').replaceChildren(table);
+  }
+  function cellFor(day, hour, entries) {
+    const td = el('td', 'ip-slot');
+    td.dataset.day = day; td.dataset.h = hour.index;
+    const school = schoolAt(staffId, day, hour), locked = lockedReason(staffId, day, hour);
+    if (locked) td.classList.add('ip-locked');
+    td.title = locked === 'zone' ? 'Ώρα εκτός Πρωινού: δεν δέχεται ατομικό πρόγραμμα.' : locked === 'school' ? 'Ώρα του εκπαιδευτικού στο Ωρολόγιο της περιόδου.' : '';
+    for (const activity of school) {
+      const box = el('div', 'ip-school');
+      box.append(el('div', 'ip-school-subject', T.activitySubject(activity, {programs: [schoolOf(periodId)], classes: yearClasses()}) || '—'));
+      const students = [...(activity.classes || []).map(id => C.nameOf(yearClasses(), id) || '?'), ...(activity.subsets || []), ...(activity.otherStudents || [])];
+      if (students.length) box.append(el('div', '', students.join(', ')));
+      td.append(box);
+    }
+    const conflict = entries.length > 1 || (entries.length && (school.length || !isMorning(hour)));
+    if (conflict) td.classList.add('ip-conflict');
+    if (entries.length && entries.every(entry => entry.kind === 'pending')) td.classList.add('ip-pending');
+    for (const entry of entries) td.append(entryFor(day, hour, entry, entries.length > 1 ? 'Δύο δραστηριότητες την ίδια ώρα.' : school.length ? 'Την ίδια ώρα ο εκπαιδευτικός έχει Ωρολόγιο.' : !isMorning(hour) ? 'Ώρα εκτός Πρωινού.' : ''));
+    if (!locked) {
+      td.addEventListener('dragover', event => { if (!dragging) return; event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; td.classList.add('dragover'); });
+      td.addEventListener('dragleave', () => td.classList.remove('dragover'));
+      td.addEventListener('drop', event => {
+        event.preventDefault(); td.classList.remove('dragover');
+        const data = dragging || (() => { const text = event.dataTransfer.getData('text/plain'), at = text.indexOf(':'); return at > 0 ? {type: text.slice(0, at), id: text.slice(at + 1)} : null; })();
+        dragging = null;
+        if (data) dropOn(day, hour, entries[0] || null, data);
+      });
+    } else if (locked !== 'readonly') {
+      td.addEventListener('dragover', event => { if (dragging) event.dataTransfer.dropEffect = 'none'; });
+    }
+    return td;
+  }
+  function entryFor(day, hour, entry, error) {
+    const box = el('div', 'ip-entry'), content = contentOf(entry), editable = !readOnly();
+    const activity = entry.kind === 'activity' ? entry.activity : null;
+    if (content.subjectId) {
+      const subject = subjectById(content.subjectId);
+      const line = el('div', 'ip-subject');
+      toneStyle(line, subject?.color);
+      line.append(el('span', 'ip-subject-name', subject?.name || activity?.subject || '?'));
+      if (editable) {
+        const generalOnly = content.chips.length && content.chips.every(chip => chipInfo(chip).general);
+        // Without its subject the cell takes the «μάθημα της τάξης» (where it applies) or becomes incomplete.
+        const title = classSubjectAllowed(staffId) && generalOnly ? 'Μάθημα της τάξης (αφαίρεση του μαθήματος)' : 'Αφαίρεση μαθήματος';
+        const x = iconButton('ip-x', 'close', title);
+        x.onclick = () => change(() => writeCell(staffId, day, hour, entry, {...content, subjectId: null}));
+        line.append(x);
+      }
+      box.append(line);
+    } else if (activity) {
+      // «Μάθημα της τάξης»: what the τμήματα of the cell have at this hour in the Ωρολόγιο, in italics.
+      const details = T.activitySubjectDetails(activity, {programs: schoolOf(periodId) ? [schoolOf(periodId)] : [], classes: yearClasses()});
+      const line = el('div', 'ip-class-subject', details.text || 'Μάθημα της τάξης');
+      line.title = 'Μάθημα της τάξης: το μάθημα που έχουν τα τμήματα αυτή την ώρα στο Ωρολόγιο.';
+      box.append(line);
+      if (details.missing.length) box.append(el('div', 'ip-cell-note warning', 'Χωρίς μάθημα στο Ωρολόγιο: ' + details.missing.map(id => C.nameOf(yearClasses(), id) || '?').join(', ')));
+    } else {
+      // An incomplete cell: chips without a subject (a τμήμα that is not Γενικής Παιδείας always needs one).
+      box.append(el('div', 'ip-pending-label', 'Χωρίς μάθημα'));
+      const needs = classSubjectAllowed(staffId) ? content.chips.filter(chip => !chipInfo(chip).general).map(chip => chipInfo(chip).name) : [];
+      if (needs.length) box.append(el('div', 'ip-cell-note warning', (needs.length === 1 ? 'Το ' + quoted(needs[0]) + ' θέλει' : 'Τα ' + needs.map(quoted).join(', ') + ' θέλουν') + ' δηλωμένο μάθημα.'));
+    }
+    if (content.chips.length) {
+      const chips = el('div', 'ip-chips');
+      for (const chip of sortChips(content.chips)) {
+        const info = chipInfo(chip), span = el('span', 'ip-chip' + (info.union ? ' ip-union' : ''));
+        span.append(el('span', '', info.name));
+        if (editable) {
+          const x = iconButton('ip-x', 'close', 'Αφαίρεση: ' + info.name);
+          x.onclick = () => change(() => writeCell(staffId, day, hour, entry, {...content, chips: content.chips.filter(item => chipKey(item) !== chipKey(chip))}));
+          span.append(x);
+        }
+        chips.append(span);
+      }
+      box.append(chips);
+    }
+    if (error) box.append(el('div', 'ip-cell-note error', error));
+    return box;
+  }
+
+  // ---- Dropping from the sidebar ----
+  // A subject goes into the cell or replaces its subject; a Τάξη, a Τμήμα or a Συνένωση is added as a chip (not twice).
+  function dropOn(day, hour, entry, data) {
+    if (busy || readOnly() || lockedReason(staffId, day, hour)) return;
+    const content = contentOf(entry);
+    if (data.type === 'subject') {
+      if (!subjectById(data.id)) return;
+      if (content.subjectId === data.id) { notice('Το κελί έχει ήδη αυτό το μάθημα.'); return; }
+      content.subjectId = data.id;
+    } else if (['grade', 'class', 'union'].includes(data.type)) {
+      const chip = chipOf(data.type, data.id);
+      if (content.chips.some(item => chipKey(item) === chipKey(chip))) { notice('Το κελί έχει ήδη ' + quoted(chipInfo(chip).name) + '.'); return; }
+      content.chips.push(chip);
+    } else return;
+    if (change(() => writeCell(staffId, day, hour, entry, content))) notice('');
+  }
+
+  // ---- Dialogs of the sidebar ----
+  // A dialog with fields: «Ακύρωση» and the accept button; apply() throws an Error to keep the dialog open with it.
+  function formDialog({title, content, accept = 'Αποθήκευση', apply, className = 'ip-dialog'}) {
+    return schoolChoiceDialog({
+      title, className, content,
+      actions: [{label: 'Ακύρωση'}, {label: accept, accept: true, run: async () => { await apply(); return true; }}],
+      ready: controls => {
+        controls.dialog?.addEventListener('input', () => { const error = controls.dialog.querySelector('.school-choice-error'); if (error) error.textContent = ''; });
+        controls.dialog?.addEventListener('keydown', event => {
+          if (event.key !== 'Enter' || event.isComposing || !event.target.matches?.('input[type="text"]')) return;
+          event.preventDefault(); controls.dialog.querySelector('.school-confirm-actions .confirm-accept')?.click();
+        });
+        controls.dialog?.querySelector('input[type="text"]')?.focus();
+      }
+    });
+  }
+  const field = (label, control) => { const box = el('label', 'school-choice-field', label); box.append(control); return box; };
+  function checkedName(input, records, id, what) {
+    const name = input.value.trim().replace(/\s+/g, ' ');
+    if (!name) { input.focus(); throw Error('Συμπλήρωσε όνομα ' + what + '.'); }
+    if (records.some(record => record.id !== id && nameKey(record.name) === nameKey(name))) { input.focus(); throw Error('Υπάρχει ήδη ' + quoted(name) + '.'); }
+    return name;
+  }
+  // Where a subject or a Συνένωση is used: in this period (the page) and in the individual programs of the other
+  // periods of the year (the file). → [{period, hours}]
+  function usageInPeriods(match) {
+    const result = [];
+    const count = value => (value?.activities || []).filter(activity => { const place = value.source?.placements?.[activity.id]; return place && match(place); }).length
+      + (value?.source?.pending || []).filter(item => match({subjectId: null, chips: item.chips || []})).length;
+    for (const period of context.periods || []) {
+      const value = period.id === periodId ? program : individualOf(period.id);
+      const hoursUsed = count(value);
+      if (hoursUsed) result.push({period, hours: hoursUsed});
+    }
+    return result;
+  }
+  const usageText = list => list.map(item => quoted(item.period.name) + ' (' + hoursText(item.hours) + ')').join(', ');
+
+  // Μάθημα: name and colour (the shared colour picker; «Αυτόματο»: without colour).
+  function openSubject(id = null) {
+    const subject = id ? subjectById(id) : null;
+    const input = el('input'); input.type = 'text'; input.maxLength = 200; input.value = subject?.name || '';
+    let color = subject?.color || '';
+    const trigger = el('button', 'school-color-trigger'); trigger.type = 'button'; trigger.setAttribute('aria-label', 'Επιλογή χρώματος μαθήματος');
+    const swatch = el('span', 'school-color-trigger-swatch'); swatch.setAttribute('aria-hidden', 'true');
+    trigger.append(swatch);
+    const paint = () => { swatch.style.background = color || 'var(--school-ui-surface)'; trigger.title = color ? 'Χρώμα: ' + color : 'Χωρίς χρώμα'; };
+    paint();
+    trigger.onclick = async () => {
+      const chosen = await schoolColorPicker(color || '#3b82f6', {title: 'Χρώμα μαθήματος', anchor: trigger, defaultColor: true});
+      if (chosen != null) { color = chosen; paint(); }
+    };
+    const form = el('div', 'ip-form');
+    const colorField = el('div', 'school-choice-field'); colorField.append(el('span', '', 'Χρώμα'), trigger);
+    const hint = el('p', 'hint', id ? 'Η μετονομασία περνά στα ατομικά προγράμματα όλων των περιόδων του σχολικού έτους με την «Αποθήκευση».' : 'Τα μαθήματα είναι κοινά για όλες τις περιόδους του σχολικού έτους.');
+    form.append(field('Όνομα μαθήματος', input), colorField, hint);
+    return formDialog({
+      title: subject ? 'Επεξεργασία μαθήματος' : 'Νέο μάθημα', content: form, accept: subject ? 'Ενημέρωση' : 'Προσθήκη',
+      apply: () => {
+        const name = checkedName(input, catalog.subjects, id, 'μαθήματος');
+        if (!subject && catalog.subjects.length >= 500) throw Error('Ο κατάλογος έχει ήδη 500 μαθήματα, το όριο του σχολικού έτους.');
+        change(() => {
+          if (subject) { const item = subjectById(id); item.name = name; item.color = color; }
+          else catalog.subjects.push({id: uid(), name, color, hidden: false});
+        });
+        notice(subject ? 'Οι αλλαγές του μαθήματος εφαρμόστηκαν. Πάτησε «Αποθήκευση».' : 'Προστέθηκε το μάθημα ' + quoted(name) + '. Σύρε το στα κελιά.');
+      }
+    });
+  }
+  // A subject in use is not deleted in other periods: the dialog says where and offers to hide it.
+  async function deleteSubject(id) {
+    const subject = subjectById(id);
+    if (!subject || busy) return;
+    const used = usageInPeriods(place => place.subjectId === id), elsewhere = used.filter(item => item.period.id !== periodId);
+    const here = used.find(item => item.period.id === periodId);
+    const hide = () => { change(() => { subjectById(id).hidden = true; }); notice('Το μάθημα ' + quoted(subject.name) + ' κρύφτηκε από την αριστερή μπάρα. Φαίνεται ξανά από το μολυβάκι των Μαθημάτων.'); };
+    if (elsewhere.length) {
+      const choice = await schoolChoiceDialog({
+        title: 'Διαγραφή μαθήματος',
+        content: ['Το μάθημα ' + quoted(subject.name) + ' χρησιμοποιείται στα ατομικά προγράμματα των περιόδων: ' + usageText(used) + '. Δεν διαγράφεται, για να μη χαθούν τα προγράμματα άλλων περιόδων.', 'Μπορείς να το κρύψεις από την αριστερή μπάρα· τα κελιά που το έχουν μένουν όπως είναι.'],
+        actions: [{label: 'Ακύρωση'}, {label: 'Απόκρυψη', accept: true, value: 'hide'}]
+      });
+      if (choice === 'hide') hide();
+      return;
+    }
+    if (here) {
+      const choice = await schoolChoiceDialog({
+        title: 'Διαγραφή μαθήματος',
+        content: 'Το μάθημα ' + quoted(subject.name) + ' χρησιμοποιείται σε ' + hoursText(here.hours) + ' αυτής της περιόδου. Με τη διαγραφή φεύγει από τα κελιά (όσα έχουν τάξεις ή τμήματα μένουν χωρίς μάθημα). Μπορείς και να το κρύψεις από την αριστερή μπάρα.',
+        actions: [{label: 'Ακύρωση'}, {label: 'Διαγραφή', accept: true, value: 'delete'}, {label: 'Απόκρυψη', value: 'hide'}]
+      });
+      if (choice === 'hide') { hide(); return; }
+      if (choice !== 'delete') return;
+    } else if (!await schoolConfirm('Να διαγραφεί το μάθημα ' + quoted(subject.name) + ';', {title: 'Διαγραφή μαθήματος', accept: 'Διαγραφή'})) return;
+    change(() => {
+      catalog.subjects = catalog.subjects.filter(item => item.id !== id);
+      removeEverywhere(place => place.subjectId === id, content => ({...content, subjectId: null}));
+    });
+    notice('Το μάθημα ' + quoted(subject.name) + ' διαγράφηκε. Πάτησε «Αποθήκευση».');
+  }
+  // Changes every cell of this period (all teachers) that matches, through writeCell.
+  function removeEverywhere(match, next) {
+    if (!program) return;
+    const cells = [];
+    for (const activity of program.activities) {
+      const place = program.source.placements[activity.id];
+      if (place && match(place)) for (const time of activity.times || []) cells.push({id: activity.staff[0], time, entry: {kind: 'activity', activity, place}});
+    }
+    for (const item of program.source.pending) if (match({subjectId: null, chips: item.chips || []})) cells.push({id: item.staffId, time: item, entry: {kind: 'pending', item}});
+    for (const cell of cells) writeCell(cell.id, cell.time.day, {start: cell.time.start, end: cell.time.end}, cell.entry, next(contentOf(cell.entry)));
+  }
+
+  // Συνένωση: name, Τάξεις and τμήματα Γενικής Παιδείας, common for the whole year (as in the Ολοήμερο Designer).
+  function openUnion(id = null) {
+    const union = id ? unionById(id) : null;
+    const input = el('input'); input.type = 'text'; input.maxLength = 200; input.value = union?.name || '';
+    const grades = C.grades(yearClasses());
+    const check = (box, value, textValue, checked) => {
+      const label = el('label'), box2 = el('input'); box2.type = 'checkbox'; box2.value = value; box2.checked = checked;
+      label.append(box2, document.createTextNode(textValue)); box.append(label);
+    };
+    const gradeBox = el('div', 'subapp-check-list ip-union-grades'), classBox = el('div', 'subapp-check-list');
+    const gradeNames = GRADE_ORDER.filter(grade => grades.some(entry => entry.grade === grade) || union?.grades?.includes(grade));
+    if (!gradeNames.length) gradeBox.append(el('div', 'hint', 'Δεν υπάρχουν τμήματα στα «Τμήματα» του σχολικού έτους.'));
+    gradeNames.forEach(grade => check(gradeBox, grade, gradeLabel(grade), !!union?.grades?.includes(grade)));
+    if (!grades.length) classBox.append(el('div', 'hint', 'Δεν υπάρχουν τμήματα στα «Τμήματα» του σχολικού έτους.'));
+    grades.forEach(entry => entry.classes.forEach(record => check(classBox, record.id, String(record.name || '?'), !!union?.classIds?.includes(record.id))));
+    const form = el('div', 'ip-form');
+    const gradeField = el('div', 'school-choice-field'); gradeField.append(el('span', '', 'Τάξεις που συνενώνονται'), gradeBox);
+    const classField = el('div', 'school-choice-field'); classField.append(el('span', '', 'Τμήματα που συνενώνονται'), classBox);
+    form.append(field('Όνομα συνένωσης', input), gradeField, classField, el('p', 'hint', 'Μια τάξη έχει πάντα τα τμήματα που υπάρχουν τώρα στα «Τμήματα». Οι Συνενώσεις είναι κοινές για όλες τις περιόδους του σχολικού έτους.'));
+    return formDialog({
+      title: union ? 'Επεξεργασία συνένωσης' : 'Νέα συνένωση', content: form, accept: union ? 'Ενημέρωση' : 'Προσθήκη',
+      apply: () => {
+        const name = checkedName(input, catalog.unions, id, 'συνένωσης');
+        if (T.oloimeroCells(yearClasses()).single(name)) { input.focus(); throw Error('Το ' + quoted(name) + ' είναι όνομα τάξης ή τμήματος. Δώσε στη συνένωση άλλο όνομα.'); }
+        const checked = box => [...box.querySelectorAll('input[type=checkbox]:checked')].map(item => item.value);
+        const chosenGrades = GRADE_ORDER.filter(grade => checked(gradeBox).includes(grade)), classIds = checked(classBox);
+        if (!chosenGrades.length && !classIds.length) throw Error('Επίλεξε τουλάχιστον μία τάξη ή ένα τμήμα για τη συνένωση.');
+        if (!union && catalog.unions.length >= 500) throw Error('Ο κατάλογος έχει ήδη 500 Συνενώσεις, το όριο του σχολικού έτους.');
+        change(() => {
+          if (union) Object.assign(unionById(id), {name, grades: chosenGrades, classIds});
+          else catalog.unions.push({id: uid(), name, grades: chosenGrades, classIds});
+        });
+        notice(union ? 'Οι αλλαγές της συνένωσης εφαρμόστηκαν. Πάτησε «Αποθήκευση».' : 'Προστέθηκε η συνένωση ' + quoted(name) + '. Σύρε τη στα κελιά.');
+      }
+    });
+  }
+  // A Συνένωση used in other periods is not deleted (their programs need it); in this period it leaves the cells.
+  async function deleteUnion(id) {
+    const union = unionById(id);
+    if (!union || busy) return;
+    const match = place => (place.chips || []).some(chip => chip.type === 'union' && chip.id === id);
+    const used = usageInPeriods(match), elsewhere = used.filter(item => item.period.id !== periodId), here = used.find(item => item.period.id === periodId);
+    if (elsewhere.length) {
+      await schoolMessage('Η συνένωση ' + quoted(union.name) + ' χρησιμοποιείται στα ατομικά προγράμματα των περιόδων: ' + usageText(used) + '. Για να διαγραφεί, αφαίρεσέ τη πρώτα από τα κελιά εκείνων των περιόδων.', {title: 'Διαγραφή συνένωσης'});
+      return;
+    }
+    if (!await schoolConfirm('Να διαγραφεί η συνένωση ' + quoted(union.name) + ';' + (here ? ' Θα αφαιρεθεί και από ' + hoursText(here.hours) + ' αυτής της περιόδου.' : ''), {title: 'Διαγραφή συνένωσης', accept: 'Διαγραφή'})) return;
+    change(() => {
+      removeEverywhere(match, content => ({...content, chips: content.chips.filter(chip => !(chip.type === 'union' && chip.id === id))}));
+      catalog.unions = catalog.unions.filter(item => item.id !== id);
+    });
+    notice('Η συνένωση ' + quoted(union.name) + ' διαγράφηκε. Πάτησε «Αποθήκευση».');
+  }
+
+  // The pencils: order (Μαθήματα, Συνενώσεις) and which items the sidebar shows (Μαθήματα, Τάξεις και Τμήματα).
+  function managerDialog({title, hint, rows, order, checks, apply}) {
+    let selected = rows[0]?.key || null;
+    const list = el('div', 'subapp-list'), controls = el('div', 'subapp-order-controls');
+    const up = iconButton('', 'up', 'Μετακίνηση πάνω'), down = iconButton('', 'down', 'Μετακίνηση κάτω');
+    controls.append(up, down); controls.hidden = !order;
+    const shown = new Set(rows.filter(row => row.shown).map(row => row.key));
+    const draw = () => {
+      list.replaceChildren(...(rows.length ? rows.map(row => {
+        const line = el(checks ? 'label' : 'div', 'ip-manager-row' + (order && row.key === selected ? ' selected' : ''));
+        if (checks) {
+          const box = el('input'); box.type = 'checkbox'; box.checked = shown.has(row.key);
+          box.setAttribute('aria-label', 'Εμφάνιση: ' + row.name);
+          box.onchange = () => { box.checked ? shown.add(row.key) : shown.delete(row.key); };
+          line.append(box);
+        }
+        line.append(el('span', 'ip-manager-name', row.name));
+        if (order) line.addEventListener('click', event => { if (event.target.tagName === 'INPUT') return; selected = row.key; draw(); });
+        return line;
+      }) : [el('p', 'hint', 'Δεν υπάρχουν στοιχεία.')]));
+      const index = rows.findIndex(row => row.key === selected);
+      up.disabled = index <= 0; down.disabled = index < 0 || index >= rows.length - 1;
+      list.querySelector('.selected')?.scrollIntoView({block: 'nearest'});
+    };
+    const move = offset => {
+      const index = rows.findIndex(row => row.key === selected), next = index + offset;
+      if (index < 0 || next < 0 || next >= rows.length) return;
+      [rows[index], rows[next]] = [rows[next], rows[index]]; draw();
+    };
+    up.onclick = () => move(-1); down.onclick = () => move(1);
+    draw();
+    const wrap = el('div', 'ip-manager'), row = el('div', 'subapp-list-row');
+    row.append(list, controls);
+    wrap.append(el('p', 'hint', hint), row);
+    return formDialog({title, content: wrap, accept: 'Εφαρμογή', className: 'ip-dialog', apply: () => apply(rows.map(item => item.key), shown)});
+  }
+  function manageSubjects() {
+    if (busy) return;
+    managerDialog({
+      title: 'Μαθήματα', order: true, checks: true,
+      hint: 'Επίλεξε ποια μαθήματα φαίνονται στην αριστερή μπάρα, και άλλαξε τη σειρά τους με τα βέλη. Τα κελιά δείχνουν και τα κρυφά.',
+      rows: catalog.subjects.map(item => ({key: item.id, name: item.name, shown: !item.hidden})),
+      apply: (keys, shown) => change(() => {
+        const byId = new Map(catalog.subjects.map(item => [item.id, item]));
+        catalog.subjects = keys.map(key => ({...byId.get(key), hidden: !shown.has(key)}));
+      })
+    });
+  }
+  function manageUnions() {
+    if (busy) return;
+    managerDialog({
+      title: 'Συνενώσεις', order: true, checks: false,
+      hint: 'Επίλεξε μια συνένωση και άλλαξε τη σειρά της με τα βέλη.',
+      rows: catalog.unions.map(item => ({key: item.id, name: item.name, shown: true})),
+      apply: keys => change(() => { const byId = new Map(catalog.unions.map(item => [item.id, item])); catalog.unions = keys.map(key => byId.get(key)); })
+    });
+  }
+  function manageClasses() {
+    if (busy) return;
+    const hidden = hiddenClasses(), hiddenG = hiddenGrades(), rows = [];
+    for (const record of C.sort(yearClasses()).filter(item => !C.isGeneral(item))) rows.push({key: 'class:' + record.id, name: String(record.name || '?'), shown: !hidden.has(record.id)});
+    for (const entry of C.grades(yearClasses())) {
+      rows.push({key: 'grade:' + entry.grade, name: entry.label || gradeLabel(entry.grade), shown: !hiddenG.has(entry.grade)});
+      for (const record of entry.classes) rows.push({key: 'class:' + record.id, name: String(record.name || '?'), shown: !hidden.has(record.id)});
+    }
+    managerDialog({
+      title: 'Τάξεις και Τμήματα', order: false, checks: true,
+      hint: 'Επίλεξε ποιες τάξεις και ποια τμήματα φαίνονται στην αριστερή μπάρα. Τα ονόματα και η σειρά έρχονται από τα «Τμήματα». Τα κελιά δείχνουν και όσα είναι κρυφά.',
+      rows,
+      apply: (keys, shown) => change(() => {
+        const hide = keys.filter(key => !shown.has(key));
+        // Τμήματα that no longer exist stay in hidden (the host ignores them).
+        const known = new Set(yearClasses().map(item => item.id));
+        catalog.hidden = {
+          grades: hide.filter(key => key.startsWith('grade:')).map(key => key.slice(6)),
+          classes: [...hide.filter(key => key.startsWith('class:')).map(key => key.slice(6)), ...(catalog.hidden?.classes || []).filter(id => !known.has(id))]
+        };
+      })
+    });
+  }
+
+  // ---- Period ----
+  $('period').addEventListener('change', async () => {
+    const next = $('period').value;
+    if (next === periodId) return;
+    if (dirty && !await schoolConfirm('Υπάρχουν μη αποθηκευμένες αλλαγές (ατομικά προγράμματα της περιόδου ' + quoted(periodOf(periodId)?.name || '') + ' ή κατάλογος μαθημάτων και συνενώσεων). Να απορριφθούν;', {title: 'Μη αποθηκευμένες αλλαγές', accept: 'Απόρριψη αλλαγών'})) {
+      $('period').value = periodId; return;
+    }
+    catalog = clone(savedCatalog);
+    loadPeriod(next);
+  });
+
+  // ---- Save ----
+  // What a teacher has in a program, to find who changed: the cells (day, hours, subject, chips), without the ids.
+  function staffSignature(value, id) {
+    const rows = [];
+    for (const activity of value?.activities || []) {
+      if (!(activity.staff || []).includes(id)) continue;
+      const place = value.source?.placements?.[activity.id] || {};
+      for (const time of activity.times || []) rows.push(['a', time.day, time.start, time.end, place.subjectId ?? '', JSON.stringify(place.chips || [])].join('|'));
+    }
+    for (const item of value?.source?.pending || []) if (item.staffId === id) rows.push(['p', item.day, item.start, item.end, '', JSON.stringify(item.chips || [])].join('|'));
+    return rows.sort().join('\n');
+  }
+  async function save() {
+    if (busy || !dirty) return;
+    const now = new Date().toISOString(), ops = [];
+    let put = null;
+    if (program && programDirty()) {
+      put = T.individualRefresh(program, {catalog, classes: yearClasses()}).program;
+      // One «edit» entry per save, with the teachers whose cells changed (names as they are now).
+      const changed = sortedStaff().filter(person => staffSignature(saved, person.id) !== staffSignature(put, person.id));
+      if (changed.length) { put.updatedAt = now; T.addHistory(put, {at: now, type: 'edit', staff: changed.map(person => String(person.name || person.shortName || ''))}); }
+      ops.push({op: 'put', program: put});
+    }
+    // A change of the catalog (e.g. a renamed subject, a changed Συνένωση) passes to the other periods, without a
+    // history entry: the catalog changed, not their programs.
+    if (catalogDirty()) {
+      for (const other of (context.programs || []).filter(item => item.kind === 'individual' && item.periodId !== periodId && item.periodId != null)) {
+        const refreshed = T.individualRefresh(other, {catalog, classes: yearClasses()});
+        if (refreshed.changed) ops.push({op: 'put', program: refreshed.program});
+      }
+    }
+    const payload = {revision: context.revision, year: context.year, ops};
+    if (catalogDirty()) payload.individualCatalog = clone(catalog);
+    setBusy(true);
+    let result = null;
+    try {
+      result = await schoolHost.request('school-timetables:save', payload);
+      applyContext(result);
+      const stored = put ? (result.programs || []).find(item => item.id === put.id) : null;
+      if (put && (!stored || JSON.stringify(stored) !== JSON.stringify(put))) throw Error('Η αποθήκευση ολοκληρώθηκε, αλλά το πρόγραμμα του αρχείου δεν είναι ίδιο με αυτό της σελίδας. Βεβαιώσου ότι το index.html είναι η τελευταία έκδοση.');
+      // «Αναίρεση» / «Επανάληψη» work only within the changes since the last save.
+      undoStack = []; redoStack = [];
+      saved = clone(individualOf(periodId)); savedJson = JSON.stringify(saved);
+      program = clone(saved);
+      savedCatalog = normalCatalog(result.individualCatalog); savedCatalogJson = JSON.stringify(savedCatalog);
+      catalog = clone(savedCatalog);
+      refresh();
+      notice('Τα ατομικά προγράμματα αποθηκεύτηκαν στο κοινό αρχείο .data.' + (ops.length > (put ? 1 : 0) ? ' Ενημερώθηκαν και ' + (ops.length - (put ? 1 : 0) === 1 ? 'τα ατομικά προγράμματα 1 άλλης περιόδου.' : 'τα ατομικά προγράμματα ' + (ops.length - (put ? 1 : 0)) + ' άλλων περιόδων.') : ''));
+    } catch (error) {
+      if (result) refresh();
+      notice(error.message, true);
+    } finally { setBusy(false); }
+  }
+
+  // ---- Events ----
+  $('save').onclick = save;
+  $('undo').onclick = () => { closeUndoMenu(); undo(); };
+  $('redo').onclick = redo;
+  $('undoAll').onclick = () => { closeUndoMenu(); void undoAll(); };
+  $('newSubject').onclick = () => { if (!busy) openSubject(); };
+  $('newUnion').onclick = () => { if (!busy) openUnion(); };
+  $('manageSubjects').onclick = manageSubjects;
+  $('manageClasses').onclick = manageClasses;
+  $('manageUnions').onclick = manageUnions;
+  function closeUndoMenu() { $('undoMenu').hidden = true; $('undoMenuButton').setAttribute('aria-expanded', 'false'); }
+  $('undoMenuButton').addEventListener('click', event => {
+    event.stopPropagation();
+    const open = $('undoMenu').hidden;
+    $('undoMenu').hidden = !open;
+    $('undoMenuButton').setAttribute('aria-expanded', String(open));
+  });
+  document.addEventListener('click', event => { if (!event.target.closest('.undo-control')) closeUndoMenu(); });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') closeUndoMenu();
+    if (!(event.ctrlKey || event.metaKey) || event.altKey || event.target.closest?.('input,select,textarea,dialog')) return;
+    const keyName = String(event.key).toLowerCase();
+    if (keyName === 'z' || keyName === 'ζ') { event.preventDefault(); event.shiftKey ? redo() : undo(); }
+    else if (keyName === 'y' || keyName === 'υ') { event.preventDefault(); redo(); }
+  });
+  window.addEventListener('beforeunload', event => { if (dirty) { event.preventDefault(); event.returnValue = ''; } });
+  post({type: 'school-timetables:ready'});
+})();
+</script>
+</body>
+</html>
