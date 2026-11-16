@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ατομικά Προγράμματα v0.2</title>
+<title>Ατομικά Προγράμματα v0.3</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -155,6 +155,8 @@ table.ip-grid{--ip-zoom:1;cursor:default;user-select:none;border-collapse:separa
 .ip-pick-list{max-height:min(48vh,420px);overflow:auto;border:1px solid var(--school-ui-border);border-radius:8px;padding:4px 10px}
 .ip-pick-list label{align-items:baseline;margin:4px 0;font-weight:400}
 .ip-form .ip-field-title{display:block;margin:12px 0 5px;font-weight:650}
+.ip-form .ip-pick-group{margin:10px 0 2px;font-size:14px;font-weight:650;color:var(--school-ui-label-text)}
+.ip-form .ip-pick-group:first-of-type{margin-top:4px}
 .ip-pick-list small{color:var(--school-ui-muted);font-size:13px;font-weight:400}
 .ip-pick-list .ip-pick-here{color:var(--school-ui-warning)}
 
@@ -192,7 +194,7 @@ main.ip-single~.ip-summary{left:18px}
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ατομικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΑΠ</span></span><span class="brand-text"><span>Ατομικά Προγράμματα</span><span class="small version">v0.2</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ατομικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΑΠ</span></span><span class="brand-text"><span>Ατομικά Προγράμματα</span><span class="small version">v0.3</span></span></button></h1></div>
   <select id="period" aria-label="Περίοδος" disabled hidden></select>
   <span id="staffControl" class="ip-staff-control" hidden>
     <button id="staffButton" class="ip-staff-button" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="staffMenu" disabled>Εκπαιδευτικός</button>
@@ -215,7 +217,7 @@ main.ip-single~.ip-summary{left:18px}
     <h2 class="section-heading">
       <span class="section-label">Μαθήματα <span id="subjectCount"></span></span>
       <span class="section-heading-actions">
-        <button type="button" id="importSubjects" class="subapp-section-action" title="Προσθήκη από Ωρολόγιο…" aria-label="Προσθήκη μαθημάτων από το Ωρολόγιο της περιόδου" data-school-icon="import"></button>
+        <button type="button" id="importSubjects" class="subapp-section-action" title="Προσθήκη μαθημάτων…" aria-label="Προσθήκη μαθημάτων από το Ωρολόγιο της περιόδου ή από τα συνήθη μαθήματα" data-school-icon="import"></button>
         <button type="button" id="manageSubjects" class="subapp-section-action" title="Σειρά και εμφάνιση Μαθημάτων" aria-label="Σειρά και εμφάνιση Μαθημάτων" data-school-icon="edit"></button>
       </span>
     </h2>
@@ -1507,27 +1509,47 @@ main.ip-single~.ip-summary{left:18px}
   }
   const checkedValues = list => [...list.querySelectorAll('input[type=checkbox]:checked')].map(input => input.value);
 
-  // ---- «Προσθήκη από Ωρολόγιο…» ----
-  // The subjects of the Ωρολόγιο of the period (source.subjects of the FET import) that the catalog does not have
-  // (by name, without tones and case; a hidden subject counts as there). Without a .fet file.
+  // ---- «Προσθήκη μαθημάτων…» ----
+  // Two groups of checkboxes, only with what the catalog does not have (by name, without tones and case; a hidden
+  // subject counts as there): the subjects of the Ωρολόγιο of the period (source.subjects of the FET import,
+  // without a .fet file) and the usual subjects of the individual programs (COMMON_SUBJECTS; more can be added here).
+  const COMMON_SUBJECTS = Object.freeze(['Ενισχυτική Διδασκαλία', 'Γραμματειακή Υποστήριξη', 'Διοικητικό Έργο']);
   function importSubjects() {
     if (busy || readOnly()) return;
     const school = schoolOf(periodId), all = Array.isArray(school?.source?.subjects) ? school.source.subjects : [];
-    const have = new Set(catalog.subjects.map(item => nameKey(item.name))), missing = [];
+    const have = new Set(catalog.subjects.map(item => nameKey(item.name))), fromSchool = [], common = [];
+    const clean = value => String(value ?? '').replace(/\s+/g, ' ').trim();
     for (const item of all) {
-      const name = String(item?.name ?? '').replace(/\s+/g, ' ').trim(), key = nameKey(name);
+      const name = clean(item?.name), key = nameKey(name);
       if (!name || have.has(key)) continue;
       have.add(key);
-      const longName = String(item?.longName ?? '').replace(/\s+/g, ' ').trim();
-      missing.push({value: name, text: name, note: longName && nameKey(longName) !== key ? longName : '', checked: false});
+      const longName = clean(item?.longName);
+      fromSchool.push({value: name, text: name, note: longName && nameKey(longName) !== key ? longName : ''});
     }
-    if (!missing.length) { notice(all.length ? 'Όλα τα μαθήματα του Ωρολογίου της περιόδου υπάρχουν ήδη στα Μαθήματα.' : 'Το Ωρολόγιο της περιόδου δεν έχει κατάλογο μαθημάτων.'); return; }
-    const list = checkList(missing), form = el('div', 'ip-form');
-    form.append(el('p', 'hint', 'Τα μαθήματα του Ωρολογίου της περιόδου ' + quoted(periodOf(periodId)?.name || '') + ' που δεν υπάρχουν στα Μαθήματα. Τα Μαθήματα είναι κοινά για όλες τις περιόδους του σχολικού έτους.'), checkTools(() => list), list);
+    for (const name of COMMON_SUBJECTS) {
+      const key = nameKey(name);
+      if (have.has(key)) continue;
+      have.add(key);
+      common.push({value: name, text: name});
+    }
+    if (!fromSchool.length && !common.length) { notice('Όλα τα μαθήματα του Ωρολογίου της περιόδου και τα συνήθη μαθήματα υπάρχουν ήδη στα Μαθήματα.'); return; }
+    const lists = [], form = el('div', 'ip-form');
+    form.append(el('p', 'hint', 'Επίλεξε τα μαθήματα που θα προστεθούν στα Μαθήματα. Φαίνονται μόνο όσα δεν υπάρχουν ήδη. Τα Μαθήματα είναι κοινά για όλες τις περιόδους του σχολικού έτους.'));
+    const box = el('div');
+    box.append(checkTools(() => box));
+    const group = (title, rows) => {
+      if (!rows.length) return;
+      const list = checkList(rows);
+      lists.push(list);
+      box.append(el('div', 'ip-pick-group', title), list);
+    };
+    group('Από το Ωρολόγιο της περιόδου ' + quoted(periodOf(periodId)?.name || ''), fromSchool);
+    group('Συνήθη μαθήματα', common);
+    form.append(box);
     return formDialog({
-      title: 'Προσθήκη από Ωρολόγιο', content: form, accept: 'Προσθήκη',
+      title: 'Προσθήκη μαθημάτων', content: form, accept: 'Προσθήκη',
       apply: () => {
-        const names = checkedValues(list);
+        const names = lists.flatMap(checkedValues);
         if (!names.length) throw Error('Επίλεξε τουλάχιστον ένα μάθημα.');
         if (catalog.subjects.length + names.length > 500) throw Error('Ο κατάλογος θα ξεπερνούσε τα 500 μαθήματα, το όριο του σχολικού έτους.');
         change(() => { for (const name of names) catalog.subjects.push({id: uid(), name, color: '', hidden: false}); });
