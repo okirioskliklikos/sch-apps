@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Περίοδοι Προγραμμάτων v0.21</title>
+<title>Περίοδοι Προγραμμάτων v0.22</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -112,7 +112,7 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Περίοδοι Προγραμμάτων — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΠΠ</span></span><span class="brand-text"><span>Περίοδοι Προγραμμάτων</span><span class="small version">v0.21</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Περίοδοι Προγραμμάτων — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΠΠ</span></span><span class="brand-text"><span>Περίοδοι Προγραμμάτων</span><span class="small version">v0.22</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <div class="header-right"><span id="schoolYear" class="school-year-indicator" hidden><span>Σχολικό έτος:</span> <span id="schoolYearValue"></span></span></div>
@@ -138,6 +138,9 @@
   const programCount = () => (Number(context.programCount) || saved.programs.length) - saved.programs.length + draft.programs.length;
   const kindKeys = Object.keys(T.kinds);
   const kindLabel = kind => T.kinds[kind]?.label || kind;
+  // Kinds with drafts (the Ατομικά Προγράμματα have none: they always belong to a period) and kinds with a history.
+  const hasDrafts = kind => T.kinds[kind]?.drafts !== false;
+  const hasHistory = kind => !!T.kinds[kind]?.history;
   const quoted = value => '«' + value + '»';
   const uid = () => crypto.randomUUID();
   const clone = value => structuredClone(value);
@@ -172,8 +175,11 @@
   const periodById = id => draft.periods.find(period => period.id === id) || null;
   const programsOf = periodId => draft.programs.filter(program => program.periodId === periodId);
   const programOf = (periodId, kind) => draft.programs.find(program => program.periodId === periodId && program.kind === kind) || null;
-  // A program that is stored in the file in a period: only such a program can become a draft.
+  // A program that is stored in the file in a period: only such a program (of a kind with drafts) can become a draft.
   const isStored = program => saved.programs.some(item => item.id === program.id && item.periodId != null);
+  const canKeep = program => isStored(program) && hasDrafts(program.kind);
+  // The teachers of a program: in its activities and, in the Ατομικά Προγράμματα, in its incomplete cells.
+  const programStaff = program => unique([...(program.activities || []).flatMap(activity => activity.staff || []), ...(program.source?.type === 'individual' && Array.isArray(program.source.pending) ? program.source.pending.map(item => item?.staffId).filter(Boolean) : [])]);
   const draftName = (program, period, reason) => (program.name || kindLabel(program.kind) + ' ' + quoted(period.name)) + ' – ' + reason + ' ' + D.format(D.today());
   const programText = program => kindLabel(program.kind) + (program.name ? ' ' + quoted(program.name) : '');
   const orderError = period => D.valid(period.from) && D.valid(period.to) && period.to < period.from ? 'Η λήξη είναι πριν από την έναρξη.' : '';
@@ -182,7 +188,7 @@
     const activities = program.activities || [];
     return {
       activities: activities.length,
-      staff: unique(activities.flatMap(activity => activity.staff || [])).length,
+      staff: programStaff(program).length,
       unmatched: unique(activities.flatMap(activity => activity.unmatched || [])).length,
       classes: unique(activities.flatMap(activity => activity.classes || [])).length
     };
@@ -313,7 +319,7 @@
     const counts = Object.fromEntries(kindKeys.map(kind => [kind, Number(context.draftCounts?.[kind]) || 0]));
     for (const program of draft.programs) if (program.periodId == null && counts[program.kind] != null) counts[program.kind]++;
     $('drafts').innerHTML = `<h3 id="draftsTitle">Προσχέδια υποεφαρμογών</h3>
-      <table class="drafts-table"><tbody>${kindKeys.map(kind => {
+      <table class="drafts-table"><tbody>${kindKeys.filter(hasDrafts).map(kind => {
         const owner = T.kinds[kind].ownerTitle, many = counts[kind] > DRAFT_WARNING_LIMIT;
         return `<tr><td>${esc(kindLabel(kind))}<span class="drafts-owner">${esc(owner || 'χωρίς εφαρμογή ακόμη')}</span>${many ? '<span class="ui-validation-warning">Πολλά προσχέδια: καλό είναι να γίνει εκκαθάριση.</span>' : ''}</td><td${many ? ' class="ui-validation-warning"' : ''}>${counts[kind]}</td></tr>`;
       }).join('')}</tbody></table>
@@ -384,7 +390,8 @@
     const importers = T.importers(kind), importable = importers.length > 0;
     const importLabel = 'Εισαγωγή…';
     if (!program) {
-      const help = importable ? '' : info.ownerTitle ? 'Ανατίθεται σε περίοδο από την εφαρμογή ' + quoted(info.ownerTitle) + '.' : 'Δεν υπάρχει ακόμη εφαρμογή για αυτό το είδος.';
+      const help = importable ? '' : !info.ownerTitle ? 'Δεν υπάρχει ακόμη εφαρμογή για αυτό το είδος.'
+        : hasDrafts(kind) ? 'Ανατίθεται σε περίοδο από την εφαρμογή ' + quoted(info.ownerTitle) + '.' : 'Ορίζεται στην εφαρμογή ' + quoted(info.ownerTitle) + '.';
       return `<section class="kind-card" aria-labelledby="card-${kind}">${head}<div class="kind-card-empty"><p>Δεν υπάρχει πρόγραμμα</p>${help ? `<small>${esc(help)}</small>` : ''}${importable ? `<button type="button" class="primary" data-action="import" data-kind="${kind}">${esc(importLabel)}</button>` : ''}</div></section>`;
     }
     const s = stats(program), source = program.source || {}, facts = [];
@@ -392,6 +399,7 @@
     facts.push(['Δραστηριότητες', String(s.activities)]);
     facts.push(['Εκπαιδευτικοί', s.staff + ' με αντιστοίχιση' + (s.unmatched ? ' · ' + s.unmatched + ' χωρίς' : '')]);
     facts.push(['Τμήματα', String(s.classes)]);
+    if (source.type === 'individual' && Array.isArray(source.pending) && source.pending.length) facts.push(['Ελλιπή κελιά', String(source.pending.length)]);
     if (source.type === 'fet') {
       const files = [source.csvName, source.fetName].filter(Boolean);
       if (files.length) facts.push(['Αρχεία', files.join('\n')]);
@@ -407,7 +415,7 @@
       ${note ? `<p class="kind-card-note">${esc(note)}</p>` : ''}
       ${isStored(program) ? '' : '<p class="kind-card-new">Νέο· αποθηκεύεται με την «Αποθήκευση».</p>'}
       ${help ? `<p class="kind-card-help">${esc(help)}</p>` : ''}
-      ${kind === 'school' ? `<p class="kind-card-history"><button type="button" class="ui-link-button" data-action="history" data-kind="${kind}">Ιστορικό…</button></p>` : ''}
+      ${hasHistory(kind) ? `<p class="kind-card-history"><button type="button" class="ui-link-button" data-action="history" data-kind="${kind}">Ιστορικό…</button></p>` : ''}
       <div class="kind-card-actions"><button type="button" class="danger" data-action="delete" data-kind="${kind}">Διαγραφή</button>${importable ? `<button type="button" class="primary" data-action="import" data-kind="${kind}"${importers.length === 1 ? ` title="${esc(importers[0].label)}"` : ''}>Αντικατάσταση…</button>` : ''}</div>
     </section>`;
   }
@@ -472,27 +480,34 @@
     $('periodList').querySelector('.selected')?.scrollIntoView({block: 'nearest'});
   }
   async function removePeriod(period) {
-    const programs = programsOf(period.id), stored = programs.filter(isStored);
+    const programs = programsOf(period.id), stored = programs.filter(isStored), keepable = programs.filter(canKeep);
+    // Programs of kinds without drafts (the Ατομικά Προγράμματα) are always deleted with the period.
+    const noDrafts = unique(stored.filter(program => !hasDrafts(program.kind)).map(program => kindLabel(program.kind)));
+    const noDraftsNote = noDrafts.length ? ' Τα ' + noDrafts.join(', ') + ' δεν κρατιούνται ως προσχέδια: διαγράφονται μαζί με την περίοδο.' : '';
+    const unsavedNote = stored.length < programs.length ? ' Όσα δεν έχουν αποθηκευτεί ακόμη αφαιρούνται.' : '';
+    const listText = (programs.length === 1 ? 'το πρόγραμμα: ' : programs.length + ' προγράμματα: ') + programs.map(programText).join(', ');
     let mode = 'delete';
     if (!programs.length) {
       if (!await schoolConfirm('Να αφαιρεθεί η περίοδος ' + quoted(period.name.trim() || 'Χωρίς όνομα') + ';', {title: 'Αφαίρεση περιόδου', accept: 'Αφαίρεση'})) return;
     } else if (!stored.length) {
       if (!await schoolConfirm('Η περίοδος ' + quoted(period.name) + ' έχει προγράμματα που δεν έχουν αποθηκευτεί (' + programs.map(programText).join(', ') + '). Θα αφαιρεθούν μαζί της. Να συνεχίσω;', {title: 'Αφαίρεση περιόδου', accept: 'Αφαίρεση'})) return;
+    } else if (!keepable.length) {
+      if (!await schoolConfirm('Η περίοδος ' + quoted(period.name) + ' έχει ' + listText + '.' + noDraftsNote + unsavedNote + ' Η διαγραφή γίνεται οριστική με την «Αποθήκευση». Να συνεχίσω;', {title: 'Αφαίρεση περιόδου', accept: 'Αφαίρεση'})) return;
     } else {
       mode = await schoolChoiceDialog({
         title: 'Αφαίρεση περιόδου',
         content: [
-          'Η περίοδος ' + quoted(period.name) + ' έχει ' + (programs.length === 1 ? 'το πρόγραμμα: ' : programs.length + ' προγράμματα: ') + programs.map(programText).join(', ') + '. Τι να γίνει με ' + (programs.length === 1 ? 'αυτό' : 'αυτά') + ';',
-          'Κάθε προσχέδιο ανήκει στην υποεφαρμογή του είδους του (π.χ. το Ωρολόγιο στον FET Timetable Editor).' + (stored.length < programs.length ? ' Όσα δεν έχουν αποθηκευτεί ακόμη αφαιρούνται.' : '')
+          'Η περίοδος ' + quoted(period.name) + ' έχει ' + listText + '. Τι να γίνει με ' + (programs.length === 1 ? 'αυτό' : 'αυτά') + ';',
+          'Κάθε προσχέδιο ανήκει στην υποεφαρμογή του είδους του (π.χ. το Ωρολόγιο στον FET Timetable Editor).' + noDraftsNote + unsavedNote
         ],
-        choices: [{label: programs.length === 1 ? 'Κράτησέ το ως προσχέδιο' : 'Κράτησέ τα ως προσχέδια', value: 'draft'}, {label: programs.length === 1 ? 'Διάγραψέ το' : 'Διάγραψέ τα', value: 'delete'}]
+        choices: [{label: keepable.length > 1 ? 'Κράτησέ τα ως προσχέδια' : programs.length > 1 ? 'Κράτησε το ' + kindLabel(keepable[0].kind) + ' ως προσχέδιο' : 'Κράτησέ το ως προσχέδιο', value: 'draft'}, {label: programs.length === 1 ? 'Διάγραψέ το' : 'Διάγραψέ τα', value: 'delete'}]
       });
       if (!mode) return;
     }
     const now = new Date().toISOString();
     draft.programs = draft.programs.filter(program => {
       if (program.periodId !== period.id) return true;
-      if (mode !== 'draft' || !isStored(program)) return false;
+      if (mode !== 'draft' || !canKeep(program)) return false;
       program.name = draftName(program, period, 'από διαγραμμένη περίοδο');
       program.periodId = null; program.updatedAt = now;
       return true;
@@ -502,7 +517,7 @@
     delete fieldErrors[period.id];
     selectedId = draft.periods[Math.min(index, draft.periods.length - 1)]?.id || null;
     mark(); renderList(); renderWarnings(); renderDrafts(); renderPane();
-    notice('Η περίοδος ' + quoted(period.name) + ' αφαιρέθηκε' + (mode === 'draft' && stored.length ? ' και τα προγράμματά της θα κρατηθούν ως προσχέδια' : '') + '. Πάτησε «Αποθήκευση».');
+    notice('Η περίοδος ' + quoted(period.name) + ' αφαιρέθηκε' + (mode === 'draft' && keepable.length ? (keepable.length === 1 && programs.length > 1 ? ' και το ' + kindLabel(keepable[0].kind) + ' θα κρατηθεί ως προσχέδιο' : ' και ' + (keepable.length === 1 ? 'το πρόγραμμά της θα κρατηθεί ως προσχέδιο' : 'τα προγράμματά της θα κρατηθούν ως προσχέδια')) : '') + '. Πάτησε «Αποθήκευση».');
   }
 
   // ---- Programs ----
@@ -511,6 +526,12 @@
   // simply replaced. → true to go on, false when the user cancelled.
   async function replaceExisting(old, period) {
     if (!isStored(old)) { draft.programs = draft.programs.filter(program => program !== old); return true; }
+    // A kind without drafts (the Ατομικά Προγράμματα) is only replaced, after a confirmation.
+    if (!hasDrafts(old.kind)) {
+      if (!await schoolConfirm('Η περίοδος ' + quoted(period.name) + ' έχει ήδη ' + programText(old) + ' (' + activitiesText(stats(old).activities) + '). Θα αντικατασταθεί· τα ' + kindLabel(old.kind) + ' δεν κρατιούνται ως προσχέδια. Η διαγραφή γίνεται οριστική με την «Αποθήκευση».', {title: 'Αντικατάσταση: ' + kindLabel(old.kind), accept: 'Αντικατάσταση'})) return false;
+      draft.programs = draft.programs.filter(program => program !== old);
+      return true;
+    }
     const choice = await schoolReplaceProgram({
       title: 'Αντικατάσταση: ' + kindLabel(old.kind),
       message: 'Η περίοδος ' + quoted(period.name) + ' έχει ήδη ' + programText(old) + ' (' + activitiesText(stats(old).activities) + '). Τι να γίνει με αυτό; Με «Πλήρης αντικατάσταση» διαγράφεται κατά την Αποθήκευση.',
@@ -568,7 +589,8 @@
   async function deleteProgram(period, kind) {
     const program = programOf(period.id, kind);
     if (!program) return;
-    if (!await schoolConfirm('Να διαγραφεί ' + (kind === 'school' ? 'το ' : 'το πρόγραμμα ') + programText(program) + ' της περιόδου ' + quoted(period.name) + ';' + (isStored(program) ? ' Η διαγραφή γίνεται οριστική με την «Αποθήκευση».' : ''), {title: 'Διαγραφή προγράμματος', accept: 'Διαγραφή'})) return;
+    const what = kind === 'individual' ? 'Να διαγραφούν τα Ατομικά Προγράμματα όλων των εκπαιδευτικών' : 'Να διαγραφεί ' + (kind === 'school' ? 'το ' : 'το πρόγραμμα ') + programText(program);
+    if (!await schoolConfirm(what + ' της περιόδου ' + quoted(period.name) + ';' + (isStored(program) ? ' Η διαγραφή γίνεται οριστική με την «Αποθήκευση».' : ''), {title: 'Διαγραφή προγράμματος', accept: 'Διαγραφή'})) return;
     draft.programs = draft.programs.filter(item => item !== program);
     mark(); renderList(); renderDrafts(); renderPane();
     notice('Το πρόγραμμα ' + programText(program) + ' αφαιρέθηκε από την περίοδο ' + quoted(period.name) + '. Πάτησε «Αποθήκευση».');
@@ -584,18 +606,21 @@
     return entry.derived ? day : day + ' ' + String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0');
   }
   const countText = (count, one, many) => count === 1 ? '1 ' + one : count + ' ' + many;
-  function historyText(entry) {
+  // kind: the kind of the program. The Ατομικά Προγράμματα write in 'edit' and 'copy' the names of the teachers
+  // (staff:[name…]).
+  function historyText(entry, kind) {
     const replacementsText = list => (list || []).map(item => (item.fromName || '?') + ' → ' + (item.toName || '?')).join(', ');
+    const people = (Array.isArray(entry.staff) ? entry.staff : []).filter(Boolean).join(', ');
     switch (entry.type) {
       case 'import': {
-        const importer = T.importer('school', entry.importer);
+        const importer = T.importer(kind, entry.importer);
         const files = (entry.files || []).filter(Boolean);
         return (importer?.label || 'Εισαγωγή από αρχεία') + (files.length ? ': ' + files.join(', ') : '') + (Number.isInteger(entry.activities) ? ' (' + activitiesText(entry.activities) + ')' : '') + '.';
       }
       case 'copy': {
         const list = replacementsText(entry.replacements);
         if (!entry.fromPeriod) return 'Αντικαταστάσεις εκπαιδευτικών' + (list ? ': ' + list : '') + '.';
-        return 'Αντιγραφή από την περίοδο ' + quoted(entry.fromPeriod) + (list ? ', με αντικαταστάσεις: ' + list : '') + '.';
+        return 'Αντιγραφή από την περίοδο ' + quoted(entry.fromPeriod) + (people ? ' των εκπαιδευτικών: ' + people : '') + (list ? ', με αντικαταστάσεις: ' + list : '') + '.';
       }
       case 'oloimero': {
         let text = 'Εισαγωγή Ολοημέρου' + (entry.design ? ' από ' + quoted(entry.design) : '');
@@ -607,6 +632,7 @@
         return text + (entry.assigned ? '· το προσχέδιο ανατέθηκε στην περίοδο' : '') + '.';
       }
       case 'edit':
+        if (kind === 'individual') return 'Αλλαγές στα ατομικά προγράμματα' + (people ? ': ' + people : '') + '.';
         return Number.isInteger(entry.activities) ? 'Αλλαγές στο ωρολόγιο (' + activitiesText(entry.activities) + ').' : 'Αλλαγές στο ωρολόγιο.';
       default:
         return 'Άλλη αλλαγή (' + entry.type + ').';
@@ -624,7 +650,8 @@
       for (const entry of entries) {
         const item = document.createElement('li'), time = document.createElement('time'), text = document.createElement('span');
         time.dateTime = entry.at; time.textContent = historyWhen(entry);
-        text.textContent = historyText(entry);
+        // A name that ends with «.» (e.g. «Παπαδάκη Μ.») at the end of the text: one full stop.
+        text.textContent = historyText(entry, kind).replace(/\.\.$/, '.');
         if (entry.derived) text.append(Object.assign(document.createElement('span'), {className: 'pg-history-derived', textContent: 'από παλαιότερα στοιχεία'}));
         item.append(time, text);
         list.append(item);
@@ -710,7 +737,7 @@
         summary.textContent = 'Θα αντιγραφούν: ' + parts.join(', ') + '.' + (fetChanged ? ' Όσα προγράμματα από FET αλλάζουν θα σημειωθούν «τροποποιήθηκε μετά την εισαγωγή».' : '');
       }
       const messages = [];
-      const used = new Set(programs.flatMap(program => program.activities.flatMap(activity => activity.staff || [])));
+      const used = new Set(programs.flatMap(programStaff));
       for (const item of list) if (!used.has(item.from)) messages.push('Ο/Η ' + quoted(shortName(item.from)) + ' δεν εμφανίζεται στα προγράμματα της περιόδου-πηγής.');
       const fromIso = D.parse(from.value), toIso = to.value.trim() ? D.parse(to.value) : '';
       if (fromIso && (toIso || !to.value.trim())) {
@@ -759,8 +786,8 @@
       const copy = T.replaceStaff(program, replacements, {staff: context.staff, now}).program;
       Object.assign(copy, {id: uid(), periodId: period.id, createdAt: now, updatedAt: now});
       // The copy keeps the history of the source and gets a «copy» entry, with the replacements that changed it.
-      if (copy.kind === 'school') {
-        const used = new Set((program.activities || []).flatMap(activity => activity.staff || []));
+      if (hasHistory(copy.kind)) {
+        const used = new Set(programStaff(program));
         T.addHistory(copy, {at: now, type: 'copy', fromPeriod: source.name, replacements: replacements.filter(item => used.has(item.from)).map(item => ({fromName: personName(item.from), toName: personName(item.to)}))});
       }
       return copy;

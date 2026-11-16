@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων
- * Έκδοση αρχείου: 0.41
+ * Έκδοση αρχείου: 0.42
  * Όνομα κατά την εγκατάσταση: _data.js
  *
  * Φορτώνεται από όσες υποεφαρμογές διαβάζουν ή γράφουν CSV, FET, ημερομηνίες ή προγράμματα, μετά
@@ -20,7 +20,8 @@
  *                           (από FET και από το CSV του Ολοήμερου Designer), εξαγωγή CSV του Ολοημέρου
  *                           για το FET, μαθητές των κελιών του Ολοημέρου από ονόματα, δάσκαλοι και σειρά του Προσωπικού, κανονική γραφή τμημάτων,
  *                           απασχόληση εκπαιδευτικών σε ημερομηνία και ώρα (συνεδριάσεις), Ιστορικό προγράμματος,
- *                           μάθημα δραστηριότητας (και «μάθημα της τάξης» των Ατομικών Προγραμμάτων)
+ *                           μάθημα δραστηριότητας (και «μάθημα της τάξης» των Ατομικών Προγραμμάτων), Ατομικά
+ *                           Προγράμματα (νέο πρόγραμμα, δραστηριότητες από τα κελιά, αντιγραφή ανά εκπαιδευτικό)
  *   window.SchoolHtml       κείμενο με μορφοποίηση (HTML του schoolRichText): καθαρισμός, έλεγχος κενού
  *   window.SchoolStudents   μαθητές (studentsByYear): ανάγνωση του CSV μαθητών του myschool, ίδιος μαθητής,
  *                           τάξη και επόμενο τμήμα, κατάσταση ΑΔΥΜ, ταξινόμηση
@@ -258,14 +259,15 @@
 
   // Κατάλογος ειδών προγραμμάτων. Τα δικαιώματα εγγραφής και οι validators του source μένουν στο host.
   //   owner: η εφαρμογή-κάτοχος (null: δεν υπάρχει ακόμη)· ownerTitle: το όνομά της για τον χρήστη·
-  //   counts: μετρά στις ώρες και στη διαθεσιμότητα·
+  //   counts: μετρά στις ώρες και στη διαθεσιμότητα· drafts: έχει προσχέδια (τα Ατομικά Προγράμματα όχι: ανήκουν
+  //   πάντα σε περίοδο)· history: κρατά Ιστορικό (program.history)·
   //   importers: οι εισαγωγείς του είδους (βλέπε «Εισαγωγείς» παρακάτω)· κενό όταν δεν υπάρχει εισαγωγή.
   // Νέο είδος: μια εγγραφή εδώ (με εισαγωγέα, αν η εφαρμογή του εξάγει αρχείο), και στο host τα
   // δικαιώματα και ο validator του source.
   const KINDS = Object.freeze({
-    school: Object.freeze({label: 'Ωρολόγιο', owner: 'fet_timetable_editor.html', ownerTitle: 'FET Timetable Editor', counts: true, importers: Object.freeze([fetImporter()])}),
-    oloimero: Object.freeze({label: 'Ολοήμερο', owner: 'oloimero_designer.html', ownerTitle: 'Ολοήμερο Designer', counts: false, importers: Object.freeze([oloimeroImporter()])}),
-    individual: Object.freeze({label: 'Ατομικά Προγράμματα', owner: 'individual_programs.html', ownerTitle: 'Ατομικά Προγράμματα', counts: true, importers: Object.freeze([])})
+    school: Object.freeze({label: 'Ωρολόγιο', owner: 'fet_timetable_editor.html', ownerTitle: 'FET Timetable Editor', counts: true, drafts: true, history: true, importers: Object.freeze([fetImporter()])}),
+    oloimero: Object.freeze({label: 'Ολοήμερο', owner: 'oloimero_designer.html', ownerTitle: 'Ολοήμερο Designer', counts: false, drafts: true, history: false, importers: Object.freeze([oloimeroImporter()])}),
+    individual: Object.freeze({label: 'Ατομικά Προγράμματα', owner: 'individual_programs.html', ownerTitle: 'Ατομικά Προγράμματα', counts: true, drafts: false, history: true, importers: Object.freeze([])})
   });
   const countsInHours = kind => !!KINDS[kind]?.counts;
   // Οι εισαγωγείς ενός είδους, και ένας συγκεκριμένος εισαγωγέας (ή null).
@@ -913,6 +915,103 @@
     const {at, ...rest} = clone(entry);
     program.history = [{at: at || nowIso(), ...rest}, ...programHistory(program)].slice(0, HISTORY_LIMIT);
     return program;
+  }
+
+  // ---- Ατομικά Προγράμματα (kind 'individual', source type 'individual', version 1) ----
+  // One program per period, with the activities of every teacher that has an individual program, and no drafts.
+  // Every activity is one hour of one teacher (staff:[id], one entry in times). The source keeps what the cells
+  // show: placements[activity id] = {subjectId|null, chips:[{type:'grade', grade} | {type:'class', id} |
+  // {type:'union', id}]} and pending (incomplete cells, not activities: {staffId, day, start, end, chips}). The
+  // subjects (with colour) and the Συνενώσεις are in the catalog of the year, shared by all periods
+  // (timetablesByYear[year].individualCatalog = {subjects:[{id, name, color, hidden}], unions:[{id, name, grades,
+  // classIds}], hidden:{grades, classes}}).
+  // «Μάθημα της τάξης» (a cell with chips and no subject, subjectFromClasses:true) is offered only to the service
+  // types below: Ειδική Αγωγή – Τμήμα Ένταξης, Ειδική Αγωγή – Παράλληλη Στήριξη, ΕΒΠ.
+  const INDIVIDUAL_CLASS_SUBJECT_SERVICES = Object.freeze(['inclusion', 'parallel', 'ebp']);
+  const individualClassSubject = person => INDIVIDUAL_CLASS_SUBJECT_SERVICES.includes(person?.serviceType);
+  // An empty individual program for a period. options: {id, now}.
+  function individualProgram(periodId, options = {}) {
+    const now = options.now || nowIso();
+    return {id: options.id || uid(), formatVersion: 2, kind: 'individual', periodId: periodId ?? null, name: '', createdAt: now, updatedAt: now,
+      activities: [], source: {type: 'individual', version: 1, placements: {}, pending: []}, history: []};
+  }
+  // The source of an individual program in its full shape (in place). Returns the source.
+  function individualSource(program) {
+    if (!isObject(program.source)) program.source = {type: 'individual', version: 1};
+    const source = program.source;
+    if (!isObject(source.placements)) source.placements = {};
+    if (!Array.isArray(source.pending)) source.pending = [];
+    if (!Array.isArray(program.activities)) program.activities = [];
+    return source;
+  }
+  // The subject, the τμήματα and the «μάθημα της τάξης» of the activities, computed again from source.placements
+  // and the catalog (on every save, and in every period after a subject is renamed). A placement with a subjectId
+  // gets the name of the subject in the catalog (a subject missing from the catalog keeps the stored name); a
+  // placement without one is «μάθημα της τάξης» (subject '', subjectFromClasses:true). The chips become classes,
+  // subsets and otherStudents with the rule of oloimeroStudents (every τμήμα, also those that are not Γενικής
+  // Παιδείας). Placements of activities that no longer exist are dropped; activities without a placement stay as
+  // they are. ctx: {catalog, classes}. → {program (a copy), changed: activities that changed}.
+  function individualRefresh(program, ctx = {}) {
+    const result = clone(program), source = individualSource(result), placements = source.placements;
+    const subjects = new Map((Array.isArray(ctx.catalog?.subjects) ? ctx.catalog.subjects : []).filter(isObject).map(item => [item.id, item]));
+    const lists = {unions: (Array.isArray(ctx.catalog?.unions) ? ctx.catalog.unions : []).filter(isObject)};
+    const shape = activity => JSON.stringify([String(activity.subject ?? ''), !!activity.subjectFromClasses, activity.classes || [], activity.subsets || [], activity.otherStudents || []]);
+    const ids = new Set();
+    let changed = 0;
+    for (const activity of result.activities) {
+      if (!isObject(activity)) continue;
+      ids.add(activity.id);
+      const place = placements[activity.id];
+      if (!isObject(place)) continue;
+      const before = shape(activity);
+      if (place.subjectId == null || place.subjectId === '') {
+        activity.subject = '';
+        activity.subjectFromClasses = true;
+      } else {
+        const subject = subjects.get(place.subjectId);
+        activity.subject = subject ? String(subject.name ?? '').trim() : String(activity.subject ?? '');
+        delete activity.subjectFromClasses;
+      }
+      const students = oloimeroStudents(Array.isArray(place.chips) ? place.chips : [], lists, ctx.classes || []);
+      activity.classes = students.classes;
+      activity.subsets = students.subsets;
+      activity.otherStudents = students.otherStudents;
+      if (shape(activity) !== before) changed++;
+    }
+    for (const key of Object.keys(placements)) if (!ids.has(key)) delete placements[key];
+    return {program: result, changed};
+  }
+  // «Αντιγραφή από άλλη περίοδο…» of the Ατομικά Προγράμματα, for the chosen teachers: their activities (with new
+  // ids and their placements) and incomplete cells in source replace what they have in target. target null: a new
+  // program for options.periodId. Adds the history entry 'copy' {fromPeriod, staff:[names]}, with the names of the
+  // teachers as they are now (full name, or short name), in the order of the Προσωπικό.
+  //   options: {periodId, fromPeriod (name of the source period), staff, now}.
+  //   → {program, activities, pending} (how many activities and incomplete cells were copied).
+  function individualCopy(target, source, staffIds, options = {}) {
+    const now = options.now || nowIso(), chosen = new Set((staffIds || []).filter(Boolean));
+    const result = target ? clone(target) : individualProgram(options.periodId ?? null, {now});
+    const into = individualSource(result), placements = into.placements;
+    result.activities = result.activities.filter(activity => {
+      const own = (activity?.staff || []).some(id => chosen.has(id));
+      if (own) delete placements[activity.id];
+      return !own;
+    });
+    into.pending = into.pending.filter(item => !chosen.has(item?.staffId));
+    const from = isObject(source?.source) ? source.source : {};
+    let activities = 0, pending = 0;
+    for (const activity of Array.isArray(source?.activities) ? source.activities : []) {
+      if (!isObject(activity) || !(activity.staff || []).some(id => chosen.has(id))) continue;
+      const copy = clone(activity);
+      copy.id = uid();
+      result.activities.push(copy);
+      if (isObject(from.placements?.[activity.id])) placements[copy.id] = clone(from.placements[activity.id]);
+      activities++;
+    }
+    for (const item of Array.isArray(from.pending) ? from.pending : []) if (chosen.has(item?.staffId)) { into.pending.push(clone(item)); pending++; }
+    result.updatedAt = now;
+    const names = sortStaff((options.staff || []).filter(person => chosen.has(person?.id))).map(person => String(person.name || person.shortName || ''));
+    addHistory(result, {at: now, type: 'copy', fromPeriod: String(options.fromPeriod || ''), staff: names});
+    return {program: result, activities, pending};
   }
 
   // ---- Ετικέτες ημέρας και ώρας (Ώρες Διδασκαλίας) ----
@@ -2782,6 +2881,7 @@
     classSpelling, studentsIndex, expandStudents, studentsFromNames, studentsText, activitySubject, activitySubjectDetails, homeroomTeacher, isGeneralTeacher, sortStaff, sortStaffAlphabetically,
     conflicts, studentsClash, staffHours, unavailableTimes, availability, staffBusyAt, replaceStaff,
     HISTORY_LIMIT, history: programHistory, ensureHistory, addHistory,
+    INDIVIDUAL_CLASS_SUBJECT_SERVICES, individualClassSubject, individualProgram, individualRefresh, individualCopy,
     analyzeOloimeroReplace, applyOloimeroReplace,
     OLOIMERO_CATEGORIES, OLOIMERO_MAX_SLOTS, oloimeroHours, oloimeroTeacherColor, oloimeroStudents,
     oloimeroRowsFromCsv, oloimeroRowsFromProgram, oloimeroCsvFromProgram, oloimeroCells, analyzeOloimeroImport, buildOloimeroProgram,

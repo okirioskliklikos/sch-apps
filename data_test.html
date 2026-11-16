@@ -12,7 +12,7 @@
   φτιάχνονται από το σύντομο όνομα των δασκάλων («[Α1] - …», classesFromStaff). Με το .data δοκιμής, οι
   έλεγχοι των νέων ετικετών (v2) παίρνουν το Προσωπικό από αυτό, γιατί το CSV του Ολοημέρου έχει τα σύντομα
   ονόματα του Προσωπικού.
-  Έκδοση αρχείου: 0.52
+  Έκδοση αρχείου: 0.53
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -274,6 +274,7 @@ function basics() {
   equal('Πρόγραμμα σε ημερομηνία: school 01/10 → p1, school 12/11 → κανένα (δεν συνεχίζει)', [T.programAt(timetables, 'school', '2026-10-01')?.id, T.programAt(timetables, 'school', '2026-11-12')], ['p1', null]);
   equal('classSpelling: ΣΤ1, στ2, Στ 1, α1, Ά2, Ε10, Α\', Υποδοχή, Ζ1, κενό', ['ΣΤ1', 'στ2', 'Στ 1', 'α1', 'Ά2', 'Ε10', "Α'", 'Υποδοχή', 'Ζ1', ''].map(T.classSpelling), ['Στ1', 'Στ2', 'Στ1', 'Α1', 'Α2', 'Ε10', '', '', '', '']);
   equal('Κατάλογος ειδών: μετρούν school, individual', Object.keys(T.kinds).filter(T.countsInHours), ['school', 'individual']);
+  equal('Κατάλογος ειδών: προσχέδια (drafts) και Ιστορικό (history)', Object.fromEntries(Object.keys(T.kinds).map(kind => [kind, [T.kinds[kind].drafts, T.kinds[kind].history]])), {school: [true, true], oloimero: [true, false], individual: [false, true]});
 }
 
 // Τμήματα (SchoolClasses): είδος, κλειδί, ταξινόμηση, τάξεις, μετονομασία και αντιστοίχιση ονομάτων (resolver).
@@ -1809,6 +1810,68 @@ function hostIndividualChecks() {
   // Μάθημα της δραστηριότητας «μάθημα της τάξης» από το Ωρολόγιο της ίδιας περιόδου
   const schoolA = {kind: 'school', periodId: 'pa', activities: [{id: 'g', subject: 'Γλώσσα', staff: ['s3'], classes: [cid('Β1')], times: [time(1, '08:15', '09:00')]}]};
   equal('activitySubject: «Γλώσσα» από το Ωρολόγιο', T.activitySubject(program.activities[0], {programs: [schoolA, program], classes}), 'Γλώσσα');
+  // Τα αποτελέσματα του _data.js περνούν την επικύρωση του host
+  const refreshed = T.individualRefresh(program, {catalog, classes}).program;
+  accepts('individualRefresh: το πρόγραμμα γίνεται δεκτό από το host', trySave(withCatalog, {ops: [put(refreshed)]}, APP));
+  const copy = T.individualCopy(null, program, ['s1', 's3'], {periodId: 'pb', fromPeriod: periodA.name, staff}).program;
+  const both = accepts('individualCopy: αντιγραφή στη Β περίοδο γίνεται δεκτή, μαζί με το πρόγραμμα της Α', trySave(saved, {ops: [put(copy)]}, APP));
+  if (both) equal('Δύο ατομικά προγράμματα, ένα ανά περίοδο', H.yearData(both, year).programs.filter(p => p.kind === 'individual').map(p => p.periodId + ':' + p.activities.length + ':' + p.source.pending.length).sort(), ['pa:3:1', 'pb:2:1']);
+}
+
+// Ατομικά Προγράμματα στο _data.js: «μάθημα της τάξης» ανά είδος υπηρεσίας, νέο πρόγραμμα, δραστηριότητες από τα
+// κελιά (individualRefresh) και αντιγραφή από άλλη περίοδο ανά εκπαιδευτικό (individualCopy).
+function individualChecks() {
+  start('Ατομικά Προγράμματα (_data.js)');
+  const T = SchoolTimetable, classes = [...CLASS_LIST, ENTAXI];
+  equal('«Μάθημα της τάξης»: Τμήμα Ένταξης, Παράλληλη Στήριξη, ΕΒΠ', ['inclusion', 'parallel', 'ebp', 'classroom', 'specialty', 'zep', '', undefined].map(serviceType => T.individualClassSubject({serviceType})), [true, true, true, false, false, false, false, false]);
+  const empty = T.individualProgram('pa', {id: 'n1', now: '2026-11-16T08:00:00.000Z'});
+  equal('Νέο πρόγραμμα περιόδου', empty, {id: 'n1', formatVersion: 2, kind: 'individual', periodId: 'pa', name: '', createdAt: '2026-11-16T08:00:00.000Z', updatedAt: '2026-11-16T08:00:00.000Z', activities: [], source: {type: 'individual', version: 1, placements: {}, pending: []}, history: []});
+  const catalog = {subjects: [{id: 'sub-ent', name: 'Τμήμα Ένταξης', color: '#3b82f6'}, {id: 'sub-dio', name: ' Διοικητικό Έργο '}],
+    unions: [{id: 'u1', name: 'Γ1+Δ1', grades: [], classIds: [cid('Γ1'), cid('Δ1')]}, {id: 'u2', name: 'Α\'+Β1', grades: ['Α'], classIds: [cid('Β1')]}]};
+  const time = (day, start, end) => ({day, start, end});
+  const act = (id, staffId, extra = {}) => ({id, subject: 'παλιό', staff: [staffId], classes: [], times: [time(1, '08:15', '09:00')], ...extra});
+  const program = {...T.individualProgram('pa', {id: 'p1'}), activities: [act('a1', 's1'), act('a2', 's2'), act('a3', 's3'), act('a4', 's3'), act('a5', 's3', {subject: 'Χωρίς θέση'})]};
+  program.source.placements = {
+    a1: {subjectId: null, chips: [{type: 'class', id: cid('Β1')}, {type: 'grade', grade: 'Α'}]},
+    a2: {subjectId: 'sub-ent', chips: [{type: 'class', id: ENTAXI.id}]},
+    a3: {subjectId: 'sub-dio', chips: []},
+    a4: {subjectId: 'sub-χαμένο', chips: [{type: 'union', id: 'u1'}, {type: 'union', id: 'u2'}]},
+    gone: {subjectId: 'sub-dio', chips: []}
+  };
+  const refreshed = T.individualRefresh(program, {catalog, classes}), byId = id => refreshed.program.activities.find(activity => activity.id === id);
+  const shape = activity => [activity.subject, activity.subjectFromClasses ?? null, namesOf(activity.classes, classes), activity.subsets, activity.otherStudents];
+  equal('Χωρίς μάθημα: «μάθημα της τάξης», με τα τμήματα των chips (Β1 και η Α\' → Α1, Α2)', shape(byId('a1')), ['', true, ['Β1', 'Α1', 'Α2'], [], []]);
+  equal('Με μάθημα του καταλόγου: το όνομά του, και τμήμα που δεν είναι Γενικής Παιδείας', shape(byId('a2')), ['Τμήμα Ένταξης', null, ['Τμήμα Ένταξης'], [], []]);
+  equal('Μάθημα χωρίς chips: κανονική δραστηριότητα, όνομα χωρίς κενά', shape(byId('a3')), ['Διοικητικό Έργο', null, [], [], []]);
+  equal('Συνενώσεις: τα τμήματά τους· μάθημα που λείπει από τον κατάλογο κρατά το όνομα', shape(byId('a4')), ['παλιό', null, ['Γ1', 'Δ1', 'Α1', 'Α2', 'Β1'], [], []]);
+  equal('Δραστηριότητα χωρίς θέση μένει όπως είναι· η θέση δραστηριότητας που δεν υπάρχει φεύγει', [byId('a5').subject, Object.keys(refreshed.program.source.placements)], ['Χωρίς θέση', ['a1', 'a2', 'a3', 'a4']]);
+  equal('Πόσες δραστηριότητες άλλαξαν· το αρχικό πρόγραμμα δεν αλλάζει', [refreshed.changed, program.activities[0].subject, Object.keys(program.source.placements).length], [4, 'παλιό', 5]);
+  const renamed = T.individualRefresh(refreshed.program, {catalog: {...catalog, subjects: [catalog.subjects[0], {id: 'sub-dio', name: 'Διοίκηση'}]}, classes});
+  equal('Μετονομασία μαθήματος: αλλάζει μόνο η δραστηριότητά του', [renamed.changed, renamed.program.activities.find(activity => activity.id === 'a3').subject], [1, 'Διοίκηση']);
+  equal('Ίδιος κατάλογος ξανά: καμία αλλαγή', T.individualRefresh(refreshed.program, {catalog, classes}).changed, 0);
+  const fromClass = T.individualRefresh({...refreshed.program, source: {...refreshed.program.source, placements: {...refreshed.program.source.placements, a2: {subjectId: null, chips: [{type: 'class', id: cid('Γ1')}]}}}}, {catalog, classes});
+  check('Από δηλωμένο μάθημα σε «μάθημα της τάξης»', fromClass.program.activities[1].subject === '' && fromClass.program.activities[1].subjectFromClasses === true);
+  const back = T.individualRefresh(fromClass.program, {catalog, classes: classes});
+  back.program.source.placements.a2 = {subjectId: 'sub-ent', chips: []};
+  check('Από «μάθημα της τάξης» σε δηλωμένο μάθημα: φεύγει το subjectFromClasses', !('subjectFromClasses' in T.individualRefresh(back.program, {catalog, classes}).program.activities[1]));
+  // Αντιγραφή από άλλη περίοδο, ανά εκπαιδευτικό
+  const staff = [{id: 's1', shortName: '[ΠΕ71] - Α', name: 'Άλφα Α.', shortNameOrder: 2}, {id: 's2', shortName: '[ΠΕ71] - Β', name: '', shortNameOrder: 1}, {id: 's3', shortName: '[Α1] - Γ', name: 'Γάμμα Γ.', shortNameOrder: 0}];
+  const source = clone(refreshed.program);
+  source.source.pending = [{staffId: 's1', day: 2, start: '09:00', end: '09:45', chips: [{type: 'class', id: cid('Β2')}]}, {staffId: 's3', day: 3, start: '09:00', end: '09:45', chips: []}];
+  const target = {...T.individualProgram('pb', {id: 'p2'}), activities: [act('b1', 's1'), act('b2', 's3')], history: [{at: '2026-11-01T08:00:00.000Z', type: 'edit', staff: ['Γάμμα Γ.']}]};
+  target.source.placements = {b1: {subjectId: 'sub-dio', chips: []}, b2: {subjectId: 'sub-dio', chips: []}};
+  target.source.pending = [{staffId: 's1', day: 5, start: '10:00', end: '10:45', chips: []}];
+  const copied = T.individualCopy(target, source, ['s1', 's2'], {fromPeriod: 'Α περίοδος', staff, now: '2026-11-16T09:00:00.000Z'});
+  const result = copied.program, ownerOf = activity => activity.staff[0];
+  equal('Αντιγραφή (Α, Β): πλήθη', [copied.activities, copied.pending], [2, 1]);
+  equal('Οι δραστηριότητες των επιλεγμένων αντικαθίστανται· του Γ μένουν', result.activities.map(ownerOf).sort(), ['s1', 's2', 's3']);
+  check('Νέα id στις αντιγραμμένες, με τις θέσεις τους', result.activities.filter(a => a.id !== 'b2').every(a => !['a1', 'a2', 'b1'].includes(a.id) && result.source.placements[a.id]) && !result.source.placements.b1 && !!result.source.placements.b2);
+  equal('Θέση της αντιγραμμένης δραστηριότητας του Α', result.source.placements[result.activities.find(a => ownerOf(a) === 's1').id], refreshed.program.source.placements.a1);
+  equal('Ελλιπή κελιά: του Α από την πηγή, του Γ δεν αντιγράφεται', result.source.pending.map(item => item.staffId + ':' + item.day), ['s1:2']);
+  equal('Ιστορικό: εγγραφή copy με την περίοδο και τα ονόματα (σειρά Προσωπικού, σύντομο όταν λείπει το πλήρες)', result.history.map(entry => [entry.type, entry.fromPeriod, entry.staff]), [['copy', 'Α περίοδος', ['[ΠΕ71] - Β', 'Άλφα Α.']], ['edit', undefined, ['Γάμμα Γ.']]]);
+  equal('Το πρόγραμμα-στόχος και η πηγή δεν αλλάζουν· νέο updatedAt', [target.activities.length, source.activities.length, result.updatedAt, result.id, result.periodId], [2, 5, '2026-11-16T09:00:00.000Z', 'p2', 'pb']);
+  const fresh = T.individualCopy(null, source, ['s3'], {periodId: 'pc', fromPeriod: 'Α περίοδος', staff});
+  equal('Χωρίς πρόγραμμα-στόχο: νέο πρόγραμμα της περιόδου', [fresh.program.kind, fresh.program.periodId, fresh.activities, fresh.pending, fresh.program.history.length], ['individual', 'pc', 3, 1, 1]);
 }
 
 function hostChecks() {
@@ -2170,6 +2233,7 @@ function run() {
 
   attempt('Εμφάνιση μαθητών', () => studentsTextChecks(v2Program, v2Classes));
   attempt('Μάθημα δραστηριότητας', activitySubjectChecks);
+  attempt('Ατομικά Προγράμματα', individualChecks);
 
   attempt('Εισαγωγή Ολοημέρου στο ωρολόγιο', oloimeroReplaceChecks);
   attempt('Ιστορικό προγράμματος', historyChecks);
