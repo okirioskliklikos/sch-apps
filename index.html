@@ -367,7 +367,7 @@ body.session-locked #app-shell { visibility:hidden; pointer-events:none; }
     <div class="sidebar-head">
       <div class="brand">
         <span class="brand-name">Εφαρμογές σχολείου</span>
-        <span class="sidebar-version" aria-label="Έκδοση 1.09">v1.09</span>
+        <span class="sidebar-version" aria-label="Έκδοση 1.10">v1.10</span>
       </div>
     </div>
     <div id="sidebar-school" class="sidebar-school" hidden><span id="nav-school-name" class="sidebar-school-name"></span><span id="nav-school-year" class="sidebar-school-year"></span></div>
@@ -1509,17 +1509,19 @@ const StaffStorage = (() => {
 
   // Documents Templater works without the shared file; its context carries only the school, when one is open.
   // Documents Templater: without a shared file only the school (null). With it, read-only data of the current year for
-  // the {{@…}} fields: Προσωπικό, Τμήματα, Ώρες Διδασκαλίας, the periods with their Ωρολόγιο (school, no drafts) and the
-  // number of students per class (not the students themselves).
+  // the {{@…}} fields: Προσωπικό, Τμήματα, Ώρες Διδασκαλίας, the official periods with their Ωρολόγιο (school, no drafts;
+  // the Προσχέδια περιόδων do not count outside the Σχολικά Προγράμματα) and the number of students per class (not the
+  // students themselves).
   function documentsContext() {
     if (!sharedData) return {revision:schoolRevision, school:null};
     const year = sharedData.school.year, plain = value => value && typeof value === 'object' && !Array.isArray(value);
     const staff = plain(sharedData.staffByYear) && Array.isArray(sharedData.staffByYear[year]) ? sharedData.staffByYear[year] : [];
     const hours = plain(sharedData.teachingHoursByYear) ? sharedData.teachingHoursByYear[year] || null : null;
     const timetables = plain(sharedData.timetablesByYear) && plain(sharedData.timetablesByYear[year]) ? sharedData.timetablesByYear[year] : {};
-    const periods = Array.isArray(timetables.periods) ? timetables.periods : [];
+    const periods = window.SchoolTimetable ? window.SchoolTimetable.officialPeriods(timetables.periods) : [];
+    const periodIds = new Set(periods.map(period => period.id));
     // The Ωρολόγια of the periods, and the Ολοήμερο designs of the periods (only for the Τμήματα Ολοημέρου positions).
-    const programs = (Array.isArray(timetables.programs) ? timetables.programs : []).filter(program => program && (program.kind === 'school' || program.kind === 'oloimero') && program.periodId);
+    const programs = (Array.isArray(timetables.programs) ? timetables.programs : []).filter(program => program && (program.kind === 'school' || program.kind === 'oloimero') && periodIds.has(program.periodId));
     const studentCounts = {};
     for (const student of Students ? Students.yearStudents(sharedData, year) : []) if (student && student.classId) studentCounts[student.classId] = (studentCounts[student.classId] || 0) + 1;
     return {revision:schoolRevision, school:{...sharedData.school}, year, staff, classes:Classes ? Classes.yearClasses(sharedData, year) : [], teachingHours:hours, periods, programs, studentCounts};

@@ -12,7 +12,7 @@
   φτιάχνονται από το σύντομο όνομα των δασκάλων («[Α1] - …», classesFromStaff). Με το .data δοκιμής, οι
   έλεγχοι των νέων ετικετών (v2) παίρνουν το Προσωπικό από αυτό, γιατί το CSV του Ολοημέρου έχει τα σύντομα
   ονόματα του Προσωπικού.
-  Έκδοση αρχείου: 0.58
+  Έκδοση αρχείου: 0.59
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -1948,7 +1948,7 @@ function hostIndividualChecks() {
   rejects('source χωρίς version:1', trySave(withCatalog, {ops: [put(variant(p => { p.source.version = 2; }))]}, APP), '(version)');
   rejects('Δεύτερο ατομικό πρόγραμμα στην ίδια περίοδο', trySave(saved, {ops: [put(variant(p => { p.id = 'ind-a2'; }))]}, APP), 'το πολύ ένα πρόγραμμα ανά είδος');
   rejects('subjectFromClasses σε άλλο είδος (Ωρολόγιο)', trySave(withCatalog, {ops: [put({id: 'sch', formatVersion: 2, kind: 'school', periodId: 'pa', name: '', activities: [{id: 'x', subject: '', subjectFromClasses: true, staff: ['s3'], classes: [], times: [time(1, '08:15', '09:00')]}]})]}, FET_APP), 'μόνο στα Ατομικά Προγράμματα');
-  rejects('Το FET Editor δεν γράφει ατομικά προγράμματα', trySave(withCatalog, {ops: [put(program)]}, FET_APP), 'δεν μπορεί να γράψει');
+  rejects('Το Ολοήμερο Designer δεν γράφει ατομικά προγράμματα', trySave(withCatalog, {ops: [put(program)]}, OLO_APP), 'δεν μπορεί να γράψει');
   // Τελευταία επιλογή με εκπαιδευτικό
   equal('Τελευταία επιλογή «period:…|staff:…»', [H.viewKey(APP), H.lastView(H.withView(saved, year, 'individual', 'period:pa|staff:s1'), year, 'individual')], ['individual', 'period:pa|staff:s1']);
   // Ζουμ του πίνακα (timetableSettings, κοινό για όλα τα σχολικά έτη)
@@ -2059,7 +2059,7 @@ function hostChecks() {
   check('Εισαγωγή του v2 για τους ελέγχους', analysis.ok, messages(analysis));
   if (!analysis.ok) return;
   const PROG = H.PROGRAMS_APP;
-  equal('Δικαιώματα: FET Editor γράφει το Ωρολόγιο και αναθέτει σχέδια Ολοημέρου', [H.permissions(FET_APP).kinds, H.permissions(FET_APP).assign], [['school'], ['oloimero']]);
+  equal('Δικαιώματα: FET Editor γράφει το Ωρολόγιο (κάτοχος) και τα Ατομικά Προγράμματα, και αναθέτει σχέδια Ολοημέρου', [H.permissions(FET_APP).kinds, H.permissions(FET_APP).owned, H.permissions(FET_APP).assign], [['school', 'individual'], ['school'], ['oloimero']]);
   equal('Δικαιώματα: Ολοήμερο Designer γράφει μόνο το Ολοήμερο', [H.permissions(OLO_APP).kinds, H.permissions(OLO_APP).assign, H.permissions(OLO_APP).drafts], [['oloimero'], [], 'own']);
   const periodA = {id: 'pa', name: 'Α περίοδος', from: '2026-09-11', to: '2026-11-15'};
   const periodB = {id: 'pb', name: 'Β περίοδος', from: '2026-11-16', to: ''};
@@ -2370,6 +2370,219 @@ function hostStaffChecks(H, d4, staff, analysis, a1, d5) {
   }
 }
 
+// ---- Σχολικά Προγράμματα, Βήμα 3: Επίσημες περίοδοι και Προσχέδια περιόδων, αρχική και τρέχουσα κατάσταση ----
+// Χωρίς αρχεία δοκιμής.
+function programStateChecks() {
+  start('2η. Επίσημες περίοδοι και Προσχέδια περιόδων, αρχική κατάσταση, διαθέσιμες ώρες Ολοημέρου');
+  const T = SchoolTimetable, stable = value => JSON.stringify(value);
+  // Περίοδοι
+  const p = (id, name, from, to, status) => ({id, name, from, to, ...(status ? {status} : {})});
+  const list = [p('d2', 'Ζήτα προσχέδιο', '', '', 'draft'), p('b', 'Β', '2026-11-16', ''), p('a2', 'Α πρώτη', '2026-09-11', '2026-11-15'),
+    p('a1', 'Α δεύτερη', '2026-09-11', '2026-11-15'), p('d1', 'Άλφα προσχέδιο', '2026-12-01', '2026-12-20', 'draft'), p('a0', 'Α μικρή', '2026-09-11', '2026-10-01', 'official')];
+  equal('Σειρά: Επίσημες κατά έναρξη (μετά κατά λήξη, μετά αλφαβητικά), μετά τα Προσχέδια περιόδων αλφαβητικά', T.sortPeriods(list).map(x => x.id), ['a0', 'a1', 'a2', 'b', 'd1', 'd2']);
+  equal('Αύξων αριθμός από τη σειρά (δεν αποθηκεύεται)', [...T.periodNumbers(list)], [['a0', 1], ['a1', 2], ['a2', 3], ['b', 4], ['d1', 5], ['d2', 6]]);
+  check('Η σειρά δεν αλλάζει τη λίστα', list[0].id === 'd2');
+  equal('Επίσημες: χωρίς status ή με «official»', T.officialPeriods(list).map(x => x.id), ['b', 'a2', 'a1', 'a0']);
+  equal('Ίδια έναρξη: ισχύει αυτή που λήγει αργότερα, και με ίδια λήξη η πρώτη αλφαβητικά', T.periodAt(list, '2026-09-20')?.id, 'a1');
+  equal('Το Προσχέδιο περιόδου δεν ισχύει σε καμία ημερομηνία', [T.periodAt(list, '2026-12-10')?.id, T.periodAt([list[4]], '2026-12-10')], ['b', null]);
+  const timetables = {periods: list, programs: [{id: 'x', kind: 'school', periodId: 'd1'}]};
+  equal('programAt / programsAt: χωρίς τα προγράμματα των Προσχεδίων περιόδων', [T.programAt(timetables, 'school', '2026-12-10'), T.programsAt(timetables, '2026-12-10')], [null, []]);
+  equal('staffBusyAt: μόνο Προσχέδιο περιόδου → καμία περίοδος', T.staffBusyAt({periods: [list[4]], programs: []}, '2026-12-10', '08:15', '09:00', {teachingHours: HOURS_V2}).period, null);
+  const warnings = T.periodWarnings(list), texts = warnings.map(w => w.type + ': ' + w.message).join('\n');
+  // The warnings are shown only when a check fails.
+  const checkWarnings = (label, condition) => check(label, condition, condition ? undefined : texts);
+  checkWarnings('Προειδοποίηση ίδιας έναρξης: ισχύει η πρώτη αλφαβητικά', warnings.some(w => w.type === 'sameStart' && w.message === 'Οι περίοδοι «Α δεύτερη» και «Α πρώτη» ξεκινούν την ίδια ημέρα (11/09/2026): ισχύει η «Α δεύτερη», γιατί είναι πρώτη αλφαβητικά.'));
+  checkWarnings('Προειδοποίηση ίδιας έναρξης: ισχύει αυτή που λήγει αργότερα', warnings.some(w => w.type === 'sameStart' && w.message === 'Οι περίοδοι «Α μικρή» και «Α δεύτερη» ξεκινούν την ίδια ημέρα (11/09/2026): ισχύει η «Α δεύτερη», γιατί λήγει αργότερα.'));
+  checkWarnings('Μαζί και η προειδοποίηση επικάλυψης', warnings.some(w => w.type === 'overlap' && w.message.includes('«Α δεύτερη» και «Α πρώτη» επικαλύπτονται') && w.message.endsWith('ισχύει η «Α δεύτερη».')));
+  checkWarnings('Τα Προσχέδια περιόδων δεν μπαίνουν στις επικαλύψεις', !warnings.some(w => w.periodIds.some(id => id.startsWith('d'))));
+  checkWarnings('Κενό «έως» μόνο στην τελευταία Επίσημη: χωρίς προειδοποίηση (τα Προσχέδια μετά δεν μετρούν)', !warnings.some(w => w.type === 'openEnd'));
+  check('Κενό «έως» σε Επίσημη που δεν είναι η τελευταία', T.periodWarnings([p('x', 'Χ', '2026-09-11', ''), p('y', 'Υ', '2026-10-01', '2026-10-31')]).some(w => w.type === 'openEnd' && w.periodIds[0] === 'x'));
+  // Κατάσταση
+  const act = (id, subject, staff, classes, day, start, end) => ({id, subject, staff, unmatched: [], classes, subsets: [], otherStudents: [], room: '', times: [{day, start, end}]});
+  const fet = {id: 'f', formatVersion: 2, kind: 'school', periodId: 'pa', name: '', activities: [act('1', 'Γλώσσα', ['s1'], ['c1'], 1, '08:15', '09:00'), act('2', 'Μαθηματικά', ['s2'], ['c1'], 1, '09:00', '09:40')],
+    source: {type: 'fet', unavailable: [{teacher: 'Α', day: 1, start: '08:15', end: '09:00', weight: '100'}], subjects: [{name: 'Γλώσσα'}]}, history: []};
+  const moved = clone(fet); moved.activities[0].times = [{day: 2, start: '08:15', end: '09:00'}];
+  check('Ίδια κατάσταση με άλλα id δραστηριοτήτων', T.programState(fet) === T.programState({...fet, activities: fet.activities.map((a, i) => ({...a, id: 'x' + i}))}));
+  check('Μετακίνηση: άλλη κατάσταση', T.programState(moved) !== T.programState(fet));
+  check('Ωρολόγιο: οι μη διαθεσιμότητες ανήκουν στην κατάσταση, τα μαθήματα του FET όχι', T.programState({...clone(fet), source: {...fet.source, unavailable: []}}) !== T.programState(fet) && T.programState({...clone(fet), source: {...fet.source, subjects: []}}) === T.programState(fet));
+  const first = T.keepInitial(fet, clone(moved));
+  equal('Πρώτη αλλαγή: αρχική η προηγούμενη κατάσταση (δραστηριότητες και μη διαθεσιμότητες)', [first.initial.activities[0].times[0].day, Object.keys(first.initial.source), T.isModified(first)], [1, ['unavailable'], true]);
+  const second = clone(first); second.activities[1].times = [{day: 3, start: '09:00', end: '09:40'}]; second.initial = {activities: [], source: {}};
+  const kept = T.keepInitial(first, second);
+  check('Επόμενη αλλαγή: η αρχική μένει η αποθηκευμένη, ό,τι κι αν στείλει η εφαρμογή', stable(kept.initial) === stable(first.initial));
+  const dropped = clone(second); delete dropped.initial;
+  check('Εφαρμογή που δεν γνωρίζει το initial: η αρχική μένει', stable(T.keepInitial(first, dropped).initial) === stable(first.initial));
+  check('Αλλαγή που δεν αλλάζει την κατάσταση (π.χ. Ιστορικό): χωρίς initial', !('initial' in T.keepInitial(fet, {...clone(fet), history: [{at: '2026-11-17T10:00:00.000Z', type: 'edit'}]})));
+  const back = T.restoreInitial(kept, {now: '2026-11-17T10:00:00.000Z'});
+  equal('Επαναφορά: η αρχική γίνεται τρέχουσα, χωρίς initial, με εγγραφή «restore»', [back.initial, back.activities.map(a => a.times[0].day), back.source.unavailable.length, back.history[0].type, back.updatedAt], [undefined, [1, 1], 1, 'restore', '2026-11-17T10:00:00.000Z']);
+  equal('Αποθήκευση μετά την Επαναφορά: το initial φεύγει', 'initial' in T.keepInitial(kept, clone(back)), false);
+  const set = T.setInitial(kept, {now: '2026-11-17T11:00:00.000Z'});
+  equal('Ορισμός ως Αρχική: χωρίς initial, με initialSetAt και εγγραφή «setInitial»', [set.initial, set.initialSetAt, set.history[0].type], [undefined, '2026-11-17T11:00:00.000Z', 'setInitial']);
+  const savedSet = T.keepInitial(kept, clone(set), {setInitial: true, now: '2026-11-17T11:00:00.000Z'});
+  check('Το host δέχεται τον Ορισμό ως Αρχική (setInitial)', !('initial' in savedSet) && savedSet.initialSetAt === '2026-11-17T11:00:00.000Z');
+  const next = clone(savedSet); next.activities[0].times = [{day: 5, start: '08:15', end: '09:00'}]; delete next.initialSetAt;
+  const later = T.keepInitial(savedSet, next);
+  equal('Μετά τον Ορισμό: νέα αλλαγή κρατά ως αρχική την κατάσταση του Ορισμού, και το initialSetAt μένει', [later.initial.activities[0].times[0].day, later.initialSetAt], [2, '2026-11-17T11:00:00.000Z']);
+  equal('Νέο πρόγραμμα: κρατά το initial που στέλνει η εφαρμογή, εκτός αν είναι ίδιο με την κατάσταση', ['initial' in T.keepInitial(null, {...clone(moved), initial: T.initialSnapshot(fet)}), 'initial' in T.keepInitial(null, {...clone(fet), initial: T.initialSnapshot(fet)})], [true, false]);
+  // Αντικατάσταση εκπαιδευτικού και στην αρχική
+  const replaced = T.replaceStaff(first, [{from: 's1', to: 's3'}], {staff: [{id: 's1', name: 'Α'}, {id: 's3', name: 'Γ'}]}).program;
+  equal('replaceStaff: η αντικατάσταση γίνεται και στην αρχική κατάσταση', [replaced.activities[0].staff, replaced.initial.activities[0].staff, replaced.source.modifiedAfterImport.replacements.map(r => r.toName)], [['s3'], ['s3'], ['Γ']]);
+  // Ολοήμερο
+  const olo = {id: 'o', formatVersion: 2, kind: 'oloimero', periodId: 'pa', name: '',
+    activities: [{id: 'o1', subject: 'Μελέτη', staff: ['s1'], unmatched: [], classes: ['c1', 'c2'], subsets: [], otherStudents: [], room: '', times: [{day: 1, start: '14:10', end: '14:55'}]}],
+    source: {type: 'oloimero-designer', version: 2, design: {hours: [{hourId: 'h1', count: 2, exceptionsEnabled: false, dayCounts: [2, 2, 2, 2, 2]}]},
+      teachers: [{staffId: 's1', name: 'Α', color: '#ffeeaa', availableHours: 3}, {staffId: 's2', name: 'Β', color: '#aaeeff'}],
+      subjects: [{id: 'm', name: 'Μελέτη'}, {id: 'g', name: 'Γυμναστική'}], unions: [{id: 'u', name: 'Α+Β', grades: ['Α', 'Β'], classIds: []}],
+      hidden: {grades: [], classes: []}, styles: {}, placements: {o1: {hourId: 'h1', day: 1, slot: 0, students: [{type: 'union', id: 'u'}]}}, pending: []}};
+  check('Ολοήμερο: τα τμήματα των κελιών και τα χρώματα δεν μετρούν', T.programState(olo) === T.programState({...clone(olo), activities: [{...olo.activities[0], classes: ['c1']}], source: {...clone(olo.source), teachers: [{staffId: 's1', name: 'Α', color: '#000000'}]}}));
+  const changedOlo = clone(olo);
+  changedOlo.source.placements.o1 = {hourId: 'h1', day: 1, slot: 1, students: [{type: 'grade', grade: 'Α'}]};
+  changedOlo.source.teachers = [{staffId: 's2', name: 'Β', color: '#000000'}]; changedOlo.source.unions = [];
+  const oloSaved = T.keepInitial(olo, changedOlo);
+  equal('Ολοήμερο: η αρχική κρατά τοποθετήσεις, ελλιπή κελιά, θέσεις και μόνο τους ορισμούς που χρησιμοποιεί', [Object.keys(oloSaved.initial.source).sort(), oloSaved.initial.source.teachers.map(t => t.staffId), oloSaved.initial.source.subjects.map(t => t.id), oloSaved.initial.source.unions.map(t => t.id)],
+    [['design', 'pending', 'placements', 'subjects', 'teachers', 'unions'], ['s1'], ['m'], ['u']]);
+  const oloBack = T.restoreInitial(oloSaved);
+  equal('Ολοήμερο: η Επαναφορά φέρνει τις τοποθετήσεις και ξαναβάζει μόνο ό,τι λείπει, χωρίς να αλλάξει τα υπόλοιπα', [oloBack.source.placements.o1.slot, oloBack.source.teachers.map(t => t.staffId + ':' + t.color), oloBack.source.unions.map(u => u.id), oloBack.source.subjects.length, 'history' in oloBack],
+    [0, ['s2:#000000', 's1:#ffeeaa'], ['u'], 2, false]);
+  // Ατομικά
+  const ind = {id: 'i', formatVersion: 2, kind: 'individual', periodId: 'pa', name: '', activities: [{id: 'i1', subject: 'Παλιό', staff: ['s1'], classes: [], times: [{day: 1, start: '08:15', end: '09:00'}]}],
+    source: {type: 'individual', version: 1, placements: {i1: {subjectId: 'sub', chips: []}}, pending: []}, history: []};
+  check('Ατομικά: το όνομα του μαθήματος (από τον κατάλογο) δεν μετρά', T.programState(ind) === T.programState({...clone(ind), activities: [{...ind.activities[0], subject: 'Νέο'}]}));
+  const indMoved = clone(ind); indMoved.activities[0].times = [{day: 2, start: '08:15', end: '09:00'}];
+  const indBack = T.restoreInitial(T.keepInitial(ind, indMoved), {catalog: {subjects: [{id: 'sub', name: 'Νέο όνομα'}], unions: []}, classes: []});
+  equal('Ατομικά: η Επαναφορά υπολογίζει ξανά το μάθημα με τον κατάλογο', [indBack.activities[0].times[0].day, indBack.activities[0].subject, indBack.history[0].type], [1, 'Νέο όνομα', 'restore']);
+  // Διαθέσιμες ώρες Ολοημέρου
+  const staffHours = [{id: 's1', schoolHours: 24}, {id: 's2', schoolHours: ''}, {id: 's3', schoolHours: 20}, {id: 's4', schoolHours: 10}];
+  const composition = {hours: new Map([['s1', {zones: {morning: 20}}], ['s3', {zones: {morning: 25}}]])};
+  const hours = T.oloimeroAvailableHours({period: {oloimeroHours: {s3: 2}}, staff: staffHours, composition});
+  equal('Διαθέσιμες ώρες Ολοημέρου: αυτόματη πρόταση, χωρίς «Ωράριο στο σχολείο», τιμή του χρήστη, χωρίς πρωινές ώρες',
+    [hours.get('s1'), hours.get('s2').hours, hours.get('s3'), hours.get('s4').hours],
+    [{hours: 4, auto: true, schoolHours: 24, morning: 20}, null, {hours: 2, auto: false, schoolHours: 20, morning: 25}, 10]);
+}
+
+// Host: Επίσημες περίοδοι και Προσχέδια περιόδων, διαθέσιμες ώρες Ολοημέρου, αρχική κατάσταση, δικαιώματα του Πλήρους.
+// Μικρό σχολείο δοκιμής, και το .data δοκιμής όταν δόθηκε.
+function hostProgramStateChecks() {
+  start('5κ. Host: Επίσημες περίοδοι και Προσχέδια περιόδων, αρχική κατάσταση, δικαιώματα του Πλήρους');
+  const H = window.SchoolHostTimetables, HC = window.SchoolHostClasses, T = SchoolTimetable;
+  if (!H) return record('fail', 'Το _host_timetables.js δεν φορτώθηκε', 'Βάλε το _host_timetables.js στον ίδιο φάκελο με τη σελίδα.');
+  const year = '2026-2027', PROG = H.PROGRAMS_APP, IND = T.kinds.individual.owner, OLO = T.kinds.oloimero.owner, CAL = 'school_calendar.html';
+  const person = (id, shortName, serviceType) => ({id, code: id.toUpperCase(), shortName, name: shortName, serviceType, role: 'teacher', schoolHours: 24});
+  const staff = [person('s1', '[Α1] - Δάσκαλος', 'classroom'), person('s2', '[Α2] - Δασκάλα', 'classroom'), person('s3', '[ΠΕ71] - Παράλληλη', 'parallel')];
+  const classes = CLASS_LIST.map(item => ({...item, homeroomStaffId: ''}));
+  const base = {format: 'school-shared-data', formatVersion: 1, school: {name: 'Σχολείο δοκιμής', year},
+    staffByYear: {[year]: staff}, classesByYear: {[year]: {classes}}, teachingHoursByYear: {[year]: HOURS_V2}};
+  const trySave = (data, message, app) => { try { return {data: H.applySave(data, message, app)}; } catch (error) { return {error: error.message}; } };
+  const rejects = (text, result, contains) => check(text, !!result.error && (!contains || result.error.includes(contains)), result.error ? 'Μήνυμα: ' + result.error : 'η αποθήκευση έγινε δεκτή');
+  const accepts = (text, result) => { check(text, !!result.data, result.error); return result.data || null; };
+  const put = (program, extra = {}) => ({op: 'put', program, ...extra});
+  const stored = (data, id) => H.yearData(data, year).programs.find(item => item.id === id);
+  const time = (day, start, end) => ({day, start, end});
+  // Περίοδοι
+  const official = {id: 'pa', name: 'Α περίοδος', from: '2026-09-11', to: ''}, draft = {id: 'pd', name: 'Προσχέδιο Β', from: '', to: '', status: 'draft'};
+  const withPeriods = accepts('Επίσημη περίοδος και Προσχέδιο περιόδου χωρίς ημερομηνίες', trySave(base, {ops: [], periods: [official, draft]}, PROG));
+  if (!withPeriods) return;
+  rejects('Επίσημη χωρίς ημερομηνία έναρξης', trySave(base, {ops: [], periods: [{...official, from: ''}]}, PROG), 'ημερομηνία έναρξης');
+  rejects('Άγνωστη κατάσταση περιόδου', trySave(base, {ops: [], periods: [{...official, status: 'άλλη'}]}, PROG), 'άγνωστη κατάσταση');
+  rejects('Προσχέδιο περιόδου με ημερομηνία έξω από το σχολικό έτος', trySave(base, {ops: [], periods: [{...draft, from: '2027-09-01'}]}, PROG), 'μέσα στο σχολικό έτος');
+  accepts('Επίσημη με διαθέσιμες ώρες Ολοημέρου', trySave(base, {ops: [], periods: [{...official, oloimeroHours: {s1: 3, s2: 0}}]}, PROG));
+  rejects('Διαθέσιμες ώρες Ολοημέρου πάνω από 99', trySave(base, {ops: [], periods: [{...official, oloimeroHours: {s1: 100}}]}, PROG), 'από 0 έως 99');
+  rejects('Διαθέσιμες ώρες Ολοημέρου εκπαιδευτικού που δεν υπάρχει', trySave(base, {ops: [], periods: [{...official, oloimeroHours: {xx: 1}}]}, PROG), 'δεν υπάρχει στο Προσωπικό');
+  rejects('Το όριο των 15 περιόδων μετρά και τα Προσχέδια περιόδων', trySave(base, {ops: [], periods: Array.from({length: 16}, (_, i) => ({...draft, id: 'd' + i}))}, PROG), 'μαζί με τα Προσχέδια περιόδων');
+  const withHours = accepts('Ο Ολοήμερος Designer γράφει τις διαθέσιμες ώρες Ολοημέρου μιας περιόδου (periodHours)', trySave(withPeriods, {ops: [], periodHours: [{periodId: 'pd', oloimeroHours: {s1: 2, s2: 0}}]}, OLO));
+  if (withHours) {
+    equal('… και αλλάζουν μόνο αυτές', H.yearData(withHours, year).periods, [official, {...draft, oloimeroHours: {s1: 2, s2: 0}}]);
+    equal('Κενό αντικείμενο: οι ώρες φεύγουν', H.yearData(trySave(withHours, {ops: [], periodHours: [{periodId: 'pd', oloimeroHours: {}}]}, OLO).data, year).periods[1], draft);
+  }
+  rejects('Τα Ατομικά Προγράμματα δεν γράφουν τις διαθέσιμες ώρες Ολοημέρου', trySave(withPeriods, {ops: [], periodHours: [{periodId: 'pd', oloimeroHours: {s1: 2}}]}, IND), 'αλλάζουν μόνο από');
+  rejects('Διαθέσιμες ώρες Ολοημέρου σε περίοδο που δεν υπάρχει', trySave(withPeriods, {ops: [], periodHours: [{periodId: 'xx', oloimeroHours: {s1: 2}}]}, OLO), 'περίοδο που δεν υπάρχει');
+  // Ωρολόγιο σε Επίσημη περίοδο και σε Προσχέδιο περιόδου
+  const act = (id, subject, staffIds, className, t) => ({id, subject, staff: staffIds, unmatched: [], classes: [cid(className)], subsets: [], otherStudents: [], room: '', times: [t]});
+  const schoolOf = (id, periodId) => ({id, formatVersion: 2, kind: 'school', periodId, name: '', createdAt: '2026-11-17T08:00:00.000Z', updatedAt: '2026-11-17T08:00:00.000Z', history: [],
+    activities: [act(id + '-1', 'Γλώσσα', ['s1'], 'Α1', time(1, '08:15', '09:00')), act(id + '-2', 'Γλώσσα', ['s2'], 'Α2', time(1, '08:15', '09:00'))],
+    source: {type: 'fet', unavailable: [{teacher: '[Α1] - Δάσκαλος', day: 5, start: '12:35', end: '13:15', weight: '100'}]}});
+  const both = accepts('Ωρολόγιο σε Επίσημη περίοδο και σε Προσχέδιο περιόδου', trySave(withPeriods, {ops: [put(schoolOf('fa', 'pa')), put(schoolOf('fd', 'pd'))]}, FET_APP));
+  if (!both) return;
+  const calendar = H.context(both, CAL, 1);
+  equal('Εφαρμογή που μόνο διαβάζει (Σχολικό Ημερολόγιο): χωρίς τα Προσχέδια περιόδων και τα προγράμματά τους', [calendar.periods.map(x => x.id), calendar.programs.map(x => x.id)], [['pa'], ['fa']]);
+  equal('Οι Περίοδοι Προγραμμάτων και ο FET Editor τα βλέπουν', [H.context(both, PROG, 1).periods.map(x => x.id), H.context(both, FET_APP, 1).programs.map(x => x.id)], [['pa', 'pd'], ['fa', 'fd']]);
+  // Αρχική κατάσταση
+  const moved = clone(stored(both, 'fa')); moved.activities[0].times = [time(2, '08:15', '09:00')];
+  const once = accepts('Μετακίνηση στο Ωρολόγιο', trySave(both, {ops: [put(moved)]}, FET_APP));
+  if (!once) return;
+  equal('Το host κρατά την αρχική κατάσταση (το καθαρό FET, με τις μη διαθεσιμότητες)', [stored(once, 'fa').initial?.activities[0].times[0].day, stored(once, 'fa').initial?.source.unavailable.length], [1, 1]);
+  const forged = clone(stored(once, 'fa')); forged.activities[1].times = [time(3, '08:15', '09:00')]; forged.initial = {activities: [], source: {unavailable: null}};
+  const twice = accepts('Δεύτερη αλλαγή, με άλλο initial από την εφαρμογή', trySave(once, {ops: [put(forged)]}, FET_APP));
+  check('Η αποθηκευμένη αρχική κατάσταση δεν αλλάζει από την εφαρμογή', twice && JSON.stringify(stored(twice, 'fa').initial) === JSON.stringify(stored(once, 'fa').initial));
+  const restored = T.restoreInitial(stored(twice, 'fa'));
+  const afterRestore = accepts('Επαναφορά στο FET', trySave(twice, {ops: [put(restored)]}, FET_APP));
+  check('Μετά την Επαναφορά: ίδια κατάσταση με το FET, χωρίς initial', afterRestore && !('initial' in stored(afterRestore, 'fa')) && T.programState(stored(afterRestore, 'fa')) === T.programState(stored(both, 'fa')));
+  const setNow = accepts('Ορισμός ως Αρχική (setInitial) από τις Περιόδους Προγραμμάτων', trySave(twice, {ops: [put(T.setInitial(stored(twice, 'fa')), {setInitial: true})]}, PROG));
+  check('Μετά τον Ορισμό: χωρίς initial, με initialSetAt', setNow && !('initial' in stored(setNow, 'fa')) && !!stored(setNow, 'fa').initialSetAt);
+  rejects('setInitial που δεν είναι true/false', trySave(twice, {ops: [put(stored(twice, 'fa'), {setInitial: 'ναι'})]}, FET_APP), 'Μη έγκυρη ενέργεια');
+  const badInitial = {...schoolOf('fn', null), name: 'Προσχέδιο', initial: {activities: [act('z', 'Γλώσσα', ['xx'], 'Α1', time(1, '08:15', '09:00'))], source: {unavailable: []}}};
+  rejects('Νέο πρόγραμμα με αρχική κατάσταση που έχει εκπαιδευτικό εκτός Προσωπικού', trySave(twice, {ops: [put(badInitial)]}, FET_APP), 'Αρχική κατάσταση:');
+  check('Η αρχική κατάσταση φτάνει στο context', !!H.context(twice, PROG, 1).programs.find(x => x.id === 'fa').initial);
+  // Αντιγραφή περιόδου με αντικατάσταση: και η αρχική αλλάζει
+  const copy = {...T.replaceStaff(stored(twice, 'fa'), [{from: 's1', to: 's3'}], {staff}).program, id: 'fc', periodId: 'pd'};
+  const copied = accepts('Αντιγραφή σε άλλη περίοδο, με αντικατάσταση και την αρχική κατάσταση της πηγής', trySave(twice, {ops: [{op: 'delete', id: 'fd'}, put(copy)]}, PROG));
+  if (copied) equal('Η αρχική του αντιγράφου έχει την αντικατάσταση', stored(copied, 'fc').initial.activities[0].staff, ['s3']);
+  // Δικαιώματα του Πλήρους (FET Editor) στα Ατομικά Προγράμματα
+  const individual = {id: 'ia', formatVersion: 2, kind: 'individual', periodId: 'pa', name: '', createdAt: '2026-11-17T08:00:00.000Z', updatedAt: '2026-11-17T08:00:00.000Z', history: [],
+    activities: [{id: 'i1', subject: 'Διοικητικό Έργο', staff: ['s3'], classes: [], times: [time(2, '10:00', '10:45')]}],
+    source: {type: 'individual', version: 1, placements: {i1: {subjectId: 'sub', chips: []}}, pending: []}};
+  const withInd = accepts('Τα Ατομικά Προγράμματα γράφουν ατομικό πρόγραμμα', trySave(twice, {ops: [put(individual)]}, IND));
+  if (!withInd) return;
+  const indMoved = clone(stored(withInd, 'ia')); indMoved.activities[0].times = [time(3, '10:00', '10:45')];
+  const fullMoved = accepts('Ο FET Editor (Πλήρες) αλλάζει τις ώρες ενός ατομικού προγράμματος περιόδου', trySave(withInd, {ops: [put(indMoved)]}, FET_APP));
+  if (fullMoved) equal('… και το host κρατά την αρχική του κατάσταση', stored(fullMoved, 'ia').initial?.activities[0].times[0].day, 2);
+  rejects('… αλλά δεν το διαγράφει', trySave(withInd, {ops: [{op: 'delete', id: 'ia'}]}, FET_APP), 'όχι να το διαγράψει');
+  rejects('… και δεν γράφει τον κατάλογο', trySave(withInd, {ops: [], individualCatalog: {subjects: [], unions: [], hidden: {grades: [], classes: []}}}, FET_APP), 'μόνο από την εφαρμογή');
+  equal('Τελευταία επιλογή και ζουμ: ο FET Editor μένει στο δικό του είδος', H.viewKey(FET_APP), 'school');
+  // Προσωπικό: εκπαιδευτικός μόνο στην αρχική κατάσταση, και οι διαθέσιμες ώρες Ολοημέρου
+  const swapped = clone(stored(once, 'fa')); swapped.activities[1].staff = ['s3'];
+  let data = trySave(once, {ops: [put(swapped)]}, FET_APP).data;
+  data = data && trySave(data, {ops: [], periodHours: [{periodId: 'pa', oloimeroHours: {s2: 4, s1: 1}}]}, OLO).data;
+  if (!data) return record('fail', 'Προετοιμασία για τη διαγραφή εκπαιδευτικού');
+  equal('staffUsage: εκπαιδευτικός μόνο στην αρχική κατάσταση (0 δραστηριότητες)', (H.staffUsage(data, year).s2 || []).map(item => item.programId + ':' + item.activities), ['fa:0', 'fd:1']);
+  let error = '';
+  try { H.applyStaffRemovals(clone(data), year, staff, staff.filter(x => x.id !== 's2'), undefined); } catch (e) { error = e.message; }
+  check('Διαγραφή χωρίς οδηγία για εκπαιδευτικό της αρχικής κατάστασης: απορρίπτεται', error.includes('εμφανίζεται σε προγράμματα'), error);
+  const removed = clone(data);
+  H.applyStaffRemovals(removed, year, staff, staff.filter(x => x.id !== 's2'), [{id: 's2', mode: 'unmatch'}]);
+  const fa = stored(removed, 'fa');
+  equal('Διαγραφή (unmatch): και στην αρχική κατάσταση, και οι διαθέσιμες ώρες Ολοημέρου του φεύγουν', [fa.initial.activities[1].staff, fa.initial.activities[1].unmatched, H.yearData(removed, year).periods[0].oloimeroHours], [[], ['[Α2] - Δασκάλα'], {s1: 1}]);
+  if (HC) {
+    const classChange = clone(stored(once, 'fa')); classChange.activities[1].classes = [cid('Α1')];
+    const withClass = trySave(once, {ops: [put(classChange)]}, FET_APP).data;
+    equal('classUsage: τμήμα μόνο στην αρχική κατάσταση (0 δραστηριότητες)', withClass && (HC.classUsage(withClass, year)[cid('Α2')] || []).map(item => item.programId + ':' + item.activities), ['fa:0', 'fd:1']);
+  } else skip('classUsage', 'Το _host_classes.js δεν φορτώθηκε.');
+  // Το .data δοκιμής: μετακίνηση στο Ωρολόγιο της περιόδου, Επαναφορά, και οι διαθέσιμες ώρες Ολοημέρου
+  if (!texts.data) return skip('Αρχική κατάσταση με το .data δοκιμής', 'Λείπει το .data δοκιμής.');
+  const box = JSON.parse(texts.data);
+  if (box?.encryption !== 'none') return skip('Αρχική κατάσταση με το .data δοκιμής', 'Το .data έχει κωδικό.');
+  const file = box.payload, fileYear = file.school.year, timetables = file.timetablesByYear[fileYear];
+  const period = T.sortPeriods(timetables.periods).at(-1), program = timetables.programs.find(item => item.kind === 'school' && item.periodId === period.id);
+  equal('Οι περίοδοι του .data (χωρίς status) είναι Επίσημες', T.officialPeriods(timetables.periods).length, timetables.periods.length);
+  const real = clone(program), moving = real.activities.find(item => item.times.length === 1);
+  moving.times = [{...moving.times[0], day: moving.times[0].day === 5 ? 1 : moving.times[0].day + 1}];
+  const realSaved = accepts('Μετακίνηση στο Ωρολόγιο της περιόδου ' + JSON.stringify(period.name), trySave(file, {ops: [put(real)]}, FET_APP));
+  if (realSaved) {
+    const after = H.yearData(realSaved, fileYear).programs.find(item => item.id === program.id);
+    const size = value => new Blob([JSON.stringify(value)]).size;
+    check('Η αρχική κατάσταση κρατά τις δραστηριότητες και τις μη διαθεσιμότητες του FET', after.initial?.activities.length === program.activities.length && after.initial.source.unavailable.length === program.source.unavailable.length,
+      'Μέγεθος προγράμματος: ' + size(program) + ' → ' + size(after) + ' bytes');
+    const back = accepts('Επαναφορά στο FET', trySave(realSaved, {ops: [put(T.restoreInitial(after))]}, FET_APP));
+    check('Μετά την Επαναφορά: ίδια κατάσταση με την εισαγωγή, χωρίς initial', back && T.programState(H.yearData(back, fileYear).programs.find(item => item.id === program.id)) === T.programState(program) && !('initial' in H.yearData(back, fileYear).programs.find(item => item.id === program.id)));
+  }
+  const fileStaff = file.staffByYear[fileYear];
+  const composition = T.composePeriod({periodId: period.id, programs: timetables.programs, staff: fileStaff, classes: file.classesByYear[fileYear].classes, teachingHours: file.teachingHoursByYear[fileYear]});
+  const hours = T.oloimeroAvailableHours({period, staff: fileStaff, composition});
+  const sample = fileStaff.find(item => (composition.hours.get(item.id)?.zones.morning || 0) > 0 && Number(item.schoolHours) > 0);
+  check('Διαθέσιμες ώρες Ολοημέρου του .data: «Ωράριο στο σχολείο» μείον οι πρωινές ώρες', !!sample && hours.get(sample.id).auto && hours.get(sample.id).hours === Math.max(0, sample.schoolHours - composition.hours.get(sample.id).zones.morning),
+    sample ? sample.shortName + ': ' + sample.schoolHours + ' − ' + composition.hours.get(sample.id).zones.morning + ' = ' + hours.get(sample.id).hours : '');
+}
+
 function run() {
   $('out').innerHTML = ''; $('summary').innerHTML = ''; totals = {ok: 0, fail: 0, skip: 0};
   attempt('CSV Προσωπικού', staffCsvChecks);
@@ -2411,6 +2624,7 @@ function run() {
 
   attempt('Εισαγωγή Ολοημέρου στο ωρολόγιο', oloimeroReplaceChecks);
   attempt('Ιστορικό προγράμματος', historyChecks);
+  attempt('Περίοδοι και αρχική κατάσταση', programStateChecks);
   if (texts.design && texts.v2Fet) attempt('3β', () => {
     start('3β. Εισαγωγή CSV του Ολοημέρου: ετικέτες, στοιχεία σχεδίασης και μαθητές');
     const importer = SchoolTimetable.importer('oloimero', 'csv'), staff = dataStaff() || staffFromFet(texts.v2Fet), classes = classesFromStaff(staff);
@@ -2487,6 +2701,7 @@ function run() {
   attempt('Απασχόληση σε ημερομηνία και ώρα', () => busyAtChecks(v2Program));
   attempt('Host', hostChecks);
   attempt('Host: Ατομικά Προγράμματα', hostIndividualChecks);
+  attempt('Host: Περίοδοι και αρχική κατάσταση', hostProgramStateChecks);
   attempt('Host: Σχολικό Ημερολόγιο', hostCalendarChecks);
   attempt('Host: Ποινές / Επιβραβεύσεις', hostBehaviorChecks);
   attempt('Host: Τμήματα', hostClassesChecks);

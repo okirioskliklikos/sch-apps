@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Τμήματα στο Κεντρικό Μενού (host)
- * Έκδοση αρχείου: 0.08
+ * Έκδοση αρχείου: 0.09
  * Όνομα κατά την εγκατάσταση: _host_classes.js
  *
  * Κώδικας μόνο του host για τα Τμήματα (classesByYear). Το φορτώνει το index.html μετά το _data.js και πριν
@@ -106,6 +106,8 @@
   }
   // Σε ποια προγράμματα (και προσχέδια) του έτους εμφανίζεται κάθε τμήμα: τα classes των δραστηριοτήτων και, στα
   // σχέδια του Ολοήμερου Designer, τα κελιά και οι Συνενώσεις, και στα Ατομικά Προγράμματα τα chips των κελιών.
+  // Μετρά και η αρχική κατάσταση των προγραμμάτων (program.initial, SchoolTimetable.initialProgram), με 0
+  // δραστηριότητες όταν το τμήμα είναι μόνο εκεί.
   // → {[id τμήματος]: [{programId, kind, kindLabel, name, periodId, periodName, activities}]}· activities: πόσες
   //   δραστηριότητες έχουν το τμήμα (0 όταν το αναφέρει μόνο το σχέδιο, π.χ. μια Συνένωση που δεν μπήκε σε κελί).
   function classUsage(data, year) {
@@ -121,6 +123,11 @@
         for (const id of new Set((Array.isArray(activity?.classes) ? activity.classes : []).filter(item => typeof item === 'string' && item))) counts.set(id, (counts.get(id) || 0) + 1);
       }
       for (const id of designClassIds(program.source)) if (!counts.has(id)) counts.set(id, 0);
+      const initial = T.initialProgram(program);
+      if (initial) {
+        for (const activity of initial.activities) for (const id of Array.isArray(activity?.classes) ? activity.classes : []) if (typeof id === 'string' && id && !counts.has(id)) counts.set(id, 0);
+        for (const id of designClassIds(initial.source)) if (!counts.has(id)) counts.set(id, 0);
+      }
       for (const [id, activities] of counts) (usage[id] ||= []).push({programId: program.id, kind: program.kind, kindLabel: kindLabel(program.kind), name: program.name || '', periodId: program.periodId ?? null, periodName: periodName(program.periodId), activities});
     }
     return usage;

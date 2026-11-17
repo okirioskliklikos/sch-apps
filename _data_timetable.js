@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων: CSV, FET, προγράμματα
- * Έκδοση αρχείου: 0.03
+ * Έκδοση αρχείου: 0.04
  * Όνομα κατά την εγκατάσταση: _data_timetable.js
  *
  * Ο κοινός κώδικας δεδομένων είναι σε τέσσερα αρχεία, που φορτώνονται πάντα όλα, με αυτή τη σειρά, μετά το _ui.js
@@ -22,7 +22,9 @@
  *                           προγράμματος, μάθημα δραστηριότητας (και «μάθημα της τάξης» των Ατομικών Προγραμμάτων),
  *                           Ατομικά Προγράμματα (νέο πρόγραμμα, δραστηριότητες από τα κελιά, αντιγραφή ανά
  *                           εκπαιδευτικό), σύνθεση περιόδου (composePeriod: Ωρολόγιο, σχέδιο Ολοημέρου και Ατομικά
- *                           Προγράμματα μαζί, με ώρες, συγκρούσεις και ζώνες). Δεν είναι ακόμη παγωμένο: το _data_oloimero.js προσθέτει τα μέλη του
+ *                           Προγράμματα μαζί, με ώρες, συγκρούσεις και ζώνες), Επίσημες περίοδοι και Προσχέδια
+ *                           περιόδων, αρχική και τρέχουσα κατάσταση προγράμματος (program.initial), διαθέσιμες ώρες
+ *                           Ολοημέρου της περιόδου. Δεν είναι ακόμη παγωμένο: το _data_oloimero.js προσθέτει τα μέλη του
  *                           Ολοημέρου και τον εισαγωγέα του, και το παγώνει.
  * Τα προγράμματα είναι στη μορφή formatVersion:2: οι δραστηριότητες αναφέρονται στα τμήματα με το id τους
  * (classes), και τα ονόματα μαθητών των αρχείων που δεν είναι τμήματα μπαίνουν στο otherStudents.
@@ -135,13 +137,15 @@
   //   zone: η ζώνη της ημέρας που δίνει το είδος στη σύνθεση της περιόδου (composePeriod): 'morning' (Πρωινό) ή
   //   'oloimero' (Πρωινή Ζώνη, Γεύμα, Ολοήμερο, Διευρυμένο)· support: οι δραστηριότητές του είναι στήριξη (δεν
   //   συγκρούονται στους μαθητές και δεν είναι μαθήματα της τάξης).
+  //   initialSource: τα κλειδιά του source που ανήκουν στην κατάσταση του προγράμματος, μαζί με τις δραστηριότητες,
+  //   για την αρχική και την τρέχουσα κατάσταση (βλέπε «Αρχική και τρέχουσα κατάσταση»).
   // Νέο είδος: μια εγγραφή εδώ (με εισαγωγέα, αν η εφαρμογή του εξάγει αρχείο), και στο host τα
   // δικαιώματα και ο validator του source.
   // Ο εισαγωγέας του Ολοημέρου μπαίνει στο oloimero.importers από το _data_oloimero.js, που μετά παγώνει τη λίστα.
   const KINDS = Object.freeze({
-    school: Object.freeze({label: 'Ωρολόγιο', owner: 'fet_timetable_editor.html', ownerTitle: 'FET Timetable Editor', counts: true, drafts: true, history: true, zone: 'morning', support: false, importers: Object.freeze([fetImporter()])}),
-    oloimero: Object.freeze({label: 'Ολοήμερο', owner: 'oloimero_designer.html', ownerTitle: 'Ολοήμερο Designer', counts: false, drafts: true, history: false, zone: 'oloimero', support: false, importers: []}),
-    individual: Object.freeze({label: 'Ατομικά Προγράμματα', owner: 'individual_programs.html', ownerTitle: 'Ατομικά Προγράμματα', counts: true, drafts: false, history: true, zone: 'morning', support: true, importers: Object.freeze([])})
+    school: Object.freeze({label: 'Ωρολόγιο', owner: 'fet_timetable_editor.html', ownerTitle: 'FET Timetable Editor', counts: true, drafts: true, history: true, zone: 'morning', support: false, initialSource: Object.freeze(['unavailable']), importers: Object.freeze([fetImporter()])}),
+    oloimero: Object.freeze({label: 'Ολοήμερο', owner: 'oloimero_designer.html', ownerTitle: 'Ολοήμερο Designer', counts: false, drafts: true, history: false, zone: 'oloimero', support: false, initialSource: Object.freeze(['placements', 'pending', 'design']), importers: []}),
+    individual: Object.freeze({label: 'Ατομικά Προγράμματα', owner: 'individual_programs.html', ownerTitle: 'Ατομικά Προγράμματα', counts: true, drafts: false, history: true, zone: 'morning', support: true, initialSource: Object.freeze(['placements', 'pending']), importers: Object.freeze([])})
   });
   const countsInHours = kind => !!KINDS[kind]?.counts;
   // Οι εισαγωγείς ενός είδους, και ένας συγκεκριμένος εισαγωγέας (ή null).
@@ -190,6 +194,14 @@
   }
 
   // ---- Περίοδοι ----
+  // Μια περίοδος είναι Επίσημη (status 'official', ή χωρίς status) ή Προσχέδιο περιόδου (status 'draft'). Ένα
+  // Προσχέδιο περιόδου λειτουργεί σαν κανονική περίοδος μέσα στα Σχολικά Προγράμματα και μπορεί να μην έχει
+  // ημερομηνίες· δεν ισχύει όμως σε καμία ημερομηνία (periodAt, programAt, programsAt, staffBusyAt), δεν μπαίνει στις
+  // επικαλύψεις, και δεν το βλέπουν οι εφαρμογές που μόνο διαβάζουν προγράμματα (το φιλτράρει το host).
+  const PERIOD_STATUSES = Object.freeze(['official', 'draft']);
+  const isDraftPeriod = period => period?.status === 'draft';
+  // Οι Επίσημες περίοδοι μιας λίστας, με τη σειρά της λίστας.
+  const officialPeriods = periods => (Array.isArray(periods) ? periods : []).filter(period => isObject(period) && !isDraftPeriod(period));
   // Κενή λήξη: 15 Ιουνίου του σχολικού έτους της έναρξης. Το αποθηκευμένο `to` μένει κενό.
   // Χωρίς ρητό έτος, η έναρξη Σεπ.–Δεκ. ανήκει στο έτος που αρχίζει τότε,
   // ενώ η έναρξη Ιαν.–Αύγ. στο σχολικό έτος που άρχισε το προηγούμενο ημερολογιακό έτος.
@@ -204,12 +216,40 @@
   }
   // Ισχύει η περίοδος στην ημερομηνία; το άκρο είναι συμπεριληπτικό.
   const periodCovers = (period, date) => isoValid(period?.from) && isoValid(date) && date >= period.from && date <= periodEnd(period);
+  const periodCollator = new Intl.Collator('el', {sensitivity: 'base', numeric: true});
+  const periodByName = (a, b) => periodCollator.compare(String(a?.name ?? '').trim(), String(b?.name ?? '').trim()) || String(a?.id ?? '').localeCompare(String(b?.id ?? ''));
+  const periodStart = period => isoValid(period?.from) ? period.from : '9999-99-99';
 
-  // Η περίοδος που ισχύει σε μια ημερομηνία: σε επικάλυψη, αυτή που είναι πιο κάτω στη λίστα.
+  // Η σειρά των περιόδων, αυτόματη (δεν αποθηκεύεται και δεν αλλάζει από τον χρήστη): πρώτα οι Επίσημες κατά
+  // ημερομηνία έναρξης (με ίδια έναρξη κατά λήξη, και μετά αλφαβητικά), μετά τα Προσχέδια περιόδων αλφαβητικά.
+  // Επιστρέφει νέο πίνακα· η αποθηκευμένη λίστα μένει όπως είναι.
+  function sortPeriods(periods) {
+    const list = (Array.isArray(periods) ? periods : []).filter(isObject);
+    const official = list.filter(period => !isDraftPeriod(period)).sort((a, b) => {
+      const fa = periodStart(a), fb = periodStart(b);
+      if (fa !== fb) return fa < fb ? -1 : 1;
+      const ea = periodEnd(a), eb = periodEnd(b);
+      if (ea !== eb) return ea < eb ? -1 : 1;
+      return periodByName(a, b);
+    });
+    return [...official, ...list.filter(isDraftPeriod).sort(periodByName)];
+  }
+  // Ο αύξων αριθμός κάθε περιόδου (η θέση της στο sortPeriods, από 1): Map(id → αριθμός).
+  const periodNumbers = periods => new Map(sortPeriods(periods).map((period, index) => [period.id, index + 1]));
+  // Ποια από δύο Επίσημες περιόδους που επικαλύπτονται ισχύει: αυτή που ξεκινά αργότερα· με ίδια έναρξη, αυτή που
+  // λήγει αργότερα· με ίδια και τη λήξη, αυτή που είναι πρώτη αλφαβητικά. → true όταν ισχύει η a.
+  function periodPrevails(a, b) {
+    if (a.from !== b.from) return a.from > b.from;
+    const ea = periodEnd(a), eb = periodEnd(b);
+    if (ea !== eb) return ea > eb;
+    return periodByName(a, b) < 0;
+  }
+
+  // Η Επίσημη περίοδος που ισχύει σε μια ημερομηνία (σε επικάλυψη, με τον κανόνα του periodPrevails), ή null.
   function periodAt(periods, date) {
-    const list = periods || [];
-    for (let i = list.length - 1; i >= 0; i--) if (periodCovers(list[i], date)) return list[i];
-    return null;
+    let found = null;
+    for (const period of officialPeriods(periods)) if (periodCovers(period, date) && (!found || periodPrevails(period, found))) found = period;
+    return found;
   }
   // Το πρόγραμμα ενός είδους που ισχύει σε μια ημερομηνία (timetables = timetablesByYear[year]), ή null.
   function programAt(timetables, kind, date) {
@@ -222,24 +262,30 @@
     return period ? (timetables.programs || []).filter(program => program.periodId === period.id) : [];
   }
 
-  // Προειδοποιήσεις για τη λίστα περιόδων (δεν εμποδίζουν την αποθήκευση):
-  //   overlap: επικάλυψη δύο περιόδων· openEnd: κενό «έως» σε περίοδο που δεν είναι τελευταία·
-  //   order: «έως» πριν από το «από».
-  // Κάθε προειδοποίηση: {type, periodIds, message}.
+  // Προειδοποιήσεις για τη λίστα περιόδων (δεν εμποδίζουν την αποθήκευση), με τη σειρά του sortPeriods:
+  //   order: «έως» πριν από το «από»· openEnd: κενό «έως» σε Επίσημη περίοδο που δεν είναι η τελευταία Επίσημη·
+  //   overlap: επικάλυψη δύο Επίσημων περιόδων, με την περίοδο που ισχύει· sameStart: δύο Επίσημες περίοδοι που
+  //   ξεκινούν την ίδια ημέρα (μαζί με το overlap), με την περίοδο που ισχύει και τον λόγο.
+  // Τα Προσχέδια περιόδων δεν μπαίνουν στις επικαλύψεις. Κάθε προειδοποίηση: {type, periodIds, message}.
   function periodWarnings(periods) {
-    const list = periods || [], warnings = [];
-    list.forEach((period, index) => {
-      if (!period.to && index < list.length - 1) warnings.push({type: 'openEnd', periodIds: [period.id], message: 'Η περίοδος ' + quoted(period.name) + ' δεν έχει ημερομηνία λήξης, αλλά δεν είναι η τελευταία της λίστας.'});
-      if (period.to && period.from && period.to < period.from) warnings.push({type: 'order', periodIds: [period.id], message: 'Η περίοδος ' + quoted(period.name) + ' λήγει πριν αρχίσει.'});
+    const list = sortPeriods(periods), official = list.filter(period => !isDraftPeriod(period)), warnings = [];
+    for (const period of list) if (period.to && period.from && period.to < period.from) warnings.push({type: 'order', periodIds: [period.id], message: 'Η περίοδος ' + quoted(period.name) + ' λήγει πριν αρχίσει.'});
+    official.forEach((period, index) => {
+      if (!period.to && index < official.length - 1) warnings.push({type: 'openEnd', periodIds: [period.id], message: 'Η περίοδος ' + quoted(period.name) + ' δεν έχει ημερομηνία λήξης, αλλά δεν είναι η τελευταία Επίσημη περίοδος.'});
     });
-    for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
-      const a = list[i], b = list[j];
+    for (let i = 0; i < official.length; i++) for (let j = i + 1; j < official.length; j++) {
+      const a = official[i], b = official[j];
       if (!isoValid(a.from) || !isoValid(b.from) || (a.to && a.to < a.from) || (b.to && b.to < b.from)) continue;
       const from = a.from > b.from ? a.from : b.from;
       const endA = periodEnd(a), endB = periodEnd(b);
       const to = endA < endB ? endA : endB;
       if (!to || to < from) continue;
-      warnings.push({type: 'overlap', periodIds: [a.id, b.id], from, to, message: 'Οι περίοδοι ' + quoted(a.name) + ' και ' + quoted(b.name) + ' επικαλύπτονται: ' + (to ? 'στις ' : '') + dateRangeText(from, to) + ' ισχύει η ' + quoted(b.name) + '.'});
+      const winner = periodPrevails(a, b) ? a : b;
+      warnings.push({type: 'overlap', periodIds: [a.id, b.id], from, to, message: 'Οι περίοδοι ' + quoted(a.name) + ' και ' + quoted(b.name) + ' επικαλύπτονται: ' + (to ? 'στις ' : '') + dateRangeText(from, to) + ' ισχύει η ' + quoted(winner.name) + '.'});
+      if (a.from === b.from) {
+        const why = endA !== endB ? 'λήγει αργότερα' : 'είναι πρώτη αλφαβητικά';
+        warnings.push({type: 'sameStart', periodIds: [a.id, b.id], from, message: 'Οι περίοδοι ' + quoted(a.name) + ' και ' + quoted(b.name) + ' ξεκινούν την ίδια ημέρα (' + dateRangeText(from, from) + '): ισχύει η ' + quoted(winner.name) + ', γιατί ' + why + '.'});
+      }
     }
     return warnings;
   }
@@ -715,42 +761,50 @@
   //   options.staff: το Προσωπικό, για τα ονόματα της σημείωσης. Ένα πρόγραμμα από FET που άλλαξε
   //   σημειώνεται «τροποποιήθηκε μετά την εισαγωγή» (source.modifiedAfterImport), μαζί με τις αντικαταστάσεις.
   //   Σε σχέδιο του Ολοήμερου Designer αλλάζουν και οι επιλεγμένοι εκπαιδευτικοί του source, και στα Ατομικά
-  //   Προγράμματα τα ελλιπή κελιά (source.pending).
-  // → {program, changed}: changed = πόσες δραστηριότητες (και ελλιπή κελιά) άλλαξαν.
+  //   Προγράμματα τα ελλιπή κελιά (source.pending). Οι αντικαταστάσεις γίνονται και στην αρχική κατάσταση
+  //   (program.initial), ώστε η «Επαναφορά» να μη φέρνει πίσω τον εκπαιδευτικό που αντικαταστάθηκε.
+  // → {program, changed}: changed = πόσες δραστηριότητες (και ελλιπή κελιά) της τρέχουσας κατάστασης άλλαξαν.
   function replaceStaff(program, replacements, options = {}) {
     const result = clone(program), map = new Map((replacements || []).filter(item => item.from && item.to && item.from !== item.to).map(item => [item.from, item.to]));
     // The history is fixed from the source before the source changes (see ensureHistory).
     ensureHistory(result);
-    let changed = 0;
     const used = new Set();
-    for (const activity of result.activities || []) {
-      if (!(activity.staff || []).some(id => map.has(id))) continue;
-      activity.staff.forEach(id => { if (map.has(id)) used.add(id); });
-      activity.staff = unique(activity.staff.map(id => map.get(id) || id));
-      changed++;
-    }
-    // The incomplete cells of the Ατομικά Προγράμματα belong to one teacher each.
-    if (result.source?.type === 'individual' && Array.isArray(result.source.pending)) {
-      for (const item of result.source.pending) if (map.has(item?.staffId)) { used.add(item.staffId); item.staffId = map.get(item.staffId); changed++; }
-    }
-    if (changed) {
-      const person = id => (options.staff || []).find(item => item.id === id);
-      const name = id => person(id)?.name || '';
-      result.updatedAt = options.now || nowIso();
-      if (result.source?.type === 'fet') {
-        const note = result.source.modifiedAfterImport || {replacements: []};
-        note.at = result.updatedAt;
-        note.replacements = [...(note.replacements || []), ...[...used].map(id => ({from: id, fromName: name(id), to: map.get(id), toName: name(map.get(id))}))];
-        result.source.modifiedAfterImport = note;
+    const person = id => (options.staff || []).find(item => item.id === id);
+    const name = id => person(id)?.name || '';
+    // The replacements in one state (activities and source): the current one, or the initial one.
+    const replaceIn = (activities, source) => {
+      let changed = 0;
+      for (const activity of Array.isArray(activities) ? activities : []) {
+        if (!isObject(activity) || !(activity.staff || []).some(id => map.has(id))) continue;
+        activity.staff.forEach(id => { if (map.has(id)) used.add(id); });
+        activity.staff = unique(activity.staff.map(id => map.get(id) || id));
+        changed++;
       }
-      if (result.source?.type === 'oloimero-designer' && Array.isArray(result.source.teachers)) {
+      // The incomplete cells of the Ατομικά Προγράμματα belong to one teacher each.
+      if (result.kind === 'individual' && Array.isArray(source?.pending)) {
+        for (const item of source.pending) if (map.has(item?.staffId)) { used.add(item.staffId); item.staffId = map.get(item.staffId); changed++; }
+      }
+      // The chosen teachers of a σχέδιο of the Ολοήμερο Designer, when something changed.
+      if (changed && result.kind === 'oloimero' && Array.isArray(source?.teachers)) {
         const teachers = [];
-        for (const teacher of result.source.teachers) {
+        for (const teacher of source.teachers) {
           const to = map.get(teacher?.staffId);
           const next = to ? {...teacher, staffId: to, name: person(to)?.shortName || teacher.name} : teacher;
           if (!next.staffId || !teachers.some(item => item.staffId === next.staffId)) teachers.push(next);
         }
-        result.source.teachers = teachers;
+        source.teachers = teachers;
+      }
+      return changed;
+    };
+    const changed = replaceIn(result.activities, result.source), current = new Set(used);
+    if (isObject(result.initial)) replaceIn(result.initial.activities, isObject(result.initial.source) ? result.initial.source : null);
+    if (changed) {
+      result.updatedAt = options.now || nowIso();
+      if (result.source?.type === 'fet') {
+        const note = result.source.modifiedAfterImport || {replacements: []};
+        note.at = result.updatedAt;
+        note.replacements = [...(note.replacements || []), ...[...current].map(id => ({from: id, fromName: name(id), to: map.get(id), toName: name(map.get(id))}))];
+        result.source.modifiedAfterImport = note;
       }
     }
     return {program: result, changed};
@@ -766,6 +820,8 @@
   //   'oloimero'  {design, kept, removed, added, assigned}          Εισαγωγή Ολοημέρου (also with no change)
   //   'edit'      {activities}                                      manual changes, one entry per save (individual:
   //               {staff:[name…]}, the teachers whose program changed)
+  //   'setInitial' {}                                               «Ορισμός ως Αρχική» (setInitial)
+  //   'restore'   {}                                                «Επαναφορά» στην αρχική κατάσταση (restoreInitial)
   // Names are written as they were at the time of the event. history:[] (after «Καθαρισμός Ιστορικού») stays
   // empty; a program without the key gets an initial history from what its source already has.
   const HISTORY_LIMIT = 20;
@@ -798,6 +854,183 @@
     const {at, ...rest} = clone(entry);
     program.history = [{at: at || nowIso(), ...rest}, ...programHistory(program)].slice(0, HISTORY_LIMIT);
     return program;
+  }
+
+  // ---- Αρχική και τρέχουσα κατάσταση προγράμματος (program.initial) ----
+  // Η τρέχουσα κατάσταση ενός προγράμματος είναι πάντα στα activities και στο source του, όπως τα διαβάζουν όλες οι
+  // εφαρμογές. Η αρχική κρατιέται στο program.initial = {activities, source:{…}} μόνο όσο η τρέχουσα διαφέρει από αυτή,
+  // ώστε το μέγεθος να μεγαλώνει μόνο στα προγράμματα που άλλαξαν. Το program.initialSetAt (ISO) λέει πότε ορίστηκε η
+  // αρχική με τον «Ορισμό ως Αρχική»· χωρίς αυτό, αρχική είναι η εισαγωγή ή η δημιουργία του προγράμματος (στο
+  // Ωρολόγιο: το καθαρό FET).
+  // Την αρχική την κρατά το host σε κάθε αποθήκευση (keepInitial): οι εφαρμογές δεν τη φτιάχνουν και δεν την αλλάζουν,
+  // και χρησιμοποιούν μόνο τα restoreInitial («Επαναφορά») και setInitial («Ορισμός ως Αρχική»).
+  // Τι ανήκει στην κατάσταση (KINDS[kind].initialSource, μαζί με τις δραστηριότητες):
+  //   school      οι δραστηριότητες και οι μη διαθεσιμότητες εκπαιδευτικών (unavailable)· τα υπόλοιπα στοιχεία του
+  //               FET (μαθήματα, Activity Id, Teachers, ιεραρχία) δεν αλλάζουν και μένουν μόνο στο source.
+  //   oloimero    οι δραστηριότητες, οι τοποθετήσεις (placements), τα ελλιπή κελιά (pending) και οι θέσεις ανά ώρα
+  //               (design). Η αρχική κρατά και τους ορισμούς των εκπαιδευτικών, μαθημάτων και Συνενώσεων που
+  //               χρησιμοποιεί, ώστε η επαναφορά να τους ξαναβάζει όταν λείπουν. Χρώματα, ορατότητα και οι ορισμοί
+  //               που υπάρχουν ήδη δεν μετρούν και δεν επαναφέρονται.
+  //   individual  οι δραστηριότητες, οι τοποθετήσεις και τα ελλιπή κελιά.
+  // Στη σύγκριση δεν μετρούν τα id των δραστηριοτήτων, ούτε όσα υπολογίζονται από άλλα δεδομένα (τα τμήματα των
+  // κελιών στο Ολοήμερο, το μάθημα και τα τμήματα από τον κατάλογο στα Ατομικά), ώστε μια αλλαγή στα «Τμήματα» ή στον
+  // κατάλογο να μη δείχνει το πρόγραμμα τροποποιημένο.
+  const stableJson = value => JSON.stringify(value, (key, item) => isObject(item) ? Object.fromEntries(Object.keys(item).sort().map(name => [name, item[name]])) : item);
+  const timesKey = times => (Array.isArray(times) ? times : []).filter(isObject).map(time => time.day + ' ' + time.start + '-' + time.end).sort();
+  const textsKey = list => (Array.isArray(list) ? list : []).map(String).sort();
+  const STATE_ACTIVITY = Object.freeze({
+    school: activity => [String(activity.subject ?? ''), textsKey(activity.staff), textsKey(activity.unmatched), textsKey(activity.classes), textsKey(activity.subsets), textsKey(activity.otherStudents), String(activity.room ?? ''), timesKey(activity.times)],
+    oloimero: activity => [String(activity.subject ?? ''), textsKey(activity.staff), textsKey(activity.unmatched), timesKey(activity.times)],
+    individual: activity => [textsKey(activity.staff), textsKey(activity.unmatched), timesKey(activity.times)]
+  });
+  const stateKind = kind => Object.prototype.hasOwnProperty.call(STATE_ACTIVITY, kind) ? kind : 'school';
+  const initialKeys = kind => KINDS[kind]?.initialSource || KINDS.school.initialSource;
+  // Η κατάσταση ενός προγράμματος ως κείμενο, για σύγκριση (ίδιο κείμενο = ίδια κατάσταση).
+  function programState(program) {
+    const kind = stateKind(program?.kind), source = isObject(program?.source) ? program.source : {};
+    const placements = isObject(source.placements) ? source.placements : {};
+    const activities = (Array.isArray(program?.activities) ? program.activities : []).filter(isObject)
+      .map(activity => stableJson([STATE_ACTIVITY[kind](activity), placements[activity.id] ?? null])).sort();
+    const rest = {};
+    for (const key of initialKeys(program?.kind)) {
+      if (key === 'placements') continue;
+      const value = source[key];
+      rest[key] = Array.isArray(value) ? value.map(stableJson).sort() : value ?? null;
+    }
+    return stableJson({activities, rest});
+  }
+  // Οι ορισμοί του Ολοήμερου Designer που χρησιμοποιεί ένα σχέδιο: εκπαιδευτικοί (με staffId ή όνομα), μαθήματα (με
+  // όνομα ή id) και Συνενώσεις (με id) των δραστηριοτήτων, των τοποθετήσεων και των ελλιπών κελιών.
+  function oloimeroDefinitions(program) {
+    const source = isObject(program?.source) ? program.source : {}, activities = (Array.isArray(program?.activities) ? program.activities : []).filter(isObject);
+    const pending = (Array.isArray(source.pending) ? source.pending : []).filter(isObject);
+    const staffIds = new Set([...activities.flatMap(activity => activity.staff || []), ...pending.map(item => item.staffId).filter(Boolean)]);
+    const names = new Set([...activities.flatMap(activity => activity.unmatched || []), ...pending.filter(item => !item.staffId).map(item => item.name).filter(Boolean)]);
+    const subjectNames = new Set(activities.map(activity => String(activity.subject ?? '').trim()).filter(Boolean));
+    const subjectIds = new Set(pending.map(item => item.subjectId).filter(Boolean));
+    const unionIds = new Set();
+    const cells = list => { for (const item of Array.isArray(list) ? list : []) if (item?.type === 'union' && item.id) unionIds.add(item.id); };
+    for (const place of Object.values(isObject(source.placements) ? source.placements : {})) cells(place?.students);
+    for (const item of pending) cells(item.students);
+    const list = key => (Array.isArray(source[key]) ? source[key] : []).filter(isObject);
+    return {
+      teachers: clone(list('teachers').filter(item => item.staffId ? staffIds.has(item.staffId) : names.has(item.name))),
+      subjects: clone(list('subjects').filter(item => subjectIds.has(item.id) || subjectNames.has(String(item.name ?? '').trim()))),
+      unions: clone(list('unions').filter(item => unionIds.has(item.id)))
+    };
+  }
+  // Η κατάσταση ενός προγράμματος ως αρχική: {activities, source:{…}}. Ένα κλειδί της κατάστασης που λείπει από το
+  // source γράφεται null.
+  function initialSnapshot(program) {
+    const source = isObject(program?.source) ? program.source : {}, saved = {};
+    for (const key of initialKeys(program?.kind)) saved[key] = source[key] === undefined ? null : clone(source[key]);
+    if (program?.kind === 'oloimero') Object.assign(saved, oloimeroDefinitions(program));
+    return {activities: clone(Array.isArray(program?.activities) ? program.activities : []), source: saved};
+  }
+  // Η αρχική κατάσταση ως πρόγραμμα (αντίγραφο, χωρίς initial και Ιστορικό), για εμφάνιση, σύγκριση και αναφορές, ή
+  // null όταν το πρόγραμμα δεν έχει αλλάξει. Τα κλειδιά της κατάστασης έρχονται από την αρχική, τα υπόλοιπα από το
+  // τρέχον source (στο Ολοήμερο οι ορισμοί είναι όσοι χρησιμοποιεί η αρχική).
+  function initialProgram(program) {
+    if (!isObject(program?.initial)) return null;
+    const {initial, history, ...rest} = program;
+    const saved = isObject(initial.source) ? initial.source : {}, source = {...(isObject(rest.source) ? clone(rest.source) : {})};
+    for (const [key, value] of Object.entries(saved)) { if (value === null) delete source[key]; else source[key] = clone(value); }
+    return {...clone(rest), activities: clone(Array.isArray(initial.activities) ? initial.activities : []), source};
+  }
+  // Το πρόγραμμα έχει αλλάξει από την αρχική του κατάσταση;
+  const isModified = program => isObject(program?.initial);
+  // Η αρχική κατάσταση σε μια αποθήκευση. Το καλεί το host για κάθε πρόγραμμα που γράφεται· after (αυτό που στέλνει η
+  // εφαρμογή) αλλάζει επιτόπου και επιστρέφεται, before είναι το αποθηκευμένο (null για νέο πρόγραμμα).
+  //   options.setInitial: «Ορισμός ως Αρχική»· το initial φεύγει και γράφεται initialSetAt (options.now).
+  //   Νέο πρόγραμμα: κρατά ό,τι στέλνει η εφαρμογή (π.χ. το αντίγραφο μιας περιόδου έχει το initial της πηγής).
+  //   Υπάρχον: το initial και το initialSetAt είναι πάντα του αποθηκευμένου, όποια κι αν στείλει η εφαρμογή· όταν
+  //   δεν έχει initial και η κατάσταση άλλαξε, αρχική γίνεται η προηγούμενη κατάσταση.
+  //   Όταν η κατάσταση είναι ίδια με την αρχική, το initial φεύγει (έτσι ολοκληρώνεται η «Επαναφορά»).
+  function keepInitial(before, after, options = {}) {
+    if (!isObject(after)) return after;
+    if (options.setInitial) {
+      delete after.initial;
+      after.initialSetAt = options.now || nowIso();
+      return after;
+    }
+    if (isObject(before)) {
+      delete after.initial;
+      delete after.initialSetAt;
+      if (before.initialSetAt != null) after.initialSetAt = before.initialSetAt;
+      if (isObject(before.initial)) after.initial = clone(before.initial);
+      else if (programState(before) !== programState(after)) after.initial = initialSnapshot(before);
+    }
+    if (isObject(after.initial) && programState(initialProgram(after)) === programState(after)) delete after.initial;
+    return after;
+  }
+  // «Επαναφορά»: αντίγραφο του προγράμματος με την αρχική κατάσταση ως τρέχουσα, χωρίς initial. Στο Ολοήμερο
+  // ξαναμπαίνουν μόνο οι εκπαιδευτικοί, τα μαθήματα και οι Συνενώσεις της αρχικής που λείπουν· στα Ατομικά το μάθημα και
+  // τα τμήματα των δραστηριοτήτων υπολογίζονται ξανά με τον κατάλογο του έτους (individualRefresh). Στα είδη με
+  // Ιστορικό μπαίνει η εγγραφή 'restore'. Πρόγραμμα χωρίς initial: αντίγραφο χωρίς αλλαγή.
+  //   options: {catalog, classes (για τα Ατομικά), now}.
+  function restoreInitial(program, options = {}) {
+    if (!isObject(program?.initial)) return clone(program);
+    const initial = program.initial, saved = isObject(initial.source) ? initial.source : {};
+    let result = clone(program);
+    delete result.initial;
+    result.activities = clone(Array.isArray(initial.activities) ? initial.activities : []);
+    if (!isObject(result.source)) result.source = {};
+    for (const key of initialKeys(result.kind)) {
+      if (saved[key] == null) delete result.source[key];
+      else result.source[key] = clone(saved[key]);
+    }
+    if (result.kind === 'oloimero') {
+      const sameName = (a, b) => String(a?.name ?? '').trim() === String(b?.name ?? '').trim();
+      const same = {
+        teachers: (a, b) => a.staffId ? a.staffId === b.staffId : !b.staffId && sameName(a, b),
+        subjects: (a, b) => a.id === b.id || sameName(a, b),
+        unions: (a, b) => a.id === b.id
+      };
+      for (const key of Object.keys(same)) {
+        const list = Array.isArray(result.source[key]) ? result.source[key] : [];
+        for (const item of Array.isArray(saved[key]) ? saved[key] : []) {
+          if (isObject(item) && !list.some(other => isObject(other) && same[key](item, other))) list.push(clone(item));
+        }
+        if (list.length || Array.isArray(result.source[key])) result.source[key] = list;
+      }
+    }
+    if (result.kind === 'individual' && options.catalog) result = individualRefresh(result, {catalog: options.catalog, classes: options.classes}).program;
+    result.updatedAt = options.now || nowIso();
+    if (KINDS[result.kind]?.history) addHistory(result, {at: result.updatedAt, type: 'restore'});
+    return result;
+  }
+  // «Ορισμός ως Αρχική»: αντίγραφο του προγράμματος όπου η τρέχουσα κατάσταση γίνεται η αρχική (χωρίς initial, με
+  // initialSetAt), με την εγγραφή 'setInitial' στα είδη με Ιστορικό. Η εφαρμογή το στέλνει με setInitial:true στο put,
+  // ώστε το host να μην ξαναβάλει το αποθηκευμένο initial. Στο Ωρολόγιο, μετά από αυτό δεν υπάρχει πια επαναφορά στο
+  // καθαρό FET. options: {now}.
+  function setInitial(program, options = {}) {
+    const result = clone(program);
+    delete result.initial;
+    result.initialSetAt = options.now || nowIso();
+    if (KINDS[result.kind]?.history) addHistory(result, {at: result.initialSetAt, type: 'setInitial'});
+    return result;
+  }
+
+  // ---- Διαθέσιμες ώρες Ολοημέρου της περιόδου (period.oloimeroHours) ----
+  // Ανά εκπαιδευτικό, ώστε να τις βλέπουν όλα τα σχέδια της περιόδου: period.oloimeroHours = {[staffId]: ώρες}, μόνο
+  // όσες έγραψε ο χρήστης (ακέραιος 0–OLOIMERO_HOURS_MAX). Χωρίς τιμή ισχύει η αυτόματη πρόταση: «Ωράριο στο σχολείο»
+  // μείον οι πρωινές ώρες του εκπαιδευτικού στη σύνθεση της περιόδου (όχι κάτω από 0)· χωρίς «Ωράριο στο σχολείο»,
+  // καμία πρόταση (hours null).
+  //   input: {period, staff, composition} (composition: η σύνθεση της περιόδου, ή null: χωρίς πρωινές ώρες).
+  //   → Map(staffId → {hours, auto, schoolHours, morning}), για κάθε εκπαιδευτικό του staff.
+  const OLOIMERO_HOURS_MAX = 99;
+  function oloimeroAvailableHours(input = {}) {
+    const saved = isObject(input.period?.oloimeroHours) ? input.period.oloimeroHours : {}, result = new Map();
+    for (const person of Array.isArray(input.staff) ? input.staff : []) {
+      if (!isObject(person) || !person.id) continue;
+      const morning = input.composition?.hours?.get?.(person.id)?.zones?.morning || 0;
+      const value = person.schoolHours === '' || person.schoolHours == null ? NaN : Number(person.schoolHours);
+      const schoolHours = Number.isFinite(value) ? value : null;
+      const own = saved[person.id];
+      if (Number.isInteger(own) && own >= 0 && own <= OLOIMERO_HOURS_MAX) result.set(person.id, {hours: own, auto: false, schoolHours, morning});
+      else result.set(person.id, {hours: schoolHours == null ? null : Math.max(0, schoolHours - morning), auto: true, schoolHours, morning});
+    }
+    return result;
   }
 
   // ---- Ατομικά Προγράμματα (kind 'individual', source type 'individual', version 1) ----
@@ -1141,11 +1374,13 @@
     kinds: KINDS, countsInHours, importers: importersOf, importer: importerOf, hourGroupKeys: HOUR_GROUPS, dayLabels: DAY_LABELS,
     STAY_MINUTES, EARLY_ARRIVAL_MINUTES,
     parseTimeRange, hourTimes, timedHours, hourGroups,
-    periodEnd, periodAt, programAt, programsAt, periodWarnings,
+    PERIOD_STATUSES, isDraftPeriod, officialPeriods, sortPeriods, periodNumbers, periodEnd, periodAt, programAt, programsAt, periodWarnings,
     classSpelling, studentsIndex, expandStudents, studentsFromNames, studentsText, activitySubject, activitySubjectDetails, homeroomTeacher, isGeneralTeacher, sortStaff, sortStaffAlphabetically,
     conflicts, studentsClash, unavailableTimes, availability, staffBusyAt, replaceStaff,
     OLOIMERO_CATEGORIES, hourZone, composePeriod, compositionAt,
     HISTORY_LIMIT, history: programHistory, ensureHistory, addHistory,
+    programState, initialSnapshot, initialProgram, isModified, keepInitial, restoreInitial, setInitial,
+    OLOIMERO_HOURS_MAX, oloimeroAvailableHours,
     INDIVIDUAL_CLASS_SUBJECT_SERVICES, individualClassSubject, individualProgram, individualRefresh, individualCopy,
     analyzeFetImport, buildFetProgram
   };

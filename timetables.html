@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Περίοδοι Προγραμμάτων v0.23</title>
+<title>Περίοδοι Προγραμμάτων v0.24</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -112,7 +112,7 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Περίοδοι Προγραμμάτων — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΠΠ</span></span><span class="brand-text"><span>Περίοδοι Προγραμμάτων</span><span class="small version">v0.23</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Περίοδοι Προγραμμάτων — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΠΠ</span></span><span class="brand-text"><span>Περίοδοι Προγραμμάτων</span><span class="small version">v0.24</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <div class="header-right"><span id="schoolYear" class="school-year-indicator" hidden><span>Σχολικό έτος:</span> <span id="schoolYearValue"></span></span></div>
@@ -249,7 +249,7 @@
     $('schoolYearValue').textContent = context.year;
     $('schoolYear').hidden = !context.year;
     root.innerHTML = `<aside class="periods-pane subapp-list-pane" aria-labelledby="periodsTitle">
-        <div class="subapp-pane-heading subapp-list-heading"><div><h3 id="periodsTitle">Περίοδοι</h3><p class="ui-helper">Σε επικάλυψη ισχύει η περίοδος που είναι πιο κάτω στη λίστα.</p></div></div>
+        <div class="subapp-pane-heading subapp-list-heading"><div><h3 id="periodsTitle">Περίοδοι</h3><p class="ui-helper">Σε επικάλυψη ισχύει η περίοδος που ξεκινά αργότερα.</p></div></div>
         <div class="subapp-list-row">
           <div id="periodList" class="period-list subapp-list" role="listbox" tabindex="0" aria-labelledby="periodsTitle"></div>
           <div class="subapp-order-controls" role="group" aria-label="Αλλαγή σειράς περιόδων">
