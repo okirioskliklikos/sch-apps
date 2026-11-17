@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ολοήμερο Designer v1.93</title>
+<title>Ολοήμερο Designer v1.94</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -589,7 +589,7 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
 <body>
 
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΟΛ</span></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v1.93</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΟΛ</span></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v1.94</span></span></button></h1></div>
   <select id="program" aria-label="Σχέδιο" hidden></select>
   <span class="save-control">
     <button id="saveData" class="save-main" type="button" disabled>Αποθήκευση</button>
@@ -3316,7 +3316,9 @@ const asideEl=document.querySelector("aside");
 const isReady=()=>!!context&&!hoursError;
 const periodsList=()=>context?.periods||[];
 const periodOf=id=>periodsList().find(period=>period.id===id)||null;
-const periodText=period=>`${period.name} (${D.format(period.from)} – ${D.format(T.periodEnd(period,context.year))})`;
+// A Προσχέδιο περιόδου may have no dates.
+const periodRange=period=>D.valid(period.from)?`${D.format(period.from)} – ${D.format(T.periodEnd(period,context.year))}`:"";
+const periodText=period=>T.isDraftPeriod(period)?`${period.name} (προσχέδιο περιόδου${periodRange(period)?", "+periodRange(period):""})`:`${period.name} (${periodRange(period)})`;
 const savedPrograms=()=>(context?.programs||[]).filter(program=>program.kind===KIND);
 const savedProgram=id=>savedPrograms().find(program=>program.id===id)||null;
 const savedOfPeriod=periodId=>savedPrograms().find(program=>program.periodId===periodId)||null;
@@ -3419,8 +3421,8 @@ function renderProgramSelect(){
   programSelect.replaceChildren();
   if(periodsList().length){
     const group=document.createElement("optgroup");group.label="Περίοδοι";
-    for(const period of periodsList()){
-      const option=new Option(period.name+(designOfPeriod(period.id,list)?"":" (χωρίς σχέδιο)"),`period:${period.id}`);
+    for(const period of T.sortPeriods(periodsList())){
+      const option=new Option(period.name+(T.isDraftPeriod(period)?" (προσχέδιο)":"")+(designOfPeriod(period.id,list)?"":" (χωρίς σχέδιο)"),`period:${period.id}`);
       option.title=periodText(period);group.append(option);
     }
     programSelect.append(group);
@@ -3447,10 +3449,16 @@ function reportView(){
   reportedView=view;
   post({type:"school-timetables:view",view});
 }
-// Where the Designer was last time (context.lastView), if it still exists; else null.
+// Where the Designer was last time (context.lastView), if it still exists; else null. The host keeps lastView on the
+// current period shared by the program applications whenever another application changes it, so a draft opens again
+// only while that period has not changed; without a lastView, the shared current period (context.currentPeriod).
 function lastViewTarget(){
   const value=String(context?.lastView||""),separator=value.indexOf(":");
-  if(separator<0)return null;
+  if(separator<0){
+    const id=context?.currentPeriod;
+    if(!id||!periodOf(id))return null;
+    const program=savedOfPeriod(id);return program?{programId:program.id}:{periodId:id};
+  }
   const kind=value.slice(0,separator),id=value.slice(separator+1);
   if(kind==="period"&&periodOf(id)){const program=savedOfPeriod(id);return program?{programId:program.id}:{periodId:id}}
   if(kind==="draft"){const program=savedProgram(id);return program&&program.periodId==null?{programId:id}:null}
@@ -3513,13 +3521,13 @@ function renderNoDesign(){
       button("Εισαγωγή από CSV…",()=>void importCsv({periodId:period.id})),
       button("Αντιγραφή από άλλη περίοδο…",()=>void copyFromPeriod(),{disabled:!others})
     );
-    noDesign.replaceChildren(paragraph(`Η περίοδος ${quoted(period.name)} (${D.format(period.from)} – ${D.format(T.periodEnd(period,context.year))}) δεν έχει σχέδιο Ολοημέρου.`),actions,
-      paragraph("Το CSV εισάγεται με τον ίδιο τρόπο και από τις «Περιόδους Προγραμμάτων».","ui-helper"));
+    noDesign.replaceChildren(paragraph(`Η περίοδος ${periodText(period).replace(period.name,quoted(period.name))} δεν έχει σχέδιο Ολοημέρου.`),actions,
+      paragraph("Το CSV εισάγεται με τον ίδιο τρόπο και από τα «Σχολικά Προγράμματα».","ui-helper"));
     return;
   }
   actions.append(button("Νέο προσχέδιο",()=>void newDraft(false),{primary:true}),button("Εισαγωγή από CSV…",()=>void importCsv()));
   noDesign.replaceChildren(paragraph("Δεν υπάρχουν σχέδια Ολοημέρου για το σχολικό έτος."),actions,
-    paragraph("Οι περίοδοι δημιουργούνται στις «Περιόδους Προγραμμάτων».","ui-helper"));
+    paragraph("Οι περίοδοι δημιουργούνται στα «Σχολικά Προγράμματα».","ui-helper"));
 }
 
 // Warnings near the limits of the host (context.limits, from warnRatio): programs of the year, with every
@@ -3551,7 +3559,11 @@ programSelect.addEventListener("change",async()=>{
   if(!value||value===selectionValue())return;
   if(dirty&&!await confirmDiscard()){programSelect.value=selectionValue();return}
   const [kind,id]=[value.slice(0,value.indexOf(":")),value.slice(value.indexOf(":")+1)];
-  if(kind==="period"){const program=savedOfPeriod(id);loadClean(program?{programId:program.id}:{periodId:id})}
+  if(kind==="period"){
+    const program=savedOfPeriod(id);loadClean(program?{programId:program.id}:{periodId:id});
+    // The period chosen here becomes the current period of «Σχολικά Προγράμματα» and the program applications.
+    post({type:"school-timetables:period",periodId:id});
+  }
   else loadClean({programId:id});
 });
 
@@ -4051,7 +4063,9 @@ function receive(value){
     reportedView=String(context.lastView||"");
     if(Number.isInteger(context.zoom))boardZoom=Math.max(30,Math.min(200,context.zoom));
   }
-  loadClean(keep&&savedProgram(keep.id)?keep:(first&&lastViewTarget())||savedTarget());
+  // Opened from «Σχολικά Προγράμματα» with a target: the design of that period.
+  const target=context.target?.periodId&&periodOf(context.target.periodId)?(savedOfPeriod(context.target.periodId)?{programId:savedOfPeriod(context.target.periodId).id}:{periodId:context.target.periodId}):null;
+  loadClean(target||(keep&&savedProgram(keep.id)?keep:(first&&lastViewTarget())||savedTarget()));
   setStatus(hoursError?"Οι Ώρες Διδασκαλίας χρειάζονται διόρθωση":"Έτοιμο");
 }
 schoolHost.on("school-timetables:context",message=>{if(!dirty&&!busy)receive(message.context)});

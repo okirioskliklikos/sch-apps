@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.39
+ * Έκδοση αρχείου: 0.40
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -18,6 +18,7 @@
  *   window.schoolIcon                              κοινά εικονίδια SVG
  *   window.schoolIconText                          εικονίδιο μαζί με κείμενο, στη μέση των κεφαλαίων
  *   window.schoolListSelection                     πολλαπλή επιλογή σε λίστες (κλικ, Shift, Ctrl, βέλη)
+ *   window.schoolMenu                              αναδυόμενο μενού («⋮», «⋯»), ένα τη φορά
  *
  * Μέσα σε iframe (υποεφαρμογή μέσα στο Κεντρικό Μενού) επιπλέον:
  *   - στέλνει μόνο του το school-app:activity, ώστε να μη κλειδώνει η συνεδρία όσο ο χρήστης δουλεύει,
@@ -30,7 +31,7 @@
  * Κουμπιά κάτω δεξιά σε κάθε διάλογο: τέρμα δεξιά η «Ακύρωση», αριστερά της η προεπιλεγμένη ενέργεια
  * (αποδοχή) και πιο αριστερά οι υπόλοιπες. Κάτω αριστερά δεν μπαίνουν κουμπιά.
  * Η εμφάνιση των διαλόγων ορίζεται στο _ui.css (.school-confirm, .school-choice-*, .school-import-*,
- *   .school-color-picker, .school-richtext-*, .school-tag*, .school-tagged-text*)
+ *   .school-color-picker, .school-richtext-*, .school-tag*, .school-tagged-text*), του μενού στο _ui.css (.ui-menu)
  * και του κουμπιού «☰» στο _subapp.css.
  */
 (() => {
@@ -701,7 +702,10 @@
     note: ['2.4', 'M6 3h9l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM15 3v4h4M8.5 12h7M8.5 16h5'],
     book: ['2.4', 'M12 6.5C10 5 7 4.5 3.5 5v13.5c3.5-.5 6.5 0 8.5 1.5 2-1.5 5-2 8.5-1.5V5C17 4.5 14 5 12 6.5zM12 6.5V20'],
     scale: ['2.4', 'M12 4v16M8.5 20h7M5 7h14M5 7 2.5 13a2.5 2.5 0 0 0 5 0zM19 7l-2.5 6a2.5 2.5 0 0 0 5 0z'],
-    meeting: ['2.4', 'M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2.5 20v-1a5 5 0 0 1 5-5h3a5 5 0 0 1 5 5v1M16 4.3a3.5 3.5 0 0 1 0 6.4M18 14.2a5 5 0 0 1 3.5 4.8v1']
+    meeting: ['2.4', 'M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2.5 20v-1a5 5 0 0 1 5-5h3a5 5 0 0 1 5 5v1M16 4.3a3.5 3.5 0 0 1 0 6.4M18 14.2a5 5 0 0 1 3.5 4.8v1'],
+    // Menus (schoolMenu): «⋮» for the actions of an item (e.g. a card) and «⋯» for the rarer actions of a page.
+    'more-vertical': ['3.6', 'M12 5v.01M12 12v.01M12 19v.01'],
+    'more-horizontal': ['3.6', 'M5 12h.01M12 12h.01M19 12h.01']
   };
   function schoolIcon(name) {
     const icon = icons[name];
@@ -1688,6 +1692,88 @@
   }
   const schoolTaggedText = Object.freeze({create: createTaggedText});
 
+
+  // Αναδυόμενο μενού (π.χ. «⋮» μιας κάρτας, «⋯» της κεφαλίδας), ένα τη φορά.
+  //   schoolMenu.open(anchor, items, {label, align}) → Promise με την τιμή (value) του στοιχείου που επιλέχθηκε, ή
+  //   null όταν το μενού κλείσει χωρίς επιλογή (Esc, κλικ έξω, Tab, αλλαγή μεγέθους, ή δεύτερο κλικ στο ίδιο κουμπί).
+  //     anchor  το κουμπί που ανοίγει το μενού· παίρνει aria-haspopup / aria-expanded, και η εστίαση γυρίζει σε αυτό
+  //     items   [{label, value, disabled, title, danger} | {separator:true}]· διαχωριστικά στην αρχή, στο τέλος ή
+  //             δύο μαζί δεν μπαίνουν
+  //     label   aria-label του μενού· align: 'end' (προεπιλογή, η δεξιά άκρη του μενού στη δεξιά άκρη του κουμπιού)
+  //             ή 'start'
+  //   Πλήκτρα: βέλη, Home / End, Enter / διάστημα, Esc. Η εμφάνιση ορίζεται στο _ui.css (.ui-menu).
+  let activeMenu = null;
+  function openSchoolMenu(anchor, items, options = {}) {
+    if (activeMenu) {
+      const same = activeMenu.anchor === anchor;
+      activeMenu.close(null, !same);
+      if (same) { anchor?.focus(); return Promise.resolve(null); }
+    }
+    return new Promise(resolve => {
+      const menu = document.createElement('div');
+      menu.className = 'ui-menu'; menu.setAttribute('role', 'menu'); menu.tabIndex = -1;
+      if (options.label) menu.setAttribute('aria-label', options.label);
+      for (const item of items || []) {
+        if (!item) continue;
+        if (item.separator) {
+          if (menu.lastElementChild && !menu.lastElementChild.classList.contains('ui-menu-separator')) {
+            const line = document.createElement('div'); line.className = 'ui-menu-separator'; line.setAttribute('role', 'separator'); menu.append(line);
+          }
+          continue;
+        }
+        const button = document.createElement('button');
+        button.type = 'button'; button.className = 'ui-menu-item' + (item.danger ? ' danger' : '');
+        button.setAttribute('role', 'menuitem'); button.textContent = item.label;
+        if (item.title) button.title = item.title;
+        if (item.disabled) { button.disabled = true; button.setAttribute('aria-disabled', 'true'); }
+        button.onclick = () => close(item.value === undefined ? item.label : item.value, true);
+        menu.append(button);
+      }
+      if (menu.lastElementChild?.classList.contains('ui-menu-separator')) menu.lastElementChild.remove();
+      const enabled = () => [...menu.querySelectorAll('.ui-menu-item:not(:disabled)')];
+      const onKey = event => {
+        const list = enabled(), index = list.indexOf(document.activeElement);
+        if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(null, true); }
+        else if (event.key === 'Tab') close(null, false);
+        else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+          event.preventDefault();
+          if (list.length) list[(index + (event.key === 'ArrowDown' ? 1 : -1) + list.length) % list.length].focus();
+        } else if (event.key === 'Home' || event.key === 'End') { event.preventDefault(); list[event.key === 'Home' ? 0 : list.length - 1]?.focus(); }
+      };
+      const onPointer = event => { if (!menu.contains(event.target) && !anchor?.contains(event.target)) close(null, false); };
+      const onMove = event => { if (!menu.contains(event.target)) close(null, false); };
+      function close(value, restoreFocus) {
+        if (activeMenu?.menu !== menu) return;
+        activeMenu = null;
+        document.removeEventListener('pointerdown', onPointer, true);
+        window.removeEventListener('resize', onMove);
+        window.removeEventListener('scroll', onMove, true);
+        menu.remove();
+        anchor?.setAttribute('aria-expanded', 'false');
+        if (restoreFocus && anchor?.isConnected) anchor.focus();
+        resolve(value);
+      }
+      menu.addEventListener('keydown', onKey);
+      document.body.append(menu);
+      activeMenu = {menu, anchor, close};
+      anchor?.setAttribute('aria-haspopup', 'menu');
+      anchor?.setAttribute('aria-expanded', 'true');
+      // Under the button, inside the window: above it when there is no room below.
+      const rect = anchor ? anchor.getBoundingClientRect() : {left: 8, right: 8, top: 8, bottom: 8};
+      const width = menu.offsetWidth, height = menu.offsetHeight, gap = 4, margin = 8;
+      let left = options.align === 'start' ? rect.left : rect.right - width;
+      left = Math.max(margin, Math.min(left, window.innerWidth - width - margin));
+      let top = rect.bottom + gap;
+      if (top + height > window.innerHeight - margin && rect.top - gap - height >= margin) top = rect.top - gap - height;
+      menu.style.left = left + 'px'; menu.style.top = Math.max(margin, top) + 'px';
+      document.addEventListener('pointerdown', onPointer, true);
+      window.addEventListener('resize', onMove);
+      window.addEventListener('scroll', onMove, true);
+      (enabled()[0] || menu).focus();
+    });
+  }
+  const schoolMenu = Object.freeze({open: openSchoolMenu, close: () => activeMenu?.close(null, false)});
+
   window.schoolMessage = schoolMessage;
   window.schoolConfirm = schoolConfirm;
   window.schoolChoiceDialog = schoolChoiceDialog;
@@ -1705,4 +1791,5 @@
   window.schoolHost = schoolHost;
   window.schoolTags = schoolTags;
   window.schoolTaggedText = schoolTaggedText;
+  window.schoolMenu = schoolMenu;
 })();

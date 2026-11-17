@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Προγράμματα στο Κεντρικό Μενού (host)
- * Έκδοση αρχείου: 0.17
+ * Έκδοση αρχείου: 0.18
  * Όνομα κατά την εγκατάσταση: _host_timetables.js
  *
  * Κώδικας μόνο του host για τα προγράμματα (timetablesByYear). Το φορτώνει το index.html μετά το
@@ -34,6 +34,11 @@
  *   lastView(data, year, key)               η τελευταία επιλογή μιας εφαρμογής (π.χ. 'period:…', 'draft:…' ή,
  *                                           στα Ατομικά Προγράμματα, 'period:…|staff:…')
  *   withView(data, year, key, view)         αντίγραφο του data με νέα τελευταία επιλογή
+ *   currentPeriod(data, year)               η κοινή τρέχουσα περίοδος των Σχολικών Προγραμμάτων και των εφαρμογών
+ *                                           προγραμμάτων (lastViewByYear[year].period), ή ''
+ *   periodViews(data, year, periodId)       οι αλλαγές στο lastViewByYear όταν αλλάζει η κοινή τρέχουσα περίοδος:
+ *                                           [[κλειδί, τιμή]…] (η κοινή περίοδος και η επιλογή κάθε εφαρμογής-κατόχου)
+ *   openTarget(data, year, message, app)    έλεγχος ενός school-timetables:open: → {file, target}
  *   zoom(data, key)                         το ζουμ του πίνακα μιας εφαρμογής-κατόχου (timetableSettings.zoom[είδος],
  *                                           κοινό για όλα τα σχολικά έτη), ή η προεπιλογή του είδους
  *   withZoom(data, key, value)              αντίγραφο του data με νέο ζουμ
@@ -52,8 +57,10 @@
   const T = window.SchoolTimetable, D = window.SchoolDate;
   if (!T || !D) throw Error('Το _host_timetables.js χρειάζεται το _data.js, φορτωμένο πριν από αυτό. Βεβαιώσου ότι το index.html είναι η τελευταία έκδοση.');
 
-  // Η εφαρμογή «Περίοδοι Προγραμμάτων»: διαχειρίζεται τις περιόδους και τα προγράμματα περιόδων κάθε είδους.
+  // Η εφαρμογή «Σχολικά Προγράμματα» (η κεντρική σελίδα των προγραμμάτων): διαχειρίζεται τις περιόδους και τα
+  // προγράμματα περιόδων κάθε είδους.
   const PROGRAMS_APP = 'timetables.html';
+  const PROGRAMS_TITLE = 'Σχολικά Προγράμματα';
   // Όρια πλήθους: πιάνουν λάθη εφαρμογών (π.χ. προσχέδια που αντιγράφονται ξανά και ξανά). Πάνω από το όριο η
   // αποθήκευση απορρίπτεται· από το 90% (WARN_RATIO) οι εφαρμογές δείχνουν προειδοποίηση, με τα όρια και τις
   // μετρήσεις του context. programs: όλα τα προγράμματα του έτους, μαζί με τα προσχέδια όλων των εφαρμογών.
@@ -179,6 +186,55 @@
     return {...data, lastViewByYear: {...byYear, [year]: {...forYear, [key]: view}}};
   }
 
+  // ---- Κοινή τρέχουσα περίοδος ----
+  // Η περίοδος όπου δούλεψε τελευταία ο χρήστης, κοινή για τα Σχολικά Προγράμματα και τις εφαρμογές προγραμμάτων:
+  // όποια την αλλάζει, οι άλλες ανοίγουν σε αυτήν. Στο .data: lastViewByYear[year].period = 'period:<id>'. Όπως η
+  // τελευταία επιλογή, δεν μετρά ως αλλαγή δεδομένων. Όταν αλλάζει, η τελευταία επιλογή κάθε εφαρμογής-κατόχου γίνεται
+  // η ίδια περίοδος (στα Ατομικά Προγράμματα μένει ο εκπαιδευτικός)· έτσι ένα προσχέδιο του Ολοήμερου Designer ανοίγει
+  // ξανά μόνο όσο η κοινή περίοδος δεν άλλαξε από τότε.
+  const PERIOD_KEY = 'period';
+  // Οι εφαρμογές που μοιράζονται την τρέχουσα περίοδο και ανοίγουν η μία την άλλη: τα Σχολικά Προγράμματα και όσες
+  // γράφουν προγράμματα.
+  const sharesPeriod = app => app === PROGRAMS_APP || permissions(app).kinds.length > 0;
+  function currentPeriod(data, year) {
+    const value = lastView(data, year, PERIOD_KEY);
+    const id = value.startsWith('period:') ? value.slice(7).split('|')[0] : '';
+    return id && yearData(data, year).periods.some(period => isObject(period) && period.id === id) ? id : '';
+  }
+  function periodViews(data, year, periodId) {
+    const changes = [];
+    if (lastView(data, year, PERIOD_KEY) !== 'period:' + periodId) changes.push([PERIOD_KEY, 'period:' + periodId]);
+    for (const kind of Object.keys(T.kinds)) {
+      if (!T.kinds[kind].owner) continue;
+      const old = lastView(data, year, kind);
+      const rest = old.startsWith('period:') && old.includes('|') ? old.slice(old.indexOf('|')) : '';
+      const view = 'period:' + periodId + rest;
+      if (old !== view) changes.push([kind, view]);
+    }
+    return changes;
+  }
+
+  // ---- Άνοιγμα εφαρμογής με στόχο (school-timetables:open) ----
+  // Τα Σχολικά Προγράμματα και οι εφαρμογές προγραμμάτων ανοίγουν η μία την άλλη: app = 'programs' (τα Σχολικά
+  // Προγράμματα) ή ένα είδος (η εφαρμογή-κάτοχός του), με στόχο {periodId, staffId, classId, day, start}. Η περίοδος του
+  // στόχου γίνεται η κοινή τρέχουσα περίοδος· ο στόχος φτάνει στην εφαρμογή μία φορά, στο target του :context της.
+  function openTarget(data, year, message, app) {
+    if (!sharesPeriod(app)) throw Error('Η εφαρμογή δεν ανοίγει άλλες εφαρμογές προγραμμάτων.');
+    const name = message?.app;
+    const file = name === 'programs' ? PROGRAMS_APP : known(name) ? T.kinds[name].owner : '';
+    if (!file) throw Error('Άγνωστη εφαρμογή προγραμμάτων. Βεβαιώσου ότι η εφαρμογή είναι η τελευταία έκδοση.');
+    const raw = isObject(message.target) ? message.target : {}, target = {};
+    if (raw.periodId != null) {
+      if (!isText(raw.periodId, 200) || !yearData(data, year).periods.some(period => isObject(period) && period.id === raw.periodId)) throw Error('Η περίοδος δεν υπάρχει πια. Φόρτωσε ξανά τα στοιχεία.');
+      target.periodId = raw.periodId;
+    }
+    if (isText(raw.staffId, 200) && raw.staffId) target.staffId = raw.staffId;
+    if (isText(raw.classId, 200) && raw.classId) target.classId = raw.classId;
+    if (Number.isInteger(raw.day) && raw.day >= 1 && raw.day <= 7) target.day = raw.day;
+    if (validTime(raw.start)) target.start = raw.start;
+    return {file, title: file === PROGRAMS_APP ? PROGRAMS_TITLE : T.kinds[name].ownerTitle || file, target};
+  }
+
   // ---- Ζουμ του πίνακα (timetableSettings) ----
   // Η εφαρμογή-κάτοχος ενός είδους με πίνακα (Ολοήμερος Designer, Ατομικά Προγράμματα) θυμάται το ζουμ της, κοινό για
   // όλα τα σχολικά έτη: timetableSettings = {zoom:{[είδος]: ποσοστό}}, έξω από το timetablesByYear. Όπως το
@@ -217,6 +273,8 @@
       programCount: timetables.programs.length,
       // The last design or period this application showed ('' when there is none).
       lastView: viewKey(app) ? lastView(data, year, viewKey(app)) : '',
+      // The current period, shared by «Σχολικά Προγράμματα» and the program applications ('' when there is none).
+      currentPeriod: sharesPeriod(app) ? currentPeriod(data, year) : '',
       // The zoom of the board of the owner application (common for every school year), and its limits.
       zoom: viewKey(app) ? zoom(data, viewKey(app)) : null,
       zoomLimits: {min: ZOOM.min, max: ZOOM.max, step: ZOOM.step},
@@ -433,7 +491,7 @@
   //   SchoolTimetable.setInitial). Σε κάθε put το host κρατά την αρχική κατάσταση (SchoolTimetable.keepInitial): το
   //   initial και το initialSetAt ενός υπάρχοντος προγράμματος δεν αλλάζουν από την εφαρμογή.
   // periodHours: [{periodId, oloimeroHours}] οι διαθέσιμες ώρες Ολοημέρου μιας περιόδου (όλες μαζί· κενό αντικείμενο:
-  //   καμία), από τον Ολοήμερο Designer· οι Περίοδοι Προγραμμάτων τις στέλνουν μέσα στο periods.
+  //   καμία), από τον Ολοήμερο Designer· τα Σχολικά Προγράμματα τις στέλνουν μέσα στο periods.
   // newClasses: τα νέα τμήματα των εισαγωγών (analysis.newClasses), που προστίθενται στα Τμήματα του έτους.
   // Επιστρέφει το νέο data· πετά λάθος χωρίς να αλλάξει τίποτα. Τα ops εφαρμόζονται όλα μαζί ή κανένα.
   function applySave(data, message, app) {
@@ -443,13 +501,13 @@
     checkJson(ops, 'Τα προγράμματα');
     const changesPeriods = message.periods !== undefined;
     if (changesPeriods) {
-      if (!rights.periods) throw Error('Οι περίοδοι αλλάζουν μόνο από την εφαρμογή «Περίοδοι Προγραμμάτων».');
+      if (!rights.periods) throw Error('Οι περίοδοι αλλάζουν μόνο από την εφαρμογή «' + PROGRAMS_TITLE + '».');
       checkJson(message.periods, 'Οι περίοδοι');
       validatePeriods(message.periods, year);
     }
     const changesHours = message.periodHours !== undefined;
     if (changesHours) {
-      if (!rights.oloimeroHours) throw Error('Οι διαθέσιμες ώρες Ολοημέρου της περιόδου αλλάζουν μόνο από τις εφαρμογές «Περίοδοι Προγραμμάτων» και «' + (T.kinds.oloimero?.ownerTitle || 'Ολοήμερο Designer') + '».');
+      if (!rights.oloimeroHours) throw Error('Οι διαθέσιμες ώρες Ολοημέρου της περιόδου αλλάζουν μόνο από τις εφαρμογές «' + PROGRAMS_TITLE + '» και «' + (T.kinds.oloimero?.ownerTitle || 'Ολοήμερο Designer') + '».');
       checkJson(message.periodHours, 'Οι διαθέσιμες ώρες Ολοημέρου');
       if (!Array.isArray(message.periodHours) || message.periodHours.length > LIMITS.periods || !message.periodHours.every(item => isObject(item) && isText(item.periodId, 200) && isObject(item.oloimeroHours))) throw Error('Μη έγκυρες διαθέσιμες ώρες Ολοημέρου. Βεβαιώσου ότι η εφαρμογή είναι η τελευταία έκδοση.');
     }
@@ -488,7 +546,9 @@
     const assignOnly = kind => !may(kind) && rights.assign.includes(kind);
     const withoutPlace = program => { const {periodId, name, updatedAt, ...rest} = program; return stableJson(rest); };
     const withoutCopy = program => { const {id, periodId, updatedAt, ...rest} = program; return stableJson(rest); };
-    const assignDeletes = [], assignMoves = [], assignCopies = [], assignPeriodCopies = [];
+    const assignDeletes = [], assignMoves = [], assignCopies = [], assignPeriodCopies = [], draftCopies = [];
+    // A copy of a period program: the same, apart from its identity, place, name, dates, history and initial state.
+    const asDraftCopy = program => { const {id, periodId, name, createdAt, updatedAt, history, initial, initialSetAt, ...rest} = program; return stableJson(rest); };
 
     for (const op of ops) {
       if (!isObject(op) || (op.op !== 'put' && op.op !== 'delete') || (op.setInitial != null && typeof op.setInitial !== 'boolean')) throw Error('Μη έγκυρη ενέργεια στα προγράμματα.');
@@ -534,7 +594,12 @@
       }
       if (!may(program.kind)) throw Error('Η εφαρμογή δεν μπορεί να γράψει προγράμματα του είδους ' + quoted(kindLabel(program.kind)) + '.');
       if (existing && existing.kind !== program.kind) throw Error('Το είδος ενός προγράμματος δεν αλλάζει.');
-      if (rights.drafts === 'fromPeriod' && program.periodId == null && !(existing && existing.periodId != null)) throw Error('Η εφαρμογή «Περίοδοι Προγραμμάτων» φτιάχνει προσχέδιο μόνο από πρόγραμμα που ήταν σε περίοδο.');
+      // «Σχολικά Προγράμματα»: a draft only from a program that was in a period, or as a copy of a period program
+      // («Αντίγραφο ως προσχέδιο», checked below, after every put of the save).
+      if (rights.drafts === 'fromPeriod' && program.periodId == null && !(existing && existing.periodId != null)) {
+        if (existing || T.kinds[program.kind]?.drafts === false) throw Error('Η εφαρμογή «' + PROGRAMS_TITLE + '» φτιάχνει προσχέδιο μόνο από πρόγραμμα που ήταν σε περίοδο.');
+        draftCopies.push(program);
+      }
       if (periodOnly(program.kind) && program.periodId == null) throw Error('Η εφαρμογή γράφει προγράμματα του είδους ' + quoted(kindLabel(program.kind)) + ' μόνο σε περίοδο.');
       // The initial state is kept by the host: an application never changes the stored one.
       T.keepInitial(existing || null, program, {setInitial: op.setInitial === true, now});
@@ -558,6 +623,11 @@
         result.has(item.id) && stableJson(result.get(item.id)) === stableJson(item));
       if (!original) throw Error('Η εφαρμογή μπορεί να αναθέσει νέο σχέδιο περιόδου μόνο ως ακριβές αντίγραφο υπάρχοντος προσχεδίου που παραμένει ανέπαφο.');
       assignedFrom.add(original.id);
+    }
+    // «Αντίγραφο ως προσχέδιο»: each new draft of «Σχολικά Προγράμματα» is a copy of a period program of the save.
+    for (const copy of draftCopies) {
+      const text = asDraftCopy(copy);
+      if (![...result.values()].some(item => isObject(item) && item.periodId != null && item.kind === copy.kind && item.id !== copy.id && asDraftCopy(item) === text)) throw Error('Η εφαρμογή «' + PROGRAMS_TITLE + '» φτιάχνει προσχέδιο μόνο από πρόγραμμα που ήταν σε περίοδο, ή ως αντίγραφο ενός προγράμματος περιόδου.');
     }
     for (const removed of assignDeletes) {
       if (![...assignMoves, ...assignPeriodCopies].some(program => program.kind === removed.kind && program.periodId === removed.periodId)) throw Error('Το πρόγραμμα ' + programName(removed) + ' σβήνεται από εδώ μόνο όταν στη θέση του ανατίθεται άλλο σχέδιο.');
@@ -863,6 +933,8 @@
   //   save(candidate)        Promise: γράφει το νέο data στο κοινό αρχείο και το κάνει τρέχον,
   //   activity()             μηδενίζει το ρολόι αδράνειας,
   //   view(year, key, view)  νέα τελευταία επιλογή (lastViewByYear), χωρίς αλλαγή δεδομένων,
+  //   open(file, title)      Promise: ανοίγει μια εφαρμογή (με την ερώτηση για μη αποθηκευμένες αλλαγές)· → true όταν
+  //                          άνοιξε,
   //   zoom(key, value)       νέο ζουμ του πίνακα (timetableSettings), χωρίς αλλαγή δεδομένων
   // }
   // Αιτήματα αρχείων, ανά τύπο μηνύματος: η εφαρμογή που τα στέλνει και η συνάρτηση που τα εξυπηρετεί.
@@ -873,6 +945,13 @@
   };
   function install(bridge) {
     let fileBusy = false;
+    // The target of an application opened by school-timetables:open: given once, in the :context of its :ready.
+    let pending = null;
+    // A new shared current period: kept by the index like the last selection (school-timetables:view).
+    const setCurrentPeriod = (data, periodId) => {
+      const year = data.school.year;
+      for (const [key, view] of periodViews(data, year, periodId)) bridge.view?.(year, key, view);
+    };
     window.addEventListener('message', async event => {
       const message = event.data;
       if (event.source !== bridge.frame.contentWindow || !bridge.acceptOrigin(event)) return;
@@ -899,7 +978,32 @@
         return;
       }
       if (message.type === 'school-timetables:ready') {
-        if (state.data) reply({type: 'school-timetables:context', context: context(state.data, app, state.revision)});
+        if (!state.data) return;
+        const value = context(state.data, app, state.revision);
+        if (pending?.file === app) value.target = clone(pending.target);
+        pending = null;
+        reply({type: 'school-timetables:context', context: value});
+        return;
+      }
+      // The user chose another period: it becomes the current period of every program application.
+      if (message.type === 'school-timetables:period') {
+        if (!state.data || !sharesPeriod(app) || !isText(message.periodId, 200)) return;
+        if (!yearData(state.data, state.data.school.year).periods.some(period => isObject(period) && period.id === message.periodId)) return;
+        setCurrentPeriod(state.data, message.periodId);
+        return;
+      }
+      // Open another program application, with a target (period, teacher, τμήμα, day, hour).
+      if (message.type === 'school-timetables:open') {
+        if (!state.data || state.busy || !bridge.open) return;
+        let spec;
+        try { spec = openTarget(state.data, state.data.school.year, message, app); } catch { return; }
+        if (spec.file === app) return;
+        bridge.activity?.();
+        if (spec.target.periodId) setCurrentPeriod(bridge.state().data, spec.target.periodId);
+        pending = {file: spec.file, target: spec.target};
+        let opened = false;
+        try { opened = await bridge.open(spec.file, spec.title); } catch { opened = false; }
+        if (!opened && pending?.file === spec.file) pending = null;
         return;
       }
       // The selection of the application changed: the index keeps it, without marking any change of data.
@@ -933,8 +1037,8 @@
   }
 
   window.SchoolHostTimetables = Object.freeze({
-    PROGRAMS_APP, LIMITS, WARN_RATIO, CATALOG_LIMITS, permissions, yearData, individualCatalog, validateCatalog, context,
-    validatePeriods, validateProgram, applySave, viewKey, lastView, withView, ZOOM, zoom, withZoom,
+    PROGRAMS_APP, PROGRAMS_TITLE, LIMITS, WARN_RATIO, CATALOG_LIMITS, permissions, yearData, individualCatalog, validateCatalog, context,
+    validatePeriods, validateProgram, applySave, viewKey, lastView, withView, currentPeriod, periodViews, openTarget, ZOOM, zoom, withZoom,
     staffUsage, applyStaffRemovals, importFile, oloimeroFile, droppedImportFile, rememberedFile, install
   });
 })();

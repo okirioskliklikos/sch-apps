@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>FET Timetable Editor v1.14</title>
+<title>FET Timetable Editor v1.15</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -49,7 +49,7 @@ aside{display:flex;flex-direction:column;gap:0}
 /* Under the title only the period; right under it, when it applies, the warning that the σχέδιο Ολοημέρου of the period
    differs from the timetable (a link-like button that opens «Εισαγωγή Ολοημέρου» when the design of the last import
    changed after it), then the assignment note and the warnings of the timetable.
-   Files, imports and changes are in «Ιστορικό…» of «Περίοδοι Προγραμμάτων».
+   Files, imports and changes are in «Ιστορικό…» of «Σχολικά Προγράμματα».
    The strip ends at the visible right edge of the timetable, never past the workspace. */
 .ft-source-info{margin:0 0 4px;max-width:100%}
 /* Head of the board: title, information and controls on the left; in the teacher view the availability of the
@@ -165,7 +165,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="FET Timetable Editor — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>FT</span></span><span class="brand-text"><span>FET Timetable Editor</span><span class="small version">v1.14</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="FET Timetable Editor — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>FT</span></span><span class="brand-text"><span>FET Timetable Editor</span><span class="small version">v1.15</span></span></button></h1></div>
   <select id="period" aria-label="Περίοδος" disabled hidden></select>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <span class="sep" aria-hidden="true"></span>
@@ -268,7 +268,9 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
   const oloimeroDesigns = () => (context?.programs || []).filter(item => item.kind === 'oloimero');
   const oloimeroOf = id => oloimeroDesigns().find(item => item.id === id) || null;
   const oloimeroName = design => design.periodId != null ? 'Ολοήμερο ' + (periodOf(design.periodId)?.name || '') : design.name || 'Προσχέδιο';
-  const periodText = period => period.name + ' (' + D.format(period.from) + ' – ' + D.format(T.periodEnd(period, context.year)) + ')';
+  // A Προσχέδιο περιόδου may have no dates.
+  const periodRange = period => D.valid(period.from) ? D.format(period.from) + ' – ' + D.format(T.periodEnd(period, context.year)) : '';
+  const periodText = period => period.name + (T.isDraftPeriod(period) ? ' (προσχέδιο περιόδου' + (periodRange(period) ? ', ' + periodRange(period) : '') + ')' : ' (' + periodRange(period) + ')');
   const notice = (textValue, error = false) => { const node = $('notice'); if (!node) return; node.textContent = textValue; node.classList.toggle('error', error); };
   const message = (textValue, title) => schoolMessage(textValue, title ? {title} : {});
   const modeSafe = () => controlState.mode !== 'free';
@@ -560,14 +562,20 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     $('schoolYearValue').textContent = context.year || '';
     $('schoolYear').hidden = !context.year;
   }
+  // The period that opens: the target of «Σχολικά Προγράμματα» (context.target), else the current period shared by the
+  // program applications (context.currentPeriod), else the period of today. The target may also choose a teacher or a
+  // τμήμα.
   function receive(value) {
     applyContext(value);
     loadHours();
-    const periods = context.periods || [];
-    if (!periodOf(periodId)) {
+    const periods = context.periods || [], target = context.target || null;
+    if (target?.periodId && periodOf(target.periodId)) periodId = target.periodId;
+    else if (!periodOf(periodId)) {
       const current = T.periodAt(periods, D.today());
-      periodId = (current && schoolProgramOf(current.id) ? current : periods.find(period => schoolProgramOf(period.id)) || current || periods[0])?.id || null;
+      periodId = periodOf(context.currentPeriod) ? context.currentPeriod : (current && schoolProgramOf(current.id) ? current : periods.find(period => schoolProgramOf(period.id)) || current || periods[0])?.id || null;
     }
+    if (target?.staffId && staffById.has(target.staffId)) { view = 'teachers'; selected.teachers = keyOfId(target.staffId); }
+    else if (target?.classId) { view = 'classes'; selected.classes = target.classId; }
     loadPeriod(periodId);
   }
   function loadPeriod(id) {
@@ -585,9 +593,9 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
 
   // ---- Rendering ----
   function renderPeriods() {
-    const select = $('period'), periods = context?.periods || [];
+    const select = $('period'), periods = T.sortPeriods(context?.periods || []);
     select.replaceChildren(...periods.map(period => {
-      const option = el('option', '', period.name + (schoolProgramOf(period.id) ? '' : ' (χωρίς ωρολόγιο)'));
+      const option = el('option', '', period.name + (T.isDraftPeriod(period) ? ' (προσχέδιο)' : '') + (schoolProgramOf(period.id) ? '' : ' (χωρίς ωρολόγιο)'));
       option.value = period.id; option.title = periodText(period); return option;
     }));
     if (!periods.length) select.append(el('option', '', 'Δεν υπάρχουν περίοδοι'));
@@ -603,7 +611,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     side.hidden = !showSide; root.classList.toggle('ft-single', !showSide);
     if (hoursError) { work.innerHTML = `<div class="subapp-empty subapp-empty-stack ft-empty"><p>${esc(hoursError)}</p></div>`; buttons(); return; }
     if (!context.periods?.length) {
-      work.innerHTML = '<div class="subapp-empty subapp-empty-stack ft-empty"><p>Δεν υπάρχουν περίοδοι για το σχολικό έτος.<br>Δημιούργησέ τες στις «Περιόδους Προγραμμάτων» και κάνε εκεί την εισαγωγή από FET.</p></div>';
+      work.innerHTML = '<div class="subapp-empty subapp-empty-stack ft-empty"><p>Δεν υπάρχουν περίοδοι για το σχολικό έτος.<br>Δημιούργησέ τες στα «Σχολικά Προγράμματα» και κάνε εκεί την εισαγωγή από FET.</p></div>';
       buttons(); return;
     }
     if (!program) { renderEmptyPeriod(work); buttons(); return; }
@@ -616,7 +624,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     work.innerHTML = `<p id="notice" class="subapp-notice" role="status"></p><div class="subapp-empty subapp-empty-stack ft-empty">
       <p>Η περίοδος ${esc(quoted(period?.name || ''))} δεν έχει ωρολόγιο.</p>
       <button id="copyPeriod" type="button" class="primary"${others.length ? '' : ' disabled'}>Αντιγραφή από άλλη περίοδο…</button>
-      <p class="ui-helper">${others.length ? '' : 'Καμία άλλη περίοδος δεν έχει ωρολόγιο. '}Η εισαγωγή από FET γίνεται στις «Περιόδους Προγραμμάτων».</p></div>`;
+      <p class="ui-helper">${others.length ? '' : 'Καμία άλλη περίοδος δεν έχει ωρολόγιο. '}Η εισαγωγή από FET γίνεται στα «Σχολικά Προγράμματα».</p></div>`;
     $('copyPeriod').onclick = copyFromPeriod;
   }
   function renderSide() {
@@ -734,7 +742,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     const box = $('sourceInfo'), period = periodOf(periodId), parts = [];
     if (period) {
       const line = el('div', 'ft-source'), span = el('span');
-      span.append(el('b', '', 'Περίοδος: '), D.format(period.from) + ' – ' + D.format(T.periodEnd(period, context.year)));
+      span.append(el('b', '', 'Περίοδος: '), T.isDraftPeriod(period) ? 'Προσχέδιο περιόδου' + (periodRange(period) ? ', ' + periodRange(period) : '') : periodRange(period));
       line.append(span);
       parts.push(line);
     }
@@ -948,6 +956,8 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
       $('period').value = periodId; return;
     }
     loadPeriod(next);
+    // The period chosen here becomes the current period of «Σχολικά Προγράμματα» and the program applications.
+    post({type: 'school-timetables:period', periodId: next});
   });
   async function copyFromPeriod() {
     if (busy || program) return;
@@ -958,7 +968,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     field.append(select);
     const chosen = await schoolChoiceDialog({
       title: 'Αντιγραφή ωρολογίου',
-      content: ['Το ωρολόγιο της περιόδου που θα επιλέξεις αντιγράφεται στην περίοδο ' + quoted(periodOf(periodId)?.name || '') + '. Αποθηκεύεται με την «Αποθήκευση». Αντικαταστάσεις εκπαιδευτικών γίνονται με την αντιγραφή περιόδου στις «Περιόδους Προγραμμάτων».', field],
+      content: ['Το ωρολόγιο της περιόδου που θα επιλέξεις αντιγράφεται στην περίοδο ' + quoted(periodOf(periodId)?.name || '') + '. Αποθηκεύεται με την «Αποθήκευση». Αντικαταστάσεις εκπαιδευτικών γίνονται με την αντιγραφή περιόδου στα «Σχολικά Προγράμματα».', field],
       actions: [{label: 'Ακύρωση'}, {label: 'Αντιγραφή', accept: true, run: () => select.value}]
     });
     const source = chosen && schoolProgramOf(chosen);

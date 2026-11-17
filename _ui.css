@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινό περιβάλλον χρήστη
- * Έκδοση αρχείου: 0.53
+ * Έκδοση αρχείου: 0.54
  * Όνομα κατά την εγκατάσταση: _ui.css
  */
 
@@ -608,3 +608,23 @@ fieldset.ui-fields{margin:0;padding:0;min-width:0;border:0}
 .school-tag-manager-count:empty{display:none}
 .school-tag-manager-colors{display:grid;gap:6px}
 .school-tag-manager-color{display:flex;align-items:center;gap:10px}
+
+/* Pop-up menu (schoolMenu of _ui.js), e.g. «⋮» of a card or «⋯» of the header: one at a time, placed by _ui.js
+   under its button (position:fixed). Items are text buttons as tall as a control; .danger for a deletion. */
+.ui-menu{
+  position:fixed;z-index:1000;box-sizing:border-box;min-width:220px;max-width:min(360px,calc(100vw - 16px));
+  max-height:calc(100vh - 16px);overflow:auto;display:flex;flex-direction:column;gap:1px;padding:5px;
+  background:var(--school-ui-surface);border:1px solid var(--school-ui-border);border-radius:9px;
+  box-shadow:0 10px 26px #25364a2e;outline:none
+}
+.ui-menu button.ui-menu-item{
+  width:100%;justify-content:flex-start;text-align:left;border:0;border-radius:6px;background:transparent;
+  color:var(--school-ui-text);font-weight:400;white-space:normal
+}
+.ui-menu button.ui-menu-item:hover:not(:disabled),.ui-menu button.ui-menu-item:focus-visible{
+  background:var(--school-ui-primary-bg);color:var(--school-ui-primary-text);outline:none
+}
+.ui-menu button.ui-menu-item.danger{color:var(--school-ui-error)}
+.ui-menu button.ui-menu-item.danger:hover:not(:disabled),.ui-menu button.ui-menu-item.danger:focus-visible{background:#fdecea;color:var(--school-ui-error)}
+.ui-menu button.ui-menu-item:disabled{opacity:1;background:transparent;color:var(--school-ui-disabled-text);cursor:default}
+.ui-menu-separator{height:1px;margin:4px 6px;background:var(--school-ui-border)}
