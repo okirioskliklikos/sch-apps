@@ -12,7 +12,7 @@
   φτιάχνονται από το σύντομο όνομα των δασκάλων («[Α1] - …», classesFromStaff). Με το .data δοκιμής, οι
   έλεγχοι των νέων ετικετών (v2) παίρνουν το Προσωπικό από αυτό, γιατί το CSV του Ολοημέρου έχει τα σύντομα
   ονόματα του Προσωπικού.
-  Έκδοση αρχείου: 0.60
+  Έκδοση αρχείου: 0.61
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -1923,7 +1923,8 @@ function hostIndividualChecks() {
   const withCatalog = accepts('Ο κάτοχος αποθηκεύει μόνο τον κατάλογο (χωρίς προγράμματα)', trySave(withPeriods, {ops: [], individualCatalog: catalog}, APP));
   if (!withCatalog) return;
   equal('Ο κατάλογος γράφεται στο timetablesByYear[year] και φτάνει στο context κάθε εφαρμογής', [H.yearData(withCatalog, year).individualCatalog, H.context(withCatalog, FET_APP, 1).individualCatalog], [catalog, catalog]);
-  rejects('Άλλη εφαρμογή δεν αλλάζει τον κατάλογο', trySave(withPeriods, {ops: [], individualCatalog: catalog}, PROG), 'μόνο από την εφαρμογή «Ατομικά Προγράμματα»');
+  rejects('Άλλη εφαρμογή δεν αλλάζει τον κατάλογο', trySave(withPeriods, {ops: [], individualCatalog: catalog}, FET_APP), 'μόνο από την εφαρμογή «Ατομικά Προγράμματα»');
+  rejects('Τα Σχολικά Προγράμματα μόνο προσθέτουν στον κατάλογο, μαζί με τα προγράμματα μιας επαναφοράς (βλέπε 5λ)', trySave(withPeriods, {ops: [], individualCatalog: catalog}, PROG), 'μόνο μαζί με τα προγράμματα');
   rejects('Κατάλογος: δύο μαθήματα με το ίδιο id', trySave(withPeriods, {ops: [], individualCatalog: {...catalog, subjects: [catalog.subjects[0], {...catalog.subjects[1], id: 'sub-ent'}]}}, APP), '(μαθήματα)');
   rejects('Κατάλογος: μάθημα χωρίς όνομα', trySave(withPeriods, {ops: [], individualCatalog: {...catalog, subjects: [{id: 'x', name: ' '}]}}, APP), '(μαθήματα)');
   rejects('Κατάλογος: μη έγκυρο χρώμα', trySave(withPeriods, {ops: [], individualCatalog: {...catalog, subjects: [{id: 'x', name: 'Χ', color: 'red'}]}}, APP), '(χρώμα μαθήματος)');
@@ -2602,6 +2603,156 @@ function hostProgramStateChecks() {
     sample ? sample.shortName + ': ' + sample.schoolHours + ' − ' + composition.hours.get(sample.id).zones.morning + ' = ' + hours.get(sample.id).hours : '');
 }
 
+// Προβλήματα της σύνθεσης για τη γραμμή προειδοποιήσεων των Σχολικών Προγραμμάτων (SchoolTimetable.compositionProblems).
+function compositionProblemsChecks() {
+  start('2θ. Προβλήματα της σύνθεσης (compositionProblems)');
+  const T = SchoolTimetable, classes = CLASS_LIST.map(item => ({...item}));
+  const at = (day, start, end) => ({day, start, end});
+  const act = (id, subject, staff, names, times, extra = {}) => ({id, subject, staff, unmatched: [], classes: names.map(cid), subsets: [], otherStudents: [], room: '', times, ...extra});
+  const person = (id, shortName) => ({id, code: id, shortName, name: 'Όνομα ' + id, role: 'teacher', serviceType: 'classroom', branch: 'ΠΕ70'});
+  const staff = [person('s1', '[Α1] - Δασκάλα'), person('s2', '[Α2] - Δάσκαλος'), person('s3', '[ΠΕ70] - Παράλληλη')];
+  const school = {id: 'sc', kind: 'school', periodId: 'p', activities: [
+    act('f1', 'Γλώσσα', ['s1'], ['Α1'], [at(1, '08:15', '09:00')]),
+    act('f2', 'Μαθηματικά', ['s2'], ['Α2'], [at(2, '08:15', '09:00')]),
+    act('f3', 'Γλώσσα', ['s3'], ['Α2'], [at(2, '08:15', '09:00')]),
+    act('f4', 'Μελέτη', ['s2'], ['Α2'], [at(3, '12:35', '13:15'), at(3, '13:20', '14:00')])
+  ], source: {type: 'fet'}};
+  const individual = {id: 'in', kind: 'individual', periodId: 'p', activities: [
+    act('i1', 'Γραμματειακή Υποστήριξη', ['s1'], [], [at(1, '08:15', '09:00')]),
+    act('i2', 'Ενισχυτική Διδασκαλία', ['s3'], ['Α1'], [at(4, '14:10', '14:55')])
+  ], source: {type: 'individual', version: 1}};
+  const composition = T.composePeriod({periodId: 'p', programs: [school, individual], staff, classes, teachingHours: HOURS_V2});
+  const problems = T.compositionProblems(composition, {staff, classes});
+  const brief = item => item.group + ':' + item.code + ':' + (item.target ? item.target.app + '/' + (item.target.staffId || item.target.classId || '') : '-');
+  equal('Ομάδες, σειρά και στόχοι', problems.map(brief), [
+    'staff:staff:individual/s1', 'class:class:school/' + cid('Α2'), 'warning:mixedZone:school/' + cid('Α2'), 'warning:outsideZone:individual/s3', 'info:noDesign:-']);
+  const conflict = problems[0];
+  check('Το μήνυμα της σύγκρουσης λέει ποιος, πότε και τι, από ποιες πηγές',
+    conflict.message.startsWith('[Α1] - Δασκάλα — Δευτέρα 08:15–09:00: ') && conflict.message.includes('«Γλώσσα» (Α1, Ωρολόγιο)') && conflict.message.includes('«Γραμματειακή Υποστήριξη» (Ατομικά Προγράμματα)'), conflict.message);
+  check('Σύγκρουση τμήματος: με το όνομα του τμήματος', problems[1].message.startsWith('Α2 — Τρίτη 08:15–09:00: '), problems[1].message);
+  const design = {id: 'ol', kind: 'oloimero', periodId: 'p', activities: [act('d1', 'Μελέτη', ['s1'], ['Α1'], [at(1, '14:10', '14:55')]), act('d2', 'Γεύμα', ['s1'], ['Α2'], [at(1, '14:10', '14:55')])], source: {type: 'oloimero-designer', version: 2}};
+  const withDesign = T.compositionProblems(T.composePeriod({periodId: 'p', programs: [design], staff, classes, teachingHours: HOURS_V2}), {staff, classes});
+  equal('Σύγκρουση μέσα στο σχέδιο Ολοημέρου: ανοίγει ο Ολοήμερος Designer, μόνο με την περίοδο', withDesign.map(brief), ['staff:staff:oloimero/']);
+  equal('Χωρίς σύνθεση: κενή λίστα', T.compositionProblems(null), []);
+}
+
+// Αντίγραφο ασφαλείας περιόδου και επαναφορά (SchoolTimetable.periodBackup, readPeriodBackup, analyzePeriodRestore,
+// buildPeriodRestore), και οι προσθήκες στον κατάλογο των Ατομικών Προγραμμάτων από τα Σχολικά Προγράμματα (host).
+function backupChecks() {
+  start('5λ. Αντίγραφο ασφαλείας περιόδου και επαναφορά');
+  const H = window.SchoolHostTimetables, T = SchoolTimetable;
+  if (!H) return record('fail', 'Το _host_timetables.js δεν φορτώθηκε', 'Βάλε το _host_timetables.js στον ίδιο φάκελο με τη σελίδα.');
+  const IND = T.kinds.individual.owner, PROG = H.PROGRAMS_APP, year = '2026-2027';
+  const person = (id, shortName, serviceType) => ({id, code: id.toUpperCase(), shortName, name: shortName, serviceType, role: 'teacher'});
+  const staff = [person('s1', '[ΠΕ71] - Παράλληλη', 'parallel'), person('s2', '[ΠΕ71] - Ένταξη', 'inclusion'), person('s3', '[Α1] - Δάσκαλος', 'classroom'), person('s4', '[Α2] - Άλλος', 'classroom')];
+  const classes = [...CLASS_LIST.map(item => ({...item})), {...ENTAXI, homeroomStaffId: 's2'}];
+  const base = {format: 'school-shared-data', formatVersion: 1, school: {name: 'Σχολείο δοκιμής', year},
+    staffByYear: {[year]: staff}, classesByYear: {[year]: {classes}}, teachingHoursByYear: {[year]: HOURS_V2}};
+  const trySave = (data, message, app) => { try { return {data: H.applySave(data, message, app)}; } catch (error) { return {error: error.message}; } };
+  const rejects = (text, result, contains) => check(text, !!result.error && (!contains || result.error.includes(contains)), result.error ? 'Μήνυμα: ' + result.error : 'η αποθήκευση έγινε δεκτή');
+  const accepts = (text, result) => { check(text, !!result.data, result.error); return result.data || null; };
+  const put = program => ({op: 'put', program});
+  const time = (day, start, end) => ({day, start, end});
+  const period = {id: 'pa', name: 'Α περίοδος', from: '2026-09-11', to: '2026-11-15'};
+  const catalog = {subjects: [{id: 'sub-ent', name: 'Τμήμα Ένταξης', color: '#3b82f6', hidden: false}, {id: 'sub-dio', name: 'Διοικητικό Έργο', color: ''}, {id: 'sub-other', name: 'Άλλο μάθημα', color: ''}],
+    unions: [{id: 'u1', name: 'Γ1+Δ1', grades: [], classIds: [cid('Γ1'), cid('Δ1')]}, {id: 'u2', name: 'Άλλη', grades: ['Α'], classIds: []}], hidden: {grades: [], classes: []}};
+  const individual = {id: 'ind-a', formatVersion: 2, kind: 'individual', periodId: 'pa', name: '', createdAt: '2026-11-16T08:00:00.000Z', updatedAt: '2026-11-16T08:00:00.000Z', history: [],
+    activities: [
+      {id: 'a1', subject: '', subjectFromClasses: true, staff: ['s1'], classes: [cid('Β1')], times: [time(1, '08:15', '09:00')]},
+      {id: 'a2', subject: 'Τμήμα Ένταξης', staff: ['s2'], classes: [ENTAXI.id], times: [time(1, '08:15', '09:00')]},
+      {id: 'a3', subject: 'Διοικητικό Έργο', staff: ['s3'], classes: [], times: [time(2, '12:35', '13:15')]}],
+    source: {type: 'individual', version: 1,
+      placements: {a1: {subjectId: null, chips: [{type: 'class', id: cid('Β1')}]}, a2: {subjectId: 'sub-ent', chips: [{type: 'class', id: ENTAXI.id}]}, a3: {subjectId: 'sub-dio', chips: []}},
+      pending: [{staffId: 's3', day: 3, start: '09:00', end: '09:40', chips: [{type: 'union', id: 'u1'}]}]}};
+  const school = {id: 'sch-a', formatVersion: 2, kind: 'school', periodId: 'pa', name: '', createdAt: '2026-11-16T08:00:00.000Z', updatedAt: '2026-11-16T08:00:00.000Z',
+    history: [{at: '2026-11-16T08:00:00.000Z', type: 'import', importer: 'fet', files: ['a.csv', 'a.fet'], activities: 1}],
+    activities: [{id: 'f1', subject: 'Γλώσσα', staff: ['s3'], unmatched: [], classes: [cid('Α1')], subsets: [], otherStudents: [], room: '', times: [time(1, '09:00', '09:40')]}],
+    source: {type: 'fet', unavailable: []}};
+  let data = accepts('Προετοιμασία: περίοδος με διαθέσιμες ώρες Ολοημέρου', trySave(base, {ops: [], periods: [{...period, oloimeroHours: {s3: 2}}]}, PROG));
+  data = data && accepts('Προετοιμασία: κατάλογος και Ατομικά Προγράμματα', trySave(data, {ops: [put(individual)], individualCatalog: catalog}, IND));
+  data = data && accepts('Προετοιμασία: Ωρολόγιο', trySave(data, {ops: [put(school)]}, FET_APP));
+  if (!data) return;
+  const yearData = H.yearData(data, year), storedCatalog = H.individualCatalog(data, year);
+  const made = T.periodBackup({school: data.school, period: yearData.periods[0], programs: yearData.programs, staff, classes, catalog: storedCatalog, now: '2026-11-17T20:30:00.000Z'});
+  const backup = made.backup;
+  equal('Το αντίγραφο: η περίοδος με τις διαθέσιμες ώρες, τα προγράμματα ολόκληρα, μόνο ό,τι χρησιμοποιούν από τον κατάλογο',
+    [backup.app, backup.formatVersion, backup.school.year, backup.period.oloimeroHours, backup.programs.map(x => x.id), backup.catalog.subjects.map(x => x.id), backup.catalog.unions.map(x => x.id)],
+    ['SchoolProgramsBackup', 1, year, {s3: 2}, ['ind-a', 'sch-a'], ['sub-ent', 'sub-dio'], ['u1']]);
+  equal('… τα τμήματα (και των Συνενώσεων) και οι εκπαιδευτικοί που αναφέρονται', [backup.classes.map(x => x.name).sort(), backup.staff.map(x => x.id)],
+    [['Α1', 'Β1', 'Γ1', 'Δ1', 'Τμήμα Ένταξης'].sort(), ['s1', 's2', 's3']]);
+  check('Όνομα αρχείου με την περίοδο, το σχολικό έτος και την ημερομηνία', /^Προγράμματα – Α περίοδος – 2026-2027 – \d\d-\d\d-2026\.json$/.test(made.fileName), made.fileName);
+  check('Η ανάγνωση δίνει το ίδιο αντίγραφο', JSON.stringify(T.readPeriodBackup('﻿' + JSON.stringify(backup))) === JSON.stringify(backup));
+  const readError = textValue => { try { T.readPeriodBackup(textValue); return ''; } catch (error) { return error.message; } };
+  check('Αρχείο που δεν είναι JSON: λάθος', readError('όχι json').includes('JSON'), readError('όχι json'));
+  check('JSON που δεν είναι αντίγραφο περιόδου: λάθος', readError('{"app":"Άλλο"}').includes('δεν είναι αντίγραφο'), readError('{"app":"Άλλο"}'));
+  check('Νεότερη μορφή: λάθος', readError(JSON.stringify({...backup, formatVersion: 2})).includes('νεότερη'), readError(JSON.stringify({...backup, formatVersion: 2})));
+  check('Πρόγραμμα άλλης περιόδου μέσα στο αντίγραφο: λάθος', readError(JSON.stringify({...backup, programs: [{...backup.programs[0], periodId: 'x'}]})).includes('κατεστραμμένο'));
+  const ctx = {year, school: 'Σχολείο δοκιμής', staff, classes, catalog: storedCatalog};
+  const same = T.analyzePeriodRestore(backup, ctx);
+  equal('Ίδιο έτος και ίδια δεδομένα: χωρίς λάθη, χωρίς προσθήκες και αντιστοιχίσεις', [same.ok, same.errors, same.warnings, same.addSubjects.length, same.addUnions.length, same.remap.size, same.programs.map(x => x.kind + ':' + x.activities)],
+    [true, [], [], 0, 0, 0, ['school:1', 'individual:3']]);
+  const otherYear = T.analyzePeriodRestore(backup, {...ctx, year: '2027-2028'});
+  check('Άλλο σχολικό έτος: δεν ξεκινά', !otherYear.ok && has(otherYear.errors, 'μόνο στο ίδιο σχολικό έτος'), messages(otherYear));
+  check('Άλλο σχολείο: μόνο προειδοποίηση', T.analyzePeriodRestore(backup, {...ctx, school: 'Άλλο σχολείο'}).ok && has(T.analyzePeriodRestore(backup, {...ctx, school: 'Άλλο σχολείο'}).warnings, '«Άλλο σχολείο»'));
+  const noStaff = T.analyzePeriodRestore(backup, {...ctx, staff: staff.filter(x => x.id !== 's3')});
+  check('Εκπαιδευτικός που λείπει από το Προσωπικό: δεν ξεκινά, και λέει ποιος', !noStaff.ok && has(noStaff.errors, '«[Α1] - Δάσκαλος»'), messages(noStaff));
+  const noClass = T.analyzePeriodRestore(backup, {...ctx, classes: classes.filter(x => x.id !== cid('Γ1') && x.id !== ENTAXI.id)});
+  check('Τμήματα που λείπουν (και της Συνένωσης): δεν ξεκινά, και λέει ποια και τι να γίνει', !noClass.ok && has(noClass.errors, '«Γ1», «Τμήμα Ένταξης»') && has(noClass.errors, 'Πρόσθεσέ τα ξανά στα «Τμήματα»'), messages(noClass));
+  // Τμήματα που προστέθηκαν ξανά (νέο id): βρίσκονται με το κλειδί ή το όνομα.
+  const readded = classes.map(x => x.id === cid('Β1') ? {...x, id: 'new-Β1'} : x.id === ENTAXI.id ? {...x, id: 'new-ent', name: 'ΤΜΗΜΑ ΕΝΤΑΞΗΣ'} : x);
+  // Κατάλογος με άλλο id για το «Διοικητικό Έργο» (ίδιο όνομα, άλλη γραφή) και χωρίς τα υπόλοιπα.
+  const smaller = {subjects: [{id: 'dio-2', name: 'διοικητικό εργο', color: ''}], unions: [], hidden: {grades: [], classes: []}};
+  const moved = T.analyzePeriodRestore(backup, {...ctx, classes: readded, catalog: smaller});
+  equal('Αντιστοιχίσεις: τμήμα με το κλειδί, άλλο τμήμα με το όνομα, μάθημα με το όνομα· προσθήκες: όσα λείπουν από τον κατάλογο',
+    [moved.ok, [...moved.remap], moved.addSubjects.map(x => x.id), moved.addUnions.map(x => x.id)],
+    [true, [[cid('Β1'), 'new-Β1'], [ENTAXI.id, 'new-ent'], ['sub-dio', 'dio-2']], ['sub-ent'], ['u1']]);
+  const built = T.buildPeriodRestore(moved, {periodId: 'pr', catalog: smaller, classes: readded, fileName: made.fileName, now: '2026-11-18T09:00:00.000Z'});
+  const restored = built.programs.find(x => x.kind === 'individual'), restoredSchool = built.programs.find(x => x.kind === 'school');
+  equal('Ο νέος κατάλογος: τα υπάρχοντα όπως είναι και οι προσθήκες στο τέλος', [built.catalog.subjects.map(x => x.id), built.catalog.unions.map(x => x.id), built.added.subjects.length, built.added.unions.length], [['dio-2', 'sub-ent'], ['u1'], 1, 1]);
+  equal('Τα προγράμματα: νέα id, στη νέα περίοδο, με τα id του έτους', [restored.id !== 'ind-a', restored.periodId, restored.activities.map(x => x.classes), restored.source.placements.a3.subjectId, restored.source.placements.a2.chips],
+    [true, 'pr', [['new-Β1'], ['new-ent'], []], 'dio-2', [{type: 'class', id: 'new-ent'}]]);
+  equal('Το μάθημα ξαναϋπολογίζεται από τον κατάλογο του έτους', restored.activities[2].subject, 'διοικητικό εργο');
+  equal('Εγγραφή «backupRestore» στο Ιστορικό (μετά από ό,τι είχε)', [restoredSchool.history.map(x => x.type), restoredSchool.history[0].file, restoredSchool.history[0].fromPeriod], [['backupRestore', 'import'], made.fileName, 'Α περίοδος']);
+  equal('Οι διαθέσιμες ώρες Ολοημέρου της περιόδου', built.oloimeroHours, {s3: 2});
+  let thrown = '';
+  try { T.buildPeriodRestore(noStaff, {periodId: 'pr'}); } catch (error) { thrown = error.message; }
+  check('Κατασκευή από ανάλυση με λάθη: δεν γίνεται', thrown.includes('δεν μπορεί να γίνει'), thrown);
+  // Host: ο κατάλογος από τα Σχολικά Προγράμματα δέχεται μόνο προσθήκες, μαζί με προγράμματα.
+  let small = accepts('Προετοιμασία: μικρότερος κατάλογος και τα τμήματα με νέα id', trySave({...data, classesByYear: {[year]: {classes: readded}}, timetablesByYear: {[year]: {...yearData, programs: [], individualCatalog: smaller}}}, {ops: [], periods: yearData.periods}, PROG));
+  if (!small) return;
+  const newPeriod = {id: 'pr', name: 'Α περίοδος (επαναφορά)', from: '2026-09-11', to: '2026-11-15', status: 'draft', oloimeroHours: built.oloimeroHours};
+  const periods = [...H.yearData(small, year).periods, newPeriod];
+  const restoredData = accepts('Επαναφορά ως νέο Προσχέδιο περιόδου, με προσθήκες στον κατάλογο', trySave(small, {ops: built.programs.map(put), periods, individualCatalog: built.catalog}, PROG));
+  if (restoredData) {
+    equal('Ο κατάλογος και τα προγράμματα στο αρχείο', [H.individualCatalog(restoredData, year).subjects.map(x => x.id), H.yearData(restoredData, year).programs.filter(x => x.periodId === 'pr').length], [['dio-2', 'sub-ent'], 2]);
+  }
+  rejects('Ο κατάλογος από τα Σχολικά Προγράμματα: όχι αλλαγή υπάρχοντος μαθήματος', trySave(small, {ops: built.programs.map(put), periods, individualCatalog: {...built.catalog, subjects: [{id: 'dio-2', name: 'Άλλο όνομα', color: ''}, ...built.catalog.subjects.slice(1)]}}, PROG), 'μόνο να προσθέσουν');
+  rejects('… όχι διαγραφή', trySave(small, {ops: built.programs.map(put), periods, individualCatalog: {...built.catalog, subjects: built.catalog.subjects.slice(1)}}, PROG), 'μόνο να προσθέσουν');
+  rejects('… όχι αλλαγή στα κρυφά', trySave(small, {ops: built.programs.map(put), periods, individualCatalog: {...built.catalog, hidden: {grades: ['Α'], classes: []}}}, PROG), 'μόνο να προσθέσουν');
+  rejects('… και μόνο μαζί με προγράμματα', trySave(small, {ops: [], individualCatalog: built.catalog}, PROG), 'μόνο μαζί με τα προγράμματα');
+  rejects('Ο FET Timetable Editor δεν γράφει τον κατάλογο', trySave(small, {ops: [], individualCatalog: built.catalog}, FET_APP), 'αλλάζει μόνο από');
+  // Το .data δοκιμής: αντίγραφο της τελευταίας περιόδου και επαναφορά του ως νέο Προσχέδιο περιόδου.
+  if (!texts.data) return skip('Αντίγραφο και επαναφορά με το .data δοκιμής', 'Λείπει το .data δοκιμής.');
+  const box = JSON.parse(texts.data);
+  if (box?.encryption !== 'none') return skip('Αντίγραφο και επαναφορά με το .data δοκιμής', 'Το .data έχει κωδικό.');
+  const file = box.payload, fileYear = file.school.year, timetables = H.yearData(file, fileYear);
+  const last = T.sortPeriods(timetables.periods).at(-1);
+  const fileStaff = file.staffByYear[fileYear], fileClasses = file.classesByYear[fileYear].classes, fileCatalog = H.individualCatalog(file, fileYear);
+  const real = T.periodBackup({school: file.school, period: last, programs: timetables.programs, staff: fileStaff, classes: fileClasses, catalog: fileCatalog});
+  const again = T.readPeriodBackup(JSON.stringify(real.backup));
+  const analysis = T.analyzePeriodRestore(again, {year: fileYear, school: file.school.name, staff: fileStaff, classes: fileClasses, catalog: fileCatalog});
+  check('Αντίγραφο της περιόδου ' + JSON.stringify(last.name) + ' του .data: η επαναφορά ξεκινά', analysis.ok, messages(analysis) + '\nΠρογράμματα: ' + analysis.programs.map(x => x.kind + ':' + x.activities).join(', '));
+  if (!analysis.ok) return;
+  const copy = T.buildPeriodRestore(analysis, {periodId: 'restored', catalog: fileCatalog, classes: fileClasses, fileName: real.fileName});
+  const list = [...timetables.periods, {id: 'restored', name: 'Επαναφορά δοκιμής', from: '', to: '', status: 'draft', ...(Object.keys(copy.oloimeroHours).length ? {oloimeroHours: copy.oloimeroHours} : {})}];
+  const saved = accepts('… και αποθηκεύεται ως νέο Προσχέδιο περιόδου (Σχολικά Προγράμματα)', trySave(file, {ops: copy.programs.map(put), periods: list}, PROG));
+  if (saved) {
+    const state = program => T.programState(program);
+    const originals = timetables.programs.filter(x => x.periodId === last.id), restoredPrograms = H.yearData(saved, fileYear).programs.filter(x => x.periodId === 'restored');
+    check('Ίδια κατάσταση με τα προγράμματα της περιόδου (' + originals.length + ')', originals.length === restoredPrograms.length && originals.every(item => state(item) === state(restoredPrograms.find(x => x.kind === item.kind))));
+  }
+}
+
 function run() {
   $('out').innerHTML = ''; $('summary').innerHTML = ''; totals = {ok: 0, fail: 0, skip: 0};
   attempt('CSV Προσωπικού', staffCsvChecks);
@@ -2721,6 +2872,8 @@ function run() {
   attempt('Host', hostChecks);
   attempt('Host: Ατομικά Προγράμματα', hostIndividualChecks);
   attempt('Host: Περίοδοι και αρχική κατάσταση', hostProgramStateChecks);
+  attempt('Προβλήματα της σύνθεσης', compositionProblemsChecks);
+  attempt('Αντίγραφο ασφαλείας περιόδου', backupChecks);
   attempt('Host: Σχολικό Ημερολόγιο', hostCalendarChecks);
   attempt('Host: Ποινές / Επιβραβεύσεις', hostBehaviorChecks);
   attempt('Host: Τμήματα', hostClassesChecks);

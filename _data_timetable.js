@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων: CSV, FET, προγράμματα
- * Έκδοση αρχείου: 0.04
+ * Έκδοση αρχείου: 0.05
  * Όνομα κατά την εγκατάσταση: _data_timetable.js
  *
  * Ο κοινός κώδικας δεδομένων είναι σε τέσσερα αρχεία, που φορτώνονται πάντα όλα, με αυτή τη σειρά, μετά το _ui.js
@@ -24,8 +24,9 @@
  *                           εκπαιδευτικό), σύνθεση περιόδου (composePeriod: Ωρολόγιο, σχέδιο Ολοημέρου και Ατομικά
  *                           Προγράμματα μαζί, με ώρες, συγκρούσεις και ζώνες), Επίσημες περίοδοι και Προσχέδια
  *                           περιόδων, αρχική και τρέχουσα κατάσταση προγράμματος (program.initial), διαθέσιμες ώρες
- *                           Ολοημέρου της περιόδου. Δεν είναι ακόμη παγωμένο: το _data_oloimero.js προσθέτει τα μέλη του
- *                           Ολοημέρου και τον εισαγωγέα του, και το παγώνει.
+ *                           Ολοημέρου της περιόδου, τα προβλήματα της σύνθεσης για τον χρήστη (compositionProblems),
+ *                           αντίγραφο ασφαλείας περιόδου και επαναφορά του. Δεν είναι ακόμη παγωμένο: το
+ *                           _data_oloimero.js προσθέτει τα μέλη του Ολοημέρου και τον εισαγωγέα του, και το παγώνει.
  * Τα προγράμματα είναι στη μορφή formatVersion:2: οι δραστηριότητες αναφέρονται στα τμήματα με το id τους
  * (classes), και τα ονόματα μαθητών των αρχείων που δεν είναι τμήματα μπαίνουν στο otherStudents.
  */
@@ -1131,6 +1132,227 @@
     return {program: result, activities, pending};
   }
 
+  // ---- Προβλήματα της σύνθεσης (γραμμή προειδοποιήσεων των Σχολικών Προγραμμάτων) ----
+  // The conflicts and the issues of a composition (composePeriod) as a list for the user, each one with the program
+  // application that shows it (target.app: a kind, whose owner opens) and, where it helps, the teacher or the τμήμα.
+  //   ctx: {staff, classes}.
+  //   → [{group:'staff'|'class'|'warning'|'info', level:'error'|'warning'|'info', code, who, message, day, start, end,
+  //       target:{app, staffId, classId} | null}]
+  //   group 'staff' / 'class': the conflicts on a teacher (also a name without a match) or on a τμήμα; 'warning' / 'info':
+  //   the issues of the composition. Sorted by group, then by the teacher or τμήμα (order of Προσωπικό / Τμήματα), day and
+  //   time. Targets: a conflict that involves the Ατομικά Προγράμματα → the Ατομικά (with the teacher); a conflict inside
+  //   the σχέδιο Ολοημέρου → the Ολοήμερο Designer; every other conflict → the Ωρολόγιο (the Πλήρες), with the teacher or
+  //   the τμήμα (a name without a match: only the period). Issues: the difference of the σχέδιο and the Ωρολόγιο and the
+  //   times of the σχέδιο in the Πρωινό → the Designer; times of the Ατομικά in a zone of the Ολοήμερο → the Ατομικά
+  //   (with the teacher); an activity of the Ωρολόγιο in the Πρωινό and in a zone of the Ολοήμερο → the Ωρολόγιο (with
+  //   its first τμήμα, or its teacher); the information that there is no σχέδιο → no target.
+  function compositionProblems(composition, ctx = {}) {
+    if (!composition) return [];
+    const classes = ctx.classes || composition.classes || [], staff = Array.isArray(ctx.staff) ? ctx.staff : [];
+    const people = new Map(staff.filter(isObject).map(person => [person.id, person]));
+    const byId = classesById(classes);
+    const staffOrder = new Map(sortStaff(staff.filter(isObject)).map((person, index) => [person.id, index]));
+    const classOrder = new Map(sortClasses(classes.filter(isObject)).map((record, index) => [record.id, index]));
+    const personName = id => { const person = people.get(id); return person ? String(person.shortName || person.name || person.code || '?') : '?'; };
+    const className = id => byId.has(id) ? String(byId.get(id).name ?? '') || '?' : '?';
+    const sourceName = kind => kind === 'school' ? 'Ωρολόγιο' : kind === 'oloimero' ? 'σχέδιο Ολοημέρου' : KINDS[kind]?.label || kind;
+    const subjectOf = activity => activitySubject(activity, {composition, classes}) || (activity.subjectFromClasses ? 'μάθημα της τάξης' : '—');
+    const what = entry => {
+      const students = studentsText(entry.activity, {classes});
+      return quoted(subjectOf(entry.activity)) + ' (' + (students ? students + ', ' : '') + sourceName(entry.kind) + ')';
+    };
+    const when = item => (DAY_LABELS[item.day - 1] || '?') + ' ' + item.start + '–' + item.end;
+    const result = [];
+    for (const conflict of composition.conflicts || []) {
+      const kinds = [conflict.a.kind, conflict.b.kind];
+      const onlyDesign = kinds.every(kind => kind === 'oloimero');
+      let target, group, who;
+      if (conflict.type === 'class') {
+        group = 'class'; who = className(conflict.who);
+        target = onlyDesign ? {app: 'oloimero'} : {app: 'school', classId: conflict.who};
+      } else {
+        group = 'staff'; who = conflict.type === 'staff' ? personName(conflict.who) : String(conflict.who);
+        if (conflict.type === 'staff' && kinds.includes('individual')) target = {app: 'individual', staffId: conflict.who};
+        else if (onlyDesign) target = {app: 'oloimero'};
+        else target = conflict.type === 'staff' ? {app: 'school', staffId: conflict.who} : {app: 'school'};
+      }
+      result.push({group, level: 'error', code: conflict.type, who, day: conflict.day, start: conflict.start, end: conflict.end, target,
+        order: group === 'staff' ? (conflict.type === 'staff' && staffOrder.has(conflict.who) ? staffOrder.get(conflict.who) : 1e6) : (classOrder.has(conflict.who) ? classOrder.get(conflict.who) : 1e6),
+        message: who + ' — ' + when(conflict) + ': ' + what(conflict.a) + ' και ' + what(conflict.b) + '.'});
+    }
+    const activityOf = issue => {
+      const program = composition.programs?.[issue.kind];
+      return issue.activityId == null || !Array.isArray(program?.activities) ? null : program.activities.find(item => isObject(item) && item.id === issue.activityId) || null;
+    };
+    for (const issue of composition.issues || []) {
+      const activity = activityOf(issue);
+      let target = null;
+      if (issue.code === 'oloimeroDiff' || (issue.code === 'outsideZone' && issue.kind === 'oloimero')) target = {app: 'oloimero'};
+      else if (issue.code === 'outsideZone' && issue.kind === 'individual') target = activity?.staff?.[0] ? {app: 'individual', staffId: activity.staff[0]} : {app: 'individual'};
+      else if (issue.code === 'mixedZone') target = activity?.classes?.[0] ? {app: 'school', classId: activity.classes[0]} : activity?.staff?.[0] ? {app: 'school', staffId: activity.staff[0]} : {app: 'school'};
+      const info = issue.level === 'info';
+      result.push({group: info ? 'info' : 'warning', level: info ? 'info' : 'warning', code: issue.code, who: '', day: null, start: '', end: '', target, order: 0, message: issue.message});
+    }
+    const groups = ['staff', 'class', 'warning', 'info'];
+    result.sort((a, b) => groups.indexOf(a.group) - groups.indexOf(b.group) || a.order - b.order || classCollator.compare(a.who, b.who) ||
+      (a.day ?? 0) - (b.day ?? 0) || (a.start < b.start ? -1 : a.start > b.start ? 1 : 0));
+    return result.map(({order, ...item}) => item);
+  }
+
+  // ---- Αντίγραφο ασφαλείας περιόδου ----
+  // An external file (JSON) with a period of «Σχολικά Προγράμματα»: the period (with its available hours of the
+  // Ολοήμερο), its programs whole (initial state and history), and what they use from the year: the subjects and the
+  // Συνενώσεις of the catalog of the Ατομικά Προγράμματα, the τμήματα and the teachers (with their ids, for the matching
+  // and the messages of a restore). It is restored only in the same school year, as a new period or in place of a period.
+  // It is plain JSON, not encrypted, also when the shared file has a password: it holds names of teachers, no students.
+  //   {app:'SchoolProgramsBackup', formatVersion:1, createdAt, school:{name, year}, period, programs:[…],
+  //    catalog:{subjects:[…], unions:[…]}, classes:[{id, name, grade, number}], staff:[{id, code, shortName, name}]}
+  const BACKUP_APP = 'SchoolProgramsBackup', BACKUP_FORMAT = 1;
+  // Every text (strings and keys of objects) of a value, into the set: the ids are found wherever they are, so that a
+  // new place of an id in a source does not need a change here.
+  function collectTexts(value, into) {
+    if (typeof value === 'string') into.add(value);
+    else if (Array.isArray(value)) for (const item of value) collectTexts(item, into);
+    else if (isObject(value)) for (const [key, item] of Object.entries(value)) { into.add(key); collectTexts(item, into); }
+    return into;
+  }
+  // A copy of the value with every text (strings and keys) found in map replaced (ids of τμήματα, of subjects and of
+  // Συνενώσεις; they are UUIDs, so no other text matches them).
+  function remapTexts(value, map) {
+    if (!map.size) return clone(value);
+    if (typeof value === 'string') return map.has(value) ? map.get(value) : value;
+    if (Array.isArray(value)) return value.map(item => remapTexts(item, map));
+    if (isObject(value)) return Object.fromEntries(Object.entries(value).map(([key, item]) => [map.has(key) ? map.get(key) : key, remapTexts(item, map)]));
+    return value;
+  }
+  const backupFileDate = iso => { const [y, m, d] = String(iso || '').slice(0, 10).split('-'); return d && m && y ? d + '-' + m + '-' + y : ''; };
+  // The backup of a period. input: {school:{name, year}, period, programs (those of the period, as stored), staff,
+  // classes, catalog (individualCatalog of the year), now}. → {backup, fileName}.
+  function periodBackup(input = {}) {
+    const period = clone(input.period || {}), programs = clone((input.programs || []).filter(program => isObject(program) && program.periodId === period.id));
+    const texts = collectTexts(programs, new Set());
+    collectTexts(period.oloimeroHours || {}, texts);
+    const catalog = isObject(input.catalog) ? input.catalog : {};
+    const subjects = (Array.isArray(catalog.subjects) ? catalog.subjects : []).filter(item => isObject(item) && texts.has(item.id)).map(clone);
+    const unions = (Array.isArray(catalog.unions) ? catalog.unions : []).filter(item => isObject(item) && texts.has(item.id)).map(clone);
+    // The τμήματα of the Συνενώσεις that are kept also go with them.
+    collectTexts(unions, texts);
+    const classes = (input.classes || []).filter(item => isObject(item) && texts.has(item.id)).map(item => {
+      const record = {id: item.id, name: String(item.name ?? '')};
+      if (isGeneralClass(item)) Object.assign(record, {grade: item.grade, number: item.number});
+      return record;
+    });
+    const staff = (input.staff || []).filter(person => isObject(person) && texts.has(person.id)).map(person => ({id: person.id, code: String(person.code ?? ''), shortName: String(person.shortName ?? ''), name: String(person.name ?? '')}));
+    const now = input.now || nowIso();
+    const backup = {app: BACKUP_APP, formatVersion: BACKUP_FORMAT, createdAt: now, school: {name: String(input.school?.name ?? ''), year: String(input.school?.year ?? '')},
+      period, programs, catalog: {subjects, unions}, classes, staff};
+    const name = String(period.name ?? '').trim() || 'περίοδος';
+    const fileName = ('Προγράμματα – ' + name + ' – ' + backup.school.year + ' – ' + backupFileDate(localDay(now)) + '.json').replace(/[\\/:*?"<>|]+/g, '_');
+    return {backup, fileName};
+  }
+  const localDay = iso => {
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return String(iso || '').slice(0, 10);
+    return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate());
+  };
+  // Reads the text of a backup file. Throws an error with a message for the user when it is not a backup of a period.
+  function readPeriodBackup(textValue) {
+    const fail = message => { throw Error(message); };
+    let value;
+    try { value = JSON.parse(String(textValue ?? '').replace(/^﻿/, '')); }
+    catch { fail('Το αρχείο δεν είναι αντίγραφο ασφαλείας των Σχολικών Προγραμμάτων (δεν διαβάζεται ως JSON).'); }
+    if (!isObject(value) || value.app !== BACKUP_APP) fail('Το αρχείο δεν είναι αντίγραφο ασφαλείας περιόδου των Σχολικών Προγραμμάτων.');
+    if (!Number.isInteger(value.formatVersion) || value.formatVersion < 1) fail('Το αντίγραφο ασφαλείας δεν έχει έγκυρη έκδοση μορφής.');
+    if (value.formatVersion > BACKUP_FORMAT) fail('Το αντίγραφο ασφαλείας φτιάχτηκε από νεότερη έκδοση των Σχολικών Προγραμμάτων. Βεβαιώσου ότι τα αρχεία της σουίτας είναι η τελευταία έκδοση.');
+    const bad = () => fail('Το αντίγραφο ασφαλείας είναι κατεστραμμένο ή ελλιπές.');
+    if (!isObject(value.school) || typeof value.school.year !== 'string' || !isObject(value.period) || typeof value.period.id !== 'string' || !value.period.id) bad();
+    if (!Array.isArray(value.programs) || !value.programs.every(program => isObject(program) && typeof program.kind === 'string' && program.periodId === value.period.id)) bad();
+    if (!isObject(value.catalog) || !Array.isArray(value.catalog.subjects) || !Array.isArray(value.catalog.unions) || !Array.isArray(value.classes) || !Array.isArray(value.staff)) bad();
+    if (![...value.catalog.subjects, ...value.catalog.unions, ...value.classes, ...value.staff].every(item => isObject(item) && typeof item.id === 'string' && item.id)) bad();
+    return value;
+  }
+  // The analysis of a restore, before anything changes. ctx: {year, school (name), staff, classes, catalog}.
+  //   errors: the restore cannot start (another school year, an unknown or a second program of a kind, a teacher or a
+  //   τμήμα that is no longer in the year); warnings: another school name; info: what will be restored.
+  //   A τμήμα is found by its id, otherwise by its key (Α1) or, for another τμήμα, by its name; a subject or a Συνένωση
+  //   of the catalog by its id, otherwise by its name (without tones and case). What is found by the key or the name gets
+  //   its id (remap); subjects and Συνενώσεις not found at all are added to the catalog (addSubjects, addUnions).
+  //   → {ok, errors, warnings, info, backup, remap:Map(old id → id of the year), addSubjects, addUnions, programs:[{kind,
+  //      label, activities}]}
+  function analyzePeriodRestore(backup, ctx = {}) {
+    const errors = [], warnings = [], info = [], remap = new Map();
+    const result = {ok: false, errors, warnings, info, backup, remap, addSubjects: [], addUnions: [], programs: []};
+    if (String(backup?.school?.year) !== String(ctx.year)) {
+      errors.push('Το αντίγραφο είναι του σχολικού έτους ' + (backup?.school?.year || '?') + ', ενώ το ανοιχτό σχολικό έτος είναι ' + ctx.year + '. Η επαναφορά γίνεται μόνο στο ίδιο σχολικό έτος, ώστε να ταιριάζουν οι εκπαιδευτικοί, τα τμήματα και ο κατάλογος των Ατομικών Προγραμμάτων.');
+      return result;
+    }
+    if (ctx.school != null && String(backup.school.name || '').trim() && compareKey(backup.school.name) !== compareKey(ctx.school))
+      warnings.push('Το αντίγραφο είναι του σχολείου ' + quoted(backup.school.name) + ', ενώ το ανοιχτό αρχείο είναι του ' + quoted(ctx.school) + '.');
+    const kinds = new Set();
+    for (const program of backup.programs) {
+      if (!KINDS[program.kind]) errors.push('Το αντίγραφο έχει πρόγραμμα άγνωστου είδους ' + quoted(program.kind) + '. Βεβαιώσου ότι τα αρχεία της σουίτας είναι η τελευταία έκδοση.');
+      else if (kinds.has(program.kind)) errors.push('Το αντίγραφο έχει δύο προγράμματα του είδους ' + quoted(KINDS[program.kind].label) + '.');
+      kinds.add(program.kind);
+    }
+    // Teachers: only by their id (a teacher added again gets a new one).
+    const staffIds = new Set((ctx.staff || []).filter(isObject).map(person => person.id));
+    const missingStaff = backup.staff.filter(person => !staffIds.has(person.id));
+    if (missingStaff.length) errors.push('Στο Προσωπικό του έτους δεν υπάρχουν πια ' + (missingStaff.length === 1 ? 'ο/η εκπαιδευτικός ' : 'οι εκπαιδευτικοί ') + missingStaff.map(person => quoted(person.shortName || person.name || person.code || '?')).join(', ') + '. Τα προγράμματα του αντιγράφου αναφέρονται στους εκπαιδευτικούς με την ταυτότητά τους στο Προσωπικό, και ένας εκπαιδευτικός που προστίθεται ξανά παίρνει νέα. Η επαναφορά δεν μπορεί να γίνει σε αυτό το αρχείο.');
+    // Τμήματα: by id, by key, by name.
+    const yearClasses = (ctx.classes || []).filter(isObject), classIds = new Set(yearClasses.map(item => item.id));
+    const missingClasses = [];
+    for (const record of backup.classes) {
+      if (classIds.has(record.id)) continue;
+      const key = isGeneralClass(record) ? classKey(record) : '';
+      const found = key ? yearClasses.find(item => classKey(item) === key)
+        : yearClasses.find(item => !isGeneralClass(item) && compareKey(item.name) === compareKey(record.name));
+      if (found) remap.set(record.id, found.id);
+      else missingClasses.push(record);
+    }
+    if (missingClasses.length) errors.push('Στα «Τμήματα» του έτους δεν υπάρχουν ' + (missingClasses.length === 1 ? 'το τμήμα ' : 'τα τμήματα ') + missingClasses.map(item => quoted(item.name || classKey(item) || '?')).join(', ') + ', που χρησιμοποιούν τα προγράμματα του αντιγράφου. Η επαναφορά δεν μπορεί να ξεκινήσει. Πρόσθεσέ ' + (missingClasses.length === 1 ? 'το' : 'τα') + ' ξανά στα «Τμήματα» με το ίδιο όνομα, πάτησε «Αποθήκευση» εκεί, και ξαναδοκίμασε.');
+    // The catalog of the Ατομικά Προγράμματα: by id, by name; the rest is added.
+    const catalog = isObject(ctx.catalog) ? ctx.catalog : {};
+    const match = (list, own, add) => {
+      const current = (Array.isArray(list) ? list : []).filter(isObject), ids = new Set(current.map(item => item.id));
+      for (const item of own) {
+        if (ids.has(item.id)) continue;
+        const found = current.find(other => compareKey(other.name) === compareKey(item.name));
+        if (found) remap.set(item.id, found.id);
+        else add.push(item);
+      }
+      return current.length;
+    };
+    const subjectCount = match(catalog.subjects, backup.catalog.subjects, result.addSubjects);
+    const unionCount = match(catalog.unions, backup.catalog.unions, result.addUnions);
+    if (subjectCount + result.addSubjects.length > 500 || unionCount + result.addUnions.length > 500) errors.push('Ο κατάλογος των Ατομικών Προγραμμάτων θα ξεπερνούσε το όριο των 500 μαθημάτων ή Συνενώσεων.');
+    result.programs = Object.keys(KINDS).map(kind => backup.programs.find(program => program.kind === kind)).filter(Boolean)
+      .map(program => ({kind: program.kind, label: KINDS[program.kind].label, activities: Array.isArray(program.activities) ? program.activities.length : 0}));
+    if (!result.programs.length) info.push('Η περίοδος του αντιγράφου δεν έχει προγράμματα.');
+    result.ok = !errors.length;
+    return result;
+  }
+  // The restored period: its programs (new ids, in periodId, with the ids of the year and a history entry
+  // 'backupRestore'), its available hours of the Ολοήμερο, and the catalog with the additions.
+  //   options: {periodId, catalog (individualCatalog of the year), classes, fileName, now}.
+  //   → {programs, oloimeroHours, catalog, added:{subjects, unions}}
+  function buildPeriodRestore(analysis, options = {}) {
+    if (!analysis?.ok) throw Error('Η επαναφορά δεν μπορεί να γίνει: ' + (analysis?.errors || []).join(' '));
+    const now = options.now || nowIso(), backup = analysis.backup, remap = analysis.remap;
+    const base = isObject(options.catalog) ? clone(options.catalog) : {};
+    const subjects = remapTexts(analysis.addSubjects, remap), unions = remapTexts(analysis.addUnions, remap);
+    const catalog = {...base, subjects: [...(Array.isArray(base.subjects) ? base.subjects : []), ...subjects], unions: [...(Array.isArray(base.unions) ? base.unions : []), ...unions],
+      hidden: isObject(base.hidden) ? base.hidden : {grades: [], classes: []}};
+    const programs = backup.programs.filter(program => KINDS[program.kind]).map(original => {
+      let program = remapTexts(original, remap);
+      Object.assign(program, {id: uid(), periodId: options.periodId ?? null, updatedAt: now});
+      if (program.kind === 'individual') program = individualRefresh(program, {catalog, classes: options.classes || []}).program;
+      if (KINDS[program.kind].history) addHistory(program, {at: now, type: 'backupRestore', file: String(options.fileName || ''), fromPeriod: String(backup.period?.name ?? ''), backupAt: String(backup.createdAt || '')});
+      return program;
+    });
+    const hours = isObject(backup.period?.oloimeroHours) ? clone(backup.period.oloimeroHours) : {};
+    return {programs, oloimeroHours: hours, catalog, added: {subjects, unions}};
+  }
+
   // ---- Ετικέτες ημέρας και ώρας (Ώρες Διδασκαλίας) ----
   function tagSets(teachingHours) {
     const dayTags = new Map(DAY_KEYS.map((key, index) => [String(teachingHours?.dayTags?.[key] || '').trim(), index + 1]).filter(([tag]) => tag));
@@ -1382,6 +1604,7 @@
     programState, initialSnapshot, initialProgram, isModified, keepInitial, restoreInitial, setInitial,
     OLOIMERO_HOURS_MAX, oloimeroAvailableHours,
     INDIVIDUAL_CLASS_SUBJECT_SERVICES, individualClassSubject, individualProgram, individualRefresh, individualCopy,
+    compositionProblems, BACKUP_APP, periodBackup, readPeriodBackup, analyzePeriodRestore, buildPeriodRestore,
     analyzeFetImport, buildFetProgram
   };
   parts.loaded('_data_timetable.js');

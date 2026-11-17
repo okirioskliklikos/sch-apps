@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Σχολικά Προγράμματα v0.25</title>
+<title>Σχολικά Προγράμματα v0.26</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -22,7 +22,8 @@
   --sp-modified:#9a4d00;--sp-modified-bg:#fff4e5;--sp-modified-border:#f3d3b0;
   --sp-note-bg:#fff7ed;--sp-note-border:#fed7aa;--sp-note-text:#9a3412;
   --sp-new-text:#1d6b46;
-  --sp-row-selected:#e8f1ff
+  --sp-row-selected:#e8f1ff;
+  --sp-ok:#1d6b46
 }
 /* «⋯» of the header: an icon button with an invisible character, so it keeps the shared baseline of the header. */
 header .sp-more{display:inline-flex;align-items:center;justify-content:center;flex:none;width:var(--school-ui-control-height);padding-left:0;padding-right:0}
@@ -92,6 +93,27 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
 .sp-drafts .ui-validation-warning{margin:0}
 .sp-drafts .ui-helper{flex-basis:100%;margin:0}
 .sp-board-empty{min-height:260px}
+
+/* Warnings of the composition, under the Πλήρες Σχολικό Πρόγραμμα: one line, which opens into a list. */
+.sp-problems{margin-top:12px;padding:10px 14px;background:var(--school-ui-surface);border:1px solid var(--school-ui-border);border-radius:10px;font-size:15px;line-height:1.45}
+.sp-problems-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px}
+.sp-problems-head .ui-icon-text{--ui-icon-text-size:var(--school-ui-icon-size)}
+.sp-problems-state{font-weight:650}
+.sp-problems-state.error{color:var(--school-ui-error)}
+.sp-problems-state.warning{color:var(--school-ui-warning)}
+.sp-problems-state.ok{color:var(--sp-ok)}
+.sp-problems-list{margin-top:8px;max-height:min(50vh,420px);overflow:auto;border-top:1px solid var(--school-ui-border)}
+.sp-problems-list h3{margin:10px 0 4px;font-size:15px}
+.sp-problems-list ul{list-style:none;margin:0;padding:0}
+.sp-problems-list li{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px 14px;padding:5px 2px;border-bottom:1px solid var(--school-ui-border);font-size:14px}
+.sp-problems-list li>span{flex:1 1 320px;min-width:0;overflow-wrap:anywhere}
+.sp-problems-list li .ui-link-button{flex:none;margin-left:auto;white-space:nowrap}
+.sp-problems-list .ui-helper{margin:8px 0 2px}
+.sp-dialog-warning{margin:6px 0 0!important}
+.sp-restore-target{display:grid;gap:8px;margin:14px 0 0;padding:10px 12px;border:1px solid var(--school-ui-border);border-radius:8px}
+.sp-restore-target legend{padding:0 6px;font-weight:650}
+.sp-restore-target label{display:flex;align-items:baseline;gap:8px;margin:0;font-weight:400;cursor:pointer}
+.sp-restore-target label.disabled{color:var(--school-ui-muted);cursor:default}
 
 /* History of a program (dialog) */
 .pg-history{list-style:none;margin:0;padding:0;max-height:min(60vh,520px);overflow:auto;border-top:1px solid var(--school-ui-border)}
@@ -163,7 +185,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΣΠ</span></span><span class="brand-text"><span>Σχολικά Προγράμματα</span><span class="small version">v0.25</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΣΠ</span></span><span class="brand-text"><span>Σχολικά Προγράμματα</span><span class="small version">v0.26</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="more" class="sp-more" type="button" title="Περισσότερες ενέργειες" aria-label="Περισσότερες ενέργειες" disabled></button>
@@ -182,7 +204,9 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
   // initial state: SchoolDate and SchoolTimetable of the _data*.js. Everything changes in the page and is saved together
   // with «Αποθήκευση», as one school-timetables:save (periods + put/delete, and the new τμήματα of the imports), all or
   // nothing. The current period is shared with the program applications (school-timetables:period), and they open
-  // from here with a target (school-timetables:open).
+  // from here with a target (school-timetables:open). Under the Πλήρες, the warnings of the composition of the period
+  // (SchoolTimetable.compositionProblems). In the menu «⋯», the backup of a period to an external file and its restore
+  // (SchoolTimetable.periodBackup …; the file is written and read by the host, school-programs:file).
   const T = SchoolTimetable, D = SchoolDate, esc = schoolEscape, $ = id => document.getElementById(id);
   const root = $('root'), post = schoolHost.post;
   const DRAFT_WARNING_LIMIT = 5;
@@ -220,6 +244,12 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
   let newClasses = [];
   // Programs whose current state becomes their initial state with «Αποθήκευση» (setInitial:true in the put).
   let initialIds = new Set();
+  // The catalog of the Ατομικά Προγράμματα with the subjects and Συνενώσεις that the restores of the page add (null:
+  // none). It is sent with «Αποθήκευση» together with the restored programs; the host accepts only additions.
+  let catalogDraft = null;
+  // Whether the list of the warnings under the Πλήρες is open: closed when the page opens, then as the user leaves it.
+  let problemsOpen = false;
+  const currentCatalog = () => catalogDraft || context.individualCatalog || {subjects: [], unions: [], hidden: {grades: [], classes: []}};
 
   // ---- Dates ----
   const addDays = (iso, days) => {
@@ -312,6 +342,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
     draft = clone(saved);
     newClasses = [];
     initialIds = new Set();
+    catalogDraft = null;
     if (first || value.target?.periodId || !periodById(selectedId)) selectedId = initialPeriod(value);
     mark(false);
     render();
@@ -402,13 +433,90 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
         <div class="sp-full-text"><h2 id="fullTitle">Πλήρες Σχολικό Πρόγραμμα</h2><p>Η σύνθεση των τριών πηγών της περιόδου: προβολή, επεξεργασία ωρών και εκτύπωση. Προς το παρόν ανοίγει στον FET Timetable Editor.</p></div>
         <button id="openFull" type="button" class="primary">Άνοιγμα προγράμματος</button>
       </section>
+      <section id="problems" class="sp-problems" aria-label="Συγκρούσεις και προειδοποιήσεις της περιόδου" hidden></section>
       <div id="drafts" class="sp-drafts"></div>`;
     board.querySelectorAll('[data-menu]').forEach(button => { button.innerHTML = schoolIcon('more-vertical'); button.onclick = () => cardMenu(button, button.dataset.menu); });
     board.querySelectorAll('[data-open]').forEach(button => { button.onclick = () => openApp(button.dataset.open); });
     board.querySelectorAll('[data-import]').forEach(button => { button.onclick = () => importProgram(period, button.dataset.import); });
     $('openFull').onclick = () => openApp('school');
+    renderProblems();
     renderDrafts();
     drawArrows();
+  }
+  // ---- Warnings of the composition (under the Πλήρες) ----
+  // The conflicts and the warnings of the composition of the period, as the programs are in the page (unsaved changes
+  // included), from SchoolTimetable.composePeriod and compositionProblems. One line, closed at first; opened, a list in
+  // groups, each problem with a link to the application that shows it (period, and teacher or τμήμα).
+  const APP_LINKS = Object.freeze({school: 'Πλήρες Πρόγραμμα', oloimero: 'Ολοήμερο Designer', individual: 'Ατομικά Προγράμματα'});
+  const PROBLEM_GROUPS = Object.freeze([['staff', 'Συγκρούσεις εκπαιδευτικών'], ['class', 'Συγκρούσεις τμημάτων'], ['warning', 'Προειδοποιήσεις'], ['info', 'Ενημερώσεις']]);
+  const plural = (count, one, many) => count + ' ' + (count === 1 ? one : many);
+  function renderProblems() {
+    const box = $('problems'), period = periodById(selectedId);
+    if (!box) return;
+    if (!period || !programsOf(period.id).length) { box.hidden = true; box.replaceChildren(); return; }
+    box.hidden = false;
+    let problems = [], failure = '';
+    try {
+      const composition = T.composePeriod({periodId: period.id, programs: draft.programs, staff: context.staff || [], classes: yearClasses(), teachingHours: context.teachingHours});
+      problems = T.compositionProblems(composition, {staff: context.staff || [], classes: yearClasses()});
+    } catch (error) { failure = 'Ο έλεγχος των προγραμμάτων της περιόδου δεν γίνεται: ' + error.message; }
+    const count = group => problems.filter(item => item.group === group).length;
+    const conflicts = count('staff') + count('class'), warnings = count('warning'), infos = count('info');
+    let state, icon, summary;
+    if (failure) { state = 'warning'; icon = 'warning'; summary = failure; }
+    else if (conflicts || warnings) {
+      state = conflicts ? 'error' : 'warning'; icon = conflicts ? 'alert' : 'warning';
+      summary = [conflicts ? plural(conflicts, 'σύγκρουση', 'συγκρούσεις') : '', warnings ? plural(warnings, 'προειδοποίηση', 'προειδοποιήσεις') : '', infos ? plural(infos, 'ενημέρωση', 'ενημερώσεις') : ''].filter(Boolean).join(' · ');
+    } else { state = 'ok'; icon = 'check'; summary = 'Χωρίς συγκρούσεις και προειδοποιήσεις' + (infos ? ' · ' + plural(infos, 'ενημέρωση', 'ενημερώσεις') : ''); }
+    const head = document.createElement('div');
+    head.className = 'sp-problems-head';
+    const label = document.createElement('span');
+    label.className = 'sp-problems-state ' + state;
+    label.innerHTML = schoolIconText(icon, problems.length ? 'Έλεγχος περιόδου:' : summary);
+    head.append(label);
+    if (!problems.length) { box.replaceChildren(head); return; }
+    const toggle = document.createElement('button');
+    toggle.type = 'button'; toggle.className = 'ui-link-button'; toggle.setAttribute('aria-expanded', String(problemsOpen));
+    toggle.innerHTML = schoolIconText(problemsOpen ? 'chevron-down' : 'chevron-right', summary, {end: true});
+    toggle.title = problemsOpen ? 'Απόκρυψη της λίστας' : 'Πού είναι κάθε πρόβλημα και από ποιες πηγές προκαλείται';
+    toggle.onclick = () => { problemsOpen = !problemsOpen; renderProblems(); $('problems')?.querySelector('.sp-problems-head .ui-link-button')?.focus(); };
+    head.append(toggle);
+    if (!problemsOpen) { box.replaceChildren(head); return; }
+    const list = document.createElement('div');
+    list.className = 'sp-problems-list';
+    for (const [group, title] of PROBLEM_GROUPS) {
+      const items = problems.filter(item => item.group === group);
+      if (!items.length) continue;
+      const heading = document.createElement('h3'), ul = document.createElement('ul');
+      heading.textContent = title + ' (' + items.length + ')';
+      for (const item of items) {
+        const li = document.createElement('li'), text = document.createElement('span');
+        text.textContent = item.message;
+        li.append(text);
+        if (item.target?.app && APP_LINKS[item.target.app]) {
+          const link = document.createElement('button');
+          link.type = 'button'; link.className = 'ui-link-button';
+          link.innerHTML = schoolIconText('chevron-right', APP_LINKS[item.target.app], {end: true});
+          link.title = targetText(period, item.target);
+          link.onclick = () => openApp(item.target.app, {staffId: item.target.staffId, classId: item.target.classId});
+          li.append(link);
+        }
+        ul.append(li);
+      }
+      list.append(heading, ul);
+    }
+    const help = document.createElement('p');
+    help.className = 'ui-helper';
+    help.textContent = 'Από τη σύνθεση της περιόδου, όπως είναι τα προγράμματα στη σελίδα (μαζί με τις αλλαγές που δεν έχουν αποθηκευτεί).';
+    list.append(help);
+    box.replaceChildren(head, list);
+  }
+  // «Άνοιγμα στα Ατομικά Προγράμματα: περίοδος «Α», εκπαιδευτικός «…»».
+  function targetText(period, target) {
+    const person = target.staffId ? (context.staff || []).find(item => item.id === target.staffId) : null;
+    const record = target.classId ? yearClasses().find(item => item.id === target.classId) : null;
+    return 'Άνοιγμα: ' + APP_LINKS[target.app] + ' — περίοδος ' + quoted(periodName(period)) +
+      (person ? ', εκπαιδευτικός ' + quoted(person.shortName || person.name || '?') : '') + (record ? ', τμήμα ' + quoted(record.name) : '');
   }
   // Arrows from the three sources to the Πλήρες Σχολικό Πρόγραμμα, drawn from the places of the cards.
   function drawArrows() {
@@ -501,11 +609,15 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
 
   // ---- Opening the program applications (school-timetables:open) ----
   // The index asks about unsaved changes of this page before it opens another application.
-  function openApp(kind) {
+  // extra: {staffId, classId} of the target (from the warnings under the Πλήρες).
+  function openApp(kind, extra = {}) {
     const period = periodById(selectedId);
     if (!period || busy) return;
     if (!isStoredPeriod(period)) { notice('Η περίοδος ' + quoted(periodName(period)) + ' δεν έχει αποθηκευτεί ακόμη. Πάτησε πρώτα «Αποθήκευση».', true); return; }
-    post({type: 'school-timetables:open', app: kind, target: {periodId: period.id}});
+    const target = {periodId: period.id};
+    if (extra.staffId) target.staffId = extra.staffId;
+    if (extra.classId) target.classId = extra.classId;
+    post({type: 'school-timetables:open', app: kind, target});
   }
 
   // ---- Menus ----
@@ -540,10 +652,16 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
     if (busy || !context) return;
     const period = periodById(selectedId);
     const modified = period ? programsOf(period.id).filter(T.isModified) : [];
+    const stored = isStoredPeriod(period);
     const choice = await schoolMenu.open($('more'), [
-      {label: 'Ορισμός όλων ως Αρχική…', value: 'setInitialAll', disabled: !modified.length, title: modified.length ? '' : 'Κανένα πρόγραμμα της περιόδου δεν διαφέρει από την αρχική του κατάσταση.'}
+      {label: 'Ορισμός όλων ως Αρχική…', value: 'setInitialAll', disabled: !modified.length, title: modified.length ? '' : 'Κανένα πρόγραμμα της περιόδου δεν διαφέρει από την αρχική του κατάσταση.'},
+      {separator: true},
+      {label: 'Αντίγραφο ασφαλείας περιόδου…', value: 'backup', disabled: !stored, title: stored ? '' : period ? 'Η περίοδος δεν έχει αποθηκευτεί ακόμη. Πάτησε πρώτα «Αποθήκευση».' : 'Δεν υπάρχει περίοδος.'},
+      {label: 'Επαναφορά από αντίγραφο…', value: 'restore'}
     ], {label: 'Περισσότερες ενέργειες'});
     if (choice === 'setInitialAll' && period) setInitialOf(period, modified.map(program => program.kind));
+    else if (choice === 'backup' && period) backupPeriod(period);
+    else if (choice === 'restore') restoreBackup();
   };
 
   // ---- Initial state («Ορισμός ως Αρχική», «Επαναφορά») ----
@@ -772,6 +890,152 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
     return period.id;
   }
 
+  // ---- Backup of a period (SchoolTimetable.periodBackup) ----
+  // The backup holds the period as it is stored in the file: changes of the page that are not saved are not in it.
+  const BACKUP_TITLE = 'Αντίγραφο ασφαλείας περιόδου';
+  const savedPeriod = id => saved.periods.find(period => period.id === id) || null;
+  const savedProgramsOf = id => saved.programs.filter(program => program.periodId === id);
+  // Whether the page has changes in the period that are not saved (its data or its programs).
+  function periodChanged(id) {
+    const programs = list => list.filter(program => program.periodId === id).map(program => JSON.stringify(program)).sort();
+    return JSON.stringify(savedPeriod(id)) !== JSON.stringify(periodById(id)) || JSON.stringify(programs(saved.programs)) !== JSON.stringify(programs(draft.programs));
+  }
+  const programsListText = programs => programs.length
+    ? kindKeys.map(kind => programs.find(program => program.kind === kind)).filter(Boolean).map(program => cardTitle(program.kind) + ' (' + activitiesText((program.activities || []).length) + ')').join(', ')
+    : 'χωρίς προγράμματα';
+  const warningLine = textValue => Object.assign(document.createElement('p'), {className: 'ui-validation-warning sp-dialog-warning', textContent: textValue});
+  const helperLine = textValue => Object.assign(document.createElement('p'), {className: 'ui-helper', textContent: textValue});
+  // What a backup of the period holds, for the dialogs: the period and its programs as stored, the note for unsaved
+  // changes, and that the file is not encrypted.
+  function backupContent(period) {
+    const stored = savedPeriod(period.id);
+    const content = ['Το αντίγραφο έχει την περίοδο ' + quoted(periodName(stored)) + (rangeText(stored) ? ' (' + rangeText(stored) + ')' : '') + ' με τις διαθέσιμες ώρες Ολοημέρου, και τα προγράμματά της με την αρχική τους κατάσταση και το Ιστορικό: ' + programsListText(savedProgramsOf(period.id)) + '.'];
+    if (periodChanged(period.id)) content.push(warningLine('Η περίοδος έχει αλλαγές που δεν έχουν αποθηκευτεί. Το αντίγραφο θα έχει την αποθηκευμένη μορφή της, χωρίς αυτές. Αν θέλεις να περιέχει και τις αλλαγές, πάτησε πρώτα «Αποθήκευση».'));
+    content.push(helperLine('Το αρχείο δεν είναι κρυπτογραφημένο, ακόμη κι αν το κοινό αρχείο έχει κωδικό: έχει ονόματα εκπαιδευτικών, όχι μαθητές. Η επαναφορά του γίνεται μόνο στο ίδιο σχολικό έτος (' + context.year + '), από το «Επαναφορά από αντίγραφο…» του μενού «⋯».'));
+    return content;
+  }
+  // Writes the backup of a stored period to a file the user chooses. → the name of the file.
+  async function writeBackup(periodId) {
+    const {backup, fileName} = T.periodBackup({school: context.school, period: savedPeriod(periodId), programs: saved.programs, staff: context.staff || [], classes: context.classes || [], catalog: context.individualCatalog});
+    const result = await schoolHost.request('school-programs:file', {action: 'backupSave', suggestedName: fileName, text: JSON.stringify(backup)});
+    return result?.name || fileName;
+  }
+  async function backupPeriod(period) {
+    if (busy || !period) return;
+    if (!isStoredPeriod(period)) { notice('Η περίοδος ' + quoted(periodName(period)) + ' δεν έχει αποθηκευτεί ακόμη. Πάτησε πρώτα «Αποθήκευση».', true); return; }
+    const name = await schoolChoiceDialog({
+      title: BACKUP_TITLE, content: backupContent(period),
+      actions: [{label: 'Ακύρωση'}, {label: 'Αποθήκευση αντιγράφου…', accept: true, run: () => writeBackup(period.id)}]
+    });
+    if (name) notice('Το αντίγραφο ασφαλείας της περιόδου ' + quoted(periodName(savedPeriod(period.id) || period)) + ' αποθηκεύτηκε στο αρχείο ' + quoted(name) + '.');
+  }
+
+  // ---- Restore from a backup (SchoolTimetable.readPeriodBackup, analyzePeriodRestore, buildPeriodRestore) ----
+  // Only in the same school year. It does not start when a teacher or a τμήμα of the backup is no longer in the year.
+  // Subjects and Συνενώσεις missing from the catalog of the Ατομικά Προγράμματα are added, after a question. The
+  // restore goes into a new Προσχέδιο περιόδου, or into the period shown, whose programs and available hours of the
+  // Ολοήμερο it replaces (name, dates and status stay). Everything is saved with «Αποθήκευση».
+  const RESTORE_TITLE = 'Επαναφορά από αντίγραφο';
+  const dateTimeText = iso => { const date = new Date(iso); return Number.isNaN(date.getTime()) ? '' : D.format(localDay(iso)) + ' ' + String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0'); };
+  async function restoreBackup() {
+    if (busy || !context) return;
+    let file;
+    try { file = await schoolHost.request('school-programs:file', {action: 'backupOpen'}); }
+    catch (error) { if (error?.message !== 'Η επιλογή αρχείου ακυρώθηκε.') notice(error.message, true); return; }
+    if (!file) return;
+    const stop = async lines => { await schoolChoiceDialog({title: RESTORE_TITLE, content: lines, actions: [{label: 'Κλείσιμο', accept: true, value: true}]}); };
+    let backup;
+    try { backup = T.readPeriodBackup(file.text); }
+    catch (error) { await stop([quoted(file.name) + ': ' + error.message]); return; }
+    const analysis = T.analyzePeriodRestore(backup, {year: context.year, school: context.school?.name, staff: context.staff || [], classes: yearClasses(), catalog: currentCatalog()});
+    if (!analysis.ok) { await stop(['Η επαναφορά από το αρχείο ' + quoted(file.name) + ' δεν μπορεί να ξεκινήσει:', ...analysis.errors]); return; }
+    const source = backup.period, current = periodById(selectedId), full = draft.periods.length >= limits().periods;
+    const newName = (String(source.name || '').trim() || 'Περίοδος') + ' (επαναφορά ' + D.format(D.today()) + ')';
+    const content = [
+      'Αρχείο ' + quoted(file.name) + (dateTimeText(backup.createdAt) ? ', αντίγραφο της ' + dateTimeText(backup.createdAt) : '') + '.',
+      'Περίοδος ' + quoted(String(source.name || '').trim() || '—') + (rangeText(source) ? ' (' + rangeText(source) + ')' : '') + ' · ' + (isDraftPeriod(source) ? 'Προσχέδιο περιόδου' : 'Επίσημη') + '. Προγράμματα: ' + (analysis.programs.length ? analysis.programs.map(item => cardTitle(item.kind) + ' (' + activitiesText(item.activities) + ')').join(', ') : 'κανένα') + '.'
+    ];
+    content.push(...analysis.warnings.map(warningLine));
+    const addSubjects = analysis.addSubjects.map(item => quoted(item.name)), addUnions = analysis.addUnions.map(item => quoted(item.name));
+    const adds = addSubjects.length || addUnions.length;
+    const addsText = [addSubjects.length ? (addSubjects.length === 1 ? 'το μάθημα ' : 'τα μαθήματα ') + addSubjects.join(', ') : '', addUnions.length ? (addUnions.length === 1 ? 'η Συνένωση ' : 'οι Συνενώσεις ') + addUnions.join(', ') : ''].filter(Boolean).join(' και ');
+    if (adds) content.push('Από τον κατάλογο των Ατομικών Προγραμμάτων ' + (addSubjects.length + addUnions.length === 1 ? 'λείπει ' : 'λείπουν ') + addsText + '. Με τη συνέχεια ' + (addSubjects.length + addUnions.length === 1 ? 'προστίθεται' : 'προστίθενται') + ' στον κατάλογο.');
+    const where = document.createElement('fieldset');
+    where.className = 'sp-restore-target';
+    where.innerHTML = '<legend>Πού να γίνει η επαναφορά</legend>';
+    const option = (value, textValue, disabled, title) => {
+      const label = document.createElement('label'), radio = document.createElement('input');
+      radio.type = 'radio'; radio.name = 'sp-restore-target'; radio.value = value; radio.disabled = disabled;
+      label.append(radio, document.createTextNode(textValue));
+      if (disabled) { label.classList.add('disabled'); label.title = title; }
+      where.append(label);
+      return radio;
+    };
+    const asNew = option('new', 'Ως νέο Προσχέδιο περιόδου ' + quoted(newName) + ', με τις ημερομηνίες του αντιγράφου.', full, 'Ένα σχολικό έτος έχει έως ' + limits().periods + ' περιόδους.');
+    const inCurrent = current ? option('current', 'Στην περίοδο ' + quoted(periodName(current)) + ': αντικαθίστανται όλα τα προγράμματά της και οι διαθέσιμες ώρες Ολοημέρου· το όνομα, οι ημερομηνίες και η κατάστασή της μένουν.', false, '') : null;
+    (full ? inCurrent : asNew)?.click();
+    content.push(where);
+    const mode = await schoolChoiceDialog({
+      title: RESTORE_TITLE, content,
+      actions: [{label: 'Ακύρωση'}, {label: adds ? 'Προσθήκη στον κατάλογο και συνέχεια' : 'Επαναφορά', accept: true, run: () => {
+        const checked = where.querySelector('input:checked');
+        if (!checked) throw Error('Διάλεξε πού να γίνει η επαναφορά.');
+        return checked.value;
+      }}]
+    });
+    if (!mode) return;
+    let period;
+    if (mode === 'current') {
+      period = periodById(current.id);
+      if (!period || !await clearForRestore(period)) return;
+    } else {
+      if (draft.periods.length >= limits().periods) { notice('Ένα σχολικό έτος έχει έως ' + limits().periods + ' περιόδους.', true); return; }
+      period = {id: uid(), name: newName, from: D.valid(source.from) && D.inSchoolYear(source.from, context.year) ? source.from : '', to: '', status: 'draft'};
+      if (period.from && D.valid(source.to) && D.inSchoolYear(source.to, context.year) && source.to >= period.from) period.to = source.to;
+      draft.periods.push(period);
+    }
+    let result;
+    try { result = T.buildPeriodRestore(analysis, {periodId: period.id, catalog: currentCatalog(), classes: yearClasses(), fileName: file.name}); }
+    catch (error) { notice(error.message, true); if (mode !== 'current') draft.periods.splice(draft.periods.indexOf(period), 1); return; }
+    if (Object.keys(result.oloimeroHours).length) period.oloimeroHours = result.oloimeroHours;
+    else delete period.oloimeroHours;
+    draft.programs.push(...result.programs);
+    if (result.added.subjects.length || result.added.unions.length) catalogDraft = result.catalog;
+    selectedId = period.id;
+    mark(); renderBar(); renderBoard();
+    notice('Η περίοδος ' + quoted(String(source.name || '').trim() || '—') + ' του αντιγράφου επανήλθε ' + (mode === 'current' ? 'στην περίοδο ' + quoted(periodName(period)) : 'ως Προσχέδιο περιόδου ' + quoted(period.name)) +
+      ' (' + programsListText(result.programs) + ').' + (catalogDraft && adds ? ' Στον κατάλογο των Ατομικών Προγραμμάτων ' + (addSubjects.length + addUnions.length === 1 ? 'προστίθεται ' : 'προστίθενται ') + addsText + '.' : '') + ' Πάτησε «Αποθήκευση».');
+  }
+  // Before a restore into a period: its programs go (kept as drafts, or replaced fully). → true to go on.
+  async function clearForRestore(period) {
+    const programs = programsOf(period.id), stored = programs.filter(isStored), keepable = programs.filter(canKeep);
+    if (!programs.length) return true;
+    const noDrafts = unique(stored.filter(program => !hasDrafts(program.kind)).map(program => kindLabel(program.kind)));
+    const noDraftsNote = noDrafts.length ? ' Τα ' + noDrafts.join(', ') + ' δεν κρατιούνται ως προσχέδια: αντικαθίστανται.' : '';
+    const unsavedNote = stored.length < programs.length ? ' Όσα δεν έχουν αποθηκευτεί ακόμη αφαιρούνται.' : '';
+    const listText = (programs.length === 1 ? 'το πρόγραμμα: ' : programs.length + ' προγράμματα: ') + programs.map(programText).join(', ');
+    let keep = false;
+    if (keepable.length) {
+      const choice = await schoolChoiceDialog({
+        title: RESTORE_TITLE,
+        content: ['Η περίοδος ' + quoted(periodName(period)) + ' έχει ' + listText + '. Με την επαναφορά αντικαθίστανται όλα. Τι να γίνει με ' + (programs.length === 1 ? 'αυτό' : 'αυτά') + ';',
+          'Κάθε προσχέδιο ανήκει στην εφαρμογή του είδους του (π.χ. το Ολοήμερο στον Ολοήμερο Designer).' + noDraftsNote + unsavedNote],
+        choices: [{label: keepable.length > 1 ? 'Κράτησέ τα ως προσχέδια' : programs.length > 1 ? 'Κράτησε το ' + kindLabel(keepable[0].kind) + ' ως προσχέδιο' : 'Κράτησέ το ως προσχέδιο', value: 'draft'}, {label: 'Πλήρης αντικατάσταση', value: 'replace'}]
+      });
+      if (!choice) return false;
+      keep = choice === 'draft';
+    } else if (!await schoolConfirm('Η περίοδος ' + quoted(periodName(period)) + ' έχει ' + listText + '. Με την επαναφορά αντικαθίστανται όλα.' + noDraftsNote + unsavedNote + (stored.length ? ' Η διαγραφή γίνεται οριστική με την «Αποθήκευση».' : '') + ' Να συνεχίσω;', {title: RESTORE_TITLE, accept: 'Αντικατάσταση'})) return false;
+    const now = new Date().toISOString();
+    draft.programs = draft.programs.filter(program => {
+      if (program.periodId !== period.id) return true;
+      if (!keep || !canKeep(program)) return false;
+      program.name = draftName(program, period, 'αντικαταστάθηκε από αντίγραφο');
+      program.periodId = null; program.updatedAt = now;
+      return true;
+    });
+    return true;
+  }
+
   // ---- Removing a period ----
   // → true when the period was removed from the page.
   async function removePeriod(period) {
@@ -782,19 +1046,31 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
     const noDraftsNote = noDrafts.length ? ' Τα ' + noDrafts.join(', ') + ' δεν κρατιούνται ως προσχέδια: διαγράφονται μαζί με την περίοδο.' : '';
     const unsavedNote = stored.length < programs.length ? ' Όσα δεν έχουν αποθηκευτεί ακόμη αφαιρούνται.' : '';
     const listText = (programs.length === 1 ? 'το πρόγραμμα: ' : programs.length + ' προγράμματα: ') + programs.map(programText).join(', ');
+    // First, a backup to an external file of the period as it is stored (only a stored period with programs).
+    let backupName = '';
+    if (isStoredPeriod(period) && savedProgramsOf(period.id).length) {
+      const choice = await schoolChoiceDialog({
+        title: 'Διαγραφή περιόδου',
+        content: ['Πριν από τη διαγραφή, να αποθηκευτεί αντίγραφο ασφαλείας της περιόδου ' + quoted(periodName(savedPeriod(period.id))) + ' σε εξωτερικό αρχείο; Με αυτό η περίοδος μπορεί να επανέλθει αργότερα.', ...backupContent(period)],
+        actions: [{label: 'Ακύρωση'}, {label: 'Συνέχεια χωρίς αντίγραφο', value: 'skip'}, {label: 'Αντίγραφο και συνέχεια', accept: true, run: async () => ({file: await writeBackup(period.id)})}]
+      });
+      if (!choice) return false;
+      if (choice.file) backupName = choice.file;
+    }
+    const backupNote = backupName ? ' Το αντίγραφο ασφαλείας αποθηκεύτηκε στο αρχείο ' + quoted(backupName) + '.' : '';
     let mode = 'delete';
     if (!programs.length) {
-      if (!await schoolConfirm('Να διαγραφεί η περίοδος ' + quoted(name) + ';', {title: 'Διαγραφή περιόδου', accept: 'Διαγραφή'})) return false;
+      if (!await schoolConfirm('Να διαγραφεί η περίοδος ' + quoted(name) + ';' + backupNote, {title: 'Διαγραφή περιόδου', accept: 'Διαγραφή'})) return false;
     } else if (!stored.length) {
-      if (!await schoolConfirm('Η περίοδος ' + quoted(name) + ' έχει προγράμματα που δεν έχουν αποθηκευτεί (' + programs.map(programText).join(', ') + '). Θα αφαιρεθούν μαζί της. Να συνεχίσω;', {title: 'Διαγραφή περιόδου', accept: 'Διαγραφή'})) return false;
+      if (!await schoolConfirm('Η περίοδος ' + quoted(name) + ' έχει προγράμματα που δεν έχουν αποθηκευτεί (' + programs.map(programText).join(', ') + '). Θα αφαιρεθούν μαζί της.' + backupNote + ' Να συνεχίσω;', {title: 'Διαγραφή περιόδου', accept: 'Διαγραφή'})) return false;
     } else if (!keepable.length) {
-      if (!await schoolConfirm('Η περίοδος ' + quoted(name) + ' έχει ' + listText + '.' + noDraftsNote + unsavedNote + ' Η διαγραφή γίνεται οριστική με την «Αποθήκευση». Να συνεχίσω;', {title: 'Διαγραφή περιόδου', accept: 'Διαγραφή'})) return false;
+      if (!await schoolConfirm('Η περίοδος ' + quoted(name) + ' έχει ' + listText + '.' + noDraftsNote + unsavedNote + ' Η διαγραφή γίνεται οριστική με την «Αποθήκευση».' + backupNote + ' Να συνεχίσω;', {title: 'Διαγραφή περιόδου', accept: 'Διαγραφή'})) return false;
     } else {
       mode = await schoolChoiceDialog({
         title: 'Διαγραφή περιόδου',
         content: [
           'Η περίοδος ' + quoted(name) + ' έχει ' + listText + '. Τι να γίνει με ' + (programs.length === 1 ? 'αυτό' : 'αυτά') + ';',
-          'Κάθε προσχέδιο ανήκει στην εφαρμογή του είδους του (π.χ. το Ολοήμερο στον Ολοήμερο Designer).' + noDraftsNote + unsavedNote
+          'Κάθε προσχέδιο ανήκει στην εφαρμογή του είδους του (π.χ. το Ολοήμερο στον Ολοήμερο Designer).' + noDraftsNote + unsavedNote + backupNote
         ],
         choices: [{label: keepable.length > 1 ? 'Κράτησέ τα ως προσχέδια' : programs.length > 1 ? 'Κράτησε το ' + kindLabel(keepable[0].kind) + ' ως προσχέδιο' : 'Κράτησέ το ως προσχέδιο', value: 'draft'}, {label: programs.length === 1 ? 'Διάγραψέ το' : 'Διάγραψέ τα', value: 'delete'}]
       });
@@ -811,7 +1087,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
     draft.periods.splice(draft.periods.indexOf(period), 1);
     if (selectedId === period.id) selectedId = initialPeriod({});
     mark();
-    notice('Η περίοδος ' + quoted(name) + ' αφαιρέθηκε' + (mode === 'draft' && keepable.length ? (keepable.length === 1 && programs.length > 1 ? ' και το ' + kindLabel(keepable[0].kind) + ' θα κρατηθεί ως προσχέδιο' : ' και ' + (keepable.length === 1 ? 'το πρόγραμμά της θα κρατηθεί ως προσχέδιο' : 'τα προγράμματά της θα κρατηθούν ως προσχέδια')) : '') + '. Πάτησε «Αποθήκευση».');
+    notice('Η περίοδος ' + quoted(name) + ' αφαιρέθηκε' + (mode === 'draft' && keepable.length ? (keepable.length === 1 && programs.length > 1 ? ' και το ' + kindLabel(keepable[0].kind) + ' θα κρατηθεί ως προσχέδιο' : ' και ' + (keepable.length === 1 ? 'το πρόγραμμά της θα κρατηθεί ως προσχέδιο' : 'τα προγράμματά της θα κρατηθούν ως προσχέδια')) : '') + '. Πάτησε «Αποθήκευση».' + backupNote);
     return true;
   }
 
@@ -927,6 +1203,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
       }
       case 'setInitial': return 'Ορισμός ως Αρχική: η τρέχουσα κατάσταση έγινε η αρχική.';
       case 'restore': return 'Επαναφορά στην αρχική κατάσταση.';
+      case 'backupRestore': return 'Επαναφορά από αντίγραφο ασφαλείας' + (entry.file ? ' ' + quoted(entry.file) : '') + (entry.fromPeriod ? ', της περιόδου ' + quoted(entry.fromPeriod) : '') + (dateTimeText(entry.backupAt) ? ' (αντίγραφο της ' + dateTimeText(entry.backupAt) + ')' : '') + '.';
       case 'edit':
         if (kind === 'individual') return 'Αλλαγές στα ατομικά προγράμματα' + (people ? ': ' + people : '') + '.';
         return Number.isInteger(entry.activities) ? 'Αλλαγές στο ωρολόγιο (' + activitiesText(entry.activities) + ').' : 'Αλλαγές στο ωρολόγιο.';
@@ -1154,6 +1431,8 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
       // The new τμήματα of the imports go only together with programs (the host refuses them otherwise).
       const request = {revision: context.revision, year: context.year, ops, periods};
       if (added.length) request.newClasses = added;
+      // The subjects and Συνενώσεις of the restores, only together with programs (the host accepts only additions).
+      if (catalogDraft && ops.length) request.individualCatalog = catalogDraft;
       result = await schoolHost.request('school-timetables:save', request);
       verifySaved(result, periods, expectedDraftCounts, added);
       receive(result);

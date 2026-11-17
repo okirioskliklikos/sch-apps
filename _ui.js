@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.40
+ * Έκδοση αρχείου: 0.41
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -167,8 +167,10 @@
       const actions = document.createElement('div'); actions.className = 'school-confirm-actions';
       actions.append(...orderedActions(options.actions || [{label: 'Ακύρωση'}]).map(button));
       dialog.append(error, actions);
-      // Κάθε αλλαγή σε πεδίο του διαλόγου σβήνει το προηγούμενο μήνυμα λάθους.
-      dialog.addEventListener('change', () => { error.textContent = ''; });
+      // Κάθε αλλαγή σε πεδίο του διαλόγου σβήνει το προηγούμενο μήνυμα λάθους, όσο γράφει ο χρήστης (input) και όχι
+      // όταν φεύγει από το πεδίο (change): αλλιώς ένα κλικ σε κουμπί αμέσως μετά τη διόρθωση σβήνει το μήνυμα, το
+      // κουμπί ανεβαίνει και το κλικ χάνεται. Τα checkbox, τα radio και τα select στέλνουν κι αυτά input.
+      dialog.addEventListener('input', () => { error.textContent = ''; });
       dialog.addEventListener('cancel', event => { event.preventDefault(); if (!working && options.escape !== false) finish(null); });
       dialog.addEventListener('close', () => {
         dialog.remove();
@@ -1481,8 +1483,7 @@
         }},
         {label: 'Ακύρωση'}
       ],
-      ready: ({dialog}) => {
-        dialog.addEventListener('input', () => { const error = dialog.querySelector(':scope > .school-choice-error'); if (error) error.textContent = ''; });
+      ready: () => {
         (list.querySelector('input') || add).focus();
       }
     });

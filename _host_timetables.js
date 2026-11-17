@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Προγράμματα στο Κεντρικό Μενού (host)
- * Έκδοση αρχείου: 0.18
+ * Έκδοση αρχείου: 0.19
  * Όνομα κατά την εγκατάσταση: _host_timetables.js
  *
  * Κώδικας μόνο του host για τα προγράμματα (timetablesByYear). Το φορτώνει το index.html μετά το
@@ -11,6 +11,8 @@
  *   yearData(data, year)                    το timetablesByYear[year] ({periods, programs, individualCatalog})
  *   individualCatalog(data, year)           ο κατάλογος του έτους των Ατομικών Προγραμμάτων (μαθήματα, Συνενώσεις)
  *   validateCatalog(catalog, options)       έλεγχος του καταλόγου των Ατομικών Προγραμμάτων (πετά λάθος)
+ *   checkCatalogAdditions(before, after)    ο κατάλογος που στέλνουν τα Σχολικά Προγράμματα έχει μόνο προσθήκες στο
+ *                                           τέλος (επαναφορά από αντίγραφο ασφαλείας· πετά λάθος)
  *   context(data, app, revision)            το school-timetables:context για μια εφαρμογή
  *   validatePeriods(periods, year, options) έλεγχος της λίστας περιόδων: Επίσημες και Προσχέδια περιόδων, διαθέσιμες
  *                                           ώρες Ολοημέρου (πετά λάθος)
@@ -22,6 +24,8 @@
  *   applyStaffRemovals(data, year, before, after, removals)   αναφορές σε διαγραφή εκπαιδευτικού
  *   importFile(year, message, app)          αρχεία των εισαγωγέων (SchoolTimetable.kinds) για το
  *                                           school-programs:file, το school-fet:file και το school-oloimero:file
+ *   programsFile(year, message, app)        τα αρχεία των Σχολικών Προγραμμάτων (school-programs:file): εισαγωγή,
+ *                                           αποθήκευση και άνοιγμα αντιγράφου ασφαλείας περιόδου
  *   oloimeroFile(year, message, app)        τα αρχεία του Ολοήμερου Designer (school-oloimero:file): εισαγωγή,
  *                                           αρχείο FET για Μαθήματα και Τμήματα, εξαγωγή CSV για το FET
  *   droppedImportFile(year, kind, importer, file, handle)   αρχείο που αφέθηκε πάνω σε εφαρμογή· γίνεται
@@ -164,6 +168,19 @@
     }
     if (catalog.hidden != null && !(isObject(catalog.hidden) && (catalog.hidden.grades == null || grades(catalog.hidden.grades)) && (catalog.hidden.classes == null || ids(catalog.hidden.classes)))) fail('hidden');
     return {subjectIds, unionIds};
+  }
+  // «Σχολικά Προγράμματα» send the catalog only with additions (the subjects and the Συνενώσεις of a backup that the
+  // year does not have): every item that exists stays exactly the same and in its place, the new ones are at the end,
+  // and nothing else of the catalog changes. Throws an error otherwise.
+  function checkCatalogAdditions(before, after) {
+    const fail = () => { throw Error('Τα «' + PROGRAMS_TITLE + '» μπορούν μόνο να προσθέσουν μαθήματα και Συνενώσεις στον κατάλογο των Ατομικών Προγραμμάτων, όχι να αλλάξουν ή να σβήσουν όσα υπάρχουν. Φόρτωσε ξανά τα στοιχεία και ξαναδοκίμασε.'); };
+    if (!isObject(after)) fail();
+    const rest = value => { const {subjects, unions, ...others} = value; return stableJson({...others, hidden: isObject(value.hidden) ? value.hidden : {grades: [], classes: []}}); };
+    if (rest(before) !== rest(after)) fail();
+    for (const key of ['subjects', 'unions']) {
+      const old = Array.isArray(before[key]) ? before[key] : [], now = Array.isArray(after[key]) ? after[key] : [];
+      if (now.length < old.length || old.some((item, index) => stableJson(item) !== stableJson(now[index]))) fail();
+    }
   }
 
   // ---- Τελευταία επιλογή (lastViewByYear) ----
@@ -515,7 +532,13 @@
     if (message.newClasses != null) checkJson(message.newClasses, 'Τα νέα τμήματα');
     if (addsClasses && !ops.length) throw Error('Τα νέα τμήματα μιας εισαγωγής αποθηκεύονται μόνο μαζί με το πρόγραμμά τους.');
     const changesCatalog = message.individualCatalog !== undefined;
-    if (changesCatalog) {
+    if (changesCatalog && app === PROGRAMS_APP) {
+      // A restore from a backup: only additions to the catalog, and only together with programs.
+      checkJson(message.individualCatalog, 'Ο κατάλογος των Ατομικών Προγραμμάτων');
+      validateCatalog(message.individualCatalog);
+      checkCatalogAdditions(individualCatalog(data, year), message.individualCatalog);
+      if (!ops.length) throw Error('Οι προσθήκες στον κατάλογο των Ατομικών Προγραμμάτων αποθηκεύονται μόνο μαζί με τα προγράμματα της επαναφοράς.');
+    } else if (changesCatalog) {
       if (!T.kinds.individual?.owner || app !== T.kinds.individual.owner) throw Error('Ο κατάλογος των Ατομικών Προγραμμάτων αλλάζει μόνο από την εφαρμογή «' + (T.kinds.individual?.ownerTitle || 'Ατομικά Προγράμματα') + '».');
       checkJson(message.individualCatalog, 'Ο κατάλογος των Ατομικών Προγραμμάτων');
       validateCatalog(message.individualCatalog);
@@ -892,6 +915,29 @@
     return result;
   }
 
+  // The files of «Σχολικά Προγράμματα» (school-programs:file):
+  //   {action:'last'|'read'|'choose', kind, importer, file}  the file of an importer (importFile)
+  //   {action:'backupSave', suggestedName, text}            saves the backup of a period (JSON) → {name}; the picker
+  //                                                         starts in the folder of the last backup of the school year
+  //   {action:'backupOpen'}                                  a backup file chosen by the user → {name, text}
+  const BACKUP_FILE = {description: 'Αντίγραφο ασφαλείας περιόδου (Σχολικά Προγράμματα)', accept: {'application/json': ['.json']}};
+  async function programsFile(year, message, app) {
+    if (app !== undefined && app !== PROGRAMS_APP) throw Error('Τα αντίγραφα ασφαλείας περιόδων τα ζητά μόνο η εφαρμογή ' + quoted(PROGRAMS_TITLE) + '.');
+    const key = 'programs-backup:' + year;
+    if (message?.action === 'backupSave') {
+      if (typeof message.text !== 'string' || message.text.length > EXPORT_MAX_CHARS) throw Error('Τα δεδομένα του αντιγράφου ασφαλείας δεν είναι έγκυρα.');
+      const name = String(message.suggestedName || 'programs_backup.json').replace(/[\\/:*?"<>|]+/g, '_').slice(0, 200) || 'programs_backup.json';
+      const handle = await picker('save', {id: 'sp-backup', suggestedName: name, types: [BACKUP_FILE]}, await rememberedHandle(key));
+      const writer = await handle.createWritable();
+      try { await writer.write(new Blob([message.text], {type: 'application/json;charset=utf-8'})); await writer.close(); }
+      catch (error) { await writer.abort().catch(() => {}); throw error; }
+      await referenceStore('put', key, handle).catch(() => {});
+      return {name: handle.name};
+    }
+    if (message?.action === 'backupOpen') return rememberedFile('choose', {key, pickerId: 'sp-backup', ...BACKUP_FILE});
+    return importFile(year, message, app);
+  }
+
   // The files of the Ολοήμερο Designer (school-oloimero:file):
   //   {action:'last'|'read'|'choose', kind:'oloimero', importer, file}  the file of an importer (importFile)
   //   {action:'last'|'read'|'choose', reference:'fet'}                 a .fet file for the Μαθήματα and Τμήματα of
@@ -939,7 +985,7 @@
   // }
   // Αιτήματα αρχείων, ανά τύπο μηνύματος: η εφαρμογή που τα στέλνει και η συνάρτηση που τα εξυπηρετεί.
   const FILE_REQUESTS = {
-    'school-programs:file': {app: () => PROGRAMS_APP, run: importFile},
+    'school-programs:file': {app: () => PROGRAMS_APP, run: programsFile},
     'school-fet:file': {app: () => T.kinds.school.owner, run: importFile},
     'school-oloimero:file': {app: () => T.kinds.oloimero.owner, run: oloimeroFile}
   };
@@ -1037,8 +1083,8 @@
   }
 
   window.SchoolHostTimetables = Object.freeze({
-    PROGRAMS_APP, PROGRAMS_TITLE, LIMITS, WARN_RATIO, CATALOG_LIMITS, permissions, yearData, individualCatalog, validateCatalog, context,
+    PROGRAMS_APP, PROGRAMS_TITLE, LIMITS, WARN_RATIO, CATALOG_LIMITS, permissions, yearData, individualCatalog, validateCatalog, checkCatalogAdditions, context,
     validatePeriods, validateProgram, applySave, viewKey, lastView, withView, currentPeriod, periodViews, openTarget, ZOOM, zoom, withZoom,
-    staffUsage, applyStaffRemovals, importFile, oloimeroFile, droppedImportFile, rememberedFile, install
+    staffUsage, applyStaffRemovals, importFile, programsFile, oloimeroFile, droppedImportFile, rememberedFile, install
   });
 })();
