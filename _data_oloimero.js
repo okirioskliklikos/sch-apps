@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων: Ολοήμερο
- * Έκδοση αρχείου: 0.01
+ * Έκδοση αρχείου: 0.02
  * Όνομα κατά την εγκατάσταση: _data_oloimero.js
  *
  * Ο κοινός κώδικας δεδομένων είναι σε τέσσερα αρχεία, που φορτώνονται πάντα όλα, με αυτή τη σειρά, μετά το _ui.js
@@ -27,7 +27,7 @@
   const {BOM, parse, quote, compareKey, DAY_KEYS, DAY_LABELS, uid, clone, unique, nowIso, quoted, isObject,
     timedHours, GRADES, GRADE_LABELS, gradeKey, gradeName, isGeneralClass, classKey, sortClasses, classesById,
     classNameOf, classResolver, combineStudents, subsetParent, studentsParts, expandGrade, studentsText,
-    ensureHistory, addHistory, tagSets, tagsOf, isGeneralTeacher, sortStaff} = parts;
+    ensureHistory, addHistory, tagSets, tagsOf, isGeneralTeacher, sortStaff, sameKey, OLOIMERO_CATEGORIES} = parts;
 
   // ---- CSV του Ολοήμερου Designer ----
   // CSV του Ολοήμερου Designer → γραμμές σχεδίου. Οι γραμμές σχολίων («#») και η ενσωματωμένη
@@ -62,15 +62,7 @@
   // ετικέτες FET: μάθημα, μαθητές, εκπαιδευτικοί, ημέρες και ώρες έρχονται από το σχέδιο.
   const timeText = time => (DAY_LABELS[time.day - 1] || 'ημέρα ' + time.day) + ' ' + time.start + '–' + time.end;
   const byTime = (a, b) => a.day - b.day || (a.start < b.start ? -1 : a.start > b.start ? 1 : 0);
-  // «Ίδια» δραστηριότητα: ίδιο μάθημα, εκπαιδευτικοί, μαθητές, ημέρα και ώρες. Η αίθουσα δεν συγκρίνεται (το
-  // σχέδιο δεν έχει αίθουσες). Οι μαθητές συγκρίνονται με τα τμήματα και το κείμενο του studentsText, όχι με τα
-  // σκέτα subsets: η εισαγωγή από FET βάζει στα subsets και τα υποσύνολα των ολόκληρων τμημάτων, το σχέδιο όχι.
-  // Τα τμήματα συγκρίνονται με το id τους.
-  const sameKey = (activity, classes) => JSON.stringify([
-    String(activity.subject || '').trim(), [...(activity.staff || [])].sort(), [...(activity.unmatched || [])].sort(),
-    [...(activity.classes || [])].sort(), studentsText(activity, {classes}),
-    (activity.times || []).map(time => time.day + ' ' + time.start + '-' + time.end).sort()
-  ]);
+  // «Ίδια» δραστηριότητα: sameKey του _data_timetable.js (ίδιο μάθημα, εκπαιδευτικοί, μαθητές, ημέρα και ώρες).
 
   // Ανάλυση (δεν αλλάζει τίποτα).
   //   program: το ωρολόγιο· design: το σχέδιο του .data· options: {staff, classes, teachingHours, designName}
@@ -223,7 +215,7 @@
   // Οι εκπαιδευτικοί και το μάθημα κάθε δραστηριότητας διαβάζονται από τη δραστηριότητα (staff, unmatched,
   // subject), όχι από το source, ώστε να ισχύουν οι αλλαγές του host σε διαγραφή εκπαιδευτικού. Τα classes /
   // subsets / otherStudents της δραστηριότητας είναι οι μαθητές του κελιού, αναπτυγμένοι στην αποθήκευση.
-  const OLOIMERO_CATEGORIES = Object.freeze(['early', 'meal', 'afternoon', 'extended']);
+  // OLOIMERO_CATEGORIES (Πρωινή Ζώνη, Γεύμα, Ολοήμερο, Διευρυμένο): στο _data_timetable.js, για τη σύνθεση της περιόδου.
   const OLOIMERO_MAX_SLOTS = 20;
   const OLOIMERO_COLORS = Object.freeze({general: '#fff2a8', other: '#bfe3ff'});
   const OLOIMERO_STYLE_KEYS = Object.freeze(['teacher', 'subject', 'department', 'union']);
@@ -674,14 +666,14 @@
     });
   }
 
-  Object.assign(parts, {sameKey, OLOIMERO_CATEGORIES, OLOIMERO_MAX_SLOTS, oloimeroStudents});
+  Object.assign(parts, {OLOIMERO_MAX_SLOTS, oloimeroStudents});
 
   const timetable = window.SchoolTimetable;
   timetable.kinds.oloimero.importers.push(oloimeroImporter());
   Object.freeze(timetable.kinds.oloimero.importers);
   Object.freeze(Object.assign(timetable, {
     analyzeOloimeroReplace, applyOloimeroReplace,
-    OLOIMERO_CATEGORIES, OLOIMERO_MAX_SLOTS, oloimeroHours, oloimeroTeacherColor, oloimeroStudents,
+    OLOIMERO_MAX_SLOTS, oloimeroHours, oloimeroTeacherColor, oloimeroStudents,
     oloimeroRowsFromCsv, oloimeroRowsFromProgram, oloimeroCsvFromProgram, oloimeroCells, analyzeOloimeroImport, buildOloimeroProgram
   }));
   parts.loaded('_data_oloimero.js');
