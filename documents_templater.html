@@ -1,4 +1,4 @@
-<!doctype html><html lang="el" class="subapp-page"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Documents Templater v0.40</title><link rel="stylesheet" href="_ui.css">
+<!doctype html><html lang="el" class="subapp-page"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Documents Templater v0.41</title><link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <script src="_lib_jszip.min.js"></script>
 <style>
@@ -159,7 +159,7 @@
  .dt-table td.dt-col-help,.dt-table td.dt-col-example{grid-column:1 / -1}
  .dt-table td.dt-col-example:empty{display:none}
 }
-</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Documents Templater — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>DT</span></span><span class="brand-text"><span>Documents Templater</span><span class="small version">v0.40</span></span></button></h1></div><button id="reset" type="button" disabled>Αναίρεση Όλων</button><span class="sep" aria-hidden="true"></span><button id="openCatalog" type="button" title="Όλα τα πεδία από το κοινό αρχείο, για μεταφορά ή αντιγραφή στα πρότυπα">Πεδία…</button><div class="header-right"><button id="findFields" class="primary subapp-change-dot" type="button" disabled>Ανεύρεση πεδίων</button><button id="produce" class="success subapp-change-dot" type="button" disabled>Παραγωγή Εγγράφων</button></div></header>
+</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Documents Templater — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>DT</span></span><span class="brand-text"><span>Documents Templater</span><span class="small version">v0.41</span></span></button></h1></div><button id="reset" type="button" disabled>Αναίρεση Όλων</button><span class="sep" aria-hidden="true"></span><button id="openCatalog" type="button" title="Όλα τα πεδία από το κοινό αρχείο, για μεταφορά ή αντιγραφή στα πρότυπα">Πεδία…</button><div class="header-right"><button id="findFields" class="primary subapp-change-dot" type="button" disabled>Ανεύρεση πεδίων</button><button id="produce" class="success subapp-change-dot" type="button" disabled>Παραγωγή Εγγράφων</button></div></header>
 <main id="layout" class="subapp-wide-aside">
 <aside id="filesPane" aria-label="Στοιχεία σχολείου και αρχεία">
  <section id="schoolSection" class="side-section" aria-labelledby="schoolTitle" hidden>
@@ -187,6 +187,9 @@
 </section></main>
 <script src="_ui.js"></script>
 <script src="_data.js"></script>
+<script src="_data_timetable.js"></script>
+<script src="_data_oloimero.js"></script>
+<script src="_data_documents.js"></script>
 <script>
 // Pure template logic: placeholder discovery, CSV values and DOCX/XLSX filling. No DOM of the page.
 // Fields that start with «@» come from the shared file (SchoolDocumentFields in _data.js): they are kept apart from

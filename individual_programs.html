@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ατομικά Προγράμματα v0.5</title>
+<title>Ατομικά Προγράμματα v0.6</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -210,7 +210,7 @@ main.ip-single~.ip-summary{left:18px}
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ατομικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΑΠ</span></span><span class="brand-text"><span>Ατομικά Προγράμματα</span><span class="small version">v0.5</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ατομικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΑΠ</span></span><span class="brand-text"><span>Ατομικά Προγράμματα</span><span class="small version">v0.6</span></span></button></h1></div>
   <select id="period" aria-label="Περίοδος" disabled hidden></select>
   <span id="staffControl" class="ip-staff-control" hidden>
     <button id="staffButton" class="ip-staff-button" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="staffMenu" disabled>Εκπαιδευτικός</button>
@@ -274,6 +274,9 @@ main.ip-single~.ip-summary{left:18px}
 </div>
 <script src="_ui.js"></script>
 <script src="_data.js"></script>
+<script src="_data_timetable.js"></script>
+<script src="_data_oloimero.js"></script>
+<script src="_data_documents.js"></script>
 <script>
 (() => {
   'use strict';
