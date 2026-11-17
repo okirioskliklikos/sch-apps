@@ -12,7 +12,7 @@
   φτιάχνονται από το σύντομο όνομα των δασκάλων («[Α1] - …», classesFromStaff). Με το .data δοκιμής, οι
   έλεγχοι των νέων ετικετών (v2) παίρνουν το Προσωπικό από αυτό, γιατί το CSV του Ολοημέρου έχει τα σύντομα
   ονόματα του Προσωπικού.
-  Έκδοση αρχείου: 0.54
+  Έκδοση αρχείου: 0.55
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -1833,7 +1833,7 @@ function hostIndividualChecks() {
 function individualChecks() {
   start('Ατομικά Προγράμματα (_data.js)');
   const T = SchoolTimetable, classes = [...CLASS_LIST, ENTAXI];
-  equal('«Μάθημα της τάξης»: Τμήμα Ένταξης, Παράλληλη Στήριξη, ΕΒΠ', ['inclusion', 'parallel', 'ebp', 'classroom', 'specialty', 'zep', '', undefined].map(serviceType => T.individualClassSubject({serviceType})), [true, true, true, false, false, false, false, false]);
+  equal('«Μάθημα της τάξης»: Παράλληλη Στήριξη, ΕΒΠ (όχι Τμήμα Ένταξης)', ['inclusion', 'parallel', 'ebp', 'classroom', 'specialty', 'zep', '', undefined].map(serviceType => T.individualClassSubject({serviceType})), [false, true, true, false, false, false, false, false]);
   const empty = T.individualProgram('pa', {id: 'n1', now: '2026-11-16T08:00:00.000Z'});
   equal('Νέο πρόγραμμα περιόδου', empty, {id: 'n1', formatVersion: 2, kind: 'individual', periodId: 'pa', name: '', createdAt: '2026-11-16T08:00:00.000Z', updatedAt: '2026-11-16T08:00:00.000Z', activities: [], source: {type: 'individual', version: 1, placements: {}, pending: []}, history: []});
   const catalog = {subjects: [{id: 'sub-ent', name: 'Τμήμα Ένταξης', color: '#3b82f6'}, {id: 'sub-dio', name: ' Διοικητικό Έργο '}],

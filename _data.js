@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων
- * Έκδοση αρχείου: 0.42
+ * Έκδοση αρχείου: 0.43
  * Όνομα κατά την εγκατάσταση: _data.js
  *
  * Φορτώνεται από όσες υποεφαρμογές διαβάζουν ή γράφουν CSV, FET, ημερομηνίες ή προγράμματα, μετά
@@ -926,8 +926,9 @@
   // (timetablesByYear[year].individualCatalog = {subjects:[{id, name, color, hidden}], unions:[{id, name, grades,
   // classIds}], hidden:{grades, classes}}).
   // «Μάθημα της τάξης» (a cell with chips and no subject, subjectFromClasses:true) is offered only to the service
-  // types below: Ειδική Αγωγή – Τμήμα Ένταξης, Ειδική Αγωγή – Παράλληλη Στήριξη, ΕΒΠ.
-  const INDIVIDUAL_CLASS_SUBJECT_SERVICES = Object.freeze(['inclusion', 'parallel', 'ebp']);
+  // types below: Ειδική Αγωγή – Παράλληλη Στήριξη, ΕΒΠ. The teacher of the Τμήμα Ένταξης does not teach the subject
+  // of the student's class, so the subject is always declared (a cell with chips only is an incomplete cell).
+  const INDIVIDUAL_CLASS_SUBJECT_SERVICES = Object.freeze(['parallel', 'ebp']);
   const individualClassSubject = person => INDIVIDUAL_CLASS_SUBJECT_SERVICES.includes(person?.serviceType);
   // An empty individual program for a period. options: {id, now}.
   function individualProgram(periodId, options = {}) {
