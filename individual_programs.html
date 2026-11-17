@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ατομικά Προγράμματα v0.3</title>
+<title>Ατομικά Προγράμματα v0.4</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -19,6 +19,9 @@
   --ip-drop-bg:#eff8ff;--ip-drop-outline:#84adff;
   --ip-over:#d00000;--ip-ok:#0a8a20;
   --ip-highlight-bg:#e2f6e5;--ip-highlight-ring:#58a96a;--ip-copy-mark:#1769d2;--ip-flash:#f79009;
+  --ip-avail-ok-bg:#eaf3de;--ip-avail-ok-border:#97c459;
+  --ip-avail-off-bg:#fcebeb;--ip-avail-off-border:#f09595;--ip-avail-off-text:#a32d2d;
+  --ip-avail-weak-bg:#fef08a;--ip-avail-weak-border:#ca8a04;--ip-avail-weak-text:#713f12;
   --ip-floating-bottom:12px;--ip-scrollbar-lift:0px
 }
 /* Header: the lists give up width before anything wraps out of the page. */
@@ -73,6 +76,19 @@ aside .section-title{margin-top:18px}
 .ip-title small{font-size:14px;font-weight:400;color:var(--school-ui-muted);margin-left:8px}
 .ip-info{margin:0;font-size:13px;color:var(--school-ui-muted);line-height:1.5}
 .ip-info b{font-weight:650;color:var(--school-ui-label-text)}
+/* Board header: the hours filter stays left, availability right, aligned to the timetable's visible width. */
+.ip-head{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:10px 16px;max-width:100%}
+.ip-head-main{flex:1 1 300px;min-width:0}
+.ip-board-controls{display:flex;align-items:flex-end;margin-top:8px}
+.ip-control-group{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:0}
+.ip-control-title{margin:0;font-size:12px;line-height:1.3;font-weight:400;color:var(--school-ui-muted)}
+.ip-avail{--ip-avail-h:11px;display:grid;grid-template-columns:12px repeat(5,calc(var(--ip-avail-h) * 13 / 11));gap:2px 3px;align-items:center;flex:0 0 auto}
+.ip-avail-label{font-size:11px;line-height:11px;color:var(--school-ui-muted);text-align:center;text-box:trim-both cap alphabetic}
+.ip-cap-probe{display:inline-block;width:0;height:0;vertical-align:baseline}
+.ip-avail-cell{display:flex;align-items:center;justify-content:center;box-sizing:border-box;width:calc(var(--ip-avail-h) * 13 / 11);height:var(--ip-avail-h);border:1px solid var(--ip-avail-ok-border);border-radius:3px;background:var(--ip-avail-ok-bg)}
+.ip-avail-cell.off{border-color:var(--ip-avail-off-border);background:var(--ip-avail-off-bg);color:var(--ip-avail-off-text)}
+.ip-avail-cell.weak{border-color:var(--ip-avail-weak-border);background:var(--ip-avail-weak-bg);color:var(--ip-avail-weak-text)}
+.ip-avail-cell svg{display:block;width:calc(var(--ip-avail-h) * 7 / 11);height:calc(var(--ip-avail-h) * 7 / 11)}
 .ip-warnings .ui-validation-warning,.ip-warnings .ui-validation-error{font-size:13px}
 .ip-workspace .subapp-notice{margin:8px 0}
 .ip-workspace .subapp-notice:empty{display:none}
@@ -194,7 +210,7 @@ main.ip-single~.ip-summary{left:18px}
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ατομικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΑΠ</span></span><span class="brand-text"><span>Ατομικά Προγράμματα</span><span class="small version">v0.3</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ατομικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΑΠ</span></span><span class="brand-text"><span>Ατομικά Προγράμματα</span><span class="small version">v0.4</span></span></button></h1></div>
   <select id="period" aria-label="Περίοδος" disabled hidden></select>
   <span id="staffControl" class="ip-staff-control" hidden>
     <button id="staffButton" class="ip-staff-button" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="staffMenu" disabled>Εκπαιδευτικός</button>
@@ -310,6 +326,7 @@ main.ip-single~.ip-summary{left:18px}
   let busy = false, dirty = false;
   let hours = [], hoursError = '';
   let staffById = new Map();
+  let hourFilter = "morning", gridWidthObserver = null;
   let dragging = null;           // the item dragged from the sidebar: {type, id}
   let copied = {};               // staff id → their cells right after «Αντιγραφή από άλλη περίοδο» (not an «edit»)
   const highlights = new Set();  // 'type:id' of the sidebar items whose cells are highlighted
@@ -350,8 +367,10 @@ main.ip-single~.ip-summary{left:18px}
     catch (error) { hours = []; hoursError = error.message; }
   }
   const isMorning = hour => hour.category === 'morning';
+  const isAfternoon = hour => ['meal', 'afternoon', 'extended'].includes(hour.category);
+  const visibleHours = () => hours.filter(hour => hourFilter === 'all' || (hourFilter === 'morning' && isMorning(hour)) || (hourFilter === 'afternoon' && isAfternoon(hour)));
   const hourGroup = hour => hour.category === 'early' ? 0 : isMorning(hour) ? 1 : 2;
-  const boundaryBefore = (hour, index) => index > 0 && hourGroup(hours[index - 1]) !== hourGroup(hour);
+  const boundaryBefore = (hour, list) => { const index = list.indexOf(hour); return index > 0 && hourGroup(list[index - 1]) !== hourGroup(hour); };
   function hourIndexOf(time) {
     let index = hours.findIndex(hour => hour.start === time.start && hour.end === time.end);
     if (index < 0) index = hours.findIndex(hour => hour.start === time.start);
@@ -674,6 +693,7 @@ main.ip-single~.ip-summary{left:18px}
     renderPeriods();
     renderStaffButton();
     const work = $('workspace'), side = $('side'), root = $('root');
+    if (gridWidthObserver) { gridWidthObserver.disconnect(); gridWidthObserver = null; }
     const ready = !hoursError && !!periodId && !!staffById.get(staffId);
     side.hidden = !ready || readOnly(); root.classList.toggle('ip-single', side.hidden);
     const empty = textValue => { work.innerHTML = `<div class="subapp-empty subapp-empty-stack ip-empty"><p>${textValue}</p></div>`; };
@@ -755,21 +775,87 @@ main.ip-single~.ip-summary{left:18px}
       return entries.length > 1 || schoolAt(staffId, day, hours[h]).length || (!isMorning(hours[h]) && entries.length);
     }).length;
     if (conflicts) notes.push(['error', conflicts === 1 ? '1 κελί έχει λάθος (σημειώνεται με κόκκινο).' : conflicts + ' κελιά έχουν λάθος (σημειώνονται με κόκκινο).']);
-    work.innerHTML = `<h2 class="ip-title">${esc(personName(person))}${person?.name && person.name !== person.shortName ? `<small>${esc(person.name)}</small>` : ''}</h2>
-      <p class="ip-info"><b>Περίοδος:</b> ${esc(period?.name || '')} (${esc(period ? periodText(period) : '')})</p>
-      <div class="ip-warnings">${notes.map(([kind, textValue]) => `<p class="ui-validation-${kind}">${esc(textValue)}</p>`).join('')}</div>
+    work.innerHTML = `<div id="head" class="ip-head">
+        <div class="ip-head-main">
+          <h2 class="ip-title"><span id="capProbe" class="ip-cap-probe" aria-hidden="true"></span>${esc(personName(person))}${person?.name && person.name !== person.shortName ? `<small>${esc(person.name)}</small>` : ''}</h2>
+          <p class="ip-info"><b>Περίοδος:</b> ${esc(period ? periodText(period) : '')}</p>
+          <div class="ip-warnings">${notes.map(([kind, textValue]) => `<p class="ui-validation-${kind}">${esc(textValue)}</p>`).join('')}</div>
+          <div class="ip-board-controls">
+            <div class="ip-control-group">
+              <label for="hourFilter" class="ip-control-title">Ώρες</label>
+              <select id="hourFilter"><option value="all">Όλες</option><option value="morning">Πρωινό</option><option value="afternoon">Ολοήμερο</option></select>
+            </div>
+          </div>
+        </div>
+        <div id="availability" class="ip-avail" role="img" hidden></div>
+      </div>
       <p id="notice" class="subapp-notice" role="status"></p>
       <div id="gridWrap" class="ip-grid-wrap"></div>`;
+    $('hourFilter').value = hourFilter;
+    $('hourFilter').onchange = () => {
+      hourFilter = $('hourFilter').value;
+      renderGrid(slots);
+      $('hourFilter').focus();
+    };
+    renderAvailability();
     renderGrid(slots);
   }
+  // Same FET unavailable-time matrix as the FET Timetable Editor: morning periods and weekdays.
+  function renderAvailability() {
+    const box = $('availability'), morning = hours.filter(isMorning), school = schoolOf(periodId);
+    box.hidden = !staffId || !morning.length;
+    if (box.hidden) { box.replaceChildren(); return; }
+    const source = school?.source;
+    const names = source?.type === 'fet' ? (source.teachers || []).filter(item => item.staffId === staffId).map(item => item.name) : [];
+    const off = source?.type === 'fet' ? (source.unavailable || []).filter(item => names.includes(item.teacher)) : [];
+    const cells = [el('span')], summary = [];
+    for (const day of DAYS) cells.push(el('span', 'ip-avail-label', dayLabel(day).charAt(0)));
+    morning.forEach((hour, row) => {
+      cells.push(el('span', 'ip-avail-label', String(row + 1)));
+      for (const day of DAYS) {
+        const hits = off.filter(item => Number(item.day) === day && item.start < hour.end && hour.start < item.end);
+        const weights = hits.map(item => item.weight === '' || item.weight == null ? 100 : Number(item.weight));
+        const state = !hits.length ? '' : weights.some(weight => !(weight < 100)) ? 'off' : 'weak';
+        const cell = el('span', 'ip-avail-cell' + (state ? ' ' + state : ''));
+        const where = dayLabel(day) + ', ' + (row + 1) + 'η ώρα (' + hour.start + '–' + hour.end + ')';
+        const what = !state ? 'διαθέσιμος' : state === 'off' ? 'μη διαθέσιμος' : 'μη διαθέσιμος (βάρος ' + Math.max(...weights) + '%)';
+        cell.title = where + ': ' + what;
+        if (state) { cell.innerHTML = schoolIcon('close'); summary.push(where + (state === 'weak' ? ' (βάρος ' + Math.max(...weights) + '%)' : '')); }
+        cells.push(cell);
+      }
+    });
+    box.replaceChildren(...cells);
+    box.setAttribute('aria-label', 'Διαθεσιμότητα στο FET: ' + (summary.length ? 'μη διαθέσιμος ' + summary.join('· ') : 'διαθέσιμος όλες τις ώρες του πρωινού') + '.');
+  }
+
+  function alignAvailability() {
+    const box = $('availability'), probe = $('capProbe'), select = $('hourFilter');
+    if (!box || box.hidden || !probe || !select) return;
+    box.style.removeProperty('--ip-avail-h');
+    box.style.marginTop = '';
+    const main = box.parentElement.querySelector('.ip-head-main');
+    if (box.getBoundingClientRect().top >= main.getBoundingClientRect().bottom) return;
+    const title = probe.parentElement, font = getComputedStyle(title);
+    const ctx = (alignAvailability.canvas ||= document.createElement('canvas')).getContext('2d');
+    ctx.font = font.fontWeight + ' ' + font.fontSize + ' ' + font.fontFamily;
+    const capTop = probe.getBoundingClientRect().top - ctx.measureText('Ε').actualBoundingBoxAscent;
+    box.style.marginTop = Math.max(0, capTop - box.getBoundingClientRect().top) + 'px';
+    if ($('warnings')?.children.length) return;
+    const rows = box.querySelectorAll('.ip-avail-cell').length / 5, label = box.querySelector('.ip-avail-label');
+    const gap = parseFloat(getComputedStyle(box).rowGap) || 0;
+    const height = (select.getBoundingClientRect().bottom - capTop - label.getBoundingClientRect().height - gap * rows) / rows;
+    if (height > 11) box.style.setProperty('--ip-avail-h', height + 'px');
+  }
+
   function renderGrid(slots) {
     const table = el('table', 'ip-grid'), head = el('thead'), headRow = el('tr');
     headRow.append(el('th', 'ip-hour', 'Ώρα'), ...DAYS.map(day => el('th', '', dayLabel(day))));
     head.append(headRow);
     const body = el('tbody');
-    hours.forEach((hour, h) => {
-      const row = el('tr');
-      if (boundaryBefore(hour, h)) row.className = 'ip-boundary';
+    const visible = visibleHours();
+    visible.forEach(hour => {
+      const h = hour.index, row = el('tr');
+      if (boundaryBefore(hour, visible)) row.className = 'ip-boundary';
       // The interval of the hour, as in the FET Timetable Editor, without numbering.
       row.append(el('th', 'ip-hour', hour.start + '-' + hour.end));
       for (const day of DAYS) row.append(cellFor(day, hour, slots.get(slotKey(day, h)) || []));
@@ -778,6 +864,20 @@ main.ip-single~.ip-summary{left:18px}
     table.append(head, body);
     $('gridWrap').replaceChildren(table);
     applyZoom();
+    if (gridWidthObserver) gridWidthObserver.disconnect();
+    const headBox = $('head'), wrap = $('gridWrap');
+    const matchGridWidth = () => {
+      if (!headBox?.isConnected || !table.isConnected) return;
+      headBox.style.width = Math.min(table.getBoundingClientRect().width, wrap.clientWidth) + 'px';
+      alignAvailability();
+    };
+    matchGridWidth();
+    if ('ResizeObserver' in window) {
+      gridWidthObserver = new ResizeObserver(matchGridWidth);
+      gridWidthObserver.observe(table);
+      gridWidthObserver.observe(wrap);
+    }
+    document.fonts?.ready.then(() => { if (table.isConnected) alignAvailability(); });
   }
   function cellFor(day, hour, entries) {
     const td = el('td', 'ip-slot');
