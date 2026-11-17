@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>FET Timetable Editor v1.13</title>
+<title>FET Timetable Editor v1.14</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -46,8 +46,9 @@ aside{display:flex;flex-direction:column;gap:0}
 .ft-toolbar{margin-bottom:10px}
 .ft-title{margin:0 0 2px;font-size:18px;font-weight:850;line-height:1.3}
 .ft-title small{font-size:14px;font-weight:400;color:var(--school-ui-muted);margin-left:8px}
-/* Under the title only the period; right under it, when it applies, the warning that the Ολοήμερο design changed
-   (a link-like button that opens «Εισαγωγή Ολοημέρου»), then the assignment note and the warnings of the timetable.
+/* Under the title only the period; right under it, when it applies, the warning that the σχέδιο Ολοημέρου of the period
+   differs from the timetable (a link-like button that opens «Εισαγωγή Ολοημέρου» when the design of the last import
+   changed after it), then the assignment note and the warnings of the timetable.
    Files, imports and changes are in «Ιστορικό…» of «Περίοδοι Προγραμμάτων».
    The strip ends at the visible right edge of the timetable, never past the workspace. */
 .ft-source-info{margin:0 0 4px;max-width:100%}
@@ -164,7 +165,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="FET Timetable Editor — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>FT</span></span><span class="brand-text"><span>FET Timetable Editor</span><span class="small version">v1.13</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="FET Timetable Editor — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>FT</span></span><span class="brand-text"><span>FET Timetable Editor</span><span class="small version">v1.14</span></span></button></h1></div>
   <select id="period" aria-label="Περίοδος" disabled hidden></select>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <span class="sep" aria-hidden="true"></span>
@@ -209,7 +210,10 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
 (() => {
   'use strict';
   // The timetable of a period comes from the shared file (school-timetables:*), through schoolHost (_ui.js).
-  // Hours, classes, homeroom teachers, conflicts, availability and the Εισαγωγή Ολοημέρου: SchoolTimetable (_data.js).
+  // Hours, classes, homeroom teachers, conflicts, availability and the Εισαγωγή Ολοημέρου: SchoolTimetable (_data*.js).
+  // Hours, conflicts, subjects and availability come from the composition of the period (SchoolTimetable.composePeriod),
+  // with the timetable of the page in place of the stored one: in the zones of the Ολοήμερο the σχέδιο of the period
+  // counts, and the Ατομικά Προγράμματα count too.
   // Τμήματα: those of «Τμήματα» (classes of school-timetables:context, SchoolClasses). Activities refer to them by
   // id, and the page always shows the name from «Τμήματα».
   // Every change happens in the page; «Αποθήκευση» writes the program of the period (put), all or nothing.
@@ -308,12 +312,30 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
         .filter(entry => entry.h >= 0 && entry.day >= 1 && entry.day <= 5).sort((a, b) => a.day - b.day || a.h - b.h);
       return {id: activity.id, activity, entries, keys: teacherKeys(activity), outside: entries.length < (activity.times || []).length};
     });
-    const conflictIds = new Set();
-    if (program) for (const item of T.conflicts(program)) { conflictIds.add(item.a.id); conflictIds.add(item.b.id); }
+    // Conflicts: those of the composition that touch an activity of this timetable (also with the Ατομικά).
+    const composition = composeWith(program), conflictIds = new Set();
+    for (const item of composition?.conflicts || []) for (const entry of [item.a, item.b]) if (entry.kind === 'school') conflictIds.add(entry.activity.id);
     const homeroom = new Map();
-    cache = {list, byId: new Map(list.map(item => [item.id, item])), conflictIds, homeroom};
+    cache = {list, byId: new Map(list.map(item => [item.id, item])), conflictIds, homeroom, composition};
     return cache;
   }
+  // The composition of the period (T.composePeriod) with prog in place of the stored timetable. The design of the
+  // period: designOverride when given (null: none), otherwise the draft that «Αποθήκευση» assigns (assign), otherwise
+  // the stored one. null without Ώρες Διδασκαλίας.
+  function composeWith(prog, designOverride) {
+    if (!context || hoursError || periodId == null) return null;
+    const design = designOverride !== undefined ? designOverride : assign ? oloimeroOf(assign.draftId) : undefined;
+    const list = [];
+    if (prog) list.push(prog.periodId === periodId ? prog : {...prog, periodId});
+    if (design) list.push({...design, periodId});
+    for (const item of context.programs || []) {
+      if (item.periodId !== periodId || item.kind === 'school' || (item.kind === 'oloimero' && design !== undefined)) continue;
+      list.push(item);
+    }
+    try { return T.composePeriod({periodId, programs: list, staff: context.staff, classes: yearClasses(), teachingHours: context.teachingHours}); }
+    catch { return null; }
+  }
+  const composition = () => index().composition;
   const invalidate = () => { cache = null; };
   // The homeroom teacher of a τμήμα (id) within the program («Υπεύθυνος τμήματος μέσα σε πρόγραμμα»): the
   // homeroomStaffId of «Τμήματα» if it appears in the program; otherwise, for a τμήμα Γενικής Παιδείας, the teacher
@@ -340,16 +362,14 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
   // The students of an activity: the shared text of SchoolTimetable, with the names of «Τμήματα».
   const studentsLabel = activity => T.studentsText(activity, {classes: yearClasses()});
 
-  // Programs of the period that count in the hours: this timetable and the other kinds of the period.
-  const countedPrograms = () => [program, ...(context?.programs || []).filter(item => item.periodId === periodId && item.kind !== 'school' && T.countsInHours(item.kind))].filter(Boolean);
-  // The subject of an activity, always through the shared SchoolTimetable.activitySubject (the «μάθημα της τάξης»
-  // of the Ατομικά Προγράμματα comes from this timetable).
-  const subjectOf = activity => T.activitySubject(activity, {programs: countedPrograms(), classes: yearClasses()});
-  function hoursOf(key) {
-    if (key.startsWith('id:')) return T.staffHours(countedPrograms()).get(key.slice(3)) || 0;
-    const name = key.slice(5);
-    return (program?.activities || []).filter(activity => (activity.unmatched || []).includes(name)).reduce((sum, activity) => sum + (activity.times || []).length, 0);
-  }
+  // The subject of an activity, always through the shared SchoolTimetable.activitySubject, with the composition of
+  // the period (the «μάθημα της τάξης» of the Ατομικά Προγράμματα).
+  const subjectIn = (comp, activity) => T.activitySubject(activity, {composition: comp, classes: yearClasses()});
+  const subjectOf = activity => subjectIn(composition(), activity);
+  // Hours of a teacher in the composition (all sources of the period).
+  const hoursIn = (comp, key) => key.startsWith('id:') ? comp?.hours.get(key.slice(3))?.total || 0 : comp?.unmatchedHours.get(key.slice(5)) || 0;
+  const hoursOf = key => hoursIn(composition(), key);
+  const whoOf = key => key.startsWith('id:') ? {staffId: key.slice(3)} : {name: key.slice(5)};
   const targetOf = key => { const value = personOf(key)?.schoolHours; return value === '' || value == null ? '—' : String(value); };
 
   // Not-available times of the FET file, for a teacher key.
@@ -398,6 +418,11 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
       const classes = T.studentsClash(item.activity, other.activity);
       if (teachers.length || classes.length) conflicts.push({teachers, classes});
     }
+    // An hour of the same teacher in the Ατομικά Προγράμματα of the period (never a conflict on students: support).
+    const comp = composition();
+    for (const key of item.keys) {
+      if (probe.some(slot => T.compositionAt(comp, whoOf(key), slot, {kinds: ['individual']}).length)) conflicts.push({teachers: [key], classes: [], individual: true});
+    }
     const unavailable = [];
     for (const key of item.keys) for (const slot of probe) {
       if (unavailableOf(key).some(time => time.day === slot.day && slot.start < time.end && time.start < slot.end)) unavailable.push({key, day: slot.day, hour: slot.name});
@@ -440,7 +465,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     return {allowed: true, warning: modeSafe() && result.results.some(item => item.unavailable.length)};
   }
   const conflictText = conflict => [
-    conflict.teachers.length ? 'εκπαιδευτικός: ' + conflict.teachers.map(shortOf).join(', ') : '',
+    conflict.teachers.length ? 'εκπαιδευτικός: ' + conflict.teachers.map(shortOf).join(', ') + (conflict.individual ? ', ώρα του στα Ατομικά Προγράμματα' : '') : '',
     conflict.classes.length ? 'τμήμα: ' + conflict.classes.map(className).join(', ') : ''
   ].filter(Boolean).join(' · ');
   // What the user sees of an activity at some times: subject, teachers, students, room, day and hours.
@@ -713,16 +738,17 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
       line.append(span);
       parts.push(line);
     }
-    // The design of the last Εισαγωγή Ολοημέρου changed after it: a click opens «Εισαγωγή Ολοημέρου» with that
-    // design chosen. Deleted: only the text.
-    const designChange = oloimeroChange();
-    if (designChange) {
-      const line = el('div', 'ft-design-change');
-      const textHtml = schoolIconText('warning', designChange.text);
-      if (designChange.designId) {
+    // The σχέδιο Ολοημέρου of the period differs from the timetable in the zones of the Ολοήμερο (the composition):
+    // how many hours differ, and that the σχέδιο counts. When the design of the last Εισαγωγή Ολοημέρου changed after
+    // it, a click opens «Εισαγωγή Ολοημέρου» with that design chosen.
+    const diff = (composition()?.issues || []).find(issue => issue.code === 'oloimeroDiff');
+    if (diff) {
+      const line = el('div', 'ft-design-change'), designChange = oloimeroChange();
+      const textHtml = schoolIconText('warning', diff.message);
+      if (designChange?.designId) {
         const button = el('button', 'ui-link-button');
         button.type = 'button'; button.innerHTML = textHtml;
-        button.title = 'Άνοιγμα της Εισαγωγής Ολοημέρου με αυτό το σχέδιο';
+        button.title = designChange.text + ' Άνοιγμα της Εισαγωγής Ολοημέρου με αυτό το σχέδιο.';
         button.onclick = () => importOloimero(designChange.designId);
         line.append(button);
       } else line.innerHTML = textHtml;
@@ -1026,12 +1052,16 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
   // What the import causes in the timetable, compared with it now: new conflicts, new times where a teacher is
   // not available in FET, and teachers whose hours go above «Ωράριο στο σχολείο». What existed before is left out.
   // The activities of the import get new ids, so a conflict is compared by who, when and the two subjects.
-  function updateEffects(before, after) {
-    const conflictKey = item => [item.type, item.who, item.day, item.start, ...[subjectOf(item.a), subjectOf(item.b)].sort()].join('|');
-    const had = new Set(T.conflicts(before).map(conflictKey));
+  // Both are compared through the composition of the period: before as it is now, after with the new timetable and
+  // design (the chosen design as the design of the period).
+  function updateEffects(before, after, design) {
+    const was = composeWith(before), will = composeWith(after, design || null);
+    const subjects = (comp, item) => [subjectIn(comp, item.a.activity), subjectIn(comp, item.b.activity)];
+    const conflictKey = (comp, item) => [item.type, item.who, item.day, item.start, ...subjects(comp, item).sort()].join('|');
+    const had = new Set((was?.conflicts || []).map(item => conflictKey(was, item)));
     const whoText = item => item.type === 'class' ? 'τμήμα ' + className(item.who) : (item.type === 'staff' ? shortOf(keyOfId(item.who)) : item.who);
-    const conflicts = unique(T.conflicts(after).filter(item => !had.has(conflictKey(item)))
-      .map(item => whoText(item) + ': ' + dayLabel(item.day) + ' ' + item.start + ' — ' + (subjectOf(item.a) || '—') + ' / ' + (subjectOf(item.b) || '—')));
+    const conflicts = unique((will?.conflicts || []).filter(item => !had.has(conflictKey(will, item)))
+      .map(item => { const [a, b] = subjects(will, item); return whoText(item) + ': ' + dayLabel(item.day) + ' ' + item.start + ' — ' + (a || '—') + ' / ' + (b || '—'); }));
     const offTimes = prog => {
       const result = new Set(), source = prog.source || {};
       const namesOf = key => key.startsWith('id:') ? (source.teachers || []).filter(teacher => teacher.staffId === key.slice(3)).map(teacher => teacher.name) : [key.slice(5)];
@@ -1044,12 +1074,10 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
       return result;
     };
     const offBefore = offTimes(before), unavailable = [...offTimes(after)].filter(item => !offBefore.has(item));
-    const others = countedPrograms().filter(item => item !== program);
-    const hoursBefore = T.staffHours([before, ...others]), hoursAfter = T.staffHours([after, ...others]);
     const overHours = [];
-    for (const [id, value] of hoursAfter) {
-      const target = Number(staffById.get(id)?.schoolHours);
-      if (!Number.isFinite(target) || staffById.get(id)?.schoolHours === '' || value <= target || value <= (hoursBefore.get(id) || 0)) continue;
+    for (const [id, item] of will?.hours || []) {
+      const value = item.total, target = Number(staffById.get(id)?.schoolHours);
+      if (!Number.isFinite(target) || staffById.get(id)?.schoolHours === '' || value <= target || value <= (was?.hours.get(id)?.total || 0)) continue;
       overHours.push(shortOf(keyOfId(id)) + ': ' + value + ' ώρες στο πρόγραμμα, ωράριο στο σχολείο ' + target);
     }
     return {conflicts, unavailable, overHours};
@@ -1141,7 +1169,7 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
       return;
     }
     const updated = T.applyOloimeroReplace(program, analysis, {designId: design.id});
-    const effects = updateEffects(program, updated);
+    const effects = updateEffects(program, updated, design);
     const problems = effects.conflicts.length + effects.unavailable.length + effects.overHours.length;
     const confirmContent = [el('p', '', 'Σύγκριση με το σχέδιο ' + quoted(analysis.designName) + ': ' + (kept === 1 ? '1 δραστηριότητα Ολοημέρου του ωρολογίου μένει ίδια' : kept + ' δραστηριότητες Ολοημέρου του ωρολογίου μένουν ίδιες') + '· ' +
       (removed === 1 ? 'αφαιρείται' : 'αφαιρούνται') + ' ' + activities(removed) + ' και ' + (added === 1 ? 'μπαίνει' : 'μπαίνουν') + ' ' + activities(added) + ' του σχεδίου. Οι αλλαγές αποθηκεύονται με την «Αποθήκευση».')];
@@ -1303,14 +1331,15 @@ table.ft-grid{border-collapse:separate;border-spacing:0;background:var(--school-
     const date = dateField();
     void schoolChoiceDialog({
       title: 'Εκτύπωση διαθέσιμων εκπαιδευτικών', className: 'ft-print-dialog',
-      content: ['Ο πίνακας δείχνει, για κάθε ώρα του πρωινού, ποιοι εκπαιδευτικοί είναι στο σχολείο χωρίς δραστηριότητα: 6 ώρες παραμονής από την άφιξη (15 λεπτά πριν από την πρώτη ζώνη τους), με τα προγράμματα της περιόδου που μετρούν και τις μη διαθεσιμότητες του FET. Η διευθύντρια ή ο διευθυντής δεν περιλαμβάνεται.', date.field],
+      content: ['Ο πίνακας δείχνει, για κάθε ώρα του πρωινού, ποιοι εκπαιδευτικοί είναι στο σχολείο χωρίς δραστηριότητα: 6 ώρες παραμονής από την άφιξη (15 λεπτά πριν από την πρώτη ζώνη τους), με τη σύνθεση της περιόδου (Ωρολόγιο, σχέδιο Ολοημέρου και Ατομικά Προγράμματα) και τις μη διαθεσιμότητες του FET. Η διευθύντρια ή ο διευθυντής δεν περιλαμβάνεται.', date.field],
       actions: [{label: 'Ακύρωση'}, {label: 'Εκτύπωση', accept: true, run: () => {
-        const effective = date.value(), programs = countedPrograms();
-        const ids = unique(programs.flatMap(item => (item.activities || []).flatMap(activity => activity.staff || [])));
+        const effective = date.value(), comp = composition();
+        if (!comp) throw Error('Η σύνθεση της περιόδου δεν γίνεται: έλεγξε τις Ώρες Διδασκαλίας.');
+        const ids = unique(comp.entries.flatMap(entry => entry.activity.staff || []));
         const people = ids.map(id => staffById.get(id)).filter(Boolean).sort((a, b) => byText(a.name || a.shortName, b.name || b.shortName));
         const morning = hours.filter(isMorning), free = new Map(), notes = new Map();
         for (const person of people) for (const day of DAYS) {
-          const result = T.availability({programs, person, day, teachingHours: context.teachingHours});
+          const result = T.availability({composition: comp, person, day});
           if (!result) continue;
           if (result.earlyAndAfternoon) notes.set(person.id, [...(notes.get(person.id) || []), dayLabel(day)]);
           for (const slot of result.hours) if (slot.status === 'free') {

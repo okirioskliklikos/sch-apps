@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ατομικά Προγράμματα v0.6</title>
+<title>Ατομικά Προγράμματα v0.7</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -111,7 +111,8 @@ table.ip-grid{--ip-zoom:1;cursor:default;user-select:none;border-collapse:separa
 .ip-grid td.ip-slot.ip-highlight{background:var(--ip-highlight-bg)}
 .ip-grid td.ip-slot.dragover{outline:3px solid var(--ip-drop-outline);outline-offset:-3px;background:var(--ip-drop-bg)}
 .ip-grid td.ip-slot.ip-flash{outline:3px solid var(--ip-flash);outline-offset:-3px}
-/* An hour of the teacher in the Ωρολόγιο: grey and locked, with its subject and students. */
+/* An hour of the teacher in the Ωρολόγιο or the σχέδιο Ολοημέρου of the period: grey and locked, with its subject
+   and students. */
 .ip-school{color:var(--ip-locked-text);font-size:12px;line-height:1.25;text-align:center;overflow-wrap:anywhere}
 .ip-school+.ip-school,.ip-school+.ip-entry,.ip-entry+.ip-entry{margin-top:6px}
 .ip-school-subject{font-weight:750;font-size:13px}
@@ -210,7 +211,7 @@ main.ip-single~.ip-summary{left:18px}
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ατομικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΑΠ</span></span><span class="brand-text"><span>Ατομικά Προγράμματα</span><span class="small version">v0.6</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ατομικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΑΠ</span></span><span class="brand-text"><span>Ατομικά Προγράμματα</span><span class="small version">v0.7</span></span></button></h1></div>
   <select id="period" aria-label="Περίοδος" disabled hidden></select>
   <span id="staffControl" class="ip-staff-control" hidden>
     <button id="staffButton" class="ip-staff-button" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="staffMenu" disabled>Εκπαιδευτικός</button>
@@ -263,6 +264,7 @@ main.ip-single~.ip-summary{left:18px}
 </main>
 <div id="summary" class="ip-summary" aria-label="Σύνοψη ωρών" aria-live="polite" hidden>
   <div class="ip-summary-row"><span class="ip-summary-label">Ωρολόγιο:</span><span id="sumSchool" class="ip-summary-value">0</span></div>
+  <div id="sumOloimeroRow" class="ip-summary-row" hidden><span class="ip-summary-label">Ολοήμερο:</span><span id="sumOloimero" class="ip-summary-value">0</span></div>
   <div class="ip-summary-row"><span class="ip-summary-label">Ατομικό:</span><span id="sumOwn" class="ip-summary-value">0</span></div>
   <div id="sumTotalRow" class="ip-summary-row ip-total"><span class="ip-summary-label">Σύνολο:</span><span id="sumTotal" class="ip-summary-value">0</span></div>
   <div id="sumPendingRow" class="ip-summary-row ip-pending-row" role="button" tabindex="0" title="Μετάβαση στο πρώτο ελλιπές κελί" hidden><span class="ip-summary-label">Ελλιπή κελιά:</span><span id="sumPending" class="ip-summary-value">0</span></div>
@@ -292,6 +294,9 @@ main.ip-single~.ip-summary{left:18px}
   // the grid with an own pointer mechanism (Ctrl copies), double click on a sidebar item highlights its cells,
   // the board zooms (kept by the index for every school year, school-timetables:zoom) and pans from the empty
   // space around it, and «Σύνοψη ωρών» floats down left.
+  // Hours, the locked cells of the other sources, the conflicts with them and the «μάθημα της τάξης» come from the
+  // composition of the period (SchoolTimetable.composePeriod), with the program of the page in place of the stored
+  // one: the Ωρολόγιο in the Πρωινό, the σχέδιο Ολοημέρου (or the Ωρολόγιο, without one) in the zones of the Ολοήμερο.
   const T = SchoolTimetable, C = SchoolClasses, D = SchoolDate, esc = schoolEscape, $ = id => document.getElementById(id);
   const post = schoolHost.post;
   const quoted = value => '«' + value + '»';
@@ -340,6 +345,23 @@ main.ip-single~.ip-summary{left:18px}
   const programOfKind = (kind, id) => (context?.programs || []).find(item => item.kind === kind && item.periodId === id) || null;
   const schoolOf = id => programOfKind('school', id);
   const individualOf = id => programOfKind('individual', id);
+  // The composition of the period with the program of the page (T.composePeriod), kept until the next refresh().
+  // null without Ώρες Διδασκαλίας.
+  let compCache = null;
+  function composition() {
+    if (compCache && compCache.program === program && compCache.context === context && compCache.periodId === periodId) return compCache.value;
+    let value = null;
+    if (context && periodId != null && !hoursError) {
+      const programs = (context.programs || []).filter(item => !(item.kind === 'individual' && item.periodId === periodId));
+      if (program) programs.unshift(program.periodId === periodId ? program : {...program, periodId});
+      try { value = T.composePeriod({periodId, programs, staff: context.staff, classes: yearClasses(), teachingHours: context.teachingHours}); } catch { value = null; }
+    }
+    compCache = {program, context, periodId, value};
+    return value;
+  }
+  const OTHER_KINDS = ['school', 'oloimero'];
+  // Where an entry of another source comes from, for the tooltips.
+  const sourceText = kind => kind === 'oloimero' ? 'στο σχέδιο Ολοημέρου' : 'στο Ωρολόγιο';
   const periodText = period => D.format(period.from) + ' – ' + D.format(T.periodEnd(period, context.year));
   // Periods shown: those with an Ωρολόγιο, and those with individual programs but no Ωρολόγιο (read only).
   const shownPeriods = () => (context?.periods || []).filter(period => schoolOf(period.id) || individualOf(period.id));
@@ -427,8 +449,22 @@ main.ip-single~.ip-summary{left:18px}
   }
   const contentOf = entry => entry?.kind === 'activity' ? {subjectId: entry.place?.subjectId ?? null, chips: clone(entry.place?.chips || [])}
     : entry?.kind === 'pending' ? {subjectId: null, chips: clone(entry.item.chips || [])} : {subjectId: null, chips: []};
-  // The activities of the teacher in the Ωρολόγιο of the period, at an hour.
-  const schoolAt = (id, day, hour) => (schoolOf(periodId)?.activities || []).filter(activity => (activity.staff || []).includes(id) && (activity.times || []).some(time => overlaps(time, day, hour)));
+  // What the teacher has at an hour in the other sources of the composition (the Ωρολόγιο and the σχέδιο Ολοημέρου,
+  // as they count): [entry].
+  const schoolAt = (id, day, hour) => T.compositionAt(composition(), {staffId: id}, {day, start: hour.start, end: hour.end}, {kinds: OTHER_KINDS}).map(item => item.entry);
+  // The individual activities that clash on their teacher with another source (conflicts of the composition).
+  function crossIds() {
+    const ids = new Set();
+    for (const item of composition()?.conflicts || []) {
+      if (!item.cross || item.type !== 'staff') continue;
+      for (const entry of [item.a, item.b]) if (entry.kind === 'individual') ids.add(entry.activity.id);
+    }
+    return ids;
+  }
+  // A cell has an error: two items, an item outside the Πρωινό, an activity that clashes with another source, or an
+  // incomplete cell on an hour of another source.
+  const cellError = (entries, day, hour, cross = crossIds()) => entries.length > 1 || (entries.length > 0 && !isMorning(hour))
+    || entries.some(entry => entry.kind === 'activity' ? cross.has(entry.activity.id) : schoolAt(staffId, day, hour).length > 0);
   const lockedReason = (id, day, hour) => readOnly() ? 'readonly' : !isMorning(hour) ? 'zone' : schoolAt(id, day, hour).length ? 'school' : '';
 
   // Writes what a cell holds: a subject makes an activity; chips without a subject make the «μάθημα της τάξης» for
@@ -464,18 +500,18 @@ main.ip-single~.ip-summary{left:18px}
   }
 
   // ---- Hours of a teacher ----
-  const schoolHoursOf = id => T.staffHours(schoolOf(periodId) ? [schoolOf(periodId)] : []).get(id) || 0;
-  const individualHoursOf = id => (program?.activities || []).filter(activity => (activity.staff || []).includes(id)).reduce((sum, activity) => sum + (activity.times || []).length, 0);
+  // Hours of a teacher in the composition: {total, kinds:{school, oloimero, individual}}.
+  const hoursIn = id => composition()?.hours.get(id) || {total: 0, kinds: {school: 0, oloimero: 0, individual: 0}};
   const targetOf = id => { const value = staffById.get(id)?.schoolHours; return value === '' || value == null || !Number.isFinite(Number(value)) ? null : Number(value); };
   // 'over' (more than «Ωράριο στο σχολείο»), 'ok' (exactly), or ''.
   function hoursMark(id) {
     const target = targetOf(id);
     if (target == null) return '';
-    const total = schoolHoursOf(id) + individualHoursOf(id);
+    const total = hoursIn(id).total;
     return total > target ? 'over' : total === target ? 'ok' : '';
   }
   const hasIndividual = id => (program?.activities || []).some(activity => (activity.staff || []).includes(id)) || (program?.source?.pending || []).some(item => item.staffId === id);
-  const hasSchool = id => (schoolOf(periodId)?.activities || []).some(activity => (activity.staff || []).includes(id));
+  const hasSchool = id => (composition()?.entries || []).some(entry => OTHER_KINDS.includes(entry.kind) && (entry.activity.staff || []).includes(id));
   // Groups of the teacher list, each in the order of Προσωπικό.
   function staffGroups() {
     const groups = [{title: 'Με ατομικό πρόγραμμα', list: []}, {title: 'Χωρίς πρόγραμμα', list: []}, {title: 'Με Ωρολόγιο', list: []}];
@@ -543,7 +579,7 @@ main.ip-single~.ip-summary{left:18px}
     $('importSubjects').disabled = busy || !periodId || readOnly();
     $('root').classList.toggle('busy', busy);
   }
-  function refresh() { updateDirty(); render(); }
+  function refresh() { compCache = null; updateDirty(); render(); }
   function setBusy(value) { busy = value; buttons(); $('workspace').toggleAttribute('aria-busy', value); }
   // The selection of the page, kept by the index (lastViewByYear), without marking a change of data.
   function reportView() { if (periodId) post({type: 'school-timetables:view', view: 'period:' + periodId + (staffId ? '|staff:' + staffId : '')}); }
@@ -773,9 +809,10 @@ main.ip-single~.ip-summary{left:18px}
     const notes = [];
     if (readOnly()) notes.push(['warning', 'Η περίοδος δεν έχει Ωρολόγιο: τα ατομικά προγράμματά της φαίνονται, αλλά δεν αλλάζουν. Μπορείς να τα διαγράψεις στις «Περιόδους Προγραμμάτων».']);
     if (outside.length) notes.push(['warning', outside.length === 1 ? '1 ώρα του ατομικού προγράμματος δεν αντιστοιχεί σε ώρα Δευτέρας–Παρασκευής των Ωρών Διδασκαλίας και δεν φαίνεται στον πίνακα.' : outside.length + ' ώρες του ατομικού προγράμματος δεν αντιστοιχούν σε ώρες Δευτέρας–Παρασκευής των Ωρών Διδασκαλίας και δεν φαίνονται στον πίνακα.']);
+    const cross = crossIds();
     const conflicts = [...slots.entries()].filter(([key, entries]) => {
       const [day, h] = key.split(':').map(Number);
-      return entries.length > 1 || schoolAt(staffId, day, hours[h]).length || (!isMorning(hours[h]) && entries.length);
+      return cellError(entries, day, hours[h], cross);
     }).length;
     if (conflicts) notes.push(['error', conflicts === 1 ? '1 κελί έχει λάθος (σημειώνεται με κόκκινο).' : conflicts + ' κελιά έχουν λάθος (σημειώνονται με κόκκινο).']);
     work.innerHTML = `<div id="head" class="ip-head">
@@ -887,19 +924,22 @@ main.ip-single~.ip-summary{left:18px}
     td.dataset.day = day; td.dataset.h = hour.index;
     const school = schoolAt(staffId, day, hour), locked = lockedReason(staffId, day, hour);
     if (locked) td.classList.add('ip-locked');
-    td.title = locked === 'zone' ? 'Ώρα εκτός Πρωινού: δεν δέχεται ατομικό πρόγραμμα.' : locked === 'school' ? 'Ώρα του εκπαιδευτικού στο Ωρολόγιο της περιόδου.' : '';
-    for (const activity of school) {
+    const from = [...new Set(school.map(entry => entry.kind))].map(sourceText).join(' και ');
+    td.title = locked === 'zone' ? 'Ώρα εκτός Πρωινού: δεν δέχεται ατομικό πρόγραμμα.' + (from ? ' Ώρα του εκπαιδευτικού ' + from + ' της περιόδου.' : '')
+      : locked === 'school' ? 'Ώρα του εκπαιδευτικού ' + from + ' της περιόδου.' : '';
+    for (const {activity, kind} of school) {
       const box = el('div', 'ip-school');
-      box.append(el('div', 'ip-school-subject', T.activitySubject(activity, {programs: [schoolOf(periodId)], classes: yearClasses()}) || '—'));
+      box.title = 'Ώρα του εκπαιδευτικού ' + sourceText(kind) + ' της περιόδου.';
+      box.append(el('div', 'ip-school-subject', T.activitySubject(activity, {composition: composition(), classes: yearClasses()}) || '—'));
       const students = [...(activity.classes || []).map(id => C.nameOf(yearClasses(), id) || '?'), ...(activity.subsets || []), ...(activity.otherStudents || [])];
       if (students.length) box.append(el('div', '', students.join(', ')));
       td.append(box);
     }
-    const conflict = entries.length > 1 || (entries.length && (school.length || !isMorning(hour)));
+    const conflict = cellError(entries, day, hour);
     if (conflict) td.classList.add('ip-conflict');
     if (entries.length && entries.every(entry => entry.kind === 'pending')) td.classList.add('ip-pending');
     if (highlighted(entries)) td.classList.add('ip-highlight');
-    entries.forEach((entry, index) => td.append(entryFor(day, hour, entry, index, entries.length > 1 ? 'Δύο δραστηριότητες την ίδια ώρα.' : school.length ? 'Την ίδια ώρα ο εκπαιδευτικός έχει Ωρολόγιο.' : !isMorning(hour) ? 'Ώρα εκτός Πρωινού.' : '')));
+    entries.forEach((entry, index) => td.append(entryFor(day, hour, entry, index, entries.length > 1 ? 'Δύο δραστηριότητες την ίδια ώρα.' : school.length ? 'Την ίδια ώρα ο εκπαιδευτικός έχει ώρα ' + from + '.' : !isMorning(hour) ? 'Ώρα εκτός Πρωινού.' : '')));
     if (!locked) {
       td.addEventListener('dragover', event => { if (!dragging) return; event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; td.classList.add('dragover'); });
       td.addEventListener('dragleave', () => td.classList.remove('dragover'));
@@ -940,7 +980,7 @@ main.ip-single~.ip-summary{left:18px}
       box.append(line);
     } else if (activity) {
       // «Μάθημα της τάξης»: what the τμήματα of the cell have at this hour in the Ωρολόγιο, in italics.
-      const details = T.activitySubjectDetails(activity, {programs: schoolOf(periodId) ? [schoolOf(periodId)] : [], classes: yearClasses()});
+      const details = T.activitySubjectDetails(activity, {composition: composition(), classes: yearClasses()});
       const line = handle(el('div', 'ip-class-subject', details.text || 'Μάθημα της τάξης'));
       line.title = 'Μάθημα της τάξης: το μάθημα που έχουν τα τμήματα αυτή την ώρα στο Ωρολόγιο.';
       box.append(line);
@@ -1309,9 +1349,12 @@ main.ip-single~.ip-summary{left:18px}
   function renderSummary(show) {
     $('summary').hidden = $('zoomBar').hidden = !show;
     if (!show) return;
-    const school = schoolHoursOf(staffId), own = individualHoursOf(staffId), total = school + own, target = targetOf(staffId), mark = hoursMark(staffId);
-    $('sumSchool').textContent = school;
-    $('sumOwn').textContent = own;
+    // From the composition: «Ωρολόγιο», «Ολοήμερο» (only when the period has a σχέδιο Ολοημέρου), «Ατομικό».
+    const item = hoursIn(staffId), total = item.total, target = targetOf(staffId), mark = hoursMark(staffId);
+    $('sumSchool').textContent = item.kinds.school || 0;
+    $('sumOloimeroRow').hidden = !composition()?.programs.oloimero;
+    $('sumOloimero').textContent = item.kinds.oloimero || 0;
+    $('sumOwn').textContent = item.kinds.individual || 0;
     const row = $('sumTotalRow'), textValue = target == null ? String(total) : total + '/' + target;
     row.classList.toggle('ip-over', mark === 'over');
     row.classList.toggle('ip-ok', mark === 'ok');
@@ -1452,7 +1495,7 @@ main.ip-single~.ip-summary{left:18px}
     if (day === drag.day && h === drag.h) return 'same';
     const locked = lockedReason(staffId, day, hour);
     if (locked === 'zone') return 'Οι ώρες εκτός Πρωινού είναι κλειδωμένες και δεν δέχονται ατομικό πρόγραμμα.';
-    if (locked) return 'Η ώρα είναι του εκπαιδευτικού στο Ωρολόγιο και δεν δέχεται ατομικό πρόγραμμα.';
+    if (locked) return 'Η ώρα είναι του εκπαιδευτικού ' + [...new Set(schoolAt(staffId, day, hour).map(entry => entry.kind))].map(sourceText).join(' και ') + ' και δεν δέχεται ατομικό πρόγραμμα.';
     if ((slotsOf(staffId).slots.get(slotKey(day, h)) || []).length > 1) return 'Το κελί έχει δύο δραστηριότητες. Διόρθωσέ το πρώτα.';
     return '';
   }

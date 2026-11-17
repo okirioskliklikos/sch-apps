@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων: πεδία εγγράφων
- * Έκδοση αρχείου: 0.02
+ * Έκδοση αρχείου: 0.03
  * Όνομα κατά την εγκατάσταση: _data_documents.js
  *
  * Ο κοινός κώδικας δεδομένων είναι σε τέσσερα αρχεία, που φορτώνονται πάντα όλα, με αυτή τη σειρά, μετά το _ui.js
@@ -393,8 +393,9 @@
   const docSubjectKeys = (c, code) => { const codes = String(code).split('+').map(compareKey); return new Set(c.subjects.filter(item => codes.includes(compareKey(item.code))).map(item => compareKey(item.name))); };
   // In documents a whole grade is written without the apostrophe: «Ε'» → «Ε», «Α'-Στ'» → «Α-Στ» (the apps keep «Ε'»).
   const docGradePlain = text => String(text).replace(/(^|[\s,(-])(Α|Β|Γ|Δ|Ε|Στ)['΄’](?=$|[\s,)-])/g, '$1$2');
-  // The subject of an activity, always through activitySubject, with the composition of the period.
-  const docSubject = (c, activity) => activitySubject(activity, c.composition ? {composition: c.composition, classes: c.classes} : {programs: c.program ? [c.program] : [], classes: c.classes});
+  // The subject of an activity, always through activitySubject, with the composition of the period (without it, the
+  // «μάθημα της τάξης» is empty).
+  const docSubject = (c, activity) => activitySubject(activity, {composition: c.composition, classes: c.classes});
   const docTeachers = (c, activity, short) => [...(activity.staff || []).map(id => { const person = c.staffById.get(id); return person ? String((short ? person.shortName : person.name) || person.shortName || person.name || '') : ''; }), ...(activity.unmatched || [])];
 
   function docGridValue(c, data, spec) {

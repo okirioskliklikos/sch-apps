@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Σχολικό Ημερολόγιο v1.29</title>
+<title>Σχολικό Ημερολόγιο v1.30</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -284,7 +284,7 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v1.29</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΗΜ</span></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v1.30</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="print" type="button" disabled>Εκτύπωση...</button>
@@ -535,7 +535,7 @@ function receiveContext(next) {
   render(); updateDirty();
 }
 schoolHost.on('school-calendar:context', message => { if (!dirty && !busy) receiveContext(message.context); });
-schoolHost.on('school-timetables:context', message => { const c = message.context || {}; timetables = {periods: c.periods || [], programs: c.programs || []}; });
+schoolHost.on('school-timetables:context', message => { const c = message.context || {}; timetables = {periods: c.periods || [], programs: c.programs || [], ctx: {staff: c.staff || [], classes: c.classes || [], teachingHours: c.teachingHours || null}}; });
 
 async function save() {
   if (busy || !context || !dirty) return;
@@ -1427,9 +1427,9 @@ async function openMeeting(kind, date) {
   });
 
   // «Έλεγχος από το πρόγραμμα» (only with the button, never on its own): first the leaves of Προσωπικό on the date
-  // (approved → «Σε άδεια», in progress → «Αναμονή άδειας»), then the programs of the period in force on the date
-  // (counting kinds only): an activity at the time of the meeting → «Σε μάθημα»; unavailable in FET → «Σε άλλο
-  // σχολείο»; every other available person → «Παρόντες».
+  // (approved → «Σε άδεια», in progress → «Αναμονή άδειας»), then the composition of the period in force on the date
+  // (SchoolTimetable.composePeriod: Ωρολόγιο, σχέδιο Ολοημέρου, Ατομικά Προγράμματα): an activity at the time of the
+  // meeting → «Σε μάθημα»; unavailable in FET → «Σε άλλο σχολείο»; every other available person → «Παρόντες».
   const checkProgram = () => {
     const start = startInput.value.trim(), end = endInput.value.trim();
     if (!TIME.test(start) || !TIME.test(end) || end <= start) { status('Συμπλήρωσε έγκυρες ώρες συνεδρίασης για να ελεγχθεί το πρόγραμμα.', true); return; }
@@ -1437,8 +1437,9 @@ async function openMeeting(kind, date) {
     const leaveText = `${[...activeLeave.values()].filter(reason => reason === 'leave').length} σε άδεια, ${[...activeLeave.values()].filter(reason => reason === 'leavePending').length} σε αναμονή άδειας`;
     const stop = message => { selection = {available: new Set(), present: new Set(), absent: new Set()}; renderLists(); refreshServiceError(); status(`Άδειες: ${leaveText}. ${message} Δεν έγινε έλεγχος μαθημάτων.`, true); };
     if (!timetables) { stop('Τα προγράμματα δεν έχουν φορτωθεί ακόμη· δοκίμασε ξανά σε λίγο.'); return; }
-    const busyAt = T.staffBusyAt(timetables, key, start, end);
+    const busyAt = T.staffBusyAt(timetables, key, start, end, timetables.ctx);
     if (!busyAt.period) { stop(`Δεν υπάρχει περίοδος στις Περιόδους Προγραμμάτων για τις ${D.format(key)}.`); return; }
+    if (!busyAt.composition) { stop('Λείπουν ή δεν είναι σωστές οι Ώρες Διδασκαλίας του σχολικού έτους, οπότε τα προγράμματα της περιόδου δεν μπορούν να διαβαστούν.'); return; }
     if (!busyAt.programs.length) { stop(`Η περίοδος «${busyAt.period.name}» δεν έχει πρόγραμμα στις Περιόδους Προγραμμάτων.`); return; }
     for (const [id, reason] of autoReasons) {
       if (!lists.absent.includes(id) || reasons[id] !== reason) continue;

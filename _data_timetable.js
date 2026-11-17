@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων: CSV, FET, προγράμματα
- * Έκδοση αρχείου: 0.02
+ * Έκδοση αρχείου: 0.03
  * Όνομα κατά την εγκατάσταση: _data_timetable.js
  *
  * Ο κοινός κώδικας δεδομένων είναι σε τέσσερα αρχεία, που φορτώνονται πάντα όλα, με αυτή τη σειρά, μετά το _ui.js
@@ -16,7 +16,7 @@
  *   window.SchoolCsv        ανάγνωση και γραφή CSV (η ανάγνωση είναι στο _data.js), CSV Προσωπικού
  *   window.SchoolFet        ανάγνωση αρχείων FET (XML)
  *   window.SchoolTimetable  προγράμματα (timetablesByYear): είδη, ώρες, περίοδοι, υπεύθυνοι τμημάτων,
- *                           εμφάνιση μαθητών, συγκρούσεις, ώρες ανά εκπαιδευτικό, διαθεσιμότητα,
+ *                           εμφάνιση μαθητών, συγκρούσεις, διαθεσιμότητα,
  *                           αντικαταστάσεις, εισαγωγή από FET, δάσκαλοι και σειρά του Προσωπικού, κανονική γραφή
  *                           τμημάτων, απασχόληση εκπαιδευτικών σε ημερομηνία και ώρα (συνεδριάσεις), Ιστορικό
  *                           προγράμματος, μάθημα δραστηριότητας (και «μάθημα της τάξης» των Ατομικών Προγραμμάτων),
@@ -405,19 +405,18 @@
   // το Ωρολόγιο, και δεν αποθηκεύεται.
   //   ctx: {composition} (η σύνθεση της περιόδου, composePeriod): τα μαθήματα της τάξης στη σύνθεση, δηλαδή οι
   //   δραστηριότητες που δεν είναι στήριξη (το Πρωινό από το Ωρολόγιο, οι ζώνες Ολοημέρου από το σχέδιο Ολοημέρου),
-  //   με τις ώρες που μετρούν. Ή, όπως πριν, ctx: {programs, classes}: το Ωρολόγιο (kind 'school') των ctx.programs
-  //   (ο καλών δίνει τα προγράμματα της ίδιας περιόδου· τα άλλα είδη αγνοούνται).
+  //   με τις ώρες που μετρούν. Προαιρετικά ctx.classes, για τα ονόματα (αλλιώς τα τμήματα της σύνθεσης). Χωρίς
+  //   σύνθεση το «μάθημα της τάξης» δεν είναι γνωστό: κενό κείμενο, χωρίς ομάδες και χωρίς missing.
   //   → {text, groups:[{subjects:[…], classIds:[…]}], missing:[classId…]}
   //   Τα τμήματα με τα ίδια μαθήματα γίνονται μία ομάδα. Μία ομάδα → «Γλώσσα»· περισσότερες →
   //   «Γλώσσα (Β1, Β2), Μαθηματικά (Γ1)». Τμήμα με δύο μαθήματα την ίδια ώρα (π.χ. υποσύνολα) → «Αγγλικά / Γαλλικά».
   //   Τμήμα χωρίς μάθημα εκείνη την ώρα: μόνο στο missing· κανένα μάθημα → κενό κείμενο.
   function activitySubjectDetails(activity, ctx = {}) {
     if (!activity?.subjectFromClasses) return {text: String(activity?.subject ?? '').trim(), groups: [], missing: []};
+    if (!ctx.composition) return {text: '', groups: [], missing: []};
     const times = (activity.times || []).filter(isObject);
-    // The lessons of the classes: [{activity, times}].
-    const lessons = ctx.composition ? ctx.composition.entries.filter(entry => !entry.support)
-      : (Array.isArray(ctx.programs) ? ctx.programs : [ctx.programs]).filter(program => program?.kind === 'school')
-        .flatMap(program => (program.activities || []).filter(isObject).map(other => ({activity: other, times: other.times || []})));
+    // The lessons of the classes: the entries of the composition that are not support, with the times that count.
+    const lessons = ctx.composition.entries.filter(entry => !entry.support);
     const byId = classesById(ctx.classes || ctx.composition?.classes || []);
     const ids = unique((activity.classes || []).filter(Boolean));
     const order = new Map(sortClasses(ids.map(id => byId.get(id)).filter(Boolean)).map((record, index) => [record.id, index]));
@@ -623,16 +622,22 @@
     return {periodId, programs, classes, teachingHours: input.teachingHours, oloimeroFrom, entries, ignored, hours, unmatchedHours, conflicts: conflictsList, oloimeroDiff, issues};
   }
 
-  // ---- Ώρες ανά εκπαιδευτικό ----
-  // Ώρες στο πρόγραμμα ανά id του Προσωπικού (Map), μόνο από τα είδη που μετρούν. Μία ώρα ανά εγγραφή
-  // του times· μια δραστηριότητα με δύο εκπαιδευτικούς μετρά και στους δύο.
-  function staffHours(programs) {
-    const hours = new Map();
-    for (const program of Array.isArray(programs) ? programs : [programs]) {
-      if (!program || !countsInHours(program.kind)) continue;
-      for (const activity of program.activities || []) for (const id of unique(activity.staff || [])) hours.set(id, (hours.get(id) || 0) + (activity.times || []).length);
+  // What a teacher has in the composition at a time: the entries whose counted times overlap it.
+  //   who: {staffId} (a person of Προσωπικό) or {name} (a name without a match); at: {day, start, end};
+  //   options.kinds: only these kinds (e.g. ['school', 'oloimero']); options.except: an activity to leave out.
+  // → [{entry, times}], times: the counted times of the entry that overlap.
+  function compositionAt(composition, who = {}, at = {}, options = {}) {
+    if (!composition || !at) return [];
+    const kinds = options.kinds ? new Set(options.kinds) : null, result = [];
+    for (const entry of composition.entries) {
+      if (kinds && !kinds.has(entry.kind)) continue;
+      if (options.except && entry.activity === options.except) continue;
+      const activity = entry.activity;
+      if (who.staffId != null ? !(activity.staff || []).includes(who.staffId) : who.name != null ? !(activity.unmatched || []).includes(who.name) : true) continue;
+      const times = entry.times.filter(time => timesOverlap(time, at));
+      if (times.length) result.push({entry, times});
     }
-    return hours;
+    return result;
   }
 
   // ---- Διαθεσιμότητα ----
@@ -646,27 +651,16 @@
 
   // Διαθεσιμότητα ενός εκπαιδευτικού μια ημέρα («Διαθέσιμοι Εκπαιδευτικοί»).
   //   options: {composition, person (εγγραφή του Προσωπικού), day (1–5)}: οι ώρες του εκπαιδευτικού στη σύνθεση της
-  //   περιόδου (composePeriod) και οι μη διαθεσιμότητες του Ωρολογίου της. Ή, όπως πριν, options: {programs, person,
-  //   day, teachingHours}: μετρούν μόνο τα είδη που μετρούν στις ώρες.
-  //   Η διευθύντρια/ο διευθυντής (role 'director') → null.
+  //   περιόδου (composePeriod) και οι μη διαθεσιμότητες του Ωρολογίου της.
+  //   Η διευθύντρια/ο διευθυντής (role 'director'), ή χωρίς σύνθεση → null.
   // → {from, to, earlyAndAfternoon, hours:[{hour, name, start, end, category, status}]}, όπου status:
   //   'free' διαθέσιμος, 'busy' έχει δραστηριότητα, 'unavailable' μη διαθέσιμος στο FET,
   //   'outside' εκτός του εξαώρου. Τα διαλείμματα δεν περιλαμβάνονται.
-  function availability({composition, programs, person, day, teachingHours}) {
-    if (!person || person.role === 'director') return null;
-    let hours, own, blocked;
-    if (composition) {
-      hours = timedHours(composition.teachingHours);
-      own = composition.entries.filter(entry => (entry.activity.staff || []).includes(person.id)).flatMap(entry => entry.times);
-      blocked = unavailableTimes(composition.programs.school, person.id);
-    } else {
-      const counted = (Array.isArray(programs) ? programs : [programs]).filter(program => program && countsInHours(program.kind));
-      hours = timedHours(teachingHours);
-      own = counted.flatMap(program => (program.activities || []).filter(activity => (activity.staff || []).includes(person.id)).flatMap(activity => activity.times || []));
-      blocked = counted.flatMap(program => unavailableTimes(program, person.id));
-    }
-    own = own.filter(time => time.day === day);
-    blocked = blocked.filter(time => time.day === day);
+  function availability({composition, person, day} = {}) {
+    if (!person || person.role === 'director' || !composition) return null;
+    const hours = timedHours(composition.teachingHours);
+    const own = composition.entries.filter(entry => (entry.activity.staff || []).includes(person.id)).flatMap(entry => entry.times).filter(time => time.day === day);
+    const blocked = unavailableTimes(composition.programs.school, person.id).filter(time => time.day === day);
     const overlapsAny = (slot, list) => list.some(time => slot.start < time.end && time.start < slot.end);
     const early = hours.filter(item => item.category === 'early'), morning = hours.filter(item => item.category === 'morning');
     const hasEarly = early.some(item => overlapsAny(item, own));
@@ -686,53 +680,34 @@
   }
 
   // Ποιοι είναι απασχολημένοι σε μια ημερομηνία και ένα διάστημα ωρών (π.χ. την ώρα μιας συνεδρίασης),
-  // σύμφωνα με τα προγράμματα της περιόδου που ισχύει τότε. Μετρούν μόνο τα είδη που μετρούν στις ώρες.
-  //   timetables: timetablesByYear[year] ({periods, programs})· date: 'YYYY-MM-DD'· start, end: 'HH:MM'.
-  // → {period, programs, lesson:Set(id), unavailable:Set(id)}:
-  //   lesson       έχουν δραστηριότητα που επικαλύπτει το διάστημα,
-  //   unavailable  είναι μη διαθέσιμοι στο FET σε ώρα που επικαλύπτει το διάστημα (και δεν είναι στο lesson).
-  //   period είναι null όταν καμία περίοδος δεν ισχύει στην ημερομηνία· programs κενό όταν η περίοδος
-  //   δεν έχει πρόγραμμα που μετρά.
-  //   ctx: {staff, classes, teachingHours}: με αυτό μετρά η σύνθεση της περιόδου (composePeriod), και το αποτέλεσμα
-  //   έχει και το composition· χωρίς αυτό, ή χωρίς έγκυρες Ώρες Διδασκαλίας, μετρούν τα προγράμματα των ειδών που
-  //   μετρούν στις ώρες, όπως πριν.
-  function staffBusyAt(timetables, date, start, end, ctx) {
+  // σύμφωνα με τη σύνθεση (composePeriod) της περιόδου που ισχύει τότε.
+  //   timetables: timetablesByYear[year] ({periods, programs})· date: 'YYYY-MM-DD'· start, end: 'HH:MM'·
+  //   ctx: {staff, classes, teachingHours} του έτους.
+  // → {period, composition, programs, lesson:Set(id), unavailable:Set(id), error}:
+  //   lesson       έχουν στη σύνθεση δραστηριότητα που επικαλύπτει το διάστημα,
+  //   unavailable  είναι μη διαθέσιμοι στο FET (Ωρολόγιο της περιόδου) σε ώρα που επικαλύπτει το διάστημα (και δεν
+  //                είναι στο lesson).
+  //   period είναι null όταν καμία περίοδος δεν ισχύει στην ημερομηνία· programs τα προγράμματα της σύνθεσης (κενό
+  //   όταν η περίοδος δεν έχει πρόγραμμα)· composition null, με error 'teachingHours', όταν η σύνθεση δεν γίνεται
+  //   (λείπουν ή είναι λάθος οι Ώρες Διδασκαλίας).
+  function staffBusyAt(timetables, date, start, end, ctx = {}) {
     const period = periodAt(timetables?.periods, date);
-    if (ctx && period) {
-      let composition = null;
-      try { composition = composePeriod({periodId: period.id, programs: timetables.programs, staff: ctx.staff, classes: ctx.classes, teachingHours: ctx.teachingHours}); } catch {}
-      if (composition) {
-        const programs = Object.values(composition.programs).filter(Boolean), lesson = new Set(), unavailable = new Set();
-        const day = isoValid(date) ? isoWeekday(date) : 0, from = minutes(start), to = minutes(end);
-        if (!day || !(from < to)) return {period, programs, composition, lesson, unavailable};
-        const overlaps = time => time?.day === day && minutes(time.start) < to && from < minutes(time.end);
-        for (const entry of composition.entries) if (entry.times.some(overlaps)) for (const id of entry.activity.staff || []) lesson.add(id);
-        const school = composition.programs.school;
-        for (const teacher of school?.source?.type === 'fet' ? school.source.teachers || [] : []) {
-          if (!teacher?.staffId || lesson.has(teacher.staffId)) continue;
-          if (unavailableTimes(school, teacher.staffId).some(overlaps)) unavailable.add(teacher.staffId);
-        }
-        return {period, programs, composition, lesson, unavailable};
-      }
-    }
-    const programs = period ? programsAt(timetables, date).filter(program => countsInHours(program.kind)) : [];
     const lesson = new Set(), unavailable = new Set();
+    if (!period) return {period, composition: null, programs: [], lesson, unavailable, error: ''};
+    let composition = null;
+    try { composition = composePeriod({periodId: period.id, programs: timetables.programs, staff: ctx?.staff, classes: ctx?.classes, teachingHours: ctx?.teachingHours}); } catch {}
+    if (!composition) return {period, composition: null, programs: [], lesson, unavailable, error: 'teachingHours'};
+    const programs = Object.values(composition.programs).filter(Boolean);
     const day = isoValid(date) ? isoWeekday(date) : 0, from = minutes(start), to = minutes(end);
-    if (!day || !(from < to)) return {period, programs, lesson, unavailable};
+    if (!day || !(from < to)) return {period, composition, programs, lesson, unavailable, error: ''};
     const overlaps = time => time?.day === day && minutes(time.start) < to && from < minutes(time.end);
-    for (const program of programs) {
-      for (const activity of program.activities || []) {
-        if ((activity.times || []).some(overlaps)) for (const id of activity.staff || []) lesson.add(id);
-      }
+    for (const entry of composition.entries) if (entry.times.some(overlaps)) for (const id of entry.activity.staff || []) lesson.add(id);
+    const school = composition.programs.school;
+    for (const teacher of school?.source?.type === 'fet' ? school.source.teachers || [] : []) {
+      if (!teacher?.staffId || lesson.has(teacher.staffId)) continue;
+      if (unavailableTimes(school, teacher.staffId).some(overlaps)) unavailable.add(teacher.staffId);
     }
-    for (const program of programs) {
-      if (program.source?.type !== 'fet') continue;
-      for (const teacher of program.source.teachers || []) {
-        if (!teacher?.staffId || lesson.has(teacher.staffId)) continue;
-        if (unavailableTimes(program, teacher.staffId).some(overlaps)) unavailable.add(teacher.staffId);
-      }
-    }
-    return {period, programs, lesson, unavailable};
+    return {period, composition, programs, lesson, unavailable, error: ''};
   }
 
   // ---- Αντικαταστάσεις ----
@@ -1168,8 +1143,8 @@
     parseTimeRange, hourTimes, timedHours, hourGroups,
     periodEnd, periodAt, programAt, programsAt, periodWarnings,
     classSpelling, studentsIndex, expandStudents, studentsFromNames, studentsText, activitySubject, activitySubjectDetails, homeroomTeacher, isGeneralTeacher, sortStaff, sortStaffAlphabetically,
-    conflicts, studentsClash, staffHours, unavailableTimes, availability, staffBusyAt, replaceStaff,
-    OLOIMERO_CATEGORIES, hourZone, composePeriod,
+    conflicts, studentsClash, unavailableTimes, availability, staffBusyAt, replaceStaff,
+    OLOIMERO_CATEGORIES, hourZone, composePeriod, compositionAt,
     HISTORY_LIMIT, history: programHistory, ensureHistory, addHistory,
     INDIVIDUAL_CLASS_SUBJECT_SERVICES, individualClassSubject, individualProgram, individualRefresh, individualCopy,
     analyzeFetImport, buildFetProgram
