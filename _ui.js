@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.42
+ * Έκδοση αρχείου: 0.43
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -8,7 +8,8 @@
  *   window.schoolConfirm, window.schoolMessage    διάλογοι ενημέρωσης και επιβεβαίωσης
  *   window.schoolChoiceDialog                      διάλογος με επιλογές και ασύγχρονες ενέργειες
  *   window.schoolProgramImport                     κοινός διάλογος εισαγωγής προγράμματος (ανάλυση → κατασκευή)
- *   window.schoolReplaceProgram                    ερώτηση πριν αντικατασταθεί πρόγραμμα περιόδου
+ *   window.schoolBackupConfirm                     επιβεβαίωση ενέργειας που αλλάζει τα αποθηκευμένα προγράμματα,
+ *                                                  με πρόταση για αντίγραφο ασφαλείας
  *   window.schoolColorPicker, window.schoolColor   επιλογέας χρώματος και βοηθητικά χρώματος
  *   window.schoolRichText                          κείμενο με μορφοποίηση (μπάρα και πεδίο)
  *   window.schoolTags                              ετικέτες: chips, επιλογέας, διαχείριση (χρειάζεται το _data.js)
@@ -32,7 +33,7 @@
  * Κουμπιά κάτω δεξιά σε κάθε διάλογο: τέρμα δεξιά η «Ακύρωση», αριστερά της η προεπιλεγμένη ενέργεια
  * (αποδοχή) και πιο αριστερά οι υπόλοιπες. Κάτω αριστερά δεν μπαίνουν κουμπιά.
  * Η εμφάνιση των διαλόγων ορίζεται στο _ui.css (.school-confirm, .school-choice-*, .school-import-*,
- *   .school-color-picker, .school-richtext-*, .school-tag*, .school-tagged-text*), του μενού στο _ui.css (.ui-menu),
+ *   .school-backup-notice, .school-color-picker, .school-richtext-*, .school-tag*, .school-tagged-text*), του μενού στο _ui.css (.ui-menu),
  *   της λίστας προβλημάτων στο _ui.css (.school-problems*)
  * και του κουμπιού «☰» στο _subapp.css.
  */
@@ -59,7 +60,7 @@
       accept.onclick = () => { accepted = true; dialog.close(); };
       actions.append(accept);
       if (o.confirm) {
-        cancel = document.createElement('button'); cancel.type = 'button'; cancel.textContent = 'Ακύρωση';
+        cancel = document.createElement('button'); cancel.type = 'button'; cancel.textContent = o.cancel;
         cancel.onclick = () => dialog.close();
         actions.append(cancel);
       }
@@ -78,7 +79,7 @@
   // Ενημέρωση ή επιβεβαίωση σε ουρά: ένας διάλογος τη φορά, με τη σειρά που ζητήθηκαν.
   // Επιστρέφει Promise: true όταν πατηθεί «Εντάξει» ή αποδοχή, false στην ακύρωση.
   function schoolMessage(message, options = {}) {
-    const o = {title: options.title || 'Ενημέρωση', confirm: !!options.confirm, accept: options.accept || 'Συνέχεια'};
+    const o = {title: options.title || 'Ενημέρωση', confirm: !!options.confirm, accept: options.accept || 'Συνέχεια', cancel: options.cancel || 'Ακύρωση'};
     const task = () => show(String(message ?? ''), o);
     const run = busy ? tail.then(task, task) : task();
     busy++;
@@ -337,29 +338,63 @@
     });
   }
 
-  // Ερώτηση πριν αντικατασταθεί ένα πρόγραμμα περιόδου (εισαγωγή, ανάθεση προσχεδίου, αντιγραφή).
-  //   options.title, options.message   τίτλος και κείμενο
-  //   options.suggestedName           προτεινόμενο όνομα του προσχεδίου
-  // → Promise με {mode:'draft', name} («Κράτησέ το ως προσχέδιο»), {mode:'replace'} («Πλήρης
-  //   αντικατάσταση») ή null (ακύρωση).
-  function schoolReplaceProgram(options = {}) {
-    const field = document.createElement('label'), input = document.createElement('input');
-    field.className = 'school-choice-field';
-    field.textContent = 'Όνομα προσχεδίου (αν το κρατήσεις)';
-    input.type = 'text'; input.maxLength = 300; input.value = options.suggestedName || '';
-    field.append(input);
-    return schoolChoiceDialog({
-      title: options.title || 'Αντικατάσταση προγράμματος',
-      content: [options.message || 'Η περίοδος έχει ήδη πρόγραμμα αυτού του είδους. Τι να γίνει με αυτό;', field],
-      choices: [
-        {label: 'Κράτησέ το ως προσχέδιο', run: () => {
-          const name = input.value.trim();
-          if (!name) { input.focus(); throw Error('Συμπλήρωσε όνομα για το προσχέδιο.'); }
-          return {mode: 'draft', name};
+  // Επιβεβαίωση μιας ενέργειας που αλλάζει ή σβήνει αποθηκευμένα προγράμματα (αντικατάσταση, διαγραφή, επαναφορά),
+  // με πρόταση για αντίγραφο ασφαλείας, πάνω στο schoolChoiceDialog. Κάτω από το μήνυμα, πλαίσιο «Προσοχή» με το
+  // κουμπί «Αντίγραφο Ασφαλείας…» (.success)· κάτω δεξιά μόνο η αποδοχή («Συνέχεια») και η «Ακύρωση». «Συνέχεια»
+  // χωρίς αντίγραφο ρωτά ξανά, σε δεύτερο διάλογο πάνω από τον πρώτο («Ναι» / «Όχι», με την εστίαση στο «Όχι»)· το
+  // «Όχι» γυρίζει στον πρώτο διάλογο.
+  //   options.title, options.message   τίτλος και κείμενο (κείμενο ή στοιχείο DOM, ή πίνακας από αυτά)
+  //   options.accept                  ετικέτα της αποδοχής (προεπιλογή «Συνέχεια»)
+  //   options.backup()                Promise με {name} του αρχείου που γράφτηκε (π.χ. το αντίγραφο της περιόδου),
+  //                                   ή null όταν ο χρήστης ακύρωσε. Χωρίς backup (δεν υπάρχει κάτι αποθηκευμένο για
+  //                                   αντίγραφο) δεν εμφανίζεται πλαίσιο ούτε δεύτερη ερώτηση.
+  //   options.note                    κείμενο στο πλαίσιο, κάτω από την προειδοποίηση (π.χ. τι έχει το αντίγραφο)
+  // → Promise με true στη «Συνέχεια», false στην ακύρωση.
+  async function schoolBackupConfirm(options = {}) {
+    const backup = typeof options.backup === 'function' ? options.backup : null;
+    let savedName = '', panelButton = null;
+    const content = [].concat(options.message ?? []);
+    if (backup) {
+      const panel = document.createElement('div'); panel.className = 'school-backup-notice';
+      const warning = document.createElement('p'), strong = document.createElement('strong');
+      strong.textContent = 'Προσοχή:';
+      warning.append(strong, ' Αυτή η ενέργεια θα αλλοιώσει τα τρέχοντα δεδομένα. Αν θέλεις, μπορείς να κρατήσεις Αντίγραφο Ασφαλείας.');
+      panel.append(warning);
+      if (options.note) { const note = document.createElement('p'); note.className = 'school-backup-note'; note.textContent = options.note; panel.append(note); }
+      const done = document.createElement('p'); done.className = 'school-backup-done'; done.hidden = true;
+      panelButton = document.createElement('button'); panelButton.type = 'button'; panelButton.className = 'success';
+      panelButton.textContent = 'Αντίγραφο Ασφαλείας…';
+      const row = document.createElement('div'); row.className = 'school-backup-actions'; row.append(panelButton);
+      panel.append(done, row);
+      content.push(panel);
+      panelButton.addEventListener('click', () => controls?.busy(async () => {
+        const result = await backup();
+        if (!result) return;
+        savedName = String(result.name || '');
+        done.innerHTML = schoolIconText('check', savedName ? 'Το αντίγραφο αποθηκεύτηκε στο «' + savedName + '».' : 'Το αντίγραφο αποθηκεύτηκε.');
+        done.hidden = false;
+      }));
+    }
+    let controls = null, saved = () => !!savedName;
+    const value = await schoolChoiceDialog({
+      title: options.title || 'Επιβεβαίωση',
+      content,
+      actions: [
+        {label: options.accept || 'Συνέχεια', accept: true, run: async () => {
+          if (backup && !saved()) {
+            const sure = await schoolConfirm('Είσαι σίγουρος ότι θέλεις να συνεχίσεις χωρίς να κρατήσεις αντίγραφο ασφαλείας;',
+              {title: 'Χωρίς αντίγραφο ασφαλείας', accept: 'Ναι', cancel: 'Όχι', queue: true});
+            // «Όχι»: back to the first dialog, without a message.
+            if (!sure) { const stay = Error('ακυρώθηκε'); stay.name = 'AbortError'; throw stay; }
+          }
+          return true;
         }},
-        {label: 'Πλήρης αντικατάσταση', value: {mode: 'replace'}}
-      ]
+        {label: 'Ακύρωση', cancel: true}
+      ],
+      working: on => { if (panelButton) panelButton.disabled = on; },
+      ready: api => { controls = api; }
     });
+    return value === true;
   }
 
   // Επιλογέας χρώματος: σταθερή παλέτα και 9 σταθερές θέσεις προσαρμοσμένων χρωμάτων, που ο browser θυμάται.
@@ -1876,7 +1911,7 @@
   window.schoolConfirm = schoolConfirm;
   window.schoolChoiceDialog = schoolChoiceDialog;
   window.schoolProgramImport = schoolProgramImport;
-  window.schoolReplaceProgram = schoolReplaceProgram;
+  window.schoolBackupConfirm = schoolBackupConfirm;
   window.schoolColorPicker = schoolColorPicker;
   window.schoolRichText = schoolRichText;
   // tones(color): the light tones of a colour as on the tag chips ({bg, border, ink}), for anything that is shown

@@ -12,7 +12,7 @@
   φτιάχνονται από το σύντομο όνομα των δασκάλων («[Α1] - …», classesFromStaff). Με το .data δοκιμής, οι
   έλεγχοι των νέων ετικετών (v2) παίρνουν το Προσωπικό από αυτό, γιατί το CSV του Ολοημέρου έχει τα σύντομα
   ονόματα του Προσωπικού.
-  Έκδοση αρχείου: 0.66
+  Έκδοση αρχείου: 0.67
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -2054,7 +2054,7 @@ function hostIndividualChecks() {
   rejects('Νέος κατάλογος χωρίς Συνένωση που χρησιμοποιεί ένα αποθηκευμένο πρόγραμμα', trySave(saved, {ops: [], individualCatalog: {...catalog, unions: []}}, APP), '(pending)');
   const variant = change => { const copy = clone(program); change(copy); return copy; };
   rejects('Προσχέδιο του individual: απορρίπτεται', trySave(withCatalog, {ops: [put(variant(p => { p.periodId = null; p.name = 'Προσχέδιο'; }))]}, APP), 'δεν έχουν προσχέδια');
-  rejects('Οι «Περίοδοι Προγραμμάτων» δεν το κρατούν ως προσχέδιο', trySave(saved, {ops: [put(variant(p => { p.periodId = null; p.name = 'Κράτησέ το'; }))], periods: [periodB]}, PROG), 'δεν έχουν προσχέδια');
+  rejects('Οι «Περίοδοι Προγραμμάτων» δεν το κρατούν ως προσχέδιο', trySave(saved, {ops: [put(variant(p => { p.periodId = null; p.name = 'Κράτησέ το'; }))], periods: [periodB]}, PROG), 'γράφει μόνο προγράμματα περιόδων');
   accepts('Οι «Περίοδοι Προγραμμάτων» το διαγράφουν μαζί με την περίοδο', trySave(saved, {ops: [{op: 'delete', id: 'ind-a'}], periods: [periodB]}, PROG));
   rejects('Δραστηριότητα με δύο εκπαιδευτικούς', trySave(withCatalog, {ops: [put(variant(p => { p.activities[2].staff = ['s3', 's1']; }))]}, APP), 'ακριβώς έναν εκπαιδευτικό');
   rejects('Δραστηριότητα χωρίς αντιστοίχιση (unmatched)', trySave(withCatalog, {ops: [put(variant(p => { p.activities[2].unmatched = ['Κάποιος']; }))]}, APP), 'ακριβώς έναν εκπαιδευτικό');
@@ -2277,10 +2277,9 @@ function hostChecks() {
   rejects('«Περίοδοι Προγραμμάτων»: δεν αλλάζει υπάρχον προσχέδιο', trySave(d4, {ops: [put({...clone(programsOf(d4).find(p => p.id === 'draft-fet')), name: 'Άλλο'})]}, PROG), 'μόνο από την εφαρμογή του είδους του');
   rejects('«Περίοδοι Προγραμμάτων»: δεν σβήνει υπάρχον προσχέδιο', trySave(d4, {ops: [{op: 'delete', id: 'draft-fet'}]}, PROG), 'μόνο από την εφαρμογή του είδους του');
   const storedSchool = programsOf(d4).find(p => p.id === 'prog-school-a');
-  const copiedDraft = accepts('«Σχολικά Προγράμματα»: αντίγραφο ως προσχέδιο ενός προγράμματος περιόδου', trySave(d4, {ops: [put({...clone(storedSchool), id: 'draft-prog', periodId: null, name: 'Αντίγραφο', createdAt: '2026-11-17T10:00:00.000Z', updatedAt: '2026-11-17T10:00:00.000Z'})]}, PROG));
-  check('Αντίγραφο ως προσχέδιο: το πρόγραμμα της περιόδου μένει, και το προσχέδιο ανήκει στον FET Editor', !!copiedDraft && programsOf(copiedDraft).some(p => p.id === 'prog-school-a' && p.periodId === 'pa') && H.context(copiedDraft, FET_APP, 1).programs.some(p => p.id === 'draft-prog' && p.periodId == null));
-  rejects('«Σχολικά Προγράμματα»: δεν φτιάχνει προσχέδιο που διαφέρει από το πρόγραμμα της περιόδου', trySave(d4, {ops: [put({...clone(storedSchool), id: 'draft-prog', periodId: null, name: 'Νέο', activities: storedSchool.activities.slice(1)})]}, PROG), 'ή ως αντίγραφο ενός προγράμματος περιόδου');
-  rejects('«Σχολικά Προγράμματα»: δεν φτιάχνει προσχέδιο χωρίς πρόγραμμα περιόδου', trySave(d4, {ops: [put({...clone(storedSchool), id: 'draft-prog', periodId: null, name: 'Νέο'}), {op: 'delete', id: 'prog-school-a'}]}, PROG), 'ή ως αντίγραφο ενός προγράμματος περιόδου');
+  // Χωρίς «Αντίγραφο ως προσχέδιο» και «Κράτησέ το ως προσχέδιο»: τα «Σχολικά Προγράμματα» δεν φτιάχνουν προσχέδια.
+  rejects('«Σχολικά Προγράμματα»: δεν φτιάχνουν προσχέδιο ως αντίγραφο ενός προγράμματος περιόδου', trySave(d4, {ops: [put({...clone(storedSchool), id: 'draft-prog', periodId: null, name: 'Αντίγραφο', createdAt: '2026-11-17T10:00:00.000Z', updatedAt: '2026-11-17T10:00:00.000Z'})]}, PROG), 'γράφει μόνο προγράμματα περιόδων');
+  rejects('«Σχολικά Προγράμματα»: δεν κάνουν πρόγραμμα περιόδου προσχέδιο', trySave(d4, {ops: [put({...clone(storedSchool), periodId: null, name: 'Κράτησέ το'})]}, PROG), 'γράφει μόνο προγράμματα περιόδων');
   // Κοινή τρέχουσα περίοδος (lastViewByYear[year].period) και άνοιγμα εφαρμογής με στόχο
   equal('Κοινή περίοδος: κενή χωρίς τιμή, και στο context', [H.currentPeriod(d4, year), H.context(d4, PROG, 1).currentPeriod], ['', '']);
   const shared = {...d4, lastViewByYear: {[year]: {oloimero: 'draft:abc', individual: 'period:old|staff:s1'}}};
@@ -2305,15 +2304,11 @@ function hostChecks() {
   rejects('Ανάθεση προσχεδίου χωρίς χειρισμό του παλιού: απορρίπτεται', trySave(d4, {ops: [put({...clone(programsOf(d4).find(p => p.id === 'draft-fet')), periodId: 'pa'})]}, FET_APP), 'το πολύ ένα πρόγραμμα ανά είδος');
 
   // Διαγραφή περιόδου
-  rejects('Διαγραφή περιόδου χωρίς χειρισμό των προγραμμάτων της', trySave(d4, {ops: [], periods: []}, PROG), 'αφαιρείται');
-  const kept = accepts('Διαγραφή περιόδου, «κράτησέ τα ως προσχέδια»', trySave(d4, {periods: [], ops: [
+  rejects('Διαγραφή περιόδου χωρίς χειρισμό των προγραμμάτων της', trySave(d4, {ops: [], periods: []}, PROG), 'διαγράφονται στην ίδια αποθήκευση');
+  rejects('Διαγραφή περιόδου: τα προγράμματά της δεν κρατιούνται ως προσχέδια', trySave(d4, {periods: [], ops: [
     put({...clone(programsOf(d4).find(p => p.id === 'prog-school-a')), periodId: null, name: 'Ωρολόγιο Α περιόδου'}),
-    put({...clone(programsOf(d4).find(p => p.id === 'prog-olo-a')), periodId: null, name: 'Ολοήμερο Α περιόδου'})
-  ]}, PROG));
-  if (kept) {
-    equal('Μετά τη διαγραφή: προσχέδια ανά είδος', H.context(kept, PROG, 1).draftCounts, {school: 2, oloimero: 1, individual: 0});
-    equal('Το Ολοήμερο βλέπει το δικό του προσχέδιο', H.context(kept, OLO_APP, 1).programs.map(p => p.id), ['prog-olo-a']);
-  }
+    {op: 'delete', id: 'prog-olo-a'}
+  ]}, PROG), 'γράφει μόνο προγράμματα περιόδων');
   const removedAll = accepts('Διαγραφή περιόδου, «διάγραψέ τα»', trySave(d4, {periods: [], ops: [{op: 'delete', id: 'prog-school-a'}, {op: 'delete', id: 'prog-olo-a'}]}, PROG));
   if (removedAll) equal('Μετά τη διαγραφή: μένει μόνο το προσχέδιο του FET Editor', programsOf(removedAll).map(p => p.id), ['draft-fet']);
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ολοήμερο Designer v1.95</title>
+<title>Ολοήμερο Designer v1.96</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -18,7 +18,7 @@
   --ol-conflict-bg:#ffe2e2;--ol-conflict-ring:#d97777;--ol-conflict-text:#7a1f1f;
   --ol-conflict-soft-bg:#fff0f0;--ol-conflict-soft-border:#e3aaaa;
   --ol-over-limit:#d00000;--ol-hours-ok:#0a8a20;--ol-specialty-bg:#d7ecff;
-  --ol-copy-mark:#1769d2
+  --ol-copy-mark:#1769d2;--ol-target-outline:#2e90fa
 }
 /* Header: the list of designs gives up width before anything wraps out of the page. */
 #program{flex:0 1 auto;min-width:0;max-width:min(340px,100%)}
@@ -64,6 +64,11 @@ main.ol-without-design :is(#board,#boardTimeOverlayAnchor,.board-zoom-controls,.
   box-sizing:border-box;flex:0 0 62px;width:62px;min-width:62px;max-width:62px;
   text-align:center;font-weight:700;font-variant-numeric:tabular-nums
 }
+.teacher-hours-help{margin:6px 0 0}
+.teacher-hours-help:empty{display:none}
+.teacher-hours-auto[hidden]{display:none}
+/* The cell of a target (opened from another application with a day and an hour): blue outline on its places. */
+#board td.ol-target{outline:3px solid var(--ol-target-outline);outline-offset:-3px}
 .teacher-fet-hours{
   display:inline-flex;align-items:center;flex:0 0 auto;min-height:30px;
   color:var(--school-ui-muted);font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums
@@ -589,8 +594,9 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
 <body>
 
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΟΛ</span></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v1.95</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΟΛ</span></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v1.96</span></span></button></h1></div>
   <select id="program" aria-label="Σχέδιο" hidden></select>
+  <span id="periodStatus" class="ui-period-status" hidden></span>
   <span class="save-control">
     <button id="saveData" class="save-main" type="button" disabled>Αποθήκευση</button>
     <button id="saveMenuButton" class="save-menu-button" type="button" aria-haspopup="true" aria-expanded="false" title="Περισσότερες επιλογές αποθήκευσης" disabled aria-label="Περισσότερες επιλογές αποθήκευσης"></button>
@@ -720,10 +726,14 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
     <label>Χρώμα</label>
     <button id="teacherColorButton" class="school-color-trigger" type="button" aria-label="Επιλογή χρώματος εκπαιδευτικού"><span id="teacherColorSwatch" class="school-color-trigger-swatch" aria-hidden="true"></span></button>
     <input id="teacherColor" type="hidden" value="#a8d8ff">
-    <label for="teacherAvailableHours">Διαθέσιμες ώρες</label>
-    <div class="teacher-hours-input-row">
-      <input id="teacherAvailableHours" type="number" min="0" max="99" step="1" value="0">
-      <span id="teacherFetHours" class="teacher-fet-hours" title="Ώρες στο σχολείο από το κοινό αρχείο"></span>
+    <label id="teacherHoursLabel" for="teacherAvailableHours">Διαθέσιμες ώρες</label>
+    <div>
+      <div class="teacher-hours-input-row">
+        <input id="teacherAvailableHours" type="number" min="0" max="99" step="1" value="0">
+        <span id="teacherFetHours" class="teacher-fet-hours" title="Ώρες στο σχολείο από το κοινό αρχείο"></span>
+        <button id="teacherHoursAuto" class="ui-link-button teacher-hours-auto" type="button" hidden>Αυτόματη πρόταση</button>
+      </div>
+      <p id="teacherHoursHelp" class="hint teacher-hours-help"></p>
     </div>
   </div>
 </template>
@@ -1344,7 +1354,7 @@ function ensureActivityIds(){
 // The board and the sidebar as plain data (the «model» of a design).
 function captureModel(){
   return {
-    teachers:teachers.map(t=>({id:t.id,staffId:t.staffId||null,name:t.name,color:t.color,availableHours:teacherAvailableHours(t)})),
+    teachers:teachers.map(t=>({id:t.id,staffId:t.staffId||null,name:t.name,color:t.color,availableHours:ownAvailableHours(t)})),
     subjects:subjects.map(item=>({id:item.id,name:item.name})),
     unions:unions.map(unionData),
     hidden:{grades:GRADE_ORDER.filter(grade=>hiddenGrades.has(grade)),classes:[...hiddenClasses].sort()},
@@ -1370,12 +1380,13 @@ function applyModel(model){
   restorePlacementCells(model?.cells);
 }
 function captureSession(){
-  return JSON.stringify({current,selectedPeriodId,pending:[...pending],newClasses:pageNewClasses,model:current?captureModel():null});
+  return JSON.stringify({current,selectedPeriodId,pending:[...pending],newClasses:pageNewClasses,periodHours:[...periodHoursEdits],model:current?captureModel():null});
 }
 function restoreSession(snapshot){
   const value=JSON.parse(snapshot);
   current=value.current;selectedPeriodId=value.selectedPeriodId;pending=new Map(value.pending);
   pageNewClasses=Array.isArray(value.newClasses)?value.newClasses:[];
+  periodHoursEdits=new Map(Array.isArray(value.periodHours)?value.periodHours:[]);
   applyModel(value.model);
   currentSnapshot=snapshot;
   updateDirty();
@@ -1721,8 +1732,61 @@ const unionUsageCount=id=>boardStats().unionUses.get(id)||0;
 // The cells of a Τάξη or a Τμήμα (see cellMatchesSidebarItem).
 const departmentCount=(type,id)=>(type==="grade"?boardStats().gradeUses:boardStats().classUses).get(id)||0;
 
-function teacherAvailableHours(t){
+// ---- Available hours of the Ολοήμερο ----
+// In a design of a period the hours of the teachers of Προσωπικό are those of the period (period.oloimeroHours, the
+// same for every design of the period): the value the user wrote or, without one, the automatic proposal of
+// SchoolTimetable.oloimeroAvailableHours («Ωράριο στο σχολείο» minus the morning hours in the composition of the
+// period). A draft, and a name without a match in Προσωπικό, keep the hours of the design (source.teachers).
+let periodHoursEdits=new Map();   // periodId → {staffId: hours}: the hours of a period as changed on this page
+let autoHoursMemo=new Map();      // periodId → Map(staffId → {hours, schoolHours, morning}), the automatic proposal
+const sortedHours=value=>Object.fromEntries(Object.keys(value||{}).sort().map(id=>[id,value[id]]));
+const storedPeriodHours=periodId=>{const value=periodOf(periodId)?.oloimeroHours;return value&&typeof value==="object"?value:{}};
+const periodHoursValue=periodId=>periodHoursEdits.get(periodId)||storedPeriodHours(periodId);
+function autoPeriodHours(periodId){
+  if(autoHoursMemo.has(periodId))return autoHoursMemo.get(periodId);
+  const period=periodOf(periodId);
+  let result=new Map();
+  if(period&&context){
+    try{
+      // The morning hours come from the Ωρολόγιο and the Ατομικά Προγράμματα: the design does not change them.
+      const programs=(context.programs||[]).filter(program=>program.periodId===periodId&&program.kind!==KIND);
+      const composition=T.composePeriod({periodId,programs,staff:context.staff||[],classes:allClasses(),teachingHours:context.teachingHours});
+      result=T.oloimeroAvailableHours({period:{...period,oloimeroHours:{}},staff:context.staff||[],composition});
+    }catch{result=new Map()}
+  }
+  autoHoursMemo.set(periodId,result);
+  return result;
+}
+// → {hours, auto, proposed, schoolHours, morning}: the hours that apply, whether they are the automatic proposal,
+// the proposal itself (null without «Ωράριο στο σχολείο»), and what it comes from.
+function periodHoursInfo(periodId,staffId){
+  const proposal=autoPeriodHours(periodId).get(staffId)||{hours:null,schoolHours:null,morning:0};
+  const own=periodHoursValue(periodId)[staffId];
+  const explicit=Number.isInteger(own)&&own>=0&&own<=T.OLOIMERO_HOURS_MAX;
+  return {hours:explicit?own:(proposal.hours??0),auto:!explicit,proposed:proposal.hours,schoolHours:proposal.schoolHours,morning:proposal.morning||0};
+}
+// value null: the automatic proposal. An edit that gives back the stored hours is no change.
+function setPeriodHours(periodId,staffId,value){
+  const next={...periodHoursValue(periodId)};
+  if(value==null)delete next[staffId];else next[staffId]=value;
+  const sorted=sortedHours(next);
+  if(JSON.stringify(sorted)===JSON.stringify(sortedHours(storedPeriodHours(periodId))))periodHoursEdits.delete(periodId);
+  else periodHoursEdits.set(periodId,sorted);
+}
+// The hours of this teacher are those of the period of the design shown.
+const periodHoursApply=t=>!!(current?.periodId!=null&&t?.staffId&&periodOf(current.periodId));
+function ownAvailableHours(t){
   return Math.max(0,Math.floor(Number(t?.availableHours)||0));
+}
+function teacherAvailableHours(t){
+  return periodHoursApply(t)?periodHoursInfo(current.periodId,t.staffId).hours:ownAvailableHours(t);
+}
+// The model with the hours the board shows (in a design of a period, those of the period): for a new draft from the
+// design and for the CSV for FET.
+function shownHoursModel(model){
+  if(!model||current?.periodId==null)return model;
+  const byId=new Map(teachers.map(teacher=>[teacher.id,teacher]));
+  return {...model,teachers:model.teachers.map(item=>({...item,availableHours:teacherAvailableHours(byId.get(item.id)||item)}))};
 }
 
 function teacherIsOverLimit(t,uses=teacherCount(t.id)){
@@ -2231,6 +2295,7 @@ function renderBoard(){
 
       const td=document.createElement("td");
       td.dataset.key=k;
+      if(boardTarget?.keys.has(k))td.classList.add("ol-target");
       td.style.height=(state.rowHeights[r]||74)+"px";
 
       if(mi?.root){td.rowSpan=mi.rowspan;td.colSpan=mi.colspan}
@@ -2707,6 +2772,12 @@ function applySectionStyle(section){
 function openTeacher(id=null){
   const t=id?teachers.find(x=>x.id===id):null;
   if(!t)return;
+  // In a design of a period: the available hours of the period (see periodHoursInfo).
+  const inPeriod=periodHoursApply(t),info=inPeriod?periodHoursInfo(current.periodId,t.staffId):null;
+  const maximum=inPeriod
+    ?(info.schoolHours!=null?Math.max(0,Math.min(T.OLOIMERO_HOURS_MAX,Math.floor(info.schoolHours))):T.OLOIMERO_HOURS_MAX)
+    :Math.max(0,Math.floor(Number(t.maxHours)||0));
+  let toAuto=false;
   void formDialog({
     title:"Ρυθμίσεις εκπαιδευτικού",template:"#teacherTemplate",
     prepare:()=>{
@@ -2717,17 +2788,35 @@ function openTeacher(id=null){
         if(chosen)updateTeacherColorDisplay(chosen);
       });
       const availableHoursInput=document.querySelector("#teacherAvailableHours");
-      const maximum=Math.max(0,Math.floor(Number(t.maxHours)||0));
-      availableHoursInput.value=teacherAvailableHours(t);
-      availableHoursInput.max=String(maximum);
-      document.querySelector("#teacherFetHours").textContent=t.staffId?`από ${maximum} ώρες`:"χωρίς αντιστοίχιση στο Προσωπικό";
+      const help=document.querySelector("#teacherHoursHelp"),autoButton=document.querySelector("#teacherHoursAuto");
+      if(inPeriod){
+        const period=periodOf(current.periodId);
+        document.querySelector("#teacherHoursLabel").textContent="Διαθέσιμες ώρες της περιόδου";
+        availableHoursInput.value=info.hours;
+        availableHoursInput.max=String(maximum);
+        document.querySelector("#teacherFetHours").textContent=info.schoolHours!=null?`από ${info.schoolHours} ώρες`:"";
+        const proposal=info.proposed==null
+          ?"Χωρίς «Ωράριο στο σχολείο» στο Προσωπικό δεν υπάρχει αυτόματη πρόταση."
+          :`Αυτόματη πρόταση: ${info.schoolHours} ώρες στο σχολείο − ${info.morning} πρωινές = ${info.proposed}.`;
+        help.textContent=`${proposal}${info.auto?"":" Ισχύει η τιμή που έγραψες."} Οι ώρες ισχύουν για όλα τα σχέδια της περιόδου ${quoted(period?.name||"")}.`;
+        autoButton.hidden=info.auto||info.proposed==null;
+        autoButton.addEventListener("click",()=>{toAuto=true;availableHoursInput.value=info.proposed;autoButton.hidden=true;availableHoursInput.focus()});
+      }else{
+        availableHoursInput.value=ownAvailableHours(t);
+        availableHoursInput.max=String(maximum);
+        document.querySelector("#teacherFetHours").textContent=t.staffId?`από ${maximum} ώρες`:"χωρίς αντιστοίχιση στο Προσωπικό";
+        if(current?.periodId!=null&&!t.staffId)help.textContent="Οι ώρες ενός ονόματος χωρίς αντιστοίχιση μένουν στο σχέδιο, όχι στην περίοδο.";
+      }
     },
     apply:()=>{
       const input=document.querySelector("#teacherAvailableHours"),value=Number(input.value);
-      const maximum=Math.max(0,Math.floor(Number(t.maxHours)||0));
       if(!Number.isInteger(value)||value<0||value>maximum){input.focus();throw Error(`Οι διαθέσιμες ώρες πρέπει να είναι ακέραιος από 0 έως ${maximum}.`)}
       t.color=document.querySelector("#teacherColor").value;
-      t.availableHours=value;
+      if(inPeriod){
+        // The automatic proposal stays (or comes back) when the value is the proposal; else the value of the user.
+        if(info.proposed!=null&&value===info.proposed&&(info.auto||toAuto))setPeriodHours(current.periodId,t.staffId,null);
+        else if(value!==info.hours)setPeriodHours(current.periodId,t.staffId,value);
+      }else t.availableHours=value;
       commit();
       renderAll();
       setStatus("Οι αλλαγές του εκπαιδευτικού εφαρμόστηκαν αμέσως");
@@ -3380,7 +3469,7 @@ function openInternal(target){
 }
 // Shows a design as stored in the file, without changes: «Αναίρεση» starts again.
 function loadClean(target){
-  pending=new Map();cleanById=new Map();pageNewClasses=[];
+  pending=new Map();cleanById=new Map();pageNewClasses=[];periodHoursEdits=new Map();boardTarget=null;
   if(target?.programId&&!savedProgram(target.programId))target=defaultTarget();
   openInternal(target);
   sidebarHighlights.clear();
@@ -3395,6 +3484,39 @@ function currentChanged(){
   if(current.isNew||!cleanById.has(current.id))return true;
   return cleanById.get(current.id)!==JSON.stringify({current,model:captureModel()});
 }
+// The cell of a target (context.target with day and start, e.g. from the pencil of a locked cell of the Πλήρες
+// Σχολικό Πρόγραμμα): its places have a blue outline until the next click on the board or another design.
+let boardTarget=null;          // {keys: Set(cell key)} or null
+// → '' when the cell is on the board, else a message for the status line.
+function setBoardTarget(target){
+  boardTarget=null;
+  const day=Number(target?.day),start=String(target?.start||"");
+  if(!current||!start||!Number.isInteger(day))return "";
+  const hour=[...hourTimes].find(([,time])=>time.start===start);
+  const dayName=WEEK_DAYS[day-1]||"";
+  if(!hour||!dayName)return `Η ώρα ${start}${dayName?" ("+dayName+")":""} δεν είναι ώρα του πίνακα του Ολοημέρου.`;
+  const prefix=`${hour[0]}|${day-1}|`,keys=new Set();
+  slotLayout().slotRoots.forEach((cellKey,semanticKey)=>{if(semanticKey.startsWith(prefix))keys.add(cellKey)});
+  if(!keys.size)return `Το σχέδιο δεν έχει θέσεις στην ώρα ${start}–${hour[1].end} (${dayName}).`;
+  boardTarget={keys};
+  return "";
+}
+function clearBoardTarget(){
+  if(!boardTarget)return;
+  boardTarget=null;
+  board.querySelectorAll("td.ol-target").forEach(td=>td.classList.remove("ol-target"));
+}
+// Scrolls the board so that the target is in view.
+function scrollToBoardTarget(){
+  const cell=board.querySelector("td.ol-target");
+  if(!cell)return;
+  const wrapRect=boardWrap.getBoundingClientRect(),rect=cell.getBoundingClientRect();
+  boardWrap.scrollTo({
+    left:Math.max(0,boardWrap.scrollLeft+rect.left-wrapRect.left-(wrapRect.width-rect.width)/2),
+    top:Math.max(0,boardWrap.scrollTop+rect.top-wrapRect.top-(wrapRect.height-rect.height)/2)
+  });
+}
+
 // The target that shows again what is selected now, as stored in the file.
 function savedTarget(){
   if(current&&!current.isNew&&savedProgram(current.id))return {programId:current.id};
@@ -3438,6 +3560,10 @@ function renderProgramSelect(){
   const period=current?.periodId!=null?periodOf(current.periodId):selectedPeriodId?periodOf(selectedPeriodId):null;
   programSelect.title=period?periodText(period):current?current.name:"";
   programSelect.hidden=!context;
+  // What the Designer works on, as in the other program applications (the shared .ui-period-status).
+  const status=document.querySelector("#periodStatus");
+  const [label,kind]=period?(T.isDraftPeriod(period)?["Προσχέδιο περιόδου","draft"]:["Επίσημη","official"]):current?["Προσχέδιο σχεδίου","design-draft"]:["",""];
+  status.textContent=label;status.className="ui-period-status"+(kind?" "+kind:"");status.hidden=!context||!label;
 }
 // The selection is remembered in .data (lastViewByYear, through the Index), so the Designer opens there
 // next time. A new draft that is not saved yet is not remembered: it does not exist in the file.
@@ -3592,7 +3718,7 @@ const discardMessage=()=>current?`Οι μη αποθηκευμένες αλλα�
 async function newDraft(fromCurrent){
   closeMenus();
   if(busy||!isReady()||(fromCurrent&&!current))return;
-  const model=current?captureModel():null,sourceName=current?designName(current):"";
+  const model=current?shownHoursModel(captureModel()):null,sourceName=current?designName(current):"";
   const name=await askName(fromCurrent
     ?{title:"Νέο προσχέδιο από το τρέχον",suggested:`${sourceName} – αντίγραφο`,message:`Το νέο προσχέδιο θα έχει ό,τι δείχνει τώρα ο πίνακας του ${quoted(sourceName)}, με τις τοποθετήσεις.`+(dirty?" Οι μη αποθηκευμένες αλλαγές του πίνακα περνούν μόνο στο νέο προσχέδιο· το αρχικό μένει όπως αποθηκεύτηκε, και οι υπόλοιπες μη αποθηκευμένες αλλαγές απορρίπτονται.":"")}
     :{title:"Νέο προσχέδιο",suggested:`Προσχέδιο ${D.format(D.today())}`,message:current?`Το νέο προσχέδιο κρατά εκπαιδευτικούς, μαθήματα, συνενώσεις, κρυφές τάξεις και τμήματα και Σχεδιασμό του ${quoted(sourceName)}, χωρίς τοποθετήσεις.`:"Το νέο προσχέδιο ξεκινά με κενό πίνακα."});
@@ -3654,15 +3780,27 @@ async function importCsv({periodId=null,dropped=null}={}){
     (created.length?` και τα νέα τμήματα ${created.map(item=>item.name).join(", ")}`:"")+" — αποθηκεύονται με την «Αποθήκευση»");
 }
 
-// A period that already has a design gets another one: the user chooses to keep the old one as a draft or to
-// delete it (schoolReplaceProgram). → the choice, or null when the user cancels.
-const askReplaceOccupant=(title,period)=>schoolReplaceProgram({title,
-  message:`Η περίοδος ${quoted(period?.name||"")} έχει ήδη σχέδιο Ολοημέρου. Τι να γίνει με αυτό; Με «Πλήρης αντικατάσταση» διαγράφεται κατά την «Αποθήκευση».`,
-  suggestedName:`Ολοήμερο ${period?.name||""} – αντικαταστάθηκε ${D.format(D.today())}`});
-// The pending change for the old design of the period, after the user's choice.
-function replaceOccupant(program,choice,now){
-  pending.set(program.id,choice.mode==="draft"?{op:"put",program:{...structuredClone(program),periodId:null,name:choice.name,updatedAt:now}}:{op:"delete"});
+// A period that already has a design gets another one: the old one is deleted with «Αποθήκευση», after a
+// confirmation that offers a backup of the whole period as stored (schoolBackupConfirm). A design that is not stored
+// yet is only replaced. → true to go on, false when the user cancels.
+function askReplaceOccupant(title,period,occupant){
+  const stored=!!(occupant&&savedProgram(occupant.id));
+  return schoolBackupConfirm({title,
+    message:`Η περίοδος ${quoted(period?.name||"")} έχει ήδη σχέδιο Ολοημέρου${occupant?.name?" "+quoted(occupant.name):""}. Θα αντικατασταθεί, και με την «Αποθήκευση» θα διαγραφεί.`,
+    backup:stored?()=>writePeriodBackup(period.id):null,
+    note:stored?backupNote(period):""});
 }
+// The pending change for the old design of the period: deleted with «Αποθήκευση» (a design not stored yet goes now).
+function replaceOccupant(program){
+  if(savedProgram(program.id))pending.set(program.id,{op:"delete"});else pending.delete(program.id);
+}
+// The backup of a stored period (SchoolTimetable.periodBackup): the period with its programs, as stored. The host
+// writes it where the user chooses (school-oloimero:file, backupSave). → {name} of the file.
+function writePeriodBackup(periodId){
+  const {backup,fileName}=T.periodBackup({school:context.school,period:periodOf(periodId),programs:context.programs||[],staff:context.staff||[],classes:context.classes||[],catalog:context.individualCatalog});
+  return oloimeroFile("backupSave",{suggestedName:fileName,text:JSON.stringify(backup)});
+}
+const backupNote=period=>`Το αντίγραφο έχει όλη την περίοδο ${quoted(period?.name||"")} όπως είναι αποθηκευμένη, με τα προγράμματά της και τις διαθέσιμες ώρες Ολοημέρου${dirty?", χωρίς τις μη αποθηκευμένες αλλαγές":""}. Η επαναφορά του γίνεται από τα «Σχολικά Προγράμματα» («Επαναφορά από αντίγραφο…»).`;
 
 // «Αντιγραφή από άλλη περίοδο…»: the design of another period, as stored, into the period selected now.
 async function copyFromPeriod(){
@@ -3684,11 +3822,10 @@ async function copyFromPeriod(){
   if(!chosen)return;
   if(!await discardIfDirty(discardMessage()))return;
   const replacing=savedOfPeriod(periodId);
-  const choice=replacing?await askReplaceOccupant("Αντιγραφή από άλλη περίοδο",target):null;
-  if(replacing&&!choice)return;
+  if(replacing&&!await askReplaceOccupant("Αντιγραφή από άλλη περίοδο",target,replacing))return;
   const source=savedOfPeriod(chosen),now=nowIso();
   if(!source)return;
-  if(replacing)replaceOccupant(replacing,choice,now);
+  if(replacing)replaceOccupant(replacing);
   current={id:crypto.randomUUID(),periodId,name:"",createdAt:now,updatedAt:now,csvName:"",importedAt:"",isNew:true};
   selectedPeriodId=periodId;
   applyModel(withNewActivityIds(modelFromProgram(source)));
@@ -3697,7 +3834,8 @@ async function copyFromPeriod(){
 }
 
 // «Ανάθεση σε περίοδο…»: the original draft remains unchanged; a new independent design is
-// assigned to the period. A design already there becomes a draft or is deleted.
+// assigned to the period, with the available hours of the period (the draft keeps its own). A design already there
+// is deleted with «Αποθήκευση».
 async function assignToPeriod(){
   closeMenus();
   if(busy||!current||current.periodId!=null)return;
@@ -3719,20 +3857,19 @@ async function assignToPeriod(){
   if(!chosen?.periodId)return;
   const {periodId}=chosen;
   const period=periodOf(periodId),occupant=designOfPeriod(periodId,effectivePrograms());
-  const choice=occupant?await askReplaceOccupant("Ανάθεση σε περίοδο",period):null;
-  if(occupant&&!choice)return;
+  if(occupant&&!await askReplaceOccupant("Ανάθεση σε περίοδο",period,occupant))return;
   const now=nowIso(),name=current.name;
   // Preserve the original draft with its id, name and contents. A new, independent program is assigned to the period.
   // New or modified drafts must be written together with the assigned program on «Αποθήκευση».
   if(currentChanged())pending.set(current.id,{op:"put",program:buildProgram({...current,updatedAt:now},captureModel())});
   if(occupant){
     const old=programForId(occupant.id);
-    if(old)replaceOccupant(old,choice,now);
+    if(old)replaceOccupant(old);
   }
   current={...current,id:crypto.randomUUID(),periodId,isNew:true,createdAt:now,updatedAt:now};
   selectedPeriodId=periodId;
   commit();renderAll();
-  setStatus(`Το προσχέδιο ${quoted(name)} διατηρείται και δημιουργήθηκε ανεξάρτητο σχέδιο για την περίοδο ${quoted(period.name)} — πάτησε «Αποθήκευση»`);
+  setStatus(`Το προσχέδιο ${quoted(name)} διατηρείται και δημιουργήθηκε ανεξάρτητο σχέδιο για την περίοδο ${quoted(period.name)}, με τις διαθέσιμες ώρες Ολοημέρου της περιόδου — πάτησε «Αποθήκευση»`);
 }
 
 // Deleting drafts: they are removed with «Αποθήκευση». When the draft shown is deleted, the design that
@@ -3859,7 +3996,9 @@ async function saveDesigns(){
   const changed=current&&currentChanged();
   if(changed&&current.periodId==null&&!String(current.name||"").trim()){showMessage("Το προσχέδιο χρειάζεται όνομα. Δώσ' το από τη «Διαχείριση προσχεδίων…».");return}
   if(changed)ops.push({op:"put",program:buildProgram({...current,updatedAt:nowIso()},captureModel())});
-  if(!ops.length){loadClean(savedTarget());return}
+  // The available hours of the Ολοήμερο of the periods changed here (all the hours of a period together).
+  const periodHours=[...periodHoursEdits].filter(([periodId])=>periodOf(periodId)).map(([periodId,oloimeroHours])=>({periodId,oloimeroHours}));
+  if(!ops.length&&!periodHours.length){loadClean(savedTarget());return}
   // New classes of imports: only those that a program of this save still names. The programs are built
   // without the others, so a Τάξη does not bring them in.
   const named=new Set(ops.filter(op=>op.op==="put").flatMap(op=>[...namedClassIds(op.program)]));
@@ -3878,8 +4017,9 @@ async function saveDesigns(){
   if(current&&put){const view=current.periodId!=null?`period:${current.periodId}`:`draft:${current.id}`;if(view!==reportedView){reportedView=view;post({type:"school-timetables:view",view})}}
   setBusy(true);
   try{
-    const result=await schoolHost.request("school-timetables:save",{revision:context.revision,year:context.year,ops,...(newClasses.length?{newClasses}:{})});
+    const result=await schoolHost.request("school-timetables:save",{revision:context.revision,year:context.year,ops,...(newClasses.length?{newClasses}:{}),...(periodHours.length?{periodHours}:{})});
     applyContext(result);
+    if(periodHours.some(item=>JSON.stringify(sortedHours(storedPeriodHours(item.periodId)))!==JSON.stringify(sortedHours(item.oloimeroHours))))throw Error("Η αποθήκευση ολοκληρώθηκε, αλλά οι διαθέσιμες ώρες Ολοημέρου της περιόδου δεν είναι ίδιες με αυτές της σελίδας. Βεβαιώσου ότι το index.html είναι η τελευταία έκδοση.");
     if(put){
       const stored=savedProgram(put.id);
       // The host keeps the initial state (initial, initialSetAt) and may add it in this save: it is not compared.
@@ -3892,7 +4032,7 @@ async function saveDesigns(){
     if(ops.some(op=>op.op==="delete"&&savedProgram(op.id)))throw Error("Η αποθήκευση ολοκληρώθηκε, αλλά κάποιο προσχέδιο δεν διαγράφηκε από το αρχείο. Βεβαιώσου ότι το index.html είναι η τελευταία έκδοση.");
     if(newClasses.some(item=>!(context.classes||[]).some(record=>record.id===item.id)))throw Error("Η αποθήκευση ολοκληρώθηκε, αλλά τα νέα τμήματα δεν προστέθηκαν στα «Τμήματα». Βεβαιώσου ότι το index.html είναι η τελευταία έκδοση.");
     loadClean(current&&savedProgram(current.id)?{programId:current.id}:defaultTarget());
-    setStatus("Οι αλλαγές αποθηκεύτηκαν στο κοινό αρχείο .data"+(newClasses.length?` · νέα τμήματα στα «Τμήματα»: ${newClasses.map(item=>item.name).join(", ")}`:""));
+    setStatus("Οι αλλαγές αποθηκεύτηκαν στο κοινό αρχείο .data"+(periodHours.length?" · διαθέσιμες ώρες Ολοημέρου της περιόδου":"")+(newClasses.length?` · νέα τμήματα στα «Τμήματα»: ${newClasses.map(item=>item.name).join(", ")}`:""));
   }catch(error){
     showMessage("Η αποθήκευση δεν έγινε.\n\n"+(error?.message||String(error)));
   }finally{setBusy(false);renderAll()}
@@ -3902,7 +4042,7 @@ async function saveDesigns(){
 async function exportCsv(){
   closeMenus();
   if(busy||!current||!context)return;
-  const program=buildProgram(current,captureModel());
+  const program=buildProgram(current,shownHoursModel(captureModel()));
   const result=T.oloimeroCsvFromProgram(program,{staff:context.staff,classes:allClasses(),teachingHours:context.teachingHours});
   const incomplete=program.source.pending.length+result.incomplete;
   const fileName=`${designName(current)}.csv`.replace(/[\\/:*?"<>|]+/g,"_");
@@ -4055,6 +4195,7 @@ function applyContext(value){
   context=value&&typeof value==="object"?value:null;
   staffDirectory=T.sortStaff((context?.staff||[]).filter(person=>person&&person.id));
   staffById=new Map(staffDirectory.map(person=>[person.id,person]));
+  autoHoursMemo=new Map();
   configureDefinitionsFromCommonData(context?.teachingHours);
 }
 function receive(value){
@@ -4068,7 +4209,10 @@ function receive(value){
   // Opened from «Σχολικά Προγράμματα» with a target: the design of that period.
   const target=context.target?.periodId&&periodOf(context.target.periodId)?(savedOfPeriod(context.target.periodId)?{programId:savedOfPeriod(context.target.periodId).id}:{periodId:context.target.periodId}):null;
   loadClean(target||(keep&&savedProgram(keep.id)?keep:(first&&lastViewTarget())||savedTarget()));
-  setStatus(hoursError?"Οι Ώρες Διδασκαλίας χρειάζονται διόρθωση":"Έτοιμο");
+  // With a day and an hour: that cell of the design of the period.
+  const cellMessage=target&&current?.periodId===context.target.periodId?setBoardTarget(context.target):"";
+  if(boardTarget){renderBoard();requestAnimationFrame(scrollToBoardTarget)}
+  setStatus(hoursError?"Οι Ώρες Διδασκαλίας χρειάζονται διόρθωση":cellMessage||"Έτοιμο");
 }
 schoolHost.on("school-timetables:context",message=>{if(!dirty&&!busy)receive(message.context)});
 
@@ -4094,6 +4238,7 @@ document.addEventListener("click",event=>{if(!event.target.closest(".save-contro
 document.addEventListener("keydown",event=>{if(event.key==="Escape")closeMenus()});
 
 document.querySelector("#saveData").addEventListener("click",()=>void saveDesigns());
+boardTable.addEventListener("pointerdown",clearBoardTarget,true);
 document.querySelector("#exportCsv").addEventListener("click",()=>void exportCsv());
 document.querySelector("#newDraft").addEventListener("click",()=>void newDraft(false));
 document.querySelector("#newFromCurrent").addEventListener("click",()=>void newDraft(true));

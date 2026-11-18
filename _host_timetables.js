@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Προγράμματα στο Κεντρικό Μενού (host)
- * Έκδοση αρχείου: 0.21
+ * Έκδοση αρχείου: 0.22
  * Όνομα κατά την εγκατάσταση: _host_timetables.js
  *
  * Κώδικας μόνο του host για τα προγράμματα (timetablesByYear). Το φορτώνει το index.html μετά το
@@ -89,11 +89,11 @@
 
   // ---- Δικαιώματα ----
   // periods: γράφει τη λίστα περιόδων· kinds: τα είδη που γράφει· owned: τα είδη της (εφαρμογή-κάτοχος)· drafts: 'own'
-  // (φτιάχνει, αλλάζει και σβήνει προσχέδια των ειδών της), 'fromPeriod' (μόνο προσχέδιο από πρόγραμμα που ήταν σε
-  // περίοδο) ή 'none'· oloimeroHours: γράφει τις διαθέσιμες ώρες Ολοημέρου των περιόδων. Τα είδη του kinds που δεν είναι στο owned (WRITERS)
+  // (φτιάχνει, αλλάζει και σβήνει προσχέδια των ειδών της) ή 'none' (δεν αγγίζει προσχέδια· τα «Σχολικά Προγράμματα»
+  // δεν φτιάχνουν προσχέδια από προγράμματα περιόδων)· oloimeroHours: γράφει τις διαθέσιμες ώρες Ολοημέρου των περιόδων. Τα είδη του kinds που δεν είναι στο owned (WRITERS)
   // τα γράφει μόνο σε προγράμματα περιόδων.
   function permissions(app) {
-    if (app === PROGRAMS_APP) return {app, periods: true, kinds: Object.keys(T.kinds), owned: [], drafts: 'fromPeriod', oloimeroHours: true};
+    if (app === PROGRAMS_APP) return {app, periods: true, kinds: Object.keys(T.kinds), owned: [], drafts: 'none', oloimeroHours: true};
     const owned = Object.keys(T.kinds).filter(kind => T.kinds[kind].owner === app);
     const kinds = Object.keys(T.kinds).filter(kind => owned.includes(kind) || (WRITERS[kind] || []).includes(app));
     return {app, periods: false, kinds, owned, drafts: owned.length ? 'own' : 'none', oloimeroHours: owned.includes('oloimero')};
@@ -560,9 +560,6 @@
     const may = kind => rights.kinds.includes(kind);
     // Είδη που η εφαρμογή γράφει χωρίς να είναι δικά της (WRITERS): μόνο προγράμματα περιόδων.
     const periodOnly = kind => may(kind) && !rights.owned.includes(kind) && rights.app !== PROGRAMS_APP;
-    const draftCopies = [];
-    // A copy of a period program: the same, apart from its identity, place, name, dates, history and initial state.
-    const asDraftCopy = program => { const {id, periodId, name, createdAt, updatedAt, history, initial, initialSetAt, ...rest} = program; return stableJson(rest); };
 
     for (const op of ops) {
       if (!isObject(op) || (op.op !== 'put' && op.op !== 'delete') || (op.setInitial != null && typeof op.setInitial !== 'boolean')) throw Error('Μη έγκυρη ενέργεια στα προγράμματα.');
@@ -573,7 +570,7 @@
       const existing = before.get(id);
       if (existing && !known(existing.kind)) throw Error('Το πρόγραμμα ' + programName(existing) + ' είναι άγνωστου είδους και δεν αλλάζει από εδώ. Βεβαιώσου ότι το index.html είναι η τελευταία έκδοση.');
       if (existing && !may(existing.kind)) throw Error('Η εφαρμογή δεν μπορεί να αλλάξει το πρόγραμμα ' + programName(existing) + '.');
-      if (existing && rights.drafts === 'fromPeriod' && existing.periodId == null) throw Error('Το προσχέδιο ' + programName(existing) + ' αλλάζει ή σβήνεται μόνο από την εφαρμογή του είδους του.');
+      if (existing && app === PROGRAMS_APP && existing.periodId == null) throw Error('Το προσχέδιο ' + programName(existing) + ' αλλάζει ή σβήνεται μόνο από την εφαρμογή του είδους του.');
       if (existing && periodOnly(existing.kind) && (op.op === 'delete' || existing.periodId == null)) throw Error('Η εφαρμογή μπορεί μόνο να αλλάξει το πρόγραμμα ' + programName(existing) + ' μιας περιόδου, όχι να το διαγράψει.');
       if (op.op === 'delete') {
         if (!existing) throw Error('Το πρόγραμμα που ζητήθηκε να διαγραφεί δεν υπάρχει πια. Φόρτωσε ξανά τα στοιχεία.');
@@ -584,22 +581,13 @@
       if (!known(program.kind)) throw Error('Ένα πρόγραμμα έχει άγνωστο είδος ' + quoted(String(program.kind)) + '.');
       if (!may(program.kind)) throw Error('Η εφαρμογή δεν μπορεί να γράψει προγράμματα του είδους ' + quoted(kindLabel(program.kind)) + '.');
       if (existing && existing.kind !== program.kind) throw Error('Το είδος ενός προγράμματος δεν αλλάζει.');
-      // «Σχολικά Προγράμματα»: a draft only from a program that was in a period, or as a copy of a period program
-      // («Αντίγραφο ως προσχέδιο», checked below, after every put of the save).
-      if (rights.drafts === 'fromPeriod' && program.periodId == null && !(existing && existing.periodId != null)) {
-        if (existing || T.kinds[program.kind]?.drafts === false) throw Error('Η εφαρμογή «' + PROGRAMS_TITLE + '» φτιάχνει προσχέδιο μόνο από πρόγραμμα που ήταν σε περίοδο.');
-        draftCopies.push(program);
-      }
+      // «Σχολικά Προγράμματα» write only period programs: a draft is made only by the application of its kind.
+      if (app === PROGRAMS_APP && program.periodId == null) throw Error('Η εφαρμογή «' + PROGRAMS_TITLE + '» γράφει μόνο προγράμματα περιόδων· τα προσχέδια φτιάχνονται στην εφαρμογή του είδους τους. Βεβαιώσου ότι η εφαρμογή είναι η τελευταία έκδοση.');
       if (periodOnly(program.kind) && program.periodId == null) throw Error('Η εφαρμογή γράφει προγράμματα του είδους ' + quoted(kindLabel(program.kind)) + ' μόνο σε περίοδο.');
       // The initial state is kept by the host: an application never changes the stored one.
       T.keepInitial(existing || null, program, {setInitial: op.setInitial === true, now});
       result.set(id, program);
       puts.push(program);
-    }
-    // «Αντίγραφο ως προσχέδιο»: each new draft of «Σχολικά Προγράμματα» is a copy of a period program of the save.
-    for (const copy of draftCopies) {
-      const text = asDraftCopy(copy);
-      if (![...result.values()].some(item => isObject(item) && item.periodId != null && item.kind === copy.kind && item.id !== copy.id && asDraftCopy(item) === text)) throw Error('Η εφαρμογή «' + PROGRAMS_TITLE + '» φτιάχνει προσχέδιο μόνο από πρόγραμμα που ήταν σε περίοδο, ή ως αντίγραφο ενός προγράμματος περιόδου.');
     }
 
     // Κανόνες του συνόλου: κανένα πρόγραμμα σε περίοδο που δεν υπάρχει, ένα πρόγραμμα ανά είδος και περίοδο.
@@ -610,7 +598,7 @@
       if (!periodIds.has(program.periodId)) {
         const removed = current.periods.find(period => period.id === program.periodId);
         throw Error(removed
-          ? 'Η περίοδος ' + quoted(removed.name) + ' αφαιρείται, αλλά το πρόγραμμα ' + programName(program) + ' μένει σε αυτήν. Κράτησέ το ως προσχέδιο ή διάγραψέ το στην ίδια αποθήκευση.'
+          ? 'Η περίοδος ' + quoted(removed.name) + ' αφαιρείται, αλλά το πρόγραμμα ' + programName(program) + ' μένει σε αυτήν. Τα προγράμματα της περιόδου διαγράφονται στην ίδια αποθήκευση.'
           : 'Το πρόγραμμα ' + programName(program) + ' ανήκει σε περίοδο που δεν υπάρχει.');
       }
       const key = program.kind + '\u0000' + program.periodId;
@@ -861,27 +849,41 @@
     return result;
   }
 
+  // The backup of a period (JSON, SchoolTimetable.periodBackup), saved where the user chooses: {action:'backupSave',
+  // suggestedName, text} → {name}. «Σχολικά Προγράμματα», the Ολοήμερο Designer and the Ατομικά Προγράμματα offer it
+  // before an action that changes or removes stored programs (schoolBackupConfirm of _ui.js); the picker starts in the
+  // folder of the last backup of the school year, the same for all of them.
+  const BACKUP_FILE = {description: 'Αντίγραφο ασφαλείας περιόδου (Σχολικά Προγράμματα)', accept: {'application/json': ['.json']}};
+  const backupKey = year => 'programs-backup:' + year;
+  async function saveBackup(year, message) {
+    if (typeof message.text !== 'string' || message.text.length > EXPORT_MAX_CHARS) throw Error('Τα δεδομένα του αντιγράφου ασφαλείας δεν είναι έγκυρα.');
+    const name = String(message.suggestedName || 'programs_backup.json').replace(/[\\/:*?"<>|]+/g, '_').slice(0, 200) || 'programs_backup.json';
+    const handle = await picker('save', {id: 'sp-backup', suggestedName: name, types: [BACKUP_FILE]}, await rememberedHandle(backupKey(year)));
+    const writer = await handle.createWritable();
+    try { await writer.write(new Blob([message.text], {type: 'application/json;charset=utf-8'})); await writer.close(); }
+    catch (error) { await writer.abort().catch(() => {}); throw error; }
+    await referenceStore('put', backupKey(year), handle).catch(() => {});
+    return {name: handle.name};
+  }
+
   // The files of «Σχολικά Προγράμματα» (school-programs:file):
   //   {action:'last'|'read'|'choose', kind, importer, file}  the file of an importer (importFile)
-  //   {action:'backupSave', suggestedName, text}            saves the backup of a period (JSON) → {name}; the picker
-  //                                                         starts in the folder of the last backup of the school year
+  //   {action:'backupSave', suggestedName, text}            saves the backup of a period (saveBackup) → {name}
   //   {action:'backupOpen'}                                  a backup file chosen by the user → {name, text}
-  const BACKUP_FILE = {description: 'Αντίγραφο ασφαλείας περιόδου (Σχολικά Προγράμματα)', accept: {'application/json': ['.json']}};
   async function programsFile(year, message, app) {
-    if (app !== undefined && app !== PROGRAMS_APP) throw Error('Τα αντίγραφα ασφαλείας περιόδων τα ζητά μόνο η εφαρμογή ' + quoted(PROGRAMS_TITLE) + '.');
-    const key = 'programs-backup:' + year;
-    if (message?.action === 'backupSave') {
-      if (typeof message.text !== 'string' || message.text.length > EXPORT_MAX_CHARS) throw Error('Τα δεδομένα του αντιγράφου ασφαλείας δεν είναι έγκυρα.');
-      const name = String(message.suggestedName || 'programs_backup.json').replace(/[\\/:*?"<>|]+/g, '_').slice(0, 200) || 'programs_backup.json';
-      const handle = await picker('save', {id: 'sp-backup', suggestedName: name, types: [BACKUP_FILE]}, await rememberedHandle(key));
-      const writer = await handle.createWritable();
-      try { await writer.write(new Blob([message.text], {type: 'application/json;charset=utf-8'})); await writer.close(); }
-      catch (error) { await writer.abort().catch(() => {}); throw error; }
-      await referenceStore('put', key, handle).catch(() => {});
-      return {name: handle.name};
-    }
-    if (message?.action === 'backupOpen') return rememberedFile('choose', {key, pickerId: 'sp-backup', ...BACKUP_FILE});
+    if (app !== undefined && app !== PROGRAMS_APP) throw Error('Τα αρχεία των «' + PROGRAMS_TITLE + '» τα ζητά μόνο η εφαρμογή ' + quoted(PROGRAMS_TITLE) + '.');
+    if (message?.action === 'backupSave') return saveBackup(year, message);
+    if (message?.action === 'backupOpen') return rememberedFile('choose', {key: backupKey(year), pickerId: 'sp-backup', ...BACKUP_FILE});
     return importFile(year, message, app);
+  }
+
+  // The files of the Ατομικά Προγράμματα (school-individual:file): only {action:'backupSave', suggestedName, text}, the
+  // backup of a period (saveBackup) → {name}.
+  async function individualFile(year, message, app) {
+    const owner = T.kinds.individual.owner;
+    if (app !== undefined && app !== owner) throw Error('Τα αρχεία των Ατομικών Προγραμμάτων τα ζητά μόνο η εφαρμογή ' + quoted(T.kinds.individual.ownerTitle) + '.');
+    if (message?.action === 'backupSave') return saveBackup(year, message);
+    throw Error('Άγνωστη ενέργεια αρχείου. Βεβαιώσου ότι το index.html και τα κοινά αρχεία είναι η τελευταία έκδοση.');
   }
 
   // The files of the Ολοήμερο Designer (school-oloimero:file):
@@ -890,9 +892,11 @@
   //                                                                    the sidebar; remembered per school year
   //   {action:'export', suggestedName, text}                           saves the CSV for FET → {name}; the picker
   //                                                                    starts in the folder of the last export
+  //   {action:'backupSave', suggestedName, text}                       saves the backup of a period (saveBackup)
   async function oloimeroFile(year, message, app) {
     const owner = T.kinds.oloimero.owner;
     if (app !== undefined && app !== owner) throw Error('Τα αρχεία του Ολοήμερου Designer τα ζητά μόνο ο ' + quoted(T.kinds.oloimero.ownerTitle) + '.');
+    if (message?.action === 'backupSave') return saveBackup(year, message);
     if (message?.action === 'export') {
       if (typeof message.text !== 'string' || message.text.length > EXPORT_MAX_CHARS) throw Error('Τα δεδομένα του CSV δεν είναι έγκυρα.');
       const key = 'oloimero-export:' + year;
@@ -933,7 +937,8 @@
   const FILE_REQUESTS = {
     'school-programs:file': {app: () => PROGRAMS_APP, run: programsFile},
     'school-fet:file': {app: () => T.kinds.school.owner, run: importFile},
-    'school-oloimero:file': {app: () => T.kinds.oloimero.owner, run: oloimeroFile}
+    'school-oloimero:file': {app: () => T.kinds.oloimero.owner, run: oloimeroFile},
+    'school-individual:file': {app: () => T.kinds.individual.owner, run: individualFile}
   };
   function install(bridge) {
     let fileBusy = false;
@@ -1031,6 +1036,6 @@
   window.SchoolHostTimetables = Object.freeze({
     PROGRAMS_APP, PROGRAMS_TITLE, LIMITS, WARN_RATIO, CATALOG_LIMITS, permissions, yearData, individualCatalog, validateCatalog, checkCatalogAdditions, context,
     validatePeriods, validateProgram, applySave, viewKey, lastView, withView, currentPeriod, periodViews, openTarget, ZOOM, zoom, withZoom,
-    staffUsage, applyStaffRemovals, importFile, programsFile, oloimeroFile, droppedImportFile, rememberedFile, install
+    staffUsage, applyStaffRemovals, importFile, programsFile, oloimeroFile, individualFile, droppedImportFile, rememberedFile, install
   });
 })();

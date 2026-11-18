@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινό περιβάλλον χρήστη
- * Έκδοση αρχείου: 0.56
+ * Έκδοση αρχείου: 0.57
  * Όνομα κατά την εγκατάσταση: _ui.css
  */
 
@@ -41,6 +41,8 @@
   --school-ui-period-official-bg:#1f8a5b;--school-ui-period-official-text:#fff;
   --school-ui-period-draft-bg:#f4f0fd;--school-ui-period-draft-border:#7c5cc4;--school-ui-period-draft-text:#5b3fa3;
   --school-ui-design-draft-bg:#f2f4f7;--school-ui-design-draft-border:#98a2b3;--school-ui-design-draft-text:#475467;
+  /* The «Προσοχή» panel of schoolBackupConfirm, with the «Αντίγραφο Ασφαλείας…» button: soft amber. */
+  --school-ui-backup-bg:#fff7e6;--school-ui-backup-border:#f1cf8f;
   --school-ui-disabled-bg:#edf0f4;
   --school-ui-disabled-text:#657182;
   --school-ui-disabled-button-bg:#f6f8fa;
@@ -214,6 +216,19 @@ dialog button:focus-visible,dialog input:focus-visible,dialog select:focus-visib
 .school-choice-options button{text-align:left;overflow-wrap:anywhere;white-space:normal}
 .school-choice-error{margin-top:12px!important;color:var(--school-ui-error)}
 .school-choice-error:empty{display:none}
+/* schoolBackupConfirm: the «Προσοχή» panel inside the dialog, with the «Αντίγραφο Ασφαλείας…» button (.success)
+   at its bottom right, and a line when the backup was saved. */
+.school-backup-notice{margin-top:14px;padding:12px 14px;background:var(--school-ui-backup-bg);border:1px solid var(--school-ui-backup-border);border-radius:8px}
+.school-backup-notice p{margin:0}
+.school-backup-notice p+p{margin-top:6px}
+.school-backup-note{font-size:14px;color:var(--school-ui-readonly-text)}
+.school-backup-done{color:var(--school-ui-ok)}
+.school-backup-done .ui-icon-text{white-space:normal}
+.school-backup-done[hidden]{display:none}
+.school-backup-actions{display:flex;justify-content:flex-end;margin-top:10px}
+.school-backup-actions button.success{background:var(--school-ui-success-bg);border-color:var(--school-ui-success-border);color:var(--school-ui-success-text)}
+.school-backup-actions button.success:hover:not(:disabled){background:var(--school-ui-success-hover-bg);border-color:var(--school-ui-success-border)}
+.school-backup-actions button.success:disabled{background:var(--school-ui-success-disabled-bg);border-color:var(--school-ui-success-disabled-bg);color:var(--school-ui-success-disabled-text)}
 /* A labelled field inside a choice dialog: <label class="school-choice-field">Label<input|select></label>.
    The field goes under the label, full width, with normal text weight. */
 .school-choice-field>:is(input,select){display:block;width:100%;min-width:0;margin-top:5px;font-weight:400}

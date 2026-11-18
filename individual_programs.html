@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ατομικά Προγράμματα v0.10</title>
+<title>Ατομικά Προγράμματα v0.11</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -215,7 +215,7 @@ main.ip-single~.ip-summary{left:18px}
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ατομικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΑΠ</span></span><span class="brand-text"><span>Ατομικά Προγράμματα</span><span class="small version">v0.10</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ατομικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΑΠ</span></span><span class="brand-text"><span>Ατομικά Προγράμματα</span><span class="small version">v0.11</span></span></button></h1></div>
   <select id="period" aria-label="Περίοδος" disabled hidden></select>
   <span id="periodStatus" class="ui-period-status" hidden></span>
   <span id="staffControl" class="ip-staff-control" hidden>
@@ -1866,7 +1866,15 @@ main.ip-single~.ip-summary{left:18px}
     if (!accepted || !chosen.length) return;
     const already = sortedStaff().filter(person => chosen.includes(person.id) && hasIndividual(person.id));
     const period = periodOf(fromId), current = periodOf(periodId);
-    if (already.length && !await schoolConfirm((already.length === 1 ? 'Ο εκπαιδευτικός ' + quoted(personName(already[0])) + ' έχει' : 'Οι εκπαιδευτικοί ' + already.map(person => quoted(personName(person))).join(', ') + ' έχουν') + ' ήδη κελιά στην περίοδο ' + quoted(current?.name || '') + '. Να αντικατασταθούν με αυτά της περιόδου ' + quoted(period?.name || '') + ';', {title: 'Αντιγραφή από άλλη περίοδο', accept: 'Αντικατάσταση'})) return;
+    // Cells that are stored in the file are replaced: the confirmation offers a backup of the whole period.
+    const stored = individualOf(periodId), storedHas = id => (stored?.activities || []).some(activity => (activity.staff || []).includes(id)) || (stored?.source?.pending || []).some(item => item.staffId === id);
+    const offer = already.some(person => storedHas(person.id));
+    if (already.length && !await schoolBackupConfirm({
+      title: 'Αντιγραφή από άλλη περίοδο',
+      message: (already.length === 1 ? 'Ο εκπαιδευτικός ' + quoted(personName(already[0])) + ' έχει' : 'Οι εκπαιδευτικοί ' + already.map(person => quoted(personName(person))).join(', ') + ' έχουν') + ' ήδη κελιά στην περίοδο ' + quoted(current?.name || '') + '. Θα αντικατασταθούν με αυτά της περιόδου ' + quoted(period?.name || '') + '.',
+      note: offer ? 'Το αντίγραφο έχει όλη την περίοδο ' + quoted(current?.name || '') + ' όπως είναι αποθηκευμένη, με τα προγράμματά της και τις διαθέσιμες ώρες Ολοημέρου' + (dirty ? ', χωρίς τις μη αποθηκευμένες αλλαγές' : '') + '. Η επαναφορά του γίνεται από τα «Σχολικά Προγράμματα» («Επαναφορά από αντίγραφο…»).' : '',
+      backup: offer ? () => writePeriodBackup(periodId) : null
+    })) return;
     let result = null;
     const done = change(() => {
       result = T.individualCopy(program, individualOf(fromId), chosen, {periodId, staff: context.staff || [], fromPeriod: period?.name || ''});
@@ -1878,6 +1886,13 @@ main.ip-single~.ip-summary{left:18px}
     notice('Αντιγράφηκαν από την περίοδο ' + quoted(period?.name || '') + ' τα ατομικά προγράμματα ' + (chosen.length === 1 ? '1 εκπαιδευτικού' : chosen.length + ' εκπαιδευτικών')
       + ' (' + hoursText(result.activities) + (result.pending ? ', ' + result.pending + (result.pending === 1 ? ' ελλιπές κελί' : ' ελλιπή κελιά') : '') + '). Πάτησε «Αποθήκευση».'
       + (problems ? ' Προσοχή: ' + (problems === 1 ? '1 κελί πέφτει' : problems + ' κελιά πέφτουν') + ' σε ώρες του Ωρολογίου αυτής της περιόδου ή εκτός Πρωινού και σημειώνονται με κόκκινο.' : ''));
+  }
+
+  // The backup of a stored period (SchoolTimetable.periodBackup): the period with its programs, as stored. The host
+  // writes it where the user chooses (school-individual:file, backupSave). → {name} of the file.
+  function writePeriodBackup(id) {
+    const {backup, fileName} = T.periodBackup({school: context.school, period: periodOf(id), programs: context.programs || [], staff: context.staff || [], classes: context.classes || [], catalog: context.individualCatalog});
+    return schoolHost.request('school-individual:file', {action: 'backupSave', suggestedName: fileName, text: JSON.stringify(backup)});
   }
 
   // ---- Events ----
