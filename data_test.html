@@ -12,7 +12,7 @@
   φτιάχνονται από το σύντομο όνομα των δασκάλων («[Α1] - …», classesFromStaff). Με το .data δοκιμής, οι
   έλεγχοι των νέων ετικετών (v2) παίρνουν το Προσωπικό από αυτό, γιατί το CSV του Ολοημέρου έχει τα σύντομα
   ονόματα του Προσωπικού.
-  Έκδοση αρχείου: 0.62
+  Έκδοση αρχείου: 0.63
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -508,8 +508,13 @@ function importScenario(title, fetText, csvText, csvName, fetName, staff, classe
   equal('Χωρίς τμήματα στα Τμήματα: δημιουργούνται τα 12 τμήματα Γενικής Παιδείας, «Στ1» και όχι «ΣΤ1»', auto.newClasses.map(c => c.name), CLASSES, messages(auto));
   if (expected.entaxi) {
     // Το «Τμήμα Ένταξης» στο CSV (δεν υπάρχει στο .fet): αντιστοιχίζεται όταν υπάρχει στα Τμήματα, αλλιώς otherStudents.
-    const entaxiCsv = csvText.replace('"1","Δευτέρα","07:15-08:00","Α\'-Στ\'"', '"1","Δευτέρα","07:15-08:00","Τμήμα Ένταξης"');
-    const first = analysis => SchoolTimetable.buildFetProgram(analysis, {unmatched: 'keep'}).activities.find(a => a.id === 'fet-1');
+    // Σε πρωινή δραστηριότητα (70: Γλώσσα Α1, Δευτέρα 08:15–09:40), γιατί σε ζώνη Ολοημέρου είναι λάθος.
+    const entaxiCsv = csvText.replace('"70","Δευτέρα","08:15-09:00","Α1"', '"70","Δευτέρα","08:15-09:00","Τμήμα Ένταξης"').replace('"70","Δευτέρα","09:00-09:40","Α1"', '"70","Δευτέρα","09:00-09:40","Τμήμα Ένταξης"');
+    check('Δοκιμή «Τμήμα Ένταξης»: η δραστηριότητα 70 άλλαξε στο CSV', entaxiCsv.split('"Τμήμα Ένταξης"').length === 3);
+    const first = analysis => SchoolTimetable.buildFetProgram(analysis, {unmatched: 'keep'}).activities.find(a => a.id === 'fet-70');
+    const earlyCsv = csvText.replace('"1","Δευτέρα","07:15-08:00","Α\'-Στ\'"', '"1","Δευτέρα","07:15-08:00","Τμήμα Ένταξης"');
+    const early = SchoolTimetable.analyzeFetImport({csvText: earlyCsv, fetText, staff, classes: [...classes, ENTAXI], teachingHours: hours});
+    check('«Τμήμα Ένταξης» στην Πρωινή Ζώνη (ζώνη Ολοημέρου): η εισαγωγή σταματά', !early.ok && has(early.errors, 'Activity Id 1'), messages(early));
     const withClass = SchoolTimetable.analyzeFetImport({csvText: entaxiCsv, fetText, staff, classes: [...classes, ENTAXI], teachingHours: hours});
     equal('«Τμήμα Ένταξης» που υπάρχει στα Τμήματα: αντιστοιχίζεται', [first(withClass)?.classes, first(withClass)?.otherStudents, withClass.newClasses.length], [[ENTAXI.id], [], 0], messages(withClass));
     const withoutClass = SchoolTimetable.analyzeFetImport({csvText: entaxiCsv, fetText, staff, classes, teachingHours: hours});
