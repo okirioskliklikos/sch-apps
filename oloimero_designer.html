@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ολοήμερο Designer v1.94</title>
+<title>Ολοήμερο Designer v1.95</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -589,7 +589,7 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
 <body>
 
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΟΛ</span></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v1.94</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΟΛ</span></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v1.95</span></span></button></h1></div>
   <select id="program" aria-label="Σχέδιο" hidden></select>
   <span class="save-control">
     <button id="saveData" class="save-main" type="button" disabled>Αποθήκευση</button>
@@ -3882,7 +3882,9 @@ async function saveDesigns(){
     applyContext(result);
     if(put){
       const stored=savedProgram(put.id);
-      if(!stored||JSON.stringify(stored)!==JSON.stringify(put))throw Error("Η αποθήκευση ολοκληρώθηκε, αλλά το σχέδιο του αρχείου δεν είναι ίδιο με αυτό της σελίδας. Βεβαιώσου ότι το index.html είναι η τελευταία έκδοση.");
+      // The host keeps the initial state (initial, initialSetAt) and may add it in this save: it is not compared.
+      const withoutInitial=value=>{const{initial,initialSetAt,...rest}=value;return JSON.stringify(rest)};
+      if(!stored||withoutInitial(stored)!==withoutInitial(put))throw Error("Η αποθήκευση ολοκληρώθηκε, αλλά το σχέδιο του αρχείου δεν είναι ίδιο με αυτό της σελίδας. Βεβαιώσου ότι το index.html είναι η τελευταία έκδοση.");
     }
     for(const op of ops.filter(op=>op.op==="put"&&op.program.periodId==null)){
       if(savedProgram(op.program.id)?.periodId!==null)throw Error("Η αποθήκευση ολοκληρώθηκε, αλλά ένα προσχέδιο δεν διατηρήθηκε στο αρχείο. Βεβαιώσου ότι το index.html είναι η τελευταία έκδοση.");
