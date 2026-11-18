@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ολοήμερο Designer v1.97</title>
+<title>Ολοήμερο Designer v1.98</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -593,7 +593,7 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
 <body>
 
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark is-sub" data-app-icon="oloimero" aria-hidden="true"></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v1.97</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark is-sub" data-app-icon="oloimero" aria-hidden="true"></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v1.98</span></span></button></h1></div>
   <select id="program" aria-label="Σχέδιο" hidden></select>
   <span id="periodStatus" class="ui-period-status" hidden></span>
   <span class="save-control">
@@ -894,18 +894,18 @@ let hiddenGrades=new Set(),hiddenClasses=new Set();
 let pageNewClasses=[];
 
 // The style of a section of the sidebar (teacher, subject, department, union), shared by all its items.
-function normalizedSharedStyle(v){
+function normalizedSharedStyle(v,defaultBold=true){
   const src=(v && typeof v==="object") ? v : {};
   return {
     fontSize:Math.max(8,Math.min(48,Number(src.fontSize)||16)),
-    bold:src.bold!==false,
+    bold:src.bold===false?false:src.bold===true?true:defaultBold,
     italic:!!src.italic
   };
 }
 
 let categoryStyles={
   teacher:normalizedSharedStyle(null),
-  subject:normalizedSharedStyle(null),
+  subject:normalizedSharedStyle(null,false),
   department:normalizedSharedStyle(null),
   union:normalizedSharedStyle(null)
 };
@@ -1368,7 +1368,7 @@ function layoutBoard(){
 }
 function applyModel(model){
   resetBoardStats();
-  categoryStyles=Object.fromEntries(["teacher","subject","department","union"].map(section=>[section,normalizedSharedStyle(model?.styles?.[section])]));
+  categoryStyles=Object.fromEntries(["teacher","subject","department","union"].map(section=>[section,normalizedSharedStyle(model?.styles?.[section],section!=="subject")]));
   teachers=(model?.teachers||[]).map(teacherRecord);
   subjects=(model?.subjects||[]).map(item=>({id:item.id,name:item.name}));
   unions=(model?.unions||[]).map(normalizedUnion).filter(Boolean);
