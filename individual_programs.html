@@ -3,14 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ατομικά Προγράμματα v0.11</title>
+<title>Ατομικά Προγράμματα v0.12</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
 /* Ατομικά Προγράμματα: the individual programs (kind 'individual') of a period, one teacher at a time, from the
    shared file (.data). Shared appearance: _ui.css / _subapp.css. --ip-* : colours whose meaning exists only here. */
 :root{
-  --app-mark-bg:var(--school-app-individual);
   --ip-cell:150px;--ip-hour:112px;
   --ip-head-bg:#f9fafb;--ip-line:var(--school-ui-border);--ip-boundary:#98a2b3;
   --ip-locked-bg:#f2f4f7;--ip-locked-text:#667085;
@@ -215,7 +214,7 @@ main.ip-single~.ip-summary{left:18px}
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ατομικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΑΠ</span></span><span class="brand-text"><span>Ατομικά Προγράμματα</span><span class="small version">v0.11</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ατομικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark is-sub" data-app-icon="individual" aria-hidden="true"></span><span class="brand-text"><span>Ατομικά Προγράμματα</span><span class="small version">v0.12</span></span></button></h1></div>
   <select id="period" aria-label="Περίοδος" disabled hidden></select>
   <span id="periodStatus" class="ui-period-status" hidden></span>
   <span id="staffControl" class="ip-staff-control" hidden>

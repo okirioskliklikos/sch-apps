@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Σχολικά Προγράμματα v0.31</title>
+<title>Σχολικά Προγράμματα v0.32</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -12,7 +12,6 @@
    are managed in the dialog «Διαχείριση περιόδων». Shared appearance: _ui.css / _subapp.css. --sp-* : colours whose
    meaning exists only here. */
 :root{
-  --app-mark-bg:var(--school-app-timetables);
   --sp-board-bg:#f5f6f8;
   --sp-morning-border:#8eb4e7;--sp-morning-text:#154c91;
   --sp-arrow:#3b6db0;
@@ -53,7 +52,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
   background:var(--school-ui-surface);border:1px solid var(--school-ui-border);border-radius:12px;box-shadow:0 1px 2px #1018280d
 }
 .sp-card-head{display:flex;align-items:flex-start;gap:12px}
-.sp-mark{flex:none;width:44px;height:44px;border-radius:10px;font-size:16px}
+.sp-mark{flex:none;width:44px;height:44px;border-radius:10px;--app-mark-icon-size:26px}
 .sp-card-title{flex:1;min-width:0}
 .sp-card-title h2{margin:0;font-size:19px;line-height:1.3;overflow-wrap:anywhere}
 .sp-card-title p{margin:2px 0 0;font-size:14px;color:var(--school-ui-muted)}
@@ -78,7 +77,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
   display:flex;flex-wrap:wrap;align-items:center;gap:14px 18px;padding:18px 22px;
   background:var(--sp-full-bg);border:1.5px solid var(--sp-full-border);border-radius:14px
 }
-.sp-full .sp-mark{width:52px;height:52px;border-radius:12px;font-size:18px}
+.sp-full .sp-mark{width:52px;height:52px;border-radius:12px;--app-mark-icon-size:30px}
 .sp-full-text{flex:1;min-width:220px}
 .sp-full-text h2{margin:0;font-size:24px;line-height:1.3}
 .sp-full-text p{margin:2px 0 0;font-size:15px;color:#405367}
@@ -175,7 +174,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΣΠ</span></span><span class="brand-text"><span>Σχολικά Προγράμματα</span><span class="small version">v0.31</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" data-app-icon="timetables" aria-hidden="true"></span><span class="brand-text"><span>Σχολικά Προγράμματα</span><span class="small version">v0.32</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="more" class="sp-more" type="button" title="Περισσότερες ενέργειες" aria-label="Περισσότερες ενέργειες" disabled></button>
@@ -221,9 +220,9 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
   // The cards of the sources: title, line under it, icon letters and colour, and whether «Άνοιγμα» opens the owner
   // application. The Ωρολόγιο FET has no application of its own: it is edited in the Πλήρες Σχολικό Πρόγραμμα.
   const CARDS = Object.freeze({
-    oloimero: {title: 'Ολοήμερο Designer', line: 'Ζώνες Ολοημέρου', mark: 'ΟΛ', bg: 'oloimero', open: true},
-    school: {title: 'Ωρολόγιο FET', line: 'Πρωινό, από το FET', mark: 'FT', bg: 'fet', open: false},
-    individual: {title: 'Ατομικά Προγράμματα', line: 'Ώρες εκτός FET', mark: 'ΑΠ', bg: 'individual', open: true}
+    oloimero: {title: 'Ολοήμερο Designer', line: 'Ζώνες Ολοημέρου', icon: 'oloimero', open: true},
+    school: {title: 'Ωρολόγιο FET', line: 'Πρωινό, από το FET', icon: 'fet', open: false},
+    individual: {title: 'Ατομικά Προγράμματα', line: 'Ώρες εκτός FET', icon: 'individual', open: true}
   });
   const cardTitle = kind => CARDS[kind]?.title || kindLabel(kind);
 
@@ -419,7 +418,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
       </div>
       <svg class="sp-arrows" aria-hidden="true" focusable="false"></svg>
       <section class="sp-full" aria-labelledby="fullTitle">
-        <span class="app-mark sp-mark" style="--app-mark-bg:var(--school-app-fet)" aria-hidden="true"><span>ΠΛ</span></span>
+        <span class="app-mark is-sub sp-mark" data-app-icon="full" aria-hidden="true"></span>
         <div class="sp-full-text"><h2 id="fullTitle">Πλήρες Σχολικό Πρόγραμμα</h2><p>Η σύνθεση των τριών πηγών της περιόδου: προβολή, επεξεργασία ωρών και εκτύπωση.</p></div>
         <button id="openFull" type="button" class="primary">Άνοιγμα προγράμματος</button>
       </section>
@@ -491,11 +490,11 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
   new ResizeObserver(() => drawArrows()).observe(root);
 
   function cardHtml(period, kind) {
-    const info = T.kinds[kind], card = CARDS[kind] || {title: kindLabel(kind), line: '', mark: '', bg: 'default', open: !!info.owner};
+    const info = T.kinds[kind], card = CARDS[kind] || {title: kindLabel(kind), line: '', icon: '', open: !!info.owner};
     const program = programOf(period.id, kind), importable = T.importers(kind).length > 0;
     const menu = cardMenuItems(period, kind).some(item => !item.separator);
     const head = `<div class="sp-card-head">
-        <span class="app-mark sp-mark" style="--app-mark-bg:var(--school-app-${esc(card.bg)})" aria-hidden="true"><span>${esc(card.mark)}</span></span>
+        <span class="app-mark is-sub sp-mark" data-app-icon="${esc(card.icon)}" aria-hidden="true"></span>
         <div class="sp-card-title"><h2 id="card-${esc(kind)}">${esc(card.title)}</h2>${card.line ? `<p>${esc(card.line)}</p>` : ''}</div>
         ${menu ? `<button type="button" class="ui-icon-button" data-menu="${esc(kind)}" title="Ενέργειες" aria-label="Ενέργειες: ${esc(card.title)}"></button>` : ''}
       </div>`;

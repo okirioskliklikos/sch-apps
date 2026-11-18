@@ -3,14 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ολοήμερο Designer v1.96</title>
+<title>Ολοήμερο Designer v1.97</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
 /* ΟΛ-specific layout and board palette. Shared skeleton: html.subapp-page in _subapp.css;
    shared colours: --school-ui-* in _ui.css. The --ol-* tokens are meanings that exist only on this board. */
 :root{
-  --app-mark-bg:var(--school-app-oloimero);
   --floating-controls-bottom:12px;--board-scrollbar-lift:0px;
   --ol-grid-line:#999;--ol-zone-line:#333;--ol-day-line:#777;--ol-drop-outline:#555;
   --ol-neutral-bg:#f7f7f7;--ol-incomplete-bg:#f5f5f5;--ol-tag-border:#8f9aa6;
@@ -594,7 +593,7 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
 <body>
 
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΟΛ</span></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v1.96</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark is-sub" data-app-icon="oloimero" aria-hidden="true"></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v1.97</span></span></button></h1></div>
   <select id="program" aria-label="Σχέδιο" hidden></select>
   <span id="periodStatus" class="ui-period-status" hidden></span>
   <span class="save-control">

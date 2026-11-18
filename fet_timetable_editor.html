@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Πλήρες Σχολικό Πρόγραμμα v1.18</title>
+<title>Πλήρες Σχολικό Πρόγραμμα v1.19</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -11,7 +11,6 @@
    Ωρολόγιο (kind 'school', of which this is the owner), the Ατομικά Προγράμματα and the σχέδιο Ολοημέρου.
    Shared appearance: _ui.css / _subapp.css. --ft-* : colours whose meaning exists only on this board. */
 :root{
-  --app-mark-bg:var(--school-app-fet);
   --ft-cell:130px;--ft-hour:124px;
   --ft-head-bg:#f9fafb;--ft-line:var(--school-ui-border);--ft-boundary:#98a2b3;
   --ft-card-border:#d0d5dd;
@@ -187,7 +186,7 @@ button.ui-icon-button.ft-cell-edit>svg{width:var(--school-ui-icon-size-list);hei
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Πλήρες Σχολικό Πρόγραμμα — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΠΛ</span></span><span class="brand-text"><span>Πλήρες Σχολικό Πρόγραμμα</span><span class="small version">v1.18</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Πλήρες Σχολικό Πρόγραμμα — άνοιγμα κεντρικού μενού"><span class="app-mark is-sub" data-app-icon="full" aria-hidden="true"></span><span class="brand-text"><span>Πλήρες Σχολικό Πρόγραμμα</span><span class="small version">v1.19</span></span></button></h1></div>
   <select id="period" aria-label="Περίοδος" disabled hidden></select>
   <span id="periodStatus" class="ui-period-status" hidden></span>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>

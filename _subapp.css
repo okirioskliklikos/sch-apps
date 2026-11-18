@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινή διάταξη υποεφαρμογών
- * Έκδοση αρχείου: 0.39
+ * Έκδοση αρχείου: 0.40
  * Όνομα κατά την εγκατάσταση: _subapp.css
  */
 
@@ -54,9 +54,9 @@ header{
    A baseline-aligned row starts at the top padding (10px), so the buttons sit 10px from the top.
    Buttons and icon share one height (--school-ui-control-height, from _ui.css).
    Separators have no text, so they are centred instead.
-   The icon is drawn in two parts: its letters take part in the baseline like any other text,
-   and its coloured square is drawn apart (::before), at the top padding of the header,
-   so the square always lines up with the buttons above and below, whatever the letter size.
+   The icon has no text: it takes part in the baseline as an empty box, and its coloured square and its shape
+   are drawn apart (::before, ::after), at the top padding of the header,
+   so the square always lines up with the buttons above and below, whatever the text size.
    When the width is not enough, the header wraps: items move to the next row only when they do not fit,
    and each new row starts at the left. Nothing overlaps and nothing leaves the page. */
 header :is(.sep,.toolbar-separator){align-self:center}
@@ -76,16 +76,24 @@ header :is(.sep,.toolbar-separator){align-self:center}
   min-width:0;max-width:100%
 }
 .brand-menu:hover{color:#346f95!important;background:transparent!important}
-/* Application icon in the header, as tall as the header buttons. Colours and letter placement in _ui.css (.app-mark). */
+/* Application icon in the header, as tall as the header buttons. Colours and shapes in _ui.css (.app-mark). */
 .app-mark{
   flex:0 0 var(--school-ui-control-height);width:var(--school-ui-control-height);height:var(--school-ui-control-height);
-  border-radius:11px;font-size:18px
+  border-radius:11px;--app-mark-icon-size:var(--school-ui-icon-size-22)
 }
-header .app-mark{height:auto;background:none}
+/* In the header the icon has no height of its own: it sits on the common baseline like a box without text, and
+   its square (::before) and its shape (::after) are drawn apart, at the top padding of the header, in line with
+   the buttons. The shape is centred across by the flex box of the icon, and down by its top. */
+header .app-mark{height:0;background:none}
 header .app-mark::before{
   content:"";position:absolute;z-index:-1;top:var(--subapp-header-padding-top);
   width:var(--school-ui-control-height);height:var(--school-ui-control-height);
-  border-radius:inherit;background:var(--app-mark-bg,var(--school-app-default))
+  border-radius:inherit;background:var(--app-mark-color)
+}
+header .app-mark.is-sub::before{background:var(--app-mark-tint)}
+header .app-mark::after{
+  position:absolute;z-index:-1;
+  top:calc(var(--subapp-header-padding-top) + (var(--school-ui-control-height) - var(--app-mark-icon-size)) / 2)
 }
 .brand-text{display:flex;align-items:baseline;gap:5px;line-height:1.2;min-width:0}
 /* On very narrow screens the application name is shortened with «…»; the version stays visible. */

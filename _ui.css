@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινό περιβάλλον χρήστη
- * Έκδοση αρχείου: 0.58
+ * Έκδοση αρχείου: 0.59
  * Όνομα κατά την εγκατάσταση: _ui.css
  */
 
@@ -65,21 +65,40 @@
   --school-ui-success-disabled-text:#f4fbf7;
   --school-ui-swatch-border:#6f6f6f;
   --school-richtext-toolbar-bg:#f6f7f9;
-  /* Application icons (.app-mark): one gradient per application, shared by Index and the application itself.
-     A new application adds its own --school-app-<name> here. */
+  /* Application icons (.app-mark): one colour per application, shared by Index and the application itself.
+     A central application draws a white line on its colour; an application that belongs to another (.is-sub)
+     draws its colour on a light tint of it. A new application adds its --school-app-<name> here. */
   --school-app-mark-fg:#fff;
-  --school-app-default:linear-gradient(145deg,#8387c4,#6b6fae);
-  --school-app-home:linear-gradient(145deg,#6484a0,#526c83);
-  --school-app-staff:linear-gradient(145deg,#599bbd,#497f9b);
-  --school-app-students:linear-gradient(145deg,#c27f9b,#9c5d77);
-  --school-app-classes:linear-gradient(145deg,#4fa98a,#3a8068);
-  --school-app-hours:linear-gradient(145deg,#7a96c2,#647b9f);
-  --school-app-docs:linear-gradient(145deg,#6b95bc,#587a9a);
-  --school-app-fet:linear-gradient(145deg,#4a9b99,#337773);
-  --school-app-oloimero:linear-gradient(145deg,#b78a53,#967044);
-  --school-app-calendar:linear-gradient(145deg,#8b79b8,#66538f);
-  --school-app-timetables:linear-gradient(145deg,#818fdb,#626fb8);
-  --school-app-individual:linear-gradient(145deg,#c98a6b,#a2654a);
+  --school-app-default:#6b6fae;
+  --school-app-home:#526c83;
+  --school-app-staff:#497f9b;
+  --school-app-students:#9c5d77;
+  --school-app-classes:#3a8068;
+  --school-app-hours:#647b9f;
+  --school-app-docs:#587a9a;
+  --school-app-fet:#337773;
+  --school-app-full:#3f6fb0;
+  --school-app-oloimero:#967044;
+  --school-app-calendar:#66538f;
+  --school-app-timetables:#626fb8;
+  --school-app-individual:#a2654a;
+  /* Shapes of the application icons: line icons on a 24px grid, used as masks with currentColor. The -bold
+     versions (thicker line) are for small sizes, e.g. the icons of the tag chips. */
+  --school-icon-app-home:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22black%22%20stroke-width=%221.8%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Cpath%20d=%22m3%2010%209-7%209%207%22/%3E%3Cpath%20d=%22M5%209v12h14V9M9%2021v-8h6v8%22/%3E%3C/svg%3E");
+  --school-icon-app-staff:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22black%22%20stroke-width=%221.8%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Cpath%20d=%22M2%209.5%2012%205l10%204.5-10%204.5z%22/%3E%3Cpath%20d=%22M6%2011.3V16c0%201.4%202.7%203%206%203s6-1.6%206-3v-4.7%22/%3E%3Cpath%20d=%22M22%209.5V15%22/%3E%3C/svg%3E");
+  --school-icon-app-students:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22black%22%20stroke-width=%221.8%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Ccircle%20cx=%2212%22%20cy=%229.6%22%20r=%224.2%22/%3E%3Cpath%20d=%22M7.8%208.4a4.2%204.2%200%200%201%208.4%200z%22%20fill=%22black%22/%3E%3Cpath%20d=%22M16%208.4h3.4%22/%3E%3Cpath%20d=%22M4.5%2021a7.5%206.5%200%200%201%2015%200%22/%3E%3C/svg%3E");
+  --school-icon-app-classes:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22black%22%20stroke-width=%221.8%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Cpath%20d=%22M3%2021h18%22/%3E%3Cpath%20d=%22M5%2021V11l7-4.5%207%204.5v10%22/%3E%3Cpath%20d=%22M10%2021v-4.5h4V21%22/%3E%3Cpath%20d=%22M12%206.5V2.5h3.5v2H12%22/%3E%3Ccircle%20cx=%2212%22%20cy=%2211.8%22%20r=%221.3%22/%3E%3C/svg%3E");
+  --school-icon-app-hours:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22black%22%20stroke-width=%221.8%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Ccircle%20cx=%2212%22%20cy=%2212%22%20r=%229%22/%3E%3Cpath%20d=%22M12%207v5l3%202%22/%3E%3C/svg%3E");
+  --school-icon-app-timetables:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22black%22%20stroke-width=%221.8%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Crect%20x=%223%22%20y=%224%22%20width=%2218%22%20height=%2216%22%20rx=%222%22/%3E%3Cpath%20d=%22M3%209h18M3%2014.5h18M9%209v11M15%209v11%22/%3E%3C/svg%3E");
+  --school-icon-app-calendar:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22black%22%20stroke-width=%221.8%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Crect%20x=%223%22%20y=%225%22%20width=%2218%22%20height=%2216%22%20rx=%222%22/%3E%3Cpath%20d=%22M8%203v4M16%203v4M3%2010h18%22/%3E%3Cpath%20d=%22M8%2014h.01M12%2014h.01M16%2014h.01M8%2017.5h.01M12%2017.5h.01%22%20stroke-width=%222.6%22/%3E%3C/svg%3E");
+  --school-icon-app-docs:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22black%22%20stroke-width=%221.8%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Cpath%20d=%22M14%203H7a2%202%200%200%200-2%202v14a2%202%200%200%200%202%202h10a2%202%200%200%200%202-2V8z%22/%3E%3Cpath%20d=%22M14%203v5h5M9%2013h6M9%2017h4%22/%3E%3C/svg%3E");
+  --school-icon-app-oloimero:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22black%22%20stroke-width=%221.8%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Cpath%20d=%22M3%2018h18M7%2021h10%22/%3E%3Cpath%20d=%22M7%2018a5%205%200%200%201%2010%200%22/%3E%3Cpath%20d=%22M12%206v3M4.9%2010.9l1.8%201.8M19.1%2010.9l-1.8%201.8M2%2015h2M20%2015h2%22/%3E%3C/svg%3E");
+  --school-icon-app-fet:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22black%22%20stroke-width=%221.8%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Cellipse%20cx=%2212%22%20cy=%225.5%22%20rx=%228%22%20ry=%223%22/%3E%3Cpath%20d=%22M4%205.5v13c0%201.66%203.58%203%208%203s8-1.34%208-3v-13%22/%3E%3Cpath%20d=%22M4%2010c0%201.66%203.58%203%208%203s8-1.34%208-3M4%2014.5c0%201.66%203.58%203%208%203s8-1.34%208-3%22/%3E%3Cpath%20d=%22M7.2%2010.3h.01M7.2%2014.8h.01M7.2%2019.2h.01%22%20stroke-width=%222.4%22/%3E%3C/svg%3E");
+  --school-icon-app-individual:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22black%22%20stroke-width=%221.8%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Ccircle%20cx=%229%22%20cy=%228%22%20r=%223.6%22/%3E%3Cpath%20d=%22M2.5%2020.5a6.5%206%200%200%201%209.5-5.6%22/%3E%3Ccircle%20cx=%2217.5%22%20cy=%2217%22%20r=%224.5%22/%3E%3Cpath%20d=%22M17.5%2014.8V17l1.4%201%22/%3E%3C/svg%3E");
+  --school-icon-app-full:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22black%22%20stroke-width=%221.8%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Crect%20x=%223.5%22%20y=%223.5%22%20width=%227%22%20height=%227%22%20rx=%221.5%22/%3E%3Crect%20x=%2213.5%22%20y=%223.5%22%20width=%227%22%20height=%227%22%20rx=%221.5%22/%3E%3Crect%20x=%223.5%22%20y=%2213.5%22%20width=%227%22%20height=%227%22%20rx=%221.5%22/%3E%3Crect%20x=%2213.5%22%20y=%2213.5%22%20width=%227%22%20height=%227%22%20rx=%221.5%22/%3E%3C/svg%3E");
+  --school-icon-app-staff-bold:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22black%22%20stroke-width=%222.2%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Cpath%20d=%22M2%209.5%2012%205l10%204.5-10%204.5z%22/%3E%3Cpath%20d=%22M6%2011.3V16c0%201.4%202.7%203%206%203s6-1.6%206-3v-4.7%22/%3E%3Cpath%20d=%22M22%209.5V15%22/%3E%3C/svg%3E");
+  --school-icon-app-students-bold:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22black%22%20stroke-width=%222.2%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Ccircle%20cx=%2212%22%20cy=%229.6%22%20r=%224.2%22/%3E%3Cpath%20d=%22M7.8%208.4a4.2%204.2%200%200%201%208.4%200z%22%20fill=%22black%22/%3E%3Cpath%20d=%22M16%208.4h3.4%22/%3E%3Cpath%20d=%22M4.5%2021a7.5%206.5%200%200%201%2015%200%22/%3E%3C/svg%3E");
+  --school-icon-app-classes-bold:url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22black%22%20stroke-width=%222.2%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Cpath%20d=%22M3%2021h18%22/%3E%3Cpath%20d=%22M5%2021V11l7-4.5%207%204.5v10%22/%3E%3Cpath%20d=%22M10%2021v-4.5h4V21%22/%3E%3Cpath%20d=%22M12%206.5V2.5h3.5v2H12%22/%3E%3Ccircle%20cx=%2212%22%20cy=%2211.8%22%20r=%221.3%22/%3E%3C/svg%3E");
 }
 
 *{box-sizing:border-box}
@@ -436,17 +455,35 @@ button.ui-icon-button>svg{display:block;width:var(--school-ui-icon-size);height:
 .school-richtext-editor:focus{border-color:#6e9ad0;box-shadow:0 0 0 2px #d9e8fa}
 .school-richtext-editor :is(ul,ol){margin:4px 0;padding-left:26px}
 
-/* Application icon: <span class="app-mark"><span>ΞΞ</span></span>, always exactly 2 letters.
-   Each page sets --app-mark-bg to its --school-app-* variable; --app-mark-fg overrides the letter colour if needed.
-   The inner span is trimmed to the cap height, so the letters sit in the middle of the box with any font.
-   The row holding the icon aligns its items on the baseline (align-items:baseline), so the letters share the
-   baseline of the text next to them. Size, shape and font size belong to Index (sidebar, home) and _subapp.css (header). */
+/* Application icon: <span class="app-mark" data-app-icon="<name>"></span>, a line shape (mask with currentColor).
+   data-app-icon picks the colour and the shape of the application. A central application: white line on its colour;
+   with .is-sub (an application that belongs to another, e.g. the program applications of «Σχολικά Προγράμματα»):
+   the colour on a light tint of it. Index's sidebar shows it monochrome (no background, the text colour).
+   Size of the box, shape of the corners and size of the shape (--app-mark-icon-size) belong to Index (sidebar)
+   and to each page (header in _subapp.css, cards). */
 .app-mark{
-  display:inline-flex;align-items:center;justify-content:center;padding:0;
-  background:var(--app-mark-bg,var(--school-app-default));color:var(--app-mark-fg,var(--school-app-mark-fg));
-  font-weight:700;line-height:1;white-space:nowrap;user-select:none
+  --app-mark-color:var(--school-app-default);--app-mark-icon:none;
+  display:inline-flex;align-items:center;justify-content:center;flex:none;padding:0;
+  background:var(--app-mark-color);color:var(--app-mark-fg,var(--school-app-mark-fg));user-select:none
 }
-.app-mark>span{display:block;text-box:trim-both cap alphabetic}
+.app-mark.is-sub{background:var(--app-mark-tint);color:var(--app-mark-color)}
+.app-mark::after{
+  content:"";display:block;flex:none;width:var(--app-mark-icon-size,22px);height:var(--app-mark-icon-size,22px);
+  background-color:currentColor;-webkit-mask:var(--app-mark-icon) center / contain no-repeat;mask:var(--app-mark-icon) center / contain no-repeat
+}
+.app-mark{--app-mark-tint:color-mix(in srgb,var(--app-mark-color) 14%,#fff)}
+.app-mark[data-app-icon="home"]{--app-mark-color:var(--school-app-home);--app-mark-icon:var(--school-icon-app-home)}
+.app-mark[data-app-icon="staff"]{--app-mark-color:var(--school-app-staff);--app-mark-icon:var(--school-icon-app-staff)}
+.app-mark[data-app-icon="students"]{--app-mark-color:var(--school-app-students);--app-mark-icon:var(--school-icon-app-students)}
+.app-mark[data-app-icon="classes"]{--app-mark-color:var(--school-app-classes);--app-mark-icon:var(--school-icon-app-classes)}
+.app-mark[data-app-icon="hours"]{--app-mark-color:var(--school-app-hours);--app-mark-icon:var(--school-icon-app-hours)}
+.app-mark[data-app-icon="timetables"]{--app-mark-color:var(--school-app-timetables);--app-mark-icon:var(--school-icon-app-timetables)}
+.app-mark[data-app-icon="calendar"]{--app-mark-color:var(--school-app-calendar);--app-mark-icon:var(--school-icon-app-calendar)}
+.app-mark[data-app-icon="docs"]{--app-mark-color:var(--school-app-docs);--app-mark-icon:var(--school-icon-app-docs)}
+.app-mark[data-app-icon="oloimero"]{--app-mark-color:var(--school-app-oloimero);--app-mark-icon:var(--school-icon-app-oloimero)}
+.app-mark[data-app-icon="fet"]{--app-mark-color:var(--school-app-fet);--app-mark-icon:var(--school-icon-app-fet)}
+.app-mark[data-app-icon="individual"]{--app-mark-color:var(--school-app-individual);--app-mark-icon:var(--school-icon-app-individual)}
+.app-mark[data-app-icon="full"]{--app-mark-color:var(--school-app-full);--app-mark-icon:var(--school-icon-app-full)}
 
 /* Reusable form controls. Add ui-* classes to opt into these styles. */
 :where(button,input,select,textarea):focus-visible{outline:2px solid var(--school-ui-focus);outline-offset:2px}
@@ -488,15 +525,15 @@ fieldset.ui-fields{margin:0;padding:0;min-width:0;border:0}
   background:var(--school-tag-bg,#e5e7eb);color:var(--school-tag-ink,#111);font-size:13px;line-height:20px;font-weight:500;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:middle
 }
-/* Εικονίδια τύπου ετικέτας, από τα τρία πρότυπα του χρήστη. Το currentColor ακολουθεί τα γράμματα. */
+/* Icons of the tag types: the shapes of the Μαθητές, Προσωπικό and Τμήματα applications (bold versions). currentColor follows the letters. */
 .school-tag:is(.school-tag-student,.school-tag-staff,.school-tag-class)::before{
   content:"";display:block;flex:none;width:15px;height:15px;background-color:currentColor;
   -webkit-mask:var(--school-tag-icon) center / contain no-repeat;
   mask:var(--school-tag-icon) center / contain no-repeat
 }
-.school-tag-student{--school-tag-icon:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%2273%2025%20255%20307%22%3E%3Cpath%20fill%3D%22black%22%20fill-rule%3D%22evenodd%22%20d%3D%22M177%2C248%20177%2C258%20179%2C263%20185%2C269%20195%2C272%20205%2C269%20213%2C259%20214%2C254%20213%2C248%20211%2C245%20207%2C243%20183%2C243%20179%2C245Z%20M73%2C310%2073%2C324%2075%2C328%2080%2C331%20310%2C331%20314%2C329%20317%2C324%20317%2C309%20314%2C295%20309%2C283%20301%2C271%20282%2C254%20264%2C246%20248%2C243%20241%2C243%20236%2C246%20232%2C268%20221%2C283%20210%2C290%20196%2C293%20180%2C290%20165%2C279%20157%2C265%20156%2C251%20153%2C245%20149%2C243%20142%2C243%20120%2C248%20105%2C256%2089%2C271%2078%2C290Z%20M187%2C25%20167%2C29%20147%2C38%20136%2C46%20127%2C55%20119%2C66%20112%2C80%20107%2C98%20106%2C152%20110%2C172%20117%2C188%20126%2C201%20137%2C212%20148%2C220%20172%2C230%20183%2C232%20205%2C232%20224%2C228%20240%2C221%20253%2C212%20268%2C196%20277%2C180%20282%2C165%20284%2C152%20284%2C122%20322%2C120%20327%2C114%20326%2C106%20321%2C102%20284%2C102%20280%2C85%20271%2C66%20263%2C55%20254%2C46%20243%2C38%20232%2C32%20217%2C27%20205%2C25Z%20M125%2C122%20126%2C121%20264%2C121%20265%2C122%20265%2C153%20263%2C163%20258%2C176%20250%2C188%20239%2C199%20222%2C209%20207%2C213%20183%2C213%20174%2C211%20160%2C205%20151%2C199%20140%2C188%20132%2C176%20127%2C163%20125%2C153Z%20M216%2C134%20210%2C140%20210%2C150%20213%2C154%20217%2C156%20224%2C155%20228%2C150%20228%2C140%20224%2C135Z%20M168%2C134%20162%2C140%20162%2C150%20166%2C155%20173%2C156%20176%2C155%20180%2C150%20180%2C140%20176%2C135Z%20M179%2C72%20190%2C60%20197%2C59%20201%2C61%20209%2C69%20211%2C73%20211%2C77%20209%2C81%20202%2C86%20195%2C84%20186%2C85%20180%2C80Z%22%2F%3E%3C%2Fsvg%3E")}
-.school-tag-staff{--school-tag-icon:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%2234%2045%20269%20213%22%3E%3Cpath%20fill%3D%22black%22%20fill-rule%3D%22evenodd%22%20d%3D%22M77%2C168%2077%2C205%2079%2C212%2083%2C218%20133%2C248%20145%2C254%20156%2C257%20174%2C257%20194%2C250%20244%2C221%20250%2C215%20253%2C208%20253%2C168%20186%2C207%20169%2C213%20153%2C211%2079%2C168Z%20M295%2C143%20279%2C153%20279%2C215%20273%2C222%20272%2C231%20274%2C236%20279%2C241%20284%2C243%20290%2C243%20295%2C241%20300%2C236%20302%2C230%20301%2C222%20295%2C215Z%20M34%2C119%2035%2C125%20159%2C197%20171%2C197%20178%2C194%20290%2C129%20296%2C124%20296%2C118%20290%2C113%20180%2C49%20171%2C45%20159%2C45%2044%2C111%2036%2C116Z%22%2F%3E%3C%2Fsvg%3E")}
-.school-tag-class{--school-tag-icon:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20310%20310%22%3E%3Cpath%20fill%3D%22black%22%20d%3D%22M153%2011%20293%20150H255V271H183V178H123V271H52V150H15Z%22%2F%3E%3C%2Fsvg%3E")}
+.school-tag-student{--school-tag-icon:var(--school-icon-app-students-bold)}
+.school-tag-staff{--school-tag-icon:var(--school-icon-app-staff-bold)}
+.school-tag-class{--school-tag-icon:var(--school-icon-app-classes-bold)}
 .school-tag.is-missing{background:#fff;color:var(--school-ui-muted);border-style:dashed;border-color:var(--school-ui-control-border)}
 /* Προαιρετικό × στα chips επεξεργασίας: κληρονομεί το χρώμα του chip και όχι στυλ κοινών κουμπιών. */
 .school-tag.is-removable{display:inline-flex;align-items:center;gap:4px;padding-right:3px;overflow:visible}
