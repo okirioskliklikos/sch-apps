@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.43
+ * Έκδοση αρχείου: 0.44
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -240,6 +240,7 @@
   }
   function importDialog(options, preset) {
     const files = options.files || [], loaded = preset.loaded, rowErrors = preset.rowErrors;
+    const fetDrop = files.length === 2 && files.some(file => file.key === 'csv') && files.some(file => file.key === 'fet');
     let analysis = preset.analysis, analysisError = preset.analysisError, controls = null, rowButtons = [];
     const element = (tag, className, textValue) => {
       const node = document.createElement(tag);
@@ -257,6 +258,72 @@
       input.type = 'radio'; input.name = 'school-import-unmatched'; input.value = value; input.checked = value === 'keep';
       row.append(input, ' ' + label); unmatchedBox.append(row);
     }
+    const dropZone = fetDrop ? element('div', 'school-import-drop') : null;
+    const fileInput = fetDrop ? element('input', 'school-import-native') : null;
+    const focusImport = () => {
+      if (fetDrop && analysis?.ok && !controls?.working)
+        controls?.dialog.querySelector('.school-confirm-actions .confirm-accept:not(:disabled)')?.focus();
+    };
+    if (fetDrop) {
+      dropZone.tabIndex = 0;
+      dropZone.setAttribute('role', 'button');
+      dropZone.setAttribute('aria-label', 'Επιλογή αρχείων CSV και FET');
+      const icon = element('span', 'subapp-file-drop-icon');
+      icon.innerHTML = schoolIcon('file-import');
+      const heading = element('strong', 'school-import-drop-title', 'Σύρε εδώ τα αρχεία CSV και FET');
+      const hint = element('span', 'school-import-drop-hint', 'ή κάνε κλικ για επιλογή αρχείων');
+      fileInput.type = 'file'; fileInput.accept = '.csv,.fet'; fileInput.multiple = true;
+      fileInput.tabIndex = -1; fileInput.setAttribute('aria-hidden', 'true');
+      dropZone.append(icon, heading, hint, list, fileInput);
+      const receive = async incoming => {
+        if (controls?.working) return;
+        const chosen = [...incoming];
+        if (!chosen.length) return;
+        const valid = chosen.filter(item => /\.(csv|fet)$/i.test(item.name));
+        if (!valid.length) { analysis = null; analysisError = 'Επίλεξε αρχεία .csv ή .fet.'; renderResult(); return; }
+        await controls?.busy(async () => {
+          for (const file of valid) {
+            const key = /\.csv$/i.test(file.name) ? 'csv' : 'fet';
+            try {
+              loaded[key] = {name: file.name, text: await file.text()};
+              delete rowErrors[key];
+            } catch (problem) {
+              rowErrors[key] = problem?.message || String(problem);
+            }
+          }
+          renderFiles(); await analyzeNow();
+        });
+        focusImport();
+      };
+      fileInput.addEventListener('change', () => {
+        const chosen = [...fileInput.files]; fileInput.value = '';
+        void receive(chosen);
+      });
+      dropZone.addEventListener('click', event => {
+        if (event.target === fileInput || controls?.working) return;
+        fileInput.click();
+      });
+      dropZone.addEventListener('keydown', event => {
+        if (event.target === dropZone && (event.key === 'Enter' || event.key === ' ')) {
+          event.preventDefault(); if (!controls?.working) fileInput.click();
+        }
+      });
+      dropZone.addEventListener('dragenter', event => {
+        if (!event.dataTransfer?.types.includes('Files')) return;
+        event.preventDefault(); dropZone.classList.add('drag-over');
+      });
+      dropZone.addEventListener('dragover', event => {
+        if (!event.dataTransfer?.types.includes('Files')) return;
+        event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; dropZone.classList.add('drag-over');
+      });
+      dropZone.addEventListener('dragleave', event => {
+        if (!dropZone.contains(event.relatedTarget)) dropZone.classList.remove('drag-over');
+      });
+      dropZone.addEventListener('drop', event => {
+        event.preventDefault(); event.stopPropagation(); dropZone.classList.remove('drag-over');
+        void receive(event.dataTransfer?.files || []);
+      });
+    }
     const renderFiles = () => {
       rowButtons = [];
       list.replaceChildren(...files.map(file => {
@@ -265,6 +332,13 @@
         textBox.append(element('span', 'school-import-file-label', file.label),
           element('span', 'school-import-file-name', loaded[file.key] ? current : current ? 'Τελευταίο αρχείο: ' + current : 'Δεν έχει επιλεγεί αρχείο'));
         if (rowErrors[file.key]) textBox.append(element('span', 'school-import-file-error', rowErrors[file.key]));
+        if (fetDrop) {
+          const status = element('span', 'school-import-file-state');
+          status.innerHTML = schoolIcon(loaded[file.key] ? 'check' : 'file-import');
+          status.classList.toggle('is-ready', !!loaded[file.key]);
+          row.append(status, textBox);
+          return row;
+        }
         const button = element('button', '', current ? 'Επιλογή άλλου…' : 'Επιλογή…');
         button.type = 'button'; button.disabled = !!controls?.working;
         button.onclick = () => controls?.busy(async () => {
@@ -294,8 +368,10 @@
           parts.push(summary);
         }
         parts.push(section('error', 'Η εισαγωγή δεν μπορεί να γίνει', analysis.errors));
-        parts.push(section('warning', 'Προειδοποιήσεις', analysis.warnings));
-        parts.push(section('info', 'Ενημερωτικά', analysis.info));
+        if (!fetDrop) {
+          parts.push(section('warning', 'Προειδοποιήσεις', analysis.warnings));
+          parts.push(section('info', 'Ενημερωτικά', analysis.info));
+        }
         if (analysis.ok && analysis.unmatchedTeachers?.length) parts.push(unmatchedBox);
       }
       result.replaceChildren(...parts.filter(Boolean));
@@ -312,8 +388,8 @@
     renderFiles(); renderResult();
     return schoolChoiceDialog({
       title: options.title || 'Εισαγωγή προγράμματος',
-      className: 'school-import',
-      content: [options.intro, list, result],
+      className: 'school-import' + (fetDrop ? ' school-import-fet' : ''),
+      content: [options.intro, fetDrop ? dropZone : list, result],
       actions: [
         {label: options.accept || 'Εισαγωγή', accept: true, get disabled() { return !analysis?.ok; },
           run: async () => options.build(analysis, {unmatched: unmatchedBox.querySelector('input:checked')?.value === 'drop' ? 'drop' : 'keep', direct: false})},
@@ -322,6 +398,13 @@
       working: on => { for (const button of rowButtons) button.disabled = on; },
       ready: async api => {
         controls = api; api.refresh();
+        if (fetDrop) api.dialog.addEventListener('keydown', event => {
+          if (event.key !== 'Enter' || event.defaultPrevented || event.target === dropZone ||
+              event.target.closest('button, textarea') || event.ctrlKey || event.altKey || event.metaKey) return;
+          event.preventDefault();
+          const accept = api.dialog.querySelector('.school-confirm-actions .confirm-accept');
+          if (accept && !accept.disabled) accept.click();
+        });
         await api.busy(async () => {
           // Files already read (options.direct) are not read again, nor analysed again.
           let read = false;
@@ -334,6 +417,7 @@
           renderFiles();
           if (read || (!analysis && !analysisError)) await analyzeNow(); else renderResult();
         });
+        focusImport();
       }
     });
   }
