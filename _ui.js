@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.44
+ * Έκδοση αρχείου: 0.45
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -260,6 +260,12 @@
     }
     const dropZone = fetDrop ? element('div', 'school-import-drop') : null;
     const fileInput = fetDrop ? element('input', 'school-import-native') : null;
+    let filePickerActive = false, filePickerCancelledAt = 0;
+    const openFilePicker = () => {
+      if (controls?.working) return;
+      filePickerActive = true;
+      try { fileInput.click(); } catch (problem) { filePickerActive = false; throw problem; }
+    };
     const focusImport = () => {
       if (fetDrop && analysis?.ok && !controls?.working)
         controls?.dialog.querySelector('.school-confirm-actions .confirm-accept:not(:disabled)')?.focus();
@@ -296,16 +302,23 @@
         focusImport();
       };
       fileInput.addEventListener('change', () => {
+        filePickerActive = false;
         const chosen = [...fileInput.files]; fileInput.value = '';
         void receive(chosen);
       });
+      // Chrome can forward the native file picker's Esc to the parent <dialog>.
+      // The input's cancel event is distinct from cancelling the import itself.
+      fileInput.addEventListener('cancel', () => {
+        filePickerActive = false;
+        filePickerCancelledAt = Date.now();
+      });
       dropZone.addEventListener('click', event => {
         if (event.target === fileInput || controls?.working) return;
-        fileInput.click();
+        openFilePicker();
       });
       dropZone.addEventListener('keydown', event => {
         if (event.target === dropZone && (event.key === 'Enter' || event.key === ' ')) {
-          event.preventDefault(); if (!controls?.working) fileInput.click();
+          event.preventDefault(); openFilePicker();
         }
       });
       dropZone.addEventListener('dragenter', event => {
@@ -398,6 +411,13 @@
       working: on => { for (const button of rowButtons) button.disabled = on; },
       ready: async api => {
         controls = api; api.refresh();
+        if (fetDrop) api.dialog.addEventListener('cancel', event => {
+          // Capture runs before schoolChoiceDialog's normal Esc handler.
+          // Suppress Esc while the native chooser is open and immediately after its cancellation.
+          if (!filePickerActive && Date.now() - filePickerCancelledAt >= 500) return;
+          event.preventDefault();
+          event.stopImmediatePropagation();
+        }, {capture: true});
         if (fetDrop) api.dialog.addEventListener('keydown', event => {
           if (event.key !== 'Enter' || event.defaultPrevented || event.target === dropZone ||
               event.target.closest('button, textarea') || event.ctrlKey || event.altKey || event.metaKey) return;
