@@ -46,12 +46,15 @@ h1 { margin: 0; color: #18344d; font-size: clamp(32px, 5vw, 48px); letter-spacin
   background: #fff;
 }
 #app-shell.has-app #app-frame { display: block; }
-/* Drop target laid over the Designer while a file is dragged: the drop must land in the Index,
+/* Drop target laid over an application (Designer, Σχολικά Προγράμματα) while a file is dragged: the drop must land in the Index,
    which keeps the file handles (a handle cannot be passed from a file:// iframe). */
 #app-drop-overlay {
   position: absolute; inset: 0; z-index: 5; display: grid; place-items: center;
   background: rgba(39, 104, 223, .08); outline: 3px dashed #2768df; outline-offset: -10px;
 }
+/* Over a part of the application only (e.g. the card of the Ωρολόγιο FET in «Σχολικά Προγράμματα»). */
+#app-drop-overlay.area { place-items: center; border-radius: 12px; outline-offset: -3px; background: rgba(39, 104, 223, .14); }
+#app-drop-overlay.area span { font-size: 15px; padding: 8px 12px; margin: 8px; text-align: center; }
 #app-drop-overlay span {
   padding: 12px 20px; border-radius: 12px; background: #fff; color: #1455c0;
   font-size: 17px; font-weight: 750; box-shadow: 0 8px 24px #25364a2e; pointer-events: none;
@@ -367,7 +370,7 @@ body.session-locked #app-shell { visibility:hidden; pointer-events:none; }
     <div class="sidebar-head">
       <div class="brand">
         <span class="brand-name">Εφαρμογές σχολείου</span>
-        <span class="sidebar-version" aria-label="Έκδοση 1.11">v1.11</span>
+        <span class="sidebar-version" aria-label="Έκδοση 1.12">v1.12</span>
       </div>
     </div>
     <div id="sidebar-school" class="sidebar-school" hidden><span id="nav-school-name" class="sidebar-school-name"></span><span id="nav-school-year" class="sidebar-school-year"></span></div>
@@ -1465,14 +1468,44 @@ const StaffStorage = (() => {
     finally{if(ownsSave)staffSaving=false}
   });
 
-  // Drag and drop of a CSV onto the Ολοήμερο Designer: an import of the CSV that the Designer exports for FET.
-  // The Designer reports drag-start; the Index then lays an overlay over the iframe so that the drop happens here
-  // (a file handle cannot be passed from a file:// iframe). The file becomes the last file of the importer, and the
-  // Designer receives {name, text} with school-oloimero:dropped-file.
-  const dropOverlay=$('app-drop-overlay');
+  // Drag and drop of import files onto an application. The application reports drag-start; the Index then lays an
+  // overlay over the iframe (or over a part of it) so that the drop happens here (a file handle cannot be passed from
+  // a file:// iframe). The files become the last files of the importer, and the application receives the result.
+  //   Ολοήμερο Designer: a CSV of the Ολοήμερο anywhere on the board → school-oloimero:dropped-file {name, text}.
+  //   Σχολικά Προγράμματα: the CSV of the Ωρολόγιο and/or the .fet on the card of the Ωρολόγιο FET (the card's rect
+  //   comes with school-programs:drag-start) → school-programs:dropped-files {files:{csv, fet}} with the names; the
+  //   application then opens its import, which reads the last files.
+  const DROP_APPS={
+    'oloimero_designer.html':{start:'school-oloimero:drag-start',error:'school-oloimero:dropped-file-error',text:'Αφήστε το CSV του Ολοημέρου για εισαγωγή',
+      async read(handles,year){
+        const handle=handles.find(item=>/\.csv$/i.test(item.name));
+        if(!handle)throw Error('Μπορείς να αφήσεις στην επιφάνεια του πίνακα ένα αρχείο CSV του Ολοημέρου.');
+        return {type:'school-oloimero:dropped-file',result:await Timetables.droppedImportFile(year,'oloimero','csv','csv',handle)};
+      }},
+    'timetables.html':{start:'school-programs:drag-start',error:'school-programs:dropped-file-error',text:'Αφήστε το CSV ωρολογίου και το .fet',area:true,
+      async read(handles,year){
+        const csv=handles.find(item=>/\.csv$/i.test(item.name)),fet=handles.find(item=>/\.fet$/i.test(item.name));
+        if(!csv&&!fet)throw Error('Στην κάρτα του Ωρολογίου FET μπορείς να αφήσεις το CSV ωρολογίου («…_timetable.csv») και το αρχείο .fet.');
+        const files={};
+        if(csv)files.csv={name:(await Timetables.droppedImportFile(year,'school','fet','csv',csv)).name};
+        if(fet)files.fet={name:(await Timetables.droppedImportFile(year,'school','fet','fet',fet)).name};
+        return {type:'school-programs:dropped-files',files};
+      }}
+  };
+  const dropOverlay=$('app-drop-overlay'),dropText=dropOverlay.querySelector('span');
   let dropBusy=false;
   function hideDropOverlay(){dropOverlay.hidden=true}
-  function showDropOverlay(){if(sessionLocked||currentAppFile!=='oloimero_designer.html')return;dropOverlay.hidden=false}
+  // area: {left, top, width, height} in the iframe's viewport, or none for the whole iframe.
+  function showDropOverlay(area){
+    const spec=DROP_APPS[currentAppFile];
+    if(sessionLocked||!spec)return;
+    const box=spec.area&&area&&[area.left,area.top,area.width,area.height].every(Number.isFinite)&&area.width>0&&area.height>0?area:null;
+    if(spec.area&&!box)return;
+    Object.assign(dropOverlay.style,box?{inset:'auto',left:box.left+'px',top:box.top+'px',width:box.width+'px',height:box.height+'px'}:{inset:'',left:'',top:'',width:'',height:''});
+    dropOverlay.classList.toggle('area',!!box);
+    dropText.textContent=spec.text;
+    dropOverlay.hidden=false;
+  }
   const isFileDrag=event=>[...(event.dataTransfer?.types||[])].includes('Files');
   dropOverlay.addEventListener('dragenter',event=>{if(isFileDrag(event))event.preventDefault()});
   dropOverlay.addEventListener('dragover',event=>{if(!isFileDrag(event))return;event.preventDefault();event.dataTransfer.dropEffect='copy'});
@@ -1485,27 +1518,26 @@ const StaffStorage = (() => {
   document.addEventListener('pointermove',()=>{if(!dropOverlay.hidden)hideDropOverlay()},{capture:true,passive:true});
   dropOverlay.addEventListener('drop',async event=>{
     event.preventDefault();hideDropOverlay();
+    const file=currentAppFile,spec=DROP_APPS[file];
     const items=[...(event.dataTransfer?.items||[])].filter(item=>item.kind==='file');
     // getAsFileSystemHandle must be called while the drop event is being dispatched.
     const pending=items.map(item=>typeof item.getAsFileSystemHandle==='function'?item.getAsFileSystemHandle():Promise.resolve(null));
-    const send=payload=>{if(currentAppFile==='oloimero_designer.html')frame.contentWindow?.postMessage(payload,staffTargetOrigin)};
-    if(dropBusy){send({type:'school-oloimero:dropped-file-error',error:'Μια ενέργεια αρχείου βρίσκεται ήδη σε εξέλιξη.'});return}
+    if(!spec)return;
+    const send=payload=>{if(currentAppFile===file)frame.contentWindow?.postMessage(payload,staffTargetOrigin)};
+    if(dropBusy){send({type:spec.error,error:'Μια ενέργεια αρχείου βρίσκεται ήδη σε εξέλιξη.'});return}
     dropBusy=true;recordActivity();
     try{
       if(!sharedData||sessionLocked)throw Error('Άνοιξε πρώτα το κοινό αρχείο πληροφοριών.');
       if(!Timetables)throw Error(missingTimetables);
       const handles=(await Promise.all(pending)).filter(handle=>handle?.kind==='file');
       if(!handles.length&&items.length)throw Error('Το άνοιγμα αρχείου με μεταφορά και απόθεση χρειάζεται Google Chrome.');
-      const handle=handles.find(item=>/\.csv$/i.test(item.name));
-      if(!handle)throw Error('Μπορείς να αφήσεις στην επιφάνεια του πίνακα ένα αρχείο CSV του Ολοημέρου.');
-      const result=await Timetables.droppedImportFile(sharedData.school.year,'oloimero','csv','csv',handle);
-      send({type:'school-oloimero:dropped-file',result});
-    }catch(error){send({type:'school-oloimero:dropped-file-error',error:error.message||String(error)})}
+      send(await spec.read(handles,sharedData.school.year));
+    }catch(error){send({type:spec.error,error:error.message||String(error)})}
     finally{dropBusy=false}
   });
   window.addEventListener('message',event=>{
-    if(event.source!==frame.contentWindow||currentAppFile!=='oloimero_designer.html'||(!staffLocalFile&&event.origin!==location.origin)||sessionLocked)return;
-    if(event.data?.type==='school-oloimero:drag-start')showDropOverlay();
+    if(event.source!==frame.contentWindow||!DROP_APPS[currentAppFile]||(!staffLocalFile&&event.origin!==location.origin)||sessionLocked)return;
+    if(event.data?.type===DROP_APPS[currentAppFile].start)showDropOverlay(event.data.area);
   });
 
 

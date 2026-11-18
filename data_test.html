@@ -12,7 +12,7 @@
   φτιάχνονται από το σύντομο όνομα των δασκάλων («[Α1] - …», classesFromStaff). Με το .data δοκιμής, οι
   έλεγχοι των νέων ετικετών (v2) παίρνουν το Προσωπικό από αυτό, γιατί το CSV του Ολοημέρου έχει τα σύντομα
   ονόματα του Προσωπικού.
-  Έκδοση αρχείου: 0.61
+  Έκδοση αρχείου: 0.62
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -751,6 +751,108 @@ function historyChecks() {
 }
 
 // Σύνθεση περιόδου (SchoolTimetable.composePeriod): Ωρολόγιο, σχέδιο Ολοημέρου και Ατομικά Προγράμματα μαζί.
+// ---- 2ι. Εισαγωγή FET: ζώνες και σχέδιο Ολοημέρου (χωρίς αρχεία δοκιμής) ----
+// Ένα μικρό .fet και το CSV του ωρολογίου του, φτιαγμένα εδώ. rows: [[Activity Id, ημέρα, [ώρες], μαθητές, μάθημα,
+// εκπαιδευτικός]]· μία γραμμή του CSV ανά ώρα, όπως τα βγάζει το FET.
+function miniFet(rows) {
+  const x = value => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const years = [["Α'", ['Α1', 'Α2']], ["Β'", ['Β1', 'Β2']], ["Ε'", ['Ε1', 'Ε2']], ['ΤΕ', ['Τμήμα Ένταξης']]];
+  const fet = '<?xml version="1.0" encoding="UTF-8"?>\n<fet version="6.0">' +
+    '<Days_List>' + ['Δευτέρα', 'Τρίτη', 'Τετάρτη', 'Πέμπτη', 'Παρασκευή'].map(d => '<Day><Name>' + d + '</Name><Long_Name>' + d + '</Long_Name></Day>').join('') + '</Days_List>' +
+    '<Hours_List>' + HOURS_V2.hours.filter(h => h.category !== 'break').map(h => '<Hour><Name>' + h.name + '</Name></Hour>').join('') + '</Hours_List>' +
+    '<Teachers_List><Teacher><Name>[Α1] - Δάσκαλος</Name><Long_Name>Δάσκαλος</Long_Name><Code>t1</Code></Teacher><Teacher><Name>[ΠΕ06] - Αγγλικών</Name><Long_Name>Αγγλικών</Long_Name><Code>t2</Code></Teacher><Teacher><Name>Άγνωστος</Name><Long_Name>Άγνωστος</Long_Name><Code></Code></Teacher></Teachers_List>' +
+    '<Subjects_List>' + [...new Set(rows.map(r => r[4]))].map(n => '<Subject><Name>' + x(n) + '</Name><Long_Name>' + x(n) + '</Long_Name><Code>' + x(n) + '</Code></Subject>').join('') + '</Subjects_List>' +
+    '<Students_List>' + years.map(([year, groups]) => '<Year><Name>' + year + '</Name>' + groups.map(g => '<Group><Name>' + g + '</Name>' + (g === 'Ε1' ? '<Subgroup><Name>Ε1-Γαλ</Name></Subgroup>' : '') + '</Group>').join('') + '</Year>').join('') + '</Students_List>' +
+    '<Activities_List>' + rows.map(r => '<Activity><Id>' + r[0] + '</Id><Teacher>' + x(r[5]) + '</Teacher><Subject>' + x(r[4]) + '</Subject><Students>' + x(r[3]) + '</Students></Activity>').join('') + '</Activities_List>' +
+    '<Time_Constraints_List></Time_Constraints_List></fet>';
+  const csv = '"Activity Id","Day","Hour","Students Sets","Subject","Teachers","Activity Tags","Room","Comments"\n' +
+    rows.flatMap(r => r[2].map(hour => ['"' + r[0] + '"', '"' + r[1] + '"', '"' + hour + '"', '"' + r[3] + '"', '"' + r[4] + '"', '"' + r[5] + '"', '""', '""', '""'].join(','))).join('\n');
+  return {fetText: fet, csvText: csv};
+}
+const MINI_STAFF = [
+  {id: 'p1', shortName: '[Α1] - Δάσκαλος', code: 't1', name: 'Δάσκαλος', branch: 'ΠΕ70', serviceType: 'classroom', role: 'teacher'},
+  {id: 'p2', shortName: '[ΠΕ06] - Αγγλικών', code: 't2', name: 'Αγγλικών', branch: 'ΠΕ06', serviceType: 'specialty', role: 'teacher'}
+];
+const MINI_ROWS = [
+  ['1', 'Δευτέρα', ['08:15-09:00'], 'Α1', 'Γλώσσα', '[Α1] - Δάσκαλος'],
+  ['2', 'Δευτέρα', ['14:10-14:55'], 'Β1', 'Αγγλικά', '[ΠΕ06] - Αγγλικών'],
+  ['3', 'Δευτέρα', ['14:10-14:55'], 'Α1+Α2', 'Μελέτη', '[Α1] - Δάσκαλος'],
+  ['4', 'Δευτέρα', ['07:15-08:00'], 'Β2', 'Πρωινή Ζώνη', '[ΠΕ06] - Αγγλικών'],
+  ['5', 'Τρίτη', ['14:10-14:55', '15:05-15:50'], 'Β1+Α1', 'Μελέτη', '[Α1] - Δάσκαλος'],
+  ['6', 'Τετάρτη', ['10:00-10:45', '10:45-11:30'], 'Ε1-Γαλ', 'Γαλλικά', '[ΠΕ06] - Αγγλικών']
+];
+function fetDesignChecks() {
+  start('2ι. Εισαγωγή FET: ζώνες και σχέδιο Ολοημέρου (χωρίς αρχεία δοκιμής)');
+  const T = SchoolTimetable, classes = [...CLASS_LIST, ENTAXI];
+  const analyze = rows => T.analyzeFetImport({...miniFet(rows), staff: MINI_STAFF, classes, teachingHours: HOURS_V2});
+  const base = analyze(MINI_ROWS);
+  check('Μικρό FET χωρίς λάθη (υποσύνολο μόνο στο Πρωινό)', base.ok, messages(base));
+  if (!base.ok) return;
+  const mixed = analyze([...MINI_ROWS, ['7', 'Πέμπτη', ['12:35-13:15', '13:20-14:00'], 'Α2', 'Γλώσσα', '[Α1] - Δάσκαλος']]);
+  check('Δραστηριότητα από το Πρωινό σε ζώνη Ολοημέρου (12:35–14:00): σταματά και λέει ποια', !mixed.ok && has(mixed.errors, 'και στο Πρωινό και σε ζώνη Ολοημέρου') && has(mixed.errors, 'Activity Id 7') && has(mixed.errors, 'Πέμπτη 12:35–13:15, Πέμπτη 13:20–14:00'), mixed.errors.join('\n'));
+  const early = analyze([...MINI_ROWS, ['7', 'Πέμπτη', ['07:15-08:00', '08:15-09:00'], 'Α2', 'Γλώσσα', '[Α1] - Δάσκαλος']]);
+  check('Δραστηριότητα από την Πρωινή Ζώνη στο Πρωινό: επίσης σταματά', !early.ok && has(early.errors, 'Activity Id 7'), early.errors.join('\n'));
+  const subset = analyze([...MINI_ROWS, ['7', 'Πέμπτη', ['14:10-14:55'], 'Ε1-Γαλ', 'Γαλλικά', '[ΠΕ06] - Αγγλικών']]);
+  check('Υποσύνολο σε ζώνη Ολοημέρου: σταματά', !subset.ok && has(subset.errors, 'υποσύνολα') && has(subset.errors, 'Activity Id 7'), subset.errors.join('\n'));
+  const entaxi = analyze([...MINI_ROWS, ['7', 'Πέμπτη', ['14:10-14:55'], 'Τμήμα Ένταξης', 'Μελέτη', '[Α1] - Δάσκαλος']]);
+  check('Τμήμα που δεν είναι Γενικής Παιδείας σε ζώνη Ολοημέρου: σταματά', !entaxi.ok && has(entaxi.errors, 'Activity Id 7'), entaxi.errors.join('\n'));
+  const entaxiMorning = analyze([...MINI_ROWS, ['7', 'Πέμπτη', ['10:00-10:45'], 'Τμήμα Ένταξης', 'Μελέτη', '[Α1] - Δάσκαλος']]);
+  check('Τμήμα Ένταξης στο Πρωινό: γίνεται δεκτό', entaxiMorning.ok, messages(entaxiMorning));
+  const other = analyze([...MINI_ROWS, ['7', 'Πέμπτη', ['14:10-14:55'], 'Χορωδία', 'Μουσική', '[Α1] - Δάσκαλος']]);
+  check('Ομάδα μαθητών (όχι τμήμα) σε ζώνη Ολοημέρου: σταματά', !other.ok && has(other.errors, 'Activity Id 7'), other.errors.join('\n'));
+
+  const school = T.buildFetProgram(base, {unmatched: 'keep', periodId: 'pa', name: ''});
+  const ctx = {staff: MINI_STAFF, classes, teachingHours: HOURS_V2};
+  const design = T.oloimeroDesignFromSchool(school, {...ctx, periodId: 'pa', name: 'Από FET', now: '2026-11-18T10:00:00.000Z', availableHours: id => id === 'p1' ? 7 : 0});
+  equal('Αυτόματο σχέδιο: μία δραστηριότητα ανά ώρα Ολοημέρου (Πρωινή Ζώνη μαζί, Πρωινό όχι)', design.activities.map(a => a.subject + ' ' + a.times.map(t => t.day + ' ' + t.start).join()), ['Πρωινή Ζώνη 1 07:15', 'Μελέτη 1 14:10', 'Αγγλικά 1 14:10', 'Μελέτη 2 14:10', 'Μελέτη 2 15:05']);
+  const placeOf = subject => design.activities.filter(a => a.subject === subject).map(a => design.source.placements[a.id]);
+  equal('Σειρά θέσεων με το μικρότερο τμήμα: Α\' πριν από Β1', [placeOf('Μελέτη')[0].slot, placeOf('Αγγλικά')[0].slot], [0, 1]);
+  equal('Όλα τα τμήματα μιας τάξης γίνονται η τάξη· τα υπόλοιπα μένουν τμήματα', [placeOf('Μελέτη')[0].students, placeOf('Μελέτη')[1].students], [[{type: 'grade', grade: 'Α'}], [{type: 'class', id: cid('Α1')}, {type: 'class', id: cid('Β1')}]]);
+  const hourOf = name => HOURS_V2.hours.find(h => h.name === name).id;
+  equal('Σχεδιασμός: όσες θέσεις χρειάζονται, με εξαιρέσεις ανά ημέρα', design.source.design.hours.filter(h => [hourOf('14:10-14:55'), hourOf('07:15-08:00')].includes(h.hourId)).map(h => [h.count, h.exceptionsEnabled, h.dayCounts]), [[1, true, [1, 0, 0, 0, 0]], [2, true, [2, 1, 0, 0, 0]]]);
+  equal('Εκπαιδευτικοί: δάσκαλος κίτρινο, ειδικότητα γαλάζιο, διαθέσιμες ώρες από την περίοδο', design.source.teachers.map(t => [t.staffId, t.color, t.availableHours]), [['p1', '#fff2a8', 7], ['p2', '#bfe3ff', 0]]);
+  check('Το αυτόματο σχέδιο το δέχεται το host', !hostError({...design, periodId: null}, MINI_STAFF, classes), hostError({...design, periodId: null}, MINI_STAFF, classes));
+  const same = T.oloimeroDiff(school, design, ctx);
+  equal('Το αυτόματο σχέδιο είναι ίδιο με το Ωρολόγιο (oloimeroDiff)', [same.fetOnly.length, same.designOnly.length], [0, 0]);
+  const composed = T.composePeriod({periodId: 'pa', programs: [school, design], ...ctx});
+  equal('Η σύνθεση δίνει την ίδια σύγκριση με το oloimeroDiff', [composed.oloimeroDiff.fetOnly.length, composed.oloimeroDiff.designOnly.length, composed.issues.some(i => i.code === 'oloimeroDiff')], [0, 0, false]);
+  const changed = structuredClone(design); changed.id = 'olo-changed';
+  changed.activities.find(a => a.subject === 'Αγγλικά').times[0] = {day: 3, start: '14:10', end: '14:55'};
+  const matches = T.oloimeroDesignMatches(school, [changed, design], ctx);
+  equal('Σύγκριση σχεδίων: πρώτα το ίδιο, μετά όσα διαφέρουν (με τις διαφορές)', matches.map(m => [m.program.id, m.same, m.fetOnly.length, m.designOnly.length]), [[design.id, true, 0, 0], ['olo-changed', false, 1, 1]]);
+  equal('Σύγκριση χωρίς σχέδια: κενή', T.oloimeroDesignMatches(school, [], ctx), []);
+  // Teacher not in Προσωπικό, dropped with «Να μην εισαχθούν»: incomplete cell.
+  const unknown = analyze([...MINI_ROWS, ['7', 'Πέμπτη', ['14:10-14:55'], 'Γ1', 'Εικαστικά', 'Άγνωστος']]);
+  check('Εκπαιδευτικός χωρίς αντιστοίχιση: η ανάλυση συνεχίζει', unknown.ok && unknown.unmatchedTeachers.includes('Άγνωστος'), messages(unknown));
+  const dropped = T.oloimeroDesignFromSchool(T.buildFetProgram(unknown, {unmatched: 'drop', periodId: 'pa', name: ''}), {...ctx, periodId: 'pa', name: 'Με ελλιπές κελί'});
+  equal('Χωρίς εκπαιδευτικό: ελλιπές κελί, όχι δραστηριότητα', [dropped.activities.some(a => a.subject === 'Εικαστικά'), dropped.source.pending.map(p => [p.day, p.staffId, p.name, dropped.source.subjects.find(s => s.id === p.subjectId)?.name, p.students])], [false, [[4, null, null, 'Εικαστικά', [{type: 'class', id: cid('Γ1')}]]]]);
+  check('Σχέδιο με ελλιπές κελί: το δέχεται το host', !hostError({...dropped, periodId: null}, MINI_STAFF, classes), hostError({...dropped, periodId: null}, MINI_STAFF, classes));
+  const kept = T.oloimeroDesignFromSchool(T.buildFetProgram(unknown, {unmatched: 'keep', periodId: 'pa', name: ''}), {...ctx, periodId: 'pa'});
+  equal('Χωρίς αντιστοίχιση αλλά κρατημένος: εκπαιδευτικός με όνομα στο σχέδιο', kept.source.teachers.filter(t => !t.staffId).map(t => [t.name, t.color]), [['Άγνωστος', '#bfe3ff']]);
+  const empty = T.oloimeroDesignFromSchool({activities: []}, {...ctx, periodId: 'pa'});
+  equal('Ωρολόγιο χωρίς ώρες Ολοημέρου: κενό σχέδιο', [empty.activities.length, empty.source.design.hours.every(h => h.count === 0)], [0, true]);
+
+  // Host: «Σχολικά Προγράμματα» βλέπουν τα προσχέδια του Ολοημέρου και βάζουν αντίγραφό τους στην περίοδο.
+  const H = window.SchoolHostTimetables, year = '2026-2027', PROG = H.PROGRAMS_APP, OLO = T.kinds.oloimero.owner, FET = T.kinds.school.owner;
+  const hostData = {format: 'school-shared-data', formatVersion: 1, school: {name: 'Σχολείο δοκιμής', year},
+    staffByYear: {[year]: MINI_STAFF}, classesByYear: {[year]: {classes}}, teachingHoursByYear: {[year]: HOURS_V2}};
+  const trySave = (data, message, app) => { try { return {data: H.applySave(data, message, app)}; } catch (error) { return {error: error.message}; } };
+  const accepts = (text, result) => { check(text, !!result.data, result.error); return result.data || null; };
+  const put = program => ({op: 'put', program});
+  const programsOf = data => H.yearData(data, year).programs;
+  const d1 = accepts('«Σχολικά Προγράμματα»: περίοδος με Ωρολόγιο FET και αυτόματο σχέδιο Ολοημέρου σε μία αποθήκευση', trySave(hostData, {periods: [{id: 'pa', name: 'Α περίοδος', from: '2026-09-11', to: ''}], ops: [put({...school, id: 'school-a'}), put({...design, id: 'olo-a'})]}, PROG));
+  if (!d1) return;
+  const d2 = accepts('Ολοήμερο Designer: προσχέδιο', trySave(d1, {ops: [put({...structuredClone(changed), id: 'olo-draft', periodId: null, name: 'Προσχέδιο δοκιμής'})]}, OLO));
+  if (!d2) return;
+  equal('Context των «Σχολικών Προγραμμάτων»: τα προσχέδια του Ολοημέρου χωριστά (oloimeroDrafts), όχι στα programs', [(H.context(d2, PROG, 1).oloimeroDrafts || []).map(p => p.id), H.context(d2, PROG, 1).programs.some(p => p.id === 'olo-draft')], [['olo-draft'], false]);
+  check('Οι άλλες εφαρμογές δεν έχουν oloimeroDrafts', !('oloimeroDrafts' in H.context(d2, OLO, 1)) && !('oloimeroDrafts' in H.context(d2, FET, 1)));
+  const draftProgram = programsOf(d2).find(p => p.id === 'olo-draft');
+  const d3 = accepts('«Σχολικά Προγράμματα»: αντίγραφο του προσχεδίου στην περίοδο (νέο id), στη θέση του σχεδίου της', trySave(d2, {ops: [put({...structuredClone(draftProgram), id: 'olo-copy', periodId: 'pa'}), {op: 'delete', id: 'olo-a'}]}, PROG));
+  if (d3) equal('Μετά το αντίγραφο: το προσχέδιο μένει όπως ήταν', programsOf(d3).filter(p => p.kind === 'oloimero').map(p => p.id + ':' + (p.periodId || 'προσχέδιο')).sort(), ['olo-copy:pa', 'olo-draft:προσχέδιο']);
+  const d4 = accepts('Διαγραφή περιόδου μαζί με τα προγράμματά της (χωρίς προσχέδια)', trySave(d2, {periods: [], ops: [{op: 'delete', id: 'school-a'}, {op: 'delete', id: 'olo-a'}]}, PROG));
+  if (d4) equal('Μετά τη διαγραφή: μόνο το προσχέδιο του Designer', programsOf(d4).map(p => p.id), ['olo-draft']);
+}
+
 function compositionChecks() {
   start('2ε. Σύνθεση περιόδου (composePeriod)');
   const T = SchoolTimetable, F = window.SchoolDocumentFields, classes = [...CLASS_LIST, ENTAXI];
@@ -2866,6 +2968,7 @@ function run() {
     }
   }); else skip('Κενό CSV', 'Χρειάζεται ένα από τα αρχεία .fet.');
 
+  attempt('Εισαγωγή FET: ζώνες και σχέδιο Ολοημέρου', fetDesignChecks);
   attempt('Σύνθεση περιόδου', compositionChecks);
   attempt('Διαθεσιμότητα', availabilityChecks);
   attempt('Απασχόληση σε ημερομηνία και ώρα', () => busyAtChecks(v2Program));

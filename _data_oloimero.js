@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων: Ολοήμερο
- * Έκδοση αρχείου: 0.02
+ * Έκδοση αρχείου: 0.03
  * Όνομα κατά την εγκατάσταση: _data_oloimero.js
  *
  * Ο κοινός κώδικας δεδομένων είναι σε τέσσερα αρχεία, που φορτώνονται πάντα όλα, με αυτή τη σειρά, μετά το _ui.js
@@ -15,7 +15,9 @@
  * Προσθέτει στο window.SchoolTimetable, και μετά το παγώνει:
  *   Εισαγωγή Ολοημέρου στο ωρολόγιο (analyzeOloimeroReplace, applyOloimeroReplace), σχέδια του Ολοήμερου Designer
  *   (ώρες, μαθητές των κελιών από ονόματα, χρώμα εκπαιδευτικού, γραμμές σχεδίου), το CSV του Ολοημέρου για το FET
- *   (ανάγνωση και εξαγωγή), και τον εισαγωγέα «CSV Ολοημέρου» του είδους oloimero (kinds.oloimero.importers).
+ *   (ανάγνωση και εξαγωγή), τον εισαγωγέα «CSV Ολοημέρου» του είδους oloimero (kinds.oloimero.importers), και το
+ *   σχέδιο Ολοημέρου στην εισαγωγή FET (σύγκριση των σχεδίων με το Ωρολόγιο: oloimeroDesignMatches· αυτόματη
+ *   δημιουργία σχεδίου από το Ωρολόγιο: oloimeroDesignFromSchool).
  * Τα προγράμματα είναι στη μορφή formatVersion:2: οι δραστηριότητες αναφέρονται στα τμήματα με το id τους
  * (classes), και τα ονόματα μαθητών των αρχείων που δεν είναι τμήματα μπαίνουν στο otherStudents.
  */
@@ -26,7 +28,7 @@
   parts.needs('_data_oloimero.js', ['_data.js', '_data_timetable.js']);
   const {BOM, parse, quote, compareKey, DAY_KEYS, DAY_LABELS, uid, clone, unique, nowIso, quoted, isObject,
     timedHours, GRADES, GRADE_LABELS, gradeKey, gradeName, isGeneralClass, classKey, sortClasses, classesById,
-    classNameOf, classResolver, combineStudents, subsetParent, studentsParts, expandGrade, studentsText,
+    classNameOf, classGrades, classResolver, combineStudents, subsetParent, studentsParts, expandGrade, studentsText,
     ensureHistory, addHistory, tagSets, tagsOf, isGeneralTeacher, sortStaff, sameKey, OLOIMERO_CATEGORIES} = parts;
 
   // ---- CSV του Ολοήμερου Designer ----
@@ -666,6 +668,124 @@
     });
   }
 
+  // =============================================================================================
+  // ---- Σχέδιο Ολοημέρου στην εισαγωγή FET ----
+  // =============================================================================================
+  // Τα σχέδια (προσχέδια και σχέδια περιόδων) συγκρίνονται με ένα Ωρολόγιο στις ζώνες Ολοημέρου, ώρα προς ώρα, με
+  // τον κανόνα της σύνθεσης (SchoolTimetable.oloimeroDiff).
+  //   school: το Ωρολόγιο· designs: τα σχέδια· options: {classes, teachingHours}.
+  // → [{program, fetOnly, designOnly, differences, same}], με τη σειρά των διαφορών (λιγότερες πρώτα· ίσες με τη
+  //   σειρά του designs). differences: οι ώρες που διαφέρουν (fetOnly + designOnly)· same: χωρίς διαφορές.
+  function oloimeroDesignMatches(school, designs, options = {}) {
+    return (Array.isArray(designs) ? designs : []).filter(isObject).map((program, order) => {
+      const {fetOnly, designOnly} = parts.oloimeroDiff(school, program, options);
+      const differences = fetOnly.length + designOnly.length;
+      return {program, fetOnly, designOnly, differences, same: differences === 0, order};
+    }).sort((a, b) => a.differences - b.differences || a.order - b.order).map(({order, ...item}) => item);
+  }
+
+  // Αυτόματη δημιουργία σχεδίου Ολοημέρου από ένα Ωρολόγιο: οι δραστηριότητές του στις ζώνες Ολοημέρου, ώρα προς
+  // ώρα, γίνονται θέσεις του πίνακα του Designer.
+  //   - Κάθε ώρα μιας δραστηριότητας σε ζώνη Ολοημέρου γίνεται μία δραστηριότητα του σχεδίου, σε μία θέση της ώρας
+  //     και της ημέρας της. Οι ώρες στο Πρωινό αγνοούνται.
+  //   - Μαθητές του κελιού: τα τμήματα Γενικής Παιδείας της δραστηριότητας· όταν είναι όλα τα τμήματα μιας τάξης,
+  //     γίνονται η τάξη (Α1 + Α2 → Α'). Υποσύνολα, άλλα τμήματα και ομάδες μαθητών δεν μπαίνουν (η εισαγωγή FET
+  //     τα απορρίπτει στις ζώνες Ολοημέρου).
+  //   - Σειρά θέσεων σε κάθε ώρα και ημέρα: με το μικρότερο τμήμα του κελιού (πρώτα η Α', μετά η Β'· Α1, Α2, Β1).
+  //   - Χρώματα: δάσκαλοι κίτρινο, οι υπόλοιποι γαλάζιο (oloimeroTeacherColor).
+  //   - Δραστηριότητα χωρίς εκπαιδευτικό, μάθημα ή μαθητές → ελλιπές κελί (source.pending).
+  //   - Σχεδιασμός: σε κάθε ώρα όσες θέσεις χρειάζονται, με εξαιρέσεις ανά ημέρα όταν διαφέρουν.
+  //   school: το Ωρολόγιο· options: {staff, classes, teachingHours, periodId, name, id, now,
+  //   availableHours(staffId) → ώρες (οι διαθέσιμες ώρες των εκπαιδευτικών στο σχέδιο· χωρίς αυτό 0)}.
+  // → το σχέδιο (kind 'oloimero'). Πετά λάθος όταν μια ώρα χρειάζεται περισσότερες από OLOIMERO_MAX_SLOTS θέσεις.
+  function oloimeroDesignFromSchool(school, options = {}) {
+    const hours = oloimeroHours(options.teachingHours), at = options.now || nowIso();
+    const classes = (options.classes || []).filter(isObject), byId = classesById(classes);
+    const grades = classGrades(classes);
+    const staffById = new Map((options.staff || []).map(person => [person.id, person]));
+    // The students of a cell from the classes of the activity: whole τάξεις, then the τμήματα left.
+    const studentsOf = ids => {
+      const own = new Set((ids || []).filter(id => isGeneralClass(byId.get(id))));
+      const items = [];
+      for (const grade of grades) {
+        const inGrade = grade.classes.filter(record => own.has(record.id));
+        if (!inGrade.length) continue;
+        if (inGrade.length === grade.classes.length) items.push({type: 'grade', grade: grade.grade});
+        else items.push(...inGrade.map(record => ({type: 'class', id: record.id})));
+      }
+      return items;
+    };
+    // The smallest τμήμα of a cell, for the order of the places: [index of the τάξη, number].
+    const smallest = ids => {
+      const records = (ids || []).map(id => byId.get(id)).filter(isGeneralClass);
+      if (!records.length) return [GRADES.length, Infinity];
+      const first = sortClasses(records)[0];
+      return [GRADES.indexOf(gradeKey(first.grade)), Number(first.number) || 0];
+    };
+    const cells = [];
+    for (const activity of Array.isArray(school?.activities) ? school.activities : []) {
+      if (!isObject(activity)) continue;
+      for (const time of Array.isArray(activity.times) ? activity.times : []) {
+        const hour = hours.find(item => item.start <= time?.start && time?.end <= item.end);
+        const day = Number(time?.day) || 0;
+        if (!hour || day < 1 || day > 5) continue;
+        cells.push({activity, hour, day, students: studentsOf(activity.classes), rank: smallest(activity.classes), order: cells.length});
+      }
+    }
+    // Places: in every hour and day by the smallest τμήμα.
+    const groups = new Map();
+    for (const cell of cells) {
+      const key = cell.hour.hour.id + '|' + cell.day;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(cell);
+    }
+    for (const list of groups.values()) {
+      list.sort((a, b) => a.rank[0] - b.rank[0] || a.rank[1] - b.rank[1] || a.order - b.order);
+      if (list.length > OLOIMERO_MAX_SLOTS) throw Error('Η ώρα ' + list[0].hour.name + ' της ' + DAY_LABELS[list[0].day - 1] + ' έχει ' + list.length + ' δραστηριότητες στο Ωρολόγιο, περισσότερες από τις ' + OLOIMERO_MAX_SLOTS + ' θέσεις του πίνακα του Ολοήμερου Designer.');
+      list.forEach((cell, slot) => { cell.slot = slot; });
+    }
+    const subjects = [], subjectId = name => {
+      let subject = subjects.find(item => compareKey(item.name) === compareKey(name));
+      if (!subject) subjects.push(subject = {id: uid(), name});
+      return subject.id;
+    };
+    const activities = [], placements = {}, pending = [];
+    for (const cell of [...cells].sort((a, b) => a.day - b.day || a.hour.start.localeCompare(b.hour.start) || a.slot - b.slot)) {
+      const source = cell.activity, subject = String(source.subject || '').trim();
+      const staff = unique((source.staff || []).filter(id => staffById.has(id))), unmatched = unique((source.unmatched || []).map(String).filter(Boolean));
+      const hourId = String(cell.hour.hour.id);
+      if (!subject || (!staff.length && !unmatched.length) || !cell.students.length) {
+        pending.push({hourId, day: cell.day, slot: cell.slot, staffId: staff[0] || null, name: staff.length ? null : unmatched[0] || null, subjectId: subject ? subjectId(subject) : null, students: clone(cell.students)});
+        continue;
+      }
+      subjectId(subject);
+      const id = uid(), expanded = oloimeroStudents(cell.students, {unions: []}, classes);
+      activities.push({id, subject, staff, unmatched, classes: [...expanded.classes], subsets: [...expanded.subsets], otherStudents: [...expanded.otherStudents], room: '', times: [{day: cell.day, start: cell.hour.start, end: cell.hour.end}]});
+      placements[id] = {hourId, day: cell.day, slot: cell.slot, students: clone(cell.students)};
+    }
+    const design = {hours: hours.map(item => {
+      const need = [1, 2, 3, 4, 5].map(day => groups.get(item.hour.id + '|' + day)?.length || 0);
+      const count = Math.max(...need), exceptionsEnabled = need.some(value => value !== count);
+      return {hourId: String(item.hour.id), count, exceptionsEnabled, dayCounts: exceptionsEnabled ? need : need.map(() => count)};
+    })};
+    // Teachers of the sidebar: those of the activities and of the incomplete cells, in the order of Προσωπικό.
+    const available = id => { const value = Number(options.availableHours?.(id)); return Number.isFinite(value) && value > 0 ? Math.floor(value) : 0; };
+    const people = unique([...activities.flatMap(item => item.staff), ...pending.map(item => item.staffId).filter(Boolean)]).map(id => staffById.get(id));
+    const teachers = sortStaff(people).map(person => ({staffId: person.id, name: person.shortName, color: oloimeroTeacherColor(person), availableHours: available(person.id)}));
+    const names = unique([...activities.flatMap(item => item.unmatched), ...pending.map(item => item.name).filter(Boolean)]).sort((a, b) => a.localeCompare(b, 'el', {numeric: true, sensitivity: 'base'}));
+    for (const name of names) teachers.push({staffId: null, name, color: OLOIMERO_COLORS.other, availableHours: 0});
+    return {
+      id: options.id || uid(), formatVersion: 2, kind: 'oloimero', periodId: options.periodId ?? null,
+      name: options.name || '', createdAt: at, updatedAt: at, activities,
+      source: {
+        type: 'oloimero-designer', version: 2,
+        design, teachers, subjects, unions: [], hidden: {grades: [], classes: []},
+        styles: Object.fromEntries(OLOIMERO_STYLE_KEYS.map(key => [key, designStyle(null)])),
+        placements, pending
+      }
+    };
+  }
+
   Object.assign(parts, {OLOIMERO_MAX_SLOTS, oloimeroStudents});
 
   const timetable = window.SchoolTimetable;
@@ -674,7 +794,8 @@
   Object.freeze(Object.assign(timetable, {
     analyzeOloimeroReplace, applyOloimeroReplace,
     OLOIMERO_MAX_SLOTS, oloimeroHours, oloimeroTeacherColor, oloimeroStudents,
-    oloimeroRowsFromCsv, oloimeroRowsFromProgram, oloimeroCsvFromProgram, oloimeroCells, analyzeOloimeroImport, buildOloimeroProgram
+    oloimeroRowsFromCsv, oloimeroRowsFromProgram, oloimeroCsvFromProgram, oloimeroCells, analyzeOloimeroImport, buildOloimeroProgram,
+    oloimeroDesignMatches, oloimeroDesignFromSchool
   }));
   parts.loaded('_data_oloimero.js');
 })();

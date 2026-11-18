@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Προγράμματα στο Κεντρικό Μενού (host)
- * Έκδοση αρχείου: 0.19
+ * Έκδοση αρχείου: 0.20
  * Όνομα κατά την εγκατάσταση: _host_timetables.js
  *
  * Κώδικας μόνο του host για τα προγράμματα (timetablesByYear). Το φορτώνει το index.html μετά το
@@ -13,7 +13,8 @@
  *   validateCatalog(catalog, options)       έλεγχος του καταλόγου των Ατομικών Προγραμμάτων (πετά λάθος)
  *   checkCatalogAdditions(before, after)    ο κατάλογος που στέλνουν τα Σχολικά Προγράμματα έχει μόνο προσθήκες στο
  *                                           τέλος (επαναφορά από αντίγραφο ασφαλείας· πετά λάθος)
- *   context(data, app, revision)            το school-timetables:context για μια εφαρμογή
+ *   context(data, app, revision)            το school-timetables:context για μια εφαρμογή (στα Σχολικά Προγράμματα
+ *                                           και τα προσχέδια του Ολοημέρου, μόνο για ανάγνωση: oloimeroDrafts)
  *   validatePeriods(periods, year, options) έλεγχος της λίστας περιόδων: Επίσημες και Προσχέδια περιόδων, διαθέσιμες
  *                                           ώρες Ολοημέρου (πετά λάθος)
  *   validateProgram(program, options)       πλήρης έλεγχος ενός προγράμματος, μαζί με το Ιστορικό και την αρχική
@@ -284,6 +285,9 @@
       periods,
       programs: timetables.programs.filter(program => known(program?.kind) && (program.periodId != null ? periodIds.has(program.periodId) : drafts.has(program.kind))),
       draftCounts,
+      // «Σχολικά Προγράμματα» only: the drafts of the Ολοήμερο Designer, read only, so that a new import from FET is
+      // compared with them (the σχέδιο Ολοημέρου of the period). A chosen draft goes to the period as a new copy.
+      ...(app === PROGRAMS_APP ? {oloimeroDrafts: timetables.programs.filter(program => program?.kind === 'oloimero' && program.periodId == null)} : {}),
       // The catalog of the Ατομικά Προγράμματα (subjects and Συνενώσεις of the year), for every application.
       individualCatalog: individualCatalog(data, year),
       // For the warnings near the limits: every program of the year (also drafts and unknown kinds).

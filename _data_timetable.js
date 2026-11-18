@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων: CSV, FET, προγράμματα
- * Έκδοση αρχείου: 0.05
+ * Έκδοση αρχείου: 0.06
  * Όνομα κατά την εγκατάσταση: _data_timetable.js
  *
  * Ο κοινός κώδικας δεδομένων είναι σε τέσσερα αρχεία, που φορτώνονται πάντα όλα, με αυτή τη σειρά, μετά το _ui.js
@@ -22,7 +22,8 @@
  *                           προγράμματος, μάθημα δραστηριότητας (και «μάθημα της τάξης» των Ατομικών Προγραμμάτων),
  *                           Ατομικά Προγράμματα (νέο πρόγραμμα, δραστηριότητες από τα κελιά, αντιγραφή ανά
  *                           εκπαιδευτικό), σύνθεση περιόδου (composePeriod: Ωρολόγιο, σχέδιο Ολοημέρου και Ατομικά
- *                           Προγράμματα μαζί, με ώρες, συγκρούσεις και ζώνες), Επίσημες περίοδοι και Προσχέδια
+ *                           Προγράμματα μαζί, με ώρες, συγκρούσεις και ζώνες· oloimeroDiff: σύγκριση Ωρολογίου και
+ *                           σχεδίου Ολοημέρου στις ζώνες Ολοημέρου), Επίσημες περίοδοι και Προσχέδια
  *                           περιόδων, αρχική και τρέχουσα κατάσταση προγράμματος (program.initial), διαθέσιμες ώρες
  *                           Ολοημέρου της περιόδου, τα προβλήματα της σύνθεσης για τον χρήστη (compositionProblems),
  *                           αντίγραφο ασφαλείας περιόδου και επαναφορά του. Δεν είναι ακόμη παγωμένο: το
@@ -650,15 +651,8 @@
     // The σχέδιο Ολοημέρου compared with the Ωρολόγιο, in the zones of the Ολοήμερο, time by time.
     let oloimeroDiff = null;
     if (school && design) {
-      const items = (list, test) => list.filter(test).flatMap(item => item.times.map(time => ({activity: item.activity, time, key: sameKey({...item.activity, times: [time]}, classes)})));
-      const fet = items(ignored, item => item.kind === 'school' && item.reason === 'design'), drawn = items(entries, item => item.kind === 'oloimero');
-      const waiting = new Map();
-      for (const item of drawn) { if (!waiting.has(item.key)) waiting.set(item.key, []); waiting.get(item.key).push(item); }
-      const fetOnly = [];
-      for (const item of fet) { const queue = waiting.get(item.key); if (queue?.length) queue.shift(); else fetOnly.push({activity: item.activity, time: item.time}); }
-      const designOnly = [...waiting.values()].flat().map(item => ({activity: item.activity, time: item.time}));
-      const order = (p, q) => p.time.day - q.time.day || (p.time.start < q.time.start ? -1 : p.time.start > q.time.start ? 1 : 0);
-      oloimeroDiff = {fetOnly: fetOnly.sort(order), designOnly: designOnly.sort(order)};
+      oloimeroDiff = diffInZones(school, design, zoneHours, classes);
+      const {fetOnly, designOnly} = oloimeroDiff;
       if (fetOnly.length || designOnly.length) {
         const count = (n, one, many) => n + ' ' + (n === 1 ? one : many);
         const pieces = [fetOnly.length ? count(fetOnly.length, 'ώρα του Ωρολογίου δεν υπάρχει', 'ώρες του Ωρολογίου δεν υπάρχουν') + ' στο σχέδιο' : '',
@@ -668,6 +662,25 @@
     }
     return {periodId, programs, classes, teachingHours: input.teachingHours, oloimeroFrom, entries, ignored, hours, unmatchedHours, conflicts: conflictsList, oloimeroDiff, issues};
   }
+
+  // The times of an Ωρολόγιο in the zones of the Ολοήμερο compared with a σχέδιο Ολοημέρου, time by time, with the
+  // rule of sameKey (the rule of the composition: the same diff as composePeriod gives in oloimeroDiff).
+  function diffInZones(school, design, zoneHours, classes) {
+    const items = program => (Array.isArray(program?.activities) ? program.activities : []).filter(isObject).flatMap(activity =>
+      (activity.times || []).filter(validTime).filter(time => zoneIn(time, zoneHours) === 'oloimero')
+        .map(time => ({activity, time, key: sameKey({...activity, times: [time]}, classes)})));
+    const waiting = new Map();
+    for (const item of items(design)) { if (!waiting.has(item.key)) waiting.set(item.key, []); waiting.get(item.key).push(item); }
+    const fetOnly = [];
+    for (const item of items(school)) { const queue = waiting.get(item.key); if (queue?.length) queue.shift(); else fetOnly.push({activity: item.activity, time: item.time}); }
+    const designOnly = [...waiting.values()].flat().map(item => ({activity: item.activity, time: item.time}));
+    const order = (p, q) => p.time.day - q.time.day || (p.time.start < q.time.start ? -1 : p.time.start > q.time.start ? 1 : 0);
+    return {fetOnly: fetOnly.sort(order), designOnly: designOnly.sort(order)};
+  }
+  // The same, for a program of the Ωρολόγιο and a σχέδιο Ολοημέρου (any two programs; e.g. a new import compared with
+  // the drafts of the Designer). options: {classes, teachingHours}. → {fetOnly:[{activity, time}], designOnly:[…]}.
+  // Throws when the Ώρες Διδασκαλίας are missing or unreadable.
+  const oloimeroDiff = (school, design, options = {}) => diffInZones(school, design, oloimeroTimes(options.teachingHours), options.classes || []);
 
   // What a teacher has in the composition at a time: the entries whose counted times overlap it.
   //   who: {staffId} (a person of Προσωπικό) or {name} (a name without a match); at: {day, start, end};
@@ -1399,6 +1412,8 @@
   //   ονόματα που δεν είναι τμήματα μπαίνουν στο otherStudents.
   //   unmatchedTeachers: εκπαιδευτικοί χωρίς αντιστοίχιση· ο χρήστης επιλέγει «Εισαγωγή χωρίς
   //   αντιστοίχιση» ή «Να μην εισαχθούν» (buildFetProgram, options.unmatched 'keep' ή 'drop').
+  //   Ζώνες (λάθη): μια δραστηριότητα με ώρες και στο Πρωινό και σε ζώνη Ολοημέρου, και μια δραστηριότητα σε ζώνη
+  //   Ολοημέρου με υποσύνολα, τμήματα που δεν είναι Γενικής Παιδείας ή ομάδες μαθητών.
   function analyzeFetImport(input = {}) {
     const result = {ok: false, errors: [], warnings: [], info: [], unmatchedTeachers: [], counts: {}, newClasses: [], csvName: input.csvName || '', fetName: input.fetName || ''};
     const stop = message => { result.errors.push(message); return result; };
@@ -1488,6 +1503,21 @@
     const hierarchy = studentsIndex(fet.students);
     for (const activity of activities.values()) activity.students = expandStudents(activity.studentsSets, hierarchy, resolver);
     if (resolver.overLimit.length) return stop('Η εισαγωγή θα δημιουργούσε τα τμήματα ' + resolver.overLimit.join(', ') + ', πάνω από το όριο των ' + input.classLimit + ' τμημάτων του σχολικού έτους. Αφαίρεσε τμήματα που δεν χρειάζονται στα «Τμήματα» ή διόρθωσε το FET.');
+    // Zones: an activity is whole in the Πρωινό or whole in the zones of the Ολοήμερο; in the zones of the Ολοήμερο
+    // only τάξεις and τμήματα Γενικής Παιδείας, because only those fit in a σχέδιο Ολοημέρου.
+    const zoneHours = oloimeroTimes(input.teachingHours), classById = classesById(resolver.classes);
+    const activityText = activity => 'Activity Id ' + activity.fetId + ' ' + quoted(activity.subject || '—') + (activity.studentsSets ? ' (' + activity.studentsSets + ')' : '') + ', ' +
+      activity.times.map(time => DAY_LABELS[time.day - 1] + ' ' + time.start + '–' + time.end).join(', ');
+    const listText = list => list.slice(0, 8).map(activityText).join('· ') + (list.length > 8 ? '· και ' + (list.length - 8) + ' ακόμη' : '');
+    const mixed = [], notGeneral = [];
+    for (const activity of activities.values()) {
+      const zones = new Set(activity.times.map(time => zoneIn(time, zoneHours)));
+      if (zones.size > 1) mixed.push(activity);
+      else if (zones.has('oloimero') && (activity.students.subsets.length || activity.students.otherStudents.length || activity.students.classes.some(id => !isGeneralClass(classById.get(id))))) notGeneral.push(activity);
+    }
+    if (mixed.length) result.errors.push((mixed.length === 1 ? 'Μία δραστηριότητα του FET έχει' : mixed.length + ' δραστηριότητες του FET έχουν') + ' ώρες και στο Πρωινό και σε ζώνη Ολοημέρου: ' + listText(mixed) + '. Κάθε δραστηριότητα πρέπει να είναι ολόκληρη στο Πρωινό ή ολόκληρη σε ζώνες Ολοημέρου. Διόρθωσε το FET και ξαναδημιούργησε το πρόγραμμα.');
+    if (notGeneral.length) result.errors.push((notGeneral.length === 1 ? 'Μία δραστηριότητα του FET σε ζώνη Ολοημέρου έχει' : notGeneral.length + ' δραστηριότητες του FET σε ζώνες Ολοημέρου έχουν') + ' υποσύνολα, τμήματα που δεν είναι Γενικής Παιδείας ή ομάδες μαθητών: ' + listText(notGeneral) + ". Στις ζώνες Ολοημέρου γίνονται δεκτές μόνο τάξεις (π.χ. «Β'») και τμήματα Γενικής Παιδείας (π.χ. «Α1»), όπως στον Ολοήμερο Designer. Διόρθωσε το FET και ξαναδοκίμασε.");
+    if (result.errors.length) return result;
     const unknownSets = unique([...activities.values()].flatMap(activity => activity.students.unknown));
     if (unknownSets.length) result.info.push('Σύνολα μαθητών του CSV που δεν υπάρχουν στο .fet: ' + unknownSets.map(quoted).join(', ') + '.');
     const others = unique([...activities.values()].flatMap(activity => activity.students.otherStudents));
@@ -1587,7 +1617,7 @@
 
   Object.assign(parts, {DAY_KEYS, DAY_LABELS, timedHours, periodEnd, combineStudents, subsetParent, studentsParts,
     expandGrade, studentsText, activitySubject, ensureHistory, addHistory, tagSets, tagsOf, sameKey, OLOIMERO_CATEGORIES,
-    composePeriod});
+    composePeriod, oloimeroDiff});
 
   window.SchoolCsv =Object.freeze({parse, quote, detectDelimiter, staffCsvRead, staffCsvUpdate, staffCsvSuggest});
   window.SchoolFet = Object.freeze({parse: parseFet, child, children, text});
@@ -1599,7 +1629,7 @@
     PERIOD_STATUSES, isDraftPeriod, officialPeriods, sortPeriods, periodNumbers, periodEnd, periodAt, programAt, programsAt, periodWarnings,
     classSpelling, studentsIndex, expandStudents, studentsFromNames, studentsText, activitySubject, activitySubjectDetails, homeroomTeacher, isGeneralTeacher, sortStaff, sortStaffAlphabetically,
     conflicts, studentsClash, unavailableTimes, availability, staffBusyAt, replaceStaff,
-    OLOIMERO_CATEGORIES, hourZone, composePeriod, compositionAt,
+    OLOIMERO_CATEGORIES, hourZone, composePeriod, compositionAt, oloimeroDiff,
     HISTORY_LIMIT, history: programHistory, ensureHistory, addHistory,
     programState, initialSnapshot, initialProgram, isModified, keepInitial, restoreInitial, setInitial,
     OLOIMERO_HOURS_MAX, oloimeroAvailableHours,
