@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Σχολικά Προγράμματα v0.32</title>
+<title>Σχολικά Προγράμματα v0.34</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -45,7 +45,8 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
 
 /* Sources and Πλήρες */
 .sp-sources{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2.1fr);gap:20px;align-items:stretch}
-.sp-morning{position:relative;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:22px 14px 14px;border:2px dashed var(--sp-morning-border);border-radius:14px}
+.sp-sources>.sp-card{margin:22px 0 14px}
+.sp-morning{position:relative;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:22px 14px 14px;border:2px dashed var(--sp-morning-border);border-radius:14px;align-items:stretch}
 .sp-morning-label{position:absolute;top:-12px;left:50%;transform:translateX(-50%);padding:0 10px;background:var(--sp-board-bg);font-size:14px;font-weight:700;letter-spacing:.08em;color:var(--sp-morning-text)}
 .sp-card{
   position:relative;box-sizing:border-box;min-width:0;display:flex;flex-direction:column;gap:10px;padding:16px;
@@ -71,8 +72,17 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
 .sp-empty p{margin:0}
 .sp-card-actions{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px;margin-top:auto}
 .sp-card-actions .ui-link-button{font-weight:650}
-.sp-arrows{display:block;width:100%;height:64px;margin:-6px 0 -10px;overflow:visible}
-.sp-arrows path{fill:none;stroke:var(--sp-arrow);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+/* Connectors are CSS borders: two smoothly rounded elbows and an arrowhead, not SVG. */
+.sp-arrows{position:relative;height:112px;margin:0;pointer-events:none;color:var(--sp-arrow)}
+.sp-arrow{position:absolute;top:0;height:100%;transform-origin:center center}
+.sp-arrow.reverse{transform:scaleX(-1)}
+.sp-arrow-half{position:absolute;box-sizing:border-box;border-color:currentColor;border-style:solid;border-width:0}
+.sp-arrow-first{left:0;top:var(--sp-from-y,0px);width:50%;height:calc(60px - var(--sp-from-y,0px));border-left-width:2px;border-bottom-width:2px;border-bottom-left-radius:32px}
+.sp-arrow-second{left:50%;top:60px;width:50%;height:calc(100% - 60px);border-right-width:2px;border-top-width:2px;border-top-right-radius:32px}
+.sp-arrow-head{position:absolute;right:-5px;bottom:3px;width:11px;height:11px;border:solid currentColor;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.sp-arrow.straight{top:var(--sp-from-y,0px);height:calc(100% - var(--sp-from-y,0px));border-left:2px solid currentColor;width:0!important}
+.sp-arrow.straight .sp-arrow-head{left:-7px;right:auto}
+.sp-arrow.straight .sp-arrow-half{display:none}
 .sp-full{
   display:flex;flex-wrap:wrap;align-items:center;gap:14px 18px;padding:18px 22px;
   background:var(--sp-full-bg);border:1.5px solid var(--sp-full-border);border-radius:14px
@@ -81,8 +91,8 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
 .sp-full-text{flex:1;min-width:220px}
 .sp-full-text h2{margin:0;font-size:24px;line-height:1.3}
 .sp-full-text p{margin:2px 0 0;font-size:15px;color:#405367}
-.sp-drafts{margin-top:14px;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px;font-size:14px;color:#405367}
-.sp-drafts strong{font-weight:650;color:var(--school-ui-text)}
+.sp-drafts{margin-top:18px;padding-top:10px;border-top:1px solid var(--school-ui-border);display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px;font-size:13px;color:var(--school-ui-muted)}
+.sp-drafts strong{font-weight:650;color:var(--school-ui-muted)}
 .sp-drafts .ui-validation-warning{margin:0}
 .sp-drafts .ui-helper{flex-basis:100%;margin:0}
 .sp-board-empty{min-height:260px}
@@ -153,6 +163,9 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
 
 @media(max-width:900px){
   .sp-sources{grid-template-columns:minmax(0,1fr)}
+  .sp-sources>.sp-card{margin:0}
+  .sp-arrows{height:80px}
+  .sp-arrow:not(.straight){display:none}
   .sp-periods{grid-template-columns:minmax(0,1fr)}
   .sp-period-actions{flex-direction:row;flex-wrap:wrap}
 }
@@ -174,7 +187,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" data-app-icon="timetables" aria-hidden="true"></span><span class="brand-text"><span>Σχολικά Προγράμματα</span><span class="small version">v0.32</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" data-app-icon="timetables" aria-hidden="true"></span><span class="brand-text"><span>Σχολικά Προγράμματα</span><span class="small version">v0.34</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="more" class="sp-more" type="button" title="Περισσότερες ενέργειες" aria-label="Περισσότερες ενέργειες" disabled></button>
@@ -363,7 +376,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
     $('period').addEventListener('change', () => { selectPeriod($('period').value); });
     $('managePeriods').onclick = managePeriods;
     renderBar(); renderBoard();
-    if (!introShown) { notice('Οι αλλαγές γίνονται στη σελίδα και αποθηκεύονται όλες μαζί με την «Αποθήκευση».'); introShown = true; }
+    if (!introShown) introShown = true;
     buttons();
   }
   function selectPeriod(id) {
@@ -416,11 +429,11 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
         ${kindKeys.includes('oloimero') ? cardHtml(period, 'oloimero') : ''}
         <div class="sp-morning" role="group" aria-labelledby="morningLabel"><span id="morningLabel" class="sp-morning-label">ΠΡΩΙΝΟ</span>${morning.map(kind => cardHtml(period, kind)).join('')}</div>
       </div>
-      <svg class="sp-arrows" aria-hidden="true" focusable="false"></svg>
+      <div class="sp-arrows" aria-hidden="true"></div>
       <section class="sp-full" aria-labelledby="fullTitle">
         <span class="app-mark is-sub sp-mark" data-app-icon="full" aria-hidden="true"></span>
         <div class="sp-full-text"><h2 id="fullTitle">Πλήρες Σχολικό Πρόγραμμα</h2><p>Η σύνθεση των τριών πηγών της περιόδου: προβολή, επεξεργασία ωρών και εκτύπωση.</p></div>
-        <button id="openFull" type="button" class="primary">Άνοιγμα προγράμματος</button>
+        <button id="openFull" type="button" class="success">${schoolIconText('chevron-right', 'Άνοιγμα προγράμματος', {end: true})}</button>
       </section>
       <section id="problems" aria-label="Συγκρούσεις και προειδοποιήσεις της περιόδου" hidden></section>
       <div id="drafts" class="sp-drafts"></div>`;
@@ -465,29 +478,51 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
     return 'Άνοιγμα: ' + APP_LINKS[target.app] + ' — περίοδος ' + quoted(periodName(period)) +
       (person ? ', εκπαιδευτικός ' + quoted(person.shortName || person.name || '?') : '') + (record ? ', τμήμα ' + quoted(record.name) : '');
   }
-  // Arrows from the three sources to the Πλήρες Σχολικό Πρόγραμμα, drawn from the places of the cards.
+  // CSS-border connectors. The source/target positions follow the cards after every resize.
+  // At <=900px, the vertically stacked layout uses one straight downward connector.
   function drawArrows() {
-    const svg = document.querySelector('.sp-arrows'), full = document.querySelector('.sp-full');
-    if (!svg || !full) return;
-    const box = svg.getBoundingClientRect();
-    const cards = [...document.querySelectorAll('.sp-sources .sp-card')].map(card => card.getBoundingClientRect());
-    const centres = cards.map(rect => rect.left + rect.width / 2 - box.left);
-    const height = box.height, middle = box.width / 2;
-    if (!box.width) return;
-    svg.setAttribute('viewBox', '0 0 ' + box.width + ' ' + height);
-    const stacked = centres.length < 2 || Math.max(...centres) - Math.min(...centres) < 20;
-    const head = x => `M${x - 7} ${height - 9} L${x} ${height - 1} L${x + 7} ${height - 9}`;
-    if (stacked) { svg.innerHTML = `<path d="M${middle} 2 V${height - 1}"/><path d="${head(middle)}"/>`; return; }
-    const spread = Math.min(46, box.width / 8), bend = height * 0.45;
-    const targets = centres.map((x, index) => middle + (index - (centres.length - 1) / 2) * spread);
-    svg.innerHTML = centres.map((x, index) => {
-      const target = targets[index], r = Math.min(12, Math.abs(target - x) / 2);
-      if (Math.abs(target - x) < 1) return `<path d="M${x} 2 V${height - 1}"/><path d="${head(x)}"/>`;
-      const dir = target > x ? 1 : -1;
-      return `<path d="M${x} 2 V${bend - r} Q${x} ${bend} ${x + dir * r} ${bend} H${target - dir * r} Q${target} ${bend} ${target} ${bend + r} V${height - 1}"/><path d="${head(target)}"/>`;
-    }).join('');
+    const area = document.querySelector('.sp-arrows');
+    const sources = document.querySelector('.sp-sources');
+    if (!area || !sources) return;
+    const cards = [...sources.querySelectorAll('.sp-card')];
+    const box = area.getBoundingClientRect();
+    if (!box.width || cards.length !== 3) return;
+    const centres = cards.map(card => {
+      const rect = card.getBoundingClientRect();
+      return {x: rect.left + rect.width / 2 - box.left, y: rect.bottom - box.top};
+    });
+    const stacked = getComputedStyle(sources).gridTemplateColumns.split(' ').length === 1 || box.width < 650;
+    const arrow = (from, to, startY = 0) => {
+      const reverse = from > to;
+      const el = document.createElement('div');
+      el.className = 'sp-arrow' + (reverse ? ' reverse' : '');
+      el.style.left = Math.min(from, to) + 'px';
+      el.style.width = Math.abs(to - from) + 'px';
+      el.style.setProperty('--sp-from-y', Math.min(0, startY) + 'px');
+      el.innerHTML = '<span class="sp-arrow-half sp-arrow-first"></span><span class="sp-arrow-half sp-arrow-second"></span><span class="sp-arrow-head"></span>';
+      return el;
+    };
+    const middle = box.width / 2;
+    if (stacked) {
+      const el = document.createElement('div');
+      el.className = 'sp-arrow straight';
+      el.style.left = middle + 'px';
+      el.style.setProperty('--sp-from-y', centres[centres.length - 1].y + 'px');
+      el.innerHTML = '<span class="sp-arrow-head"></span>';
+      area.replaceChildren(el);
+      return;
+    }
+    const spread = Math.min(60, box.width / 12);
+    const left = arrow(centres[0].x, middle - spread, centres[0].y);
+    const center = document.createElement('div');
+    center.className = 'sp-arrow straight';
+    center.style.left = centres[1].x + 'px';
+    center.style.setProperty('--sp-from-y', centres[1].y + 'px');
+    center.innerHTML = '<span class="sp-arrow-head"></span>';
+    const right = arrow(centres[2].x, middle + spread, centres[2].y);
+    area.replaceChildren(left, center, right);
   }
-  new ResizeObserver(() => drawArrows()).observe(root);
+  new ResizeObserver(drawArrows).observe(root);
 
   function cardHtml(period, kind) {
     const info = T.kinds[kind], card = CARDS[kind] || {title: kindLabel(kind), line: '', icon: '', open: !!info.owner};
