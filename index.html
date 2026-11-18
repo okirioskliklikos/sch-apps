@@ -98,9 +98,32 @@ h1 { margin: 0; color: #18344d; font-size: clamp(32px, 5vw, 48px); letter-spacin
    button. Shapes in _ui.css (.app-mark); the icon is centred on the name, or on its two lines. */
 .nav-app .app-mark { width: 20px; height: 20px; background: none; color: inherit; --app-mark-icon-size: 20px; }
 .nav-name { font-size: 13px; font-weight: 650; }
-/* Σχολικά Προγράμματα: the program application open from it (it has no button of its own), on a second line. */
-.nav-text { min-width: 0; }
-.nav-sub { display: block; margin-top: 2px; color: #b9d3df; font-size: 11px; font-weight: 500; }
+/* School programs: the title navigates, while the separate chevron expands the child links. */
+.nav-programs { display: grid; gap: 4px; min-width: 0; }
+.nav-programs-head { display: flex; align-items: center; min-width: 0; border-radius: 11px; }
+.nav-programs-head .nav-app { min-width: 0; flex: 1; }
+.nav-programs-head .nav-app.active { border-radius: 11px 0 0 11px; }
+.nav-programs-head:has(.nav-app.active) { background: rgba(104,158,184,.19); }
+.nav-programs-head:has(.nav-app.active) .nav-app.active { background: transparent; }
+.nav-programs-head:has(.nav-app.active) .nav-expand { border-color: rgba(144,196,217,.18); }
+.nav-expand { display: grid; place-items: center; flex: 0 0 34px; align-self: stretch; min-height: 42px; padding: 0; border: 1px solid transparent; border-radius: 0 11px 11px 0; background: transparent; color: #d8e3ec; cursor: pointer; }
+.nav-expand:hover:not(:disabled) { background: rgba(255,255,255,.07); }
+.nav-expand:disabled { opacity: .4; cursor: not-allowed; }
+.nav-expand:focus-visible, .nav-child:focus-visible { outline: 2px solid #80b6d0; outline-offset: 2px; }
+.nav-chevron { display: block; width: 8px; height: 8px; border: solid currentColor; border-width: 0 1.7px 1.7px 0; transform: rotate(45deg) translate(-1px,-1px); transition: transform .15s; }
+.nav-expand[aria-expanded="false"] .nav-chevron { transform: rotate(-45deg); }
+.nav-programs-children { display: grid; gap: 2px; padding-left: 17px; }
+.nav-programs-children[hidden] { display: none; }
+.nav-child { display: flex; align-items: center; width: 100%; min-height: 36px; gap: 8px; padding: 7px 6px; border: 0; border-radius: 7px; text-align: left; color: #cbdbe6; background: transparent; cursor: pointer; }
+.nav-child:hover:not(:disabled) { background: rgba(255,255,255,.07); }
+.nav-child:disabled { opacity: .4; cursor: not-allowed; }
+.nav-child.active { color: #fff; background: rgba(104,158,184,.19); }
+.nav-child .nav-name { font-size: 12px; font-weight: 450; white-space: nowrap; }
+.nav-child.active .nav-name { font-weight: 750; }
+.nav-child-dot { flex: 0 0 4px; width: 4px; height: 4px; border-radius: 50%; background: currentColor; opacity: .65; }
+.nav-child.active .nav-child-dot { opacity: 1; }
+.nav-child .app-mark { width: 17px; height: 17px; --app-mark-icon-size: 17px; color: inherit; background: none; }
+
 .sidebar-bottom { margin-top: auto; padding: 14px 10px 3px; border-top: 1px solid rgba(220,235,245,.12); color: #93aabb; font-size: 11px; line-height: 1.5; }
 .sidebar-bottom strong { display: block; margin-bottom: 3px; color: #dbe6ee; font-size: 12px; }
 .sidebar-version { margin-left: auto; flex-shrink: 0; color: #6f8ba0; font-size: 10px; letter-spacing: .03em; }
@@ -370,7 +393,7 @@ body.session-locked #app-shell { visibility:hidden; pointer-events:none; }
     <div class="sidebar-head">
       <div class="brand">
         <span class="brand-name">Εφαρμογές σχολείου</span>
-        <span class="sidebar-version" aria-label="Έκδοση 1.16">v1.16</span>
+        <span class="sidebar-version" aria-label="Έκδοση 1.17">v1.17</span>
       </div>
     </div>
     <div id="sidebar-school" class="sidebar-school" hidden><span id="nav-school-name" class="sidebar-school-name"></span><span id="nav-school-year" class="sidebar-school-year"></span></div>
@@ -381,7 +404,17 @@ body.session-locked #app-shell { visibility:hidden; pointer-events:none; }
       <button id="students-nav" class="nav-app" type="button" disabled aria-disabled="true" data-app="school_students.html" data-title="Μαθητές"><span class="app-mark" data-app-icon="students" aria-hidden="true"></span><span class="nav-name">Μαθητές</span></button>
       <button id="classes-nav" class="nav-app" type="button" disabled aria-disabled="true" data-app="school_classes.html" data-title="Τμήματα"><span class="app-mark" data-app-icon="classes" aria-hidden="true"></span><span class="nav-name">Τμήματα</span></button>
       <button id="hours-nav" class="nav-app" type="button" disabled aria-disabled="true" data-app="teaching_hours.html" data-title="Ώρες Διδασκαλίας"><span class="app-mark" data-app-icon="hours" aria-hidden="true"></span><span class="nav-name">Ώρες Διδασκαλίας</span></button>
-      <button id="programs-nav" class="nav-app" type="button" disabled aria-disabled="true" data-app="timetables.html" data-title="Σχολικά Προγράμματα"><span class="app-mark" data-app-icon="timetables" aria-hidden="true"></span><span class="nav-text"><span class="nav-name">Σχολικά Προγράμματα</span><span id="programs-nav-sub" class="nav-sub" hidden></span></span></button>
+      <div class="nav-programs">
+        <div class="nav-programs-head">
+          <button id="programs-nav" class="nav-app" type="button" disabled aria-disabled="true" data-app="timetables.html" data-title="Σχολικά Προγράμματα"><span class="app-mark" data-app-icon="timetables" aria-hidden="true"></span><span class="nav-name">Σχολικά Προγράμματα</span></button>
+          <button id="programs-expand" class="nav-expand" type="button" disabled aria-disabled="true" aria-label="Εμφάνιση υποεφαρμογών Σχολικών Προγραμμάτων" title="Εμφάνιση υποεφαρμογών" aria-controls="programs-children" aria-expanded="false"><span class="nav-chevron" aria-hidden="true"></span></button>
+        </div>
+        <div id="programs-children" class="nav-programs-children" hidden>
+          <button class="nav-child" type="button" disabled aria-disabled="true" data-app="oloimero_designer.html" data-title="Ολοήμερο Designer"><span class="nav-child-dot" aria-hidden="true"></span><span class="app-mark" data-app-icon="oloimero" aria-hidden="true"></span><span class="nav-name">Ολοήμερο Designer</span></button>
+          <button class="nav-child" type="button" disabled aria-disabled="true" data-app="individual_programs.html" data-title="Ατομικά Προγράμματα"><span class="nav-child-dot" aria-hidden="true"></span><span class="app-mark" data-app-icon="individual" aria-hidden="true"></span><span class="nav-name">Ατομικά Προγράμματα</span></button>
+          <button class="nav-child" type="button" disabled aria-disabled="true" data-app="fet_timetable_editor.html" data-title="Πλήρες Πρόγραμμα"><span class="nav-child-dot" aria-hidden="true"></span><span class="app-mark" data-app-icon="full" aria-hidden="true"></span><span class="nav-name">Πλήρες Πρόγραμμα</span></button>
+        </div>
+      </div>
       <button class="nav-app" type="button" disabled aria-disabled="true" data-app="school_calendar.html" data-title="Σχολικό Ημερολόγιο"><span class="app-mark" data-app-icon="calendar" aria-hidden="true"></span><span class="nav-name">Σχολικό Ημερολόγιο</span></button>
       <button id="docs-nav" class="nav-app" type="button" data-app="documents_templater.html" data-title="Documents Templater"><span class="app-mark" data-app-icon="docs" aria-hidden="true"></span><span class="nav-name">Documents Templater</span></button>
     </nav>
@@ -473,10 +506,17 @@ globalThis.SchoolDataCodec = (() => {
   const frame = document.getElementById('app-frame');
   const label = document.getElementById('active-app-label');
   const buttons = [...document.querySelectorAll('[data-app]')];
-  // The program applications that open only from «Σχολικά Προγράμματα» (school-timetables:open), without a button in
-  // the sidebar: while one of them is open, «Σχολικά Προγράμματα» is the active button, with its name below.
+  // The three program applications live under «Σχολικά Προγράμματα» in the sidebar.
   const PROGRAM_SUBAPPS = Object.freeze({'oloimero_designer.html': 'Ολοήμερο Designer', 'individual_programs.html': 'Ατομικά Προγράμματα', 'fet_timetable_editor.html': 'Πλήρες Σχολικό Πρόγραμμα'});
   const PROGRAMS_FILE = 'timetables.html';
+  const programsExpand = document.getElementById('programs-expand');
+  const programsChildren = document.getElementById('programs-children');
+  function setProgramsExpanded(expanded) {
+    programsChildren.hidden = !expanded;
+    programsExpand.setAttribute('aria-expanded', String(expanded));
+    programsExpand.setAttribute('aria-label', (expanded ? 'Απόκρυψη' : 'Εμφάνιση') + ' υποεφαρμογών Σχολικών Προγραμμάτων');
+    programsExpand.title = expanded ? 'Απόκρυψη υποεφαρμογών' : 'Εμφάνιση υποεφαρμογών';
+  }
   let sidebarHideTimer = 0;
   let sidebarMouseTracking = false;
   let sidebarOpenedForIdleWarning = false;
@@ -783,6 +823,7 @@ globalThis.SchoolDataCodec = (() => {
     $('nav-school-year').textContent = data.school.year;
     resetPasswordEdit(); $('edit-error').textContent = ''; $('edit-status').textContent = '';
     for (const button of buttons) { button.disabled = false; button.removeAttribute('aria-disabled'); }
+    programsExpand.disabled = false; programsExpand.removeAttribute('aria-disabled');
   }
   async function closeSharedDataAfterViews() {
     $('close-data').disabled = true;
@@ -810,6 +851,8 @@ globalThis.SchoolDataCodec = (() => {
       button.disabled = button.dataset.app !== 'documents_templater.html';
       button.setAttribute('aria-disabled', String(button.disabled));
     }
+    programsExpand.disabled = true; programsExpand.setAttribute('aria-disabled', 'true');
+    setProgramsExpanded(false);
   }
   // The Ολοήμερο Designer once linked its CSV file in .data (linkedFilesByYear[year].oloimeroDesigner). Its designs
   // are now programs of timetablesByYear, so the old links are left out of every save.
@@ -1080,6 +1123,7 @@ globalThis.SchoolDataCodec = (() => {
     if (sessionLocked || staffSaving || currentAppFile === file) return false;
     if (staffDirty && !(await schoolConfirm('Η υποεφαρμογή έχει μη αποθηκευμένες αλλαγές. Να απορριφθούν;', {title:'Μη αποθηκευμένες αλλαγές',accept:'Απόρριψη αλλαγών'}))) return false;
     if(sessionLocked||staffSaving)return false;
+    const previousInPrograms = currentAppFile === PROGRAMS_FILE || Object.hasOwn(PROGRAM_SUBAPPS, currentAppFile);
     staffDirty = false; currentAppFile = file;
     void writeViews();
     clearSidebarHideTimer();
@@ -1092,17 +1136,16 @@ globalThis.SchoolDataCodec = (() => {
     frame.title = title;
     frame.src = file;
     label.textContent = title;
-    const navFile = PROGRAM_SUBAPPS[file] ? PROGRAMS_FILE : file;
-    const sub = document.getElementById('programs-nav-sub');
-    sub.textContent = PROGRAM_SUBAPPS[file] || '';
-    sub.hidden = !PROGRAM_SUBAPPS[file];
+    const inPrograms = file === PROGRAMS_FILE || Object.hasOwn(PROGRAM_SUBAPPS, file);
+    // Leaving the program group closes its children; entering it from elsewhere opens them.
+    if (!inPrograms) setProgramsExpanded(false);
+    else if (!previousInPrograms) setProgramsExpanded(true);
     buttons.forEach(button => {
-      const selected = button.dataset.app === navFile;
-      if (button.classList.contains('nav-app')) {
-        button.classList.toggle('active', selected);
-        if (selected) button.setAttribute('aria-current', 'page');
-        else button.removeAttribute('aria-current');
-      }
+      const selected = button.dataset.app === file;
+      const groupSelected = button.id === 'programs-nav' && inPrograms;
+      button.classList.toggle('active', selected || groupSelected);
+      if (selected) button.setAttribute('aria-current', 'page');
+      else button.removeAttribute('aria-current');
     });
     if (window.matchMedia('(min-width: 1025px)').matches) {
       setSidebar(true);
@@ -1128,7 +1171,7 @@ globalThis.SchoolDataCodec = (() => {
       button.classList.remove('active');
       button.removeAttribute('aria-current');
     });
-    document.getElementById('programs-nav-sub').hidden = true;
+    setProgramsExpanded(false);
     document.getElementById('home-nav').classList.add('active');
     document.getElementById('home-nav').setAttribute('aria-current', 'page');
     setSidebar(false);
@@ -1138,6 +1181,9 @@ globalThis.SchoolDataCodec = (() => {
     if (!button.disabled) openApp(button.dataset.app, button.dataset.title);
   }));
   document.getElementById('home-nav').addEventListener('click', openHome);
+  programsExpand.addEventListener('click', () => {
+    if (!programsExpand.disabled && !sessionLocked) setProgramsExpanded(programsChildren.hidden);
+  });
 
   sidebarToggle.addEventListener('click', () => {
     clearSidebarHideTimer();
