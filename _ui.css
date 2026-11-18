@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινό περιβάλλον χρήστη
- * Έκδοση αρχείου: 0.57
+ * Έκδοση αρχείου: 0.58
  * Όνομα κατά την εγκατάσταση: _ui.css
  */
 
@@ -114,11 +114,16 @@ button:disabled{opacity:.45;cursor:not-allowed}
 button:disabled:is(:not([class]),.primary,.danger,.subapp-add-button,.subapp-remove-button,.save-main,.save-menu-button,.data-action,.ui-toggle):not(.success){
   opacity:1;color:var(--school-ui-disabled-text);background:var(--school-ui-disabled-button-bg);border-color:var(--school-ui-control-border)
 }
-button:is(.subapp-add-button,.primary){
+/* «Αποθήκευση» (.save-main) shares the look of «+ Προσθήκη» and .primary. It is enabled only while there are
+   unsaved changes, so it turns blue only then. Its «▾» (.save-menu-button right after it in .save-control)
+   follows it: blue while «Αποθήκευση» is enabled, an ordinary button otherwise. */
+button:is(.subapp-add-button,.primary,.save-main),
+.save-control>.save-main:not(:disabled)+.save-menu-button:not(:disabled){
   background:var(--school-ui-primary-bg);border-color:var(--school-ui-primary-border);
   color:var(--school-ui-primary-text)
 }
-button:is(.subapp-add-button,.primary):hover:not(:disabled){background:#d8e8ff;border-color:#709bd3}
+button:is(.subapp-add-button,.primary,.save-main):hover:not(:disabled),
+.save-control>.save-main:not(:disabled)+.save-menu-button:hover:not(:disabled){background:#d8e8ff;border-color:#709bd3}
 button:is(.subapp-remove-button,.danger){color:#a12626}
 /* Reusable compact status button: amber for pending, green for approved, red (.is-alert) for something
    missing or expired. A disabled button matches the disabled input fields, regardless of its status.
