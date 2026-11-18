@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων: CSV, FET, προγράμματα
- * Έκδοση αρχείου: 0.08
+ * Έκδοση αρχείου: 0.09
  * Όνομα κατά την εγκατάσταση: _data_timetable.js
  *
  * Ο κοινός κώδικας δεδομένων είναι σε τέσσερα αρχεία, που φορτώνονται πάντα όλα, με αυτή τη σειρά, μετά το _ui.js
@@ -21,7 +21,7 @@
  *                           τμημάτων, απασχόληση εκπαιδευτικών σε ημερομηνία και ώρα (συνεδριάσεις), Ιστορικό
  *                           προγράμματος, μάθημα δραστηριότητας (και «μάθημα της τάξης» των Ατομικών Προγραμμάτων),
  *                           Ατομικά Προγράμματα (νέο πρόγραμμα, δραστηριότητες από τα κελιά, αντιγραφή ανά
- *                           εκπαιδευτικό), σύνθεση περιόδου (composePeriod: Ωρολόγιο, σχέδιο Ολοημέρου και Ατομικά
+ *                           εκπαιδευτικό, δραστηριότητες στήριξης: supportActivity), σύνθεση περιόδου (composePeriod: Ωρολόγιο, σχέδιο Ολοημέρου και Ατομικά
  *                           Προγράμματα μαζί, με ώρες, συγκρούσεις και ζώνες· oloimeroDiff: σύγκριση Ωρολογίου και
  *                           σχεδίου Ολοημέρου στις ζώνες Ολοημέρου· moveProblems: οι κανόνες μετακίνησης
  *                           δραστηριοτήτων ανά είδος), Επίσημες περίοδοι και Προσχέδια
@@ -138,8 +138,8 @@
   //   πάντα σε περίοδο)· history: κρατά Ιστορικό (program.history)·
   //   importers: οι εισαγωγείς του είδους (βλέπε «Εισαγωγείς» παρακάτω)· κενό όταν δεν υπάρχει εισαγωγή.
   //   zone: η ζώνη της ημέρας που δίνει το είδος στη σύνθεση της περιόδου (composePeriod): 'morning' (Πρωινό) ή
-  //   'oloimero' (Πρωινή Ζώνη, Γεύμα, Ολοήμερο, Διευρυμένο)· support: οι δραστηριότητές του είναι στήριξη (δεν
-  //   συγκρούονται στους μαθητές και δεν είναι μαθήματα της τάξης)· exclusive: μια ώρα του είδους είναι μόνο του
+  //   'oloimero' (Πρωινή Ζώνη, Γεύμα, Ολοήμερο, Διευρυμένο)· support: οι δραστηριότητές του μπορεί να είναι στήριξη
+  //   (δεν συγκρούονται στους μαθητές και δεν είναι μαθήματα της τάξης), με τον κανόνα του supportActivity· exclusive: μια ώρα του είδους είναι μόνο του
   //   εκπαιδευτικού της: καμία άλλη δραστηριότητα του ίδιου εκπαιδευτικού την ίδια ώρα, σε καμία λειτουργία
   //   (βλέπε moveProblems).
   //   initialSource: τα κλειδιά του source που ανήκουν στην κατάσταση του προγράμματος, μαζί με τις δραστηριότητες,
@@ -575,9 +575,10 @@
   //     (oloimeroFrom 'fet'); otherwise they are ignored (reason 'design'): only the σχέδιο counts there.
   //   - Times of the Ατομικά in a zone of the Ολοήμερο and times of the σχέδιο in the Πρωινό are ignored (reason
   //     'zone'), with a warning.
-  //   - Support (KINDS[kind].support, the Ατομικά Προγράμματα): never a conflict on students, and not a lesson of the
-  //     class. Conflicts on the teacher are always checked, also between sources.
-  // → {periodId, programs:{school, oloimero, individual} (or null), classes, teachingHours,
+  //   - Support (supportActivity: activities of the Ατομικά Προγράμματα by the service type of the teacher or the usual
+  //     subjects): never a conflict on students, and not a lesson of the class. Conflicts on the teacher are always
+  //     checked, also between sources.
+  // → {periodId, programs:{school, oloimero, individual} (or null), staff, classes, teachingHours,
   //    oloimeroFrom: 'design'|'fet'|'none',
   //    entries: [{kind, program, activity, times, support}]  what counts; times: only the times that count,
   //    ignored: [{kind, program, activity, times, reason:'design'|'zone'}],
@@ -592,7 +593,8 @@
   //   codes: 'noDesign' (info), 'mixedZone' (an activity of the Ωρολόγιο in the Πρωινό and in a zone of the Ολοήμερο),
   //   'outsideZone' (times ignored with reason 'zone'), 'oloimeroDiff' (the σχέδιο differs from the Ωρολόγιο).
   function composePeriod(input = {}) {
-    const periodId = input.periodId ?? null, classes = input.classes || [];
+    const periodId = input.periodId ?? null, classes = input.classes || [], staff = Array.isArray(input.staff) ? input.staff : [];
+    const staffById = new Map(staff.filter(isObject).map(person => [person.id, person]));
     const zoneHours = oloimeroTimes(input.teachingHours);
     const programs = {};
     for (const kind of Object.keys(KINDS)) programs[kind] = null;
@@ -608,7 +610,7 @@
     for (const kind of Object.keys(KINDS)) {
       const program = programs[kind];
       if (!program) continue;
-      const own = KINDS[kind].zone, support = !!KINDS[kind].support;
+      const own = KINDS[kind].zone;
       for (const activity of Array.isArray(program.activities) ? program.activities : []) {
         if (!isObject(activity)) continue;
         const counted = [], byDesign = [], outside = [];
@@ -622,7 +624,7 @@
         if (kind === 'school' && new Set(times.map(time => zoneIn(time, zoneHours))).size > 1)
           issues.push({level: 'warning', code: 'mixedZone', message: 'Η δραστηριότητα ' + label(activity) + ' του Ωρολογίου έχει ώρες και στο Πρωινό και σε ζώνη Ολοημέρου.', kind, activityId: activity.id ?? null});
         if (outside.length) issues.push({level: 'warning', code: 'outsideZone', message: (kind === 'oloimero' ? 'Η δραστηριότητα ' + label(activity) + ' του σχεδίου Ολοημέρου έχει ώρα στο Πρωινό' : 'Η δραστηριότητα ' + label(activity) + ' των Ατομικών Προγραμμάτων έχει ώρα σε ζώνη Ολοημέρου') + ', που δεν μετρά.', kind, activityId: activity.id ?? null});
-        if (counted.length) entries.push({kind, program, activity, times: counted, support});
+        if (counted.length) entries.push({kind, program, activity, times: counted, support: supportActivity(kind, activity, {staff: staffById})});
         if (byDesign.length) ignored.push({kind, program, activity, times: byDesign, reason: 'design'});
         if (outside.length) ignored.push({kind, program, activity, times: outside, reason: 'zone'});
       }
@@ -663,7 +665,7 @@
         issues.push({level: 'warning', code: 'oloimeroDiff', message: 'Το σχέδιο Ολοημέρου της περιόδου διαφέρει από το Ωρολόγιο στις ζώνες Ολοημέρου: ' + pieces.join(' και ') + '. Στις ώρες μετρά το σχέδιο.', kind: 'oloimero', activityId: null});
       }
     }
-    return {periodId, programs, classes, teachingHours: input.teachingHours, oloimeroFrom, entries, ignored, hours, unmatchedHours, conflicts: conflictsList, oloimeroDiff, issues};
+    return {periodId, programs, staff, classes, teachingHours: input.teachingHours, oloimeroFrom, entries, ignored, hours, unmatchedHours, conflicts: conflictsList, oloimeroDiff, issues};
   }
 
   // The times of an Ωρολόγιο in the zones of the Ολοήμερο compared with a σχέδιο Ολοημέρου, time by time, with the
@@ -705,8 +707,8 @@
 
   // ---- Μετακίνηση δραστηριοτήτων ----
   // Moving activities of a period to other times, with the rules of their kinds, in one place for every app that
-  // moves them: the Πλήρες Σχολικό Πρόγραμμα (the Ωρολόγιο and the Ατομικά Προγράμματα), and the Ατομικά Προγράμματα
-  // themselves from Step 7. Nothing changes here.
+  // moves them: the Πλήρες Σχολικό Πρόγραμμα (the Ωρολόγιο and the Ατομικά Προγράμματα) and the Ατομικά Προγράμματα
+  // themselves. Nothing changes here.
   //   composition: the composition of the period (composePeriod) before the moves; moves: [{kind, activity, times}],
   //   the new times of each activity (a swap is two moves).
   //   Rules of the kinds (errors: no mode allows them):
@@ -716,7 +718,7 @@
   //             teacher's alone (KINDS[kind].exclusive: the Ατομικά Προγράμματα).
   //   conflicts: what the moves clash with, among the entries that count in the composition (without the moved
   //   activities) and among the moves themselves: on the teacher always, on the students only when neither is support
-  //   (the rules of composePeriod). A 'busy' error is not repeated as a conflict on the teacher.
+  //   (supportActivity, with the staff of the composition: the rules of composePeriod). A 'busy' error is not repeated as a conflict on the teacher.
   // → {errors:[{code:'zone'|'busy', move, time, entry, other}], conflicts:[{type:'staff'|'unmatched'|'class', who,
   //    day, start, end, move, entry, other}]} (entry: the entry of the composition; other: the other move, when the
   //    clash is between two moves).
@@ -728,6 +730,8 @@
     const moved = new Set(list.map(move => move.activity));
     const others = (composition.entries || []).filter(entry => !moved.has(entry.activity));
     const common = (a, b) => unique(a || []).filter(item => (b || []).includes(item));
+    const staffById = new Map((composition.staff || []).filter(isObject).map(person => [person.id, person]));
+    const isSupport = (kind, activity, entry) => entry ? !!entry.support : supportActivity(kind, activity, {staff: staffById});
     // One time of a move against one time of something else (an entry of the composition, or another move).
     const check = (move, time, otherActivity, otherKind, otherTime, where) => {
       if (!timesOverlap(time, otherTime)) return;
@@ -739,7 +743,7 @@
         for (const id of staff) result.conflicts.push({type: 'staff', who: id, ...base});
         for (const name of unmatched) result.conflicts.push({type: 'unmatched', who: name, ...base});
       }
-      if (!KINDS[move.kind]?.support && !KINDS[otherKind]?.support) for (const id of unique(studentsClash(move.activity, otherActivity))) result.conflicts.push({type: 'class', who: id, ...base});
+      if (!isSupport(move.kind, move.activity) && !isSupport(otherKind, otherActivity, where.entry)) for (const id of unique(studentsClash(move.activity, otherActivity))) result.conflicts.push({type: 'class', who: id, ...base});
     };
     list.forEach((move, index) => {
       const times = (Array.isArray(move.times) ? move.times : []).filter(validTime);
@@ -1114,6 +1118,26 @@
   // of the student's class, so the subject is always declared (a cell with chips only is an incomplete cell).
   const INDIVIDUAL_CLASS_SUBJECT_SERVICES = Object.freeze(['parallel', 'ebp']);
   const individualClassSubject = person => INDIVIDUAL_CLASS_SUBJECT_SERVICES.includes(person?.serviceType);
+  // Support activities of the Ατομικά Προγράμματα: never a conflict on students and not a lesson of the class.
+  //   - Every activity of a teacher whose service type is below (Παράλληλη Στήριξη, Τμήμα Ένταξης, ΖΕΠ – Τμήμα
+  //     Υποδοχής, ΕΒΠ, ΕΕΠ) is support, whatever its subject or classes (also a «μάθημα της τάξης»).
+  //   - For every other teacher only the usual subjects (INDIVIDUAL_COMMON_SUBJECTS, by name without tones and case)
+  //     are support; everything else is a lesson of the class (it clashes on students like the Ωρολόγιο).
+  // Worked out when read, so a change of the service type in Προσωπικό applies at once, without migration.
+  const INDIVIDUAL_SUPPORT_SERVICES = Object.freeze(['parallel', 'inclusion', 'zep', 'ebp', 'psychologist', 'socialWorker', 'nurse']);
+  // The usual subjects of the individual programs, offered in «Προσθήκη μαθημάτων…» of the Ατομικά Προγράμματα.
+  const INDIVIDUAL_COMMON_SUBJECTS = Object.freeze(['Ενισχυτική Διδασκαλία', 'Γραμματειακή Υποστήριξη', 'Διοικητικό Έργο']);
+  const subjectKey = value => window.SchoolText.withoutTones(String(value ?? '')).toLocaleLowerCase('el').replace(/\s+/g, ' ').trim();
+  const COMMON_SUBJECT_KEYS = new Set(INDIVIDUAL_COMMON_SUBJECTS.map(subjectKey));
+  const isCommonSubject = name => COMMON_SUBJECT_KEYS.has(subjectKey(name));
+  // Whether an activity of a kind is support. options: {staff} (the Προσωπικό of the year: an array or a Map by id).
+  // Kinds without KINDS[kind].support: never. A teacher not found in staff (or unmatched) counts by subject only.
+  function supportActivity(kind, activity, options = {}) {
+    if (!KINDS[kind]?.support || !isObject(activity)) return false;
+    const list = options.staff, find = id => list instanceof Map ? list.get(id) : Array.isArray(list) ? list.find(person => person?.id === id) : null;
+    if ((activity.staff || []).some(id => INDIVIDUAL_SUPPORT_SERVICES.includes(find(id)?.serviceType))) return true;
+    return !activity.subjectFromClasses && isCommonSubject(activity.subject);
+  }
   // An empty individual program for a period. options: {id, now}.
   function individualProgram(periodId, options = {}) {
     const now = options.now || nowIso();
@@ -1239,7 +1263,9 @@
       let target, group, who;
       if (conflict.type === 'class') {
         group = 'class'; who = className(conflict.who);
-        target = onlyDesign ? {app: 'oloimero'} : {app: 'school', classId: conflict.who};
+        // A lesson of the class in the Ατομικά Προγράμματα (not support) opens the Ατομικά, with its teacher.
+        const own = [conflict.a, conflict.b].find(entry => entry.kind === 'individual'), teacher = own?.activity?.staff?.[0];
+        target = onlyDesign ? {app: 'oloimero'} : own ? (teacher != null ? {app: 'individual', staffId: teacher} : {app: 'individual'}) : {app: 'school', classId: conflict.who};
       } else {
         group = 'staff'; who = conflict.type === 'staff' ? personName(conflict.who) : String(conflict.who);
         if (conflict.type === 'staff' && kinds.includes('individual')) target = {app: 'individual', staffId: conflict.who};
@@ -1691,7 +1717,7 @@
     HISTORY_LIMIT, history: programHistory, ensureHistory, addHistory,
     programState, initialSnapshot, initialProgram, isModified, keepInitial, restoreInitial, setInitial,
     OLOIMERO_HOURS_MAX, oloimeroAvailableHours,
-    INDIVIDUAL_CLASS_SUBJECT_SERVICES, individualClassSubject, individualProgram, individualRefresh, individualCopy,
+    INDIVIDUAL_CLASS_SUBJECT_SERVICES, individualClassSubject, INDIVIDUAL_SUPPORT_SERVICES, INDIVIDUAL_COMMON_SUBJECTS, isCommonSubject, supportActivity, individualProgram, individualRefresh, individualCopy,
     compositionProblems, BACKUP_APP, periodBackup, readPeriodBackup, analyzePeriodRestore, buildPeriodRestore,
     analyzeFetImport, buildFetProgram
   };

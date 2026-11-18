@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Πλήρες Σχολικό Πρόγραμμα v1.17</title>
+<title>Πλήρες Σχολικό Πρόγραμμα v1.18</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -187,8 +187,9 @@ button.ui-icon-button.ft-cell-edit>svg{width:var(--school-ui-icon-size-list);hei
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Πλήρες Σχολικό Πρόγραμμα — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΠΛ</span></span><span class="brand-text"><span>Πλήρες Σχολικό Πρόγραμμα</span><span class="small version">v1.17</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Πλήρες Σχολικό Πρόγραμμα — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΠΛ</span></span><span class="brand-text"><span>Πλήρες Σχολικό Πρόγραμμα</span><span class="small version">v1.18</span></span></button></h1></div>
   <select id="period" aria-label="Περίοδος" disabled hidden></select>
+  <span id="periodStatus" class="ui-period-status" hidden></span>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <span class="sep" aria-hidden="true"></span>
   <button id="undo" type="button" disabled title="Αναίρεση της τελευταίας ενέργειας" data-school-icon="undo">Αναίρεση</button>
@@ -337,7 +338,8 @@ button.ui-icon-button.ft-cell-edit>svg{width:var(--school-ui-icon-size-list);hei
   // The items of the board: one per activity of the Ωρολόγιο, of the Ατομικά Προγράμματα and of the σχέδιο Ολοημέρου.
   //   entries: the hours shown ({day, h}): the σχέδιο only in the zones of the Ολοήμερο; the Ωρολόγιο there only when
   //   the period has no σχέδιο (as the composition counts). locked: it does not move here (the σχέδιο, and an activity
-  //   of the Ωρολόγιο with an hour in a zone of the Ολοήμερο). support: an activity of the Ατομικά (not a lesson of the
+  //   of the Ωρολόγιο with an hour in a zone of the Ολοήμερο). support: a support activity of the Ατομικά
+  //   (SchoolTimetable.supportActivity: by the service type of the teacher or a usual subject; not a lesson of the
   //   τμήμα: a token in its view). outside: hours that are not in the Ώρες Διδασκαλίας or not Δευτέρα–Παρασκευή.
   function index() {
     if (cache) return cache;
@@ -352,7 +354,7 @@ button.ui-icon-button.ft-cell-edit>svg{width:var(--school-ui-icon-size-list);hei
         const outside = kind !== 'oloimero' && all.length < times.length;
         if (!entries.length && !outside) continue;
         const locked = kind === 'oloimero' || (kind === 'school' && all.some(entry => isLocked(hours[entry.h])));
-        list.push({key: kind + ':' + activity.id, kind, program: prog, activity, entries, keys: teacherKeys(activity), locked, support: !!T.kinds[kind]?.support, outside});
+        list.push({key: kind + ':' + activity.id, kind, program: prog, activity, entries, keys: teacherKeys(activity), locked, support: T.supportActivity(kind, activity, {staff: staffById}), outside});
       }
     };
     add('school', program); add('individual', individual); add('oloimero', design);
@@ -692,6 +694,15 @@ button.ui-icon-button.ft-cell-edit>svg{width:var(--school-ui-icon-size-list);hei
     select.value = periodId || '';
     select.title = periodOf(periodId) ? periodText(periodOf(periodId)) : '';
     select.hidden = false;
+    // The status of the period, as in «Σχολικά Προγράμματα» (the shared .ui-period-status).
+    const period = periodOf(periodId), status = $('periodStatus');
+    status.hidden = !period;
+    if (period) {
+      const draft = T.isDraftPeriod(period);
+      status.className = 'ui-period-status ' + (draft ? 'draft' : 'official');
+      status.textContent = draft ? 'Προσχέδιο περιόδου' : 'Επίσημη';
+      status.title = draft ? 'Προσχέδιο περιόδου: δεν το βλέπουν το Σχολικό Ημερολόγιο και ο Documents Templater.' : 'Επίσημη περίοδος';
+    }
   }
   function render() {
     if (!context) return;

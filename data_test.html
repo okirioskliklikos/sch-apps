@@ -12,7 +12,7 @@
   φτιάχνονται από το σύντομο όνομα των δασκάλων («[Α1] - …», classesFromStaff). Με το .data δοκιμής, οι
   έλεγχοι των νέων ετικετών (v2) παίρνουν το Προσωπικό από αυτό, γιατί το CSV του Ολοημέρου έχει τα σύντομα
   ονόματα του Προσωπικού.
-  Έκδοση αρχείου: 0.65
+  Έκδοση αρχείου: 0.66
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -359,11 +359,12 @@ function activitySubjectChecks() {
   ]};
   const others = [
     {kind: 'oloimero', activities: [act('Ολοήμερο μάθημα', ['Στ1'], at(1, '08:15', '09:00'))]},
-    {kind: 'individual', activities: [act('Τμήμα Ένταξης', ['Στ1'], at(1, '08:15', '09:00'))]}
+    {kind: 'individual', activities: [act('Τμήμα Ένταξης', ['Στ1'], at(1, '08:15', '09:00'), {staff: ['te']})]}
   ];
   const programs = [school, ...others];
   // The «μάθημα της τάξης» comes only from the composition of the period (composePeriod).
-  const compose = list => T.composePeriod({periodId: 'p', programs: list.map(item => ({...item, periodId: 'p'})), staff: [], classes, teachingHours: HOURS_V2});
+  // The activity of the Ατομικά is of a teacher of the Τμήμα Ένταξης: support (SchoolTimetable.supportActivity).
+  const compose = list => T.composePeriod({periodId: 'p', programs: list.map(item => ({...item, periodId: 'p'})), staff: [{id: 'te', shortName: 'Ένταξη', serviceType: 'inclusion'}], classes, teachingHours: HOURS_V2});
   const full = compose(programs);
   const own = (names, time = at(1, '08:15', '09:00')) => ({id: 'x', subject: '', subjectFromClasses: true, staff: ['p'], classes: names.map(cid), times: [time]});
   const subject = (activity, comp = full) => T.activitySubject(activity, {composition: comp, classes});
@@ -379,7 +380,9 @@ function activitySubjectChecks() {
   const details = T.activitySubjectDetails(own(['Β1', 'Α1']), {composition: full, classes});
   equal('Τμήμα χωρίς μάθημα εκείνη την ώρα: λείπει από το κείμενο, στο missing', [details.text, details.missing, details.groups], ['Γλώσσα', [cid('Α1')], [{subjects: ['Γλώσσα'], classIds: [cid('Β1')]}]]);
   equal('Κανένα μάθημα → κενό κείμενο', [subject(own(['Α1'])), T.activitySubjectDetails(own(['Α1']), {composition: full, classes}).missing], ['', [cid('Α1')]]);
-  equal('Στο Πρωινό: το σχέδιο Ολοημέρου δεν μετρά και τα Ατομικά είναι στήριξη (Στ1 → κενό)', subject(own(['Στ1'])), '');
+  equal('Στο Πρωινό: το σχέδιο Ολοημέρου δεν μετρά και τα Ατομικά του Τμήματος Ένταξης είναι στήριξη (Στ1 → κενό)', subject(own(['Στ1'])), '');
+  const lesson = [school, others[0], {kind: 'individual', activities: [act('Θεατρική Αγωγή', ['Στ1'], at(1, '08:15', '09:00'), {staff: ['xx']})]}];
+  equal('Ατομικό μάθημα της τάξης (εκπαιδευτικός που δεν είναι στήριξη) δίνει το «μάθημα της τάξης» (Στ1 → «Θεατρική Αγωγή»)', subject(own(['Στ1']), compose(lesson)), 'Θεατρική Αγωγή');
   equal('Σύνθεση χωρίς Ωρολόγιο → κενό', subject(own(['Β1']), compose(others)), '');
   equal('Χωρίς σύνθεση: κενό, χωρίς ομάδες και χωρίς missing (και με παλιό {programs})', [T.activitySubjectDetails(own(['Β1']), {classes}), T.activitySubject(own(['Β1']), {programs, classes})], [{text: '', groups: [], missing: []}, '']);
   equal('Τμήμα που δεν είναι στα Τμήματα, σε δεύτερη ομάδα → «?»', T.activitySubject({...own(['Β1']), classes: [cid('Β1'), cid('Γ1')]}, {composition: full, classes: classes.filter(item => item.id !== cid('Γ1'))}), 'Γλώσσα (Β1), Μαθηματικά (?)');
@@ -644,7 +647,8 @@ function moveChecks() {
   ], source: {type: 'fet'}};
   const individual = {id: 'in', formatVersion: 2, kind: 'individual', periodId: 'p', name: '', activities: [
     act('i1', '', ['s3'], ['Α1'], [t(1, '10:00', '10:45')], {subjectFromClasses: true}),
-    act('i2', 'Γραμματειακή Υποστήριξη', ['s1'], [], [t(3, '10:00', '10:45')])
+    act('i2', 'Γραμματειακή Υποστήριξη', ['s1'], [], [t(3, '10:00', '10:45')]),
+    act('i3', 'Αγγλικά', ['s2'], ['Α1'], [t(4, '10:00', '10:45')])
   ], source: {type: 'individual', version: 1, placements: {}, pending: []}};
   const comp = T.composePeriod({periodId: 'p', programs: [school, individual], staff, classes, teachingHours: hours});
   const get = id => [...school.activities, ...individual.activities].find(a => a.id === id);
@@ -659,6 +663,9 @@ function moveChecks() {
   equal('Ώρα του Ωρολογίου πάνω σε ατομική ώρα του ίδιου εκπαιδευτικού: λάθος «busy», όχι σύγκρουση', codes(mv('school', 'm', [t(3, '10:00', '10:45')])), [['busy'], []]);
   equal('Ατομική ώρα πάνω σε ώρα του Ωρολογίου του ίδιου εκπαιδευτικού: λάθος «busy»', codes(mv('individual', 'i2', [t(1, '08:15', '09:00')])), [['busy'], []]);
   equal('Στήριξη στο Α1 την ώρα της Γλώσσας του Α1: καμία σύγκρουση τμήματος', codes(mv('individual', 'i1', [t(1, '08:15', '09:00')])), [[], []]);
+  equal('Ατομική ώρα που είναι μάθημα της τάξης (Αγγλικά Ειδικότητας) την ώρα των Μαθηματικών του Α1: σύγκρουση τμήματος', codes(mv('individual', 'i3', [t(1, '09:00', '09:40')])), [[], ['class:' + cid('Α1')]]);
+  equal('Ώρα του Ωρολογίου πάνω σε ατομικό μάθημα της τάξης στο ίδιο τμήμα: σύγκρουση τμήματος', codes(mv('school', 'g', [t(4, '10:00', '10:45')])), [[], ['class:' + cid('Α1')]]);
+  equal('Ώρα του Ωρολογίου πάνω στη Γραμματειακή Υποστήριξη άλλου εκπαιδευτικού (στήριξη, χωρίς τμήμα): κανένα πρόβλημα', codes(mv('school', 'e', [t(3, '10:00', '10:45')])), [[], []]);
   const swap = T.moveProblems(comp, [{kind: 'school', activity: get('g'), times: [t(1, '09:00', '09:40')]}, {kind: 'school', activity: get('m'), times: [t(1, '08:15', '09:00')]}]);
   equal('Ανταλλαγή δύο ωρών του ίδιου εκπαιδευτικού: κανένα πρόβλημα', codes(swap), [[], []]);
   const both = T.moveProblems(comp, [{kind: 'school', activity: get('g'), times: [t(4, '08:15', '09:00')]}, {kind: 'school', activity: get('m'), times: [t(4, '08:15', '09:00')]}]);
@@ -881,6 +888,33 @@ function compositionChecks() {
     full.conflicts.map(item => [item.type, item.who, item.start, item.a.activity.id, item.b.activity.id, item.cross].join(':')), ['staff:s1:08:15:f1:i3:true']);
   check('Χωρίς τον κανόνα της στήριξης θα ήταν σύγκρουση στο Β1 (Γλώσσα με «μάθημα της τάξης», Γυμναστική με Ενισχυτική)', T.studentsClash(school.activities[0], individual.activities[0]).length && T.studentsClash(school.activities[1], individual.activities[1]).length);
   check('Η στήριξη είναι σημειωμένη στις εγγραφές των Ατομικών', full.entries.every(entry => entry.support === (entry.kind === 'individual')));
+  // Which individual activities are support (SchoolTimetable.supportActivity): by the service type of the teacher,
+  // otherwise only the usual subjects; everything else is a lesson of the class.
+  const eep = [...staff, person('s8', '[ΠΕ23] - Ψυχολόγος', 'psychologist', 'ΠΕ23'), person('s9', '[ΠΕ70] - ΖΕΠ', 'zep', 'ΠΕ70'), person('s10', 'ΕΒΠ', 'ebp', ''), person('s11', 'Άλλη', 'other', '')];
+  const sup = (kind, id, subject, extra = {}) => T.supportActivity(kind, act('t', subject, id ? [id] : [], ['Β1'], [at(2, '08:15', '09:00')], extra), {staff: eep});
+  equal('Στήριξη ανά Είδος υπηρεσίας: Παράλληλη, Ένταξη (και με chip «Τμήμα Ένταξης»), ΖΕΠ, ΕΒΠ, ΕΕΠ ναι· Δάσκαλος, Ειδικότητα, Υπεύθυνος Ολοημέρου, Άλλο όχι',
+    [sup('individual', 's3', 'Γλώσσα'), sup('individual', 's4', 'Γλώσσα'), sup('individual', 's9', 'Γλώσσα'), sup('individual', 's10', ''), sup('individual', 's8', 'Συμβουλευτική'),
+      sup('individual', 's1', 'Γλώσσα'), sup('individual', 's2', 'Γυμναστική'), sup('individual', 's6', 'Μελέτη'), sup('individual', 's11', 'Γλώσσα')],
+    [true, true, true, true, true, false, false, false, false]);
+  equal('Στήριξη με τα συνήθη μαθήματα (χωρίς τόνους και διάκριση πεζών–κεφαλαίων), για κάθε εκπαιδευτικό και χωρίς αντιστοίχιση· όχι σε άλλο είδος',
+    [sup('individual', 's1', 'ΓΡΑΜΜΑΤΕΙΑΚΗ  υποστηριξη'), sup('individual', 's2', 'Ενισχυτική Διδασκαλία'), sup('individual', 's7', 'Διοικητικό Έργο'), sup('individual', '', 'Ενισχυτική Διδασκαλία'), sup('individual', '', 'Γλώσσα'),
+      sup('school', 's3', 'Γλώσσα'), sup('school', 's1', 'Ενισχυτική Διδασκαλία'), sup('individual', 'άγνωστος', 'Γλώσσα')],
+    [true, true, true, true, false, false, false, false]);
+  equal('Τα συνήθη μαθήματα στο _data_timetable.js', T.INDIVIDUAL_COMMON_SUBJECTS, ['Ενισχυτική Διδασκαλία', 'Γραμματειακή Υποστήριξη', 'Διοικητικό Έργο']);
+  // A lesson of the class in the Ατομικά (a specialty teacher, without FET): it clashes on students and gives the
+  // «μάθημα της τάξης» of the Παράλληλη Στήριξη.
+  const lessons = {id: 'il', kind: 'individual', periodId: 'p', activities: [
+    act('l1', 'Αγγλικά', ['s2'], ['Β1'], [at(1, '08:15', '09:00')]),
+    act('l2', 'Γλώσσα', ['s4'], ['Β1'], [at(1, '09:00', '09:40')]),
+    act('l3', 'Μουσική', ['s2'], ['Β1'], [at(2, '10:00', '10:45')]),
+    act('l4', '', ['s3'], ['Β1'], [at(2, '10:00', '10:45')], {subjectFromClasses: true})
+  ], source: {type: 'individual', version: 1}};
+  const lessonComp = compose([school, lessons]);
+  equal('Ατομικό μάθημα της τάξης την ώρα της Γλώσσας του Β1: σύγκρουση τμήματος (η Ένταξη την ώρα της Γυμναστικής όχι)',
+    lessonComp.conflicts.filter(item => item.type === 'class').map(item => [item.who, item.a.activity.id, item.b.activity.id].sort().join(':')), [[cid('Β1'), 'f1', 'l1'].sort().join(':')]);
+  equal('Χωρίς Ωρολόγιο: η Παράλληλη Στήριξη παίρνει το «μάθημα της τάξης» από ατομικό μάθημα της τάξης', T.activitySubject(lessons.activities[3], {composition: compose([lessons])}), 'Μουσική');
+  equal('Η σύγκρουση με ατομικό μάθημα της τάξης ανοίγει τα Ατομικά Προγράμματα με τον εκπαιδευτικό του',
+    T.compositionProblems(lessonComp, {staff, classes}).filter(item => item.code === 'class').map(item => [item.target.app, item.target.staffId]), [['individual', 's2']]);
   equal('Σχέδιο και Ωρολόγιο: οι διαφορές ώρα προς ώρα (το Γεύμα με άλλον εκπαιδευτικό, το δίωρο)', [full.oloimeroDiff.fetOnly.map(item => item.activity.id), full.oloimeroDiff.designOnly.map(item => item.activity.id)], [['f4', 'f5'], ['d2']]);
   check('Η παρατήρηση της διαφοράς λέει πόσες ώρες', has(full.issues.map(item => item.message), '2 ώρες του Ωρολογίου δεν υπάρχουν στο σχέδιο και 1 ώρα του σχεδίου δεν υπάρχει στο Ωρολόγιο'), full.issues.map(item => item.message).join('\n'));
   const subject = (activity, comp) => T.activitySubject(activity, {composition: comp});

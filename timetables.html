@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Σχολικά Προγράμματα v0.29</title>
+<title>Σχολικά Προγράμματα v0.30</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -14,8 +14,6 @@
 :root{
   --app-mark-bg:var(--school-app-timetables);
   --sp-board-bg:#f5f6f8;
-  --sp-official-bg:#1f8a5b;--sp-official-text:#fff;
-  --sp-draft-bg:#f4f0fd;--sp-draft-border:#7c5cc4;--sp-draft-text:#5b3fa3;
   --sp-morning-border:#8eb4e7;--sp-morning-text:#154c91;
   --sp-arrow:#3b6db0;
   --sp-full-bg:#f7faff;--sp-full-border:#8eb4e7;
@@ -40,9 +38,6 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
 }
 .sp-period-bar label{font-size:18px;font-weight:650}
 .sp-period-bar select{min-width:min(360px,100%);max-width:100%}
-.sp-status{flex:none;display:inline-block;padding:2px 10px;border-radius:999px;font-size:13px;line-height:1.5;white-space:nowrap}
-.sp-status.official{background:var(--sp-official-bg);color:var(--sp-official-text)}
-.sp-status.draft{background:var(--sp-draft-bg);color:var(--sp-draft-text);border:1px dashed var(--sp-draft-border);padding:1px 9px}
 .sp-period-note{font-size:14px;color:var(--school-ui-muted)}
 .sp-period-bar #managePeriods{margin-left:auto}
 .sp-period-warnings:empty{display:none}
@@ -129,7 +124,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
 .sp-period-row:not(.head):hover{background:#f6f8fb}
 .sp-period-row.selected,.sp-period-row.selected:hover{background:var(--sp-row-selected);font-weight:650}
 .sp-period-row .num{color:var(--school-ui-muted)}
-.sp-period-row .sp-status{font-weight:400}
+.sp-period-row .ui-period-status{font-weight:400}
 .sp-period-row .muted{color:var(--school-ui-muted);font-weight:400}
 .sp-period-row .end-note{font-size:12px;font-weight:400;color:var(--school-ui-muted)}
 .sp-period-row .unsaved{display:block;font-size:12px;font-weight:400;color:var(--sp-new-text)}
@@ -180,7 +175,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΣΠ</span></span><span class="brand-text"><span>Σχολικά Προγράμματα</span><span class="small version">v0.29</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΣΠ</span></span><span class="brand-text"><span>Σχολικά Προγράμματα</span><span class="small version">v0.30</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="more" class="sp-more" type="button" title="Περισσότερες ενέργειες" aria-label="Περισσότερες ενέργειες" disabled></button>
@@ -360,7 +355,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
         <div class="sp-period-bar">
           <label for="period">Περίοδος</label>
           <select id="period"></select>
-          <span id="periodStatus" class="sp-status" hidden></span>
+          <span id="periodStatus" class="ui-period-status" hidden></span>
           <span id="periodNote" class="sp-period-note"></span>
           <button id="managePeriods" type="button">Διαχείριση περιόδων…</button>
         </div>
@@ -394,7 +389,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
     status.hidden = !period;
     if (period) {
       const isDraft = isDraftPeriod(period);
-      status.className = 'sp-status ' + (isDraft ? 'draft' : 'official');
+      status.className = 'ui-period-status ' + (isDraft ? 'draft' : 'official');
       status.textContent = isDraft ? 'Προσχέδιο περιόδου' : 'Επίσημη';
       status.title = isDraft ? 'Δεν ισχύει σε καμία ημερομηνία: δεν το βλέπουν το Σχολικό Ημερολόγιο και ο Documents Templater.' : 'Ισχύει στις ημερομηνίες της.';
       note.textContent = isDraft ? 'Δεν ισχύει ακόμη σε καμία ημερομηνία.' : !period.to ? '«Έως»: τέλος σχολικού έτους (' + D.format(teachingEnd()) + ')' : '';
@@ -707,7 +702,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
         if (period.to) to.textContent = D.format(period.to);
         else if (isDraftPeriod(period) || !D.valid(period.from)) to.textContent = '—';
         else { to.textContent = D.format(teachingEnd()) + ' '; to.append(make('span', 'end-note', '(τέλος έτους)')); to.title = 'Χωρίς ημερομηνία λήξης: μέχρι το τέλος του σχολικού έτους'; }
-        const status = make('span', ''), badge = make('span', 'sp-status ' + (isDraftPeriod(period) ? 'draft' : 'official'), isDraftPeriod(period) ? 'Προσχέδιο' : 'Επίσημη');
+        const status = make('span', ''), badge = make('span', 'ui-period-status ' + (isDraftPeriod(period) ? 'draft' : 'official'), isDraftPeriod(period) ? 'Προσχέδιο' : 'Επίσημη');
         status.append(badge);
         row.append(make('span', 'num', String(periodNumber(period))), title, from, to, status);
         row.onclick = () => { chosen = period.id; draw(); table.focus({preventScroll: true}); };

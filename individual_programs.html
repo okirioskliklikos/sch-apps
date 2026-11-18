@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ατομικά Προγράμματα v0.9</title>
+<title>Ατομικά Προγράμματα v0.10</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -18,6 +18,7 @@
   --ip-conflict-bg:#fff1f0;--ip-conflict-ring:#f04438;--ip-conflict-text:#b42318;
   --ip-drop-bg:#eff8ff;--ip-drop-outline:#84adff;
   --ip-over:#d00000;--ip-ok:#0a8a20;
+  --ip-target-outline:#2e90fa;
   --ip-highlight-bg:#e2f6e5;--ip-highlight-ring:#58a96a;--ip-copy-mark:#1769d2;--ip-flash:#f79009;
   --ip-avail-ok-bg:#eaf3de;--ip-avail-ok-border:#97c459;
   --ip-avail-off-bg:#fcebeb;--ip-avail-off-border:#f09595;--ip-avail-off-text:#a32d2d;
@@ -109,6 +110,9 @@ table.ip-grid{--ip-zoom:1;cursor:default;user-select:none;border-collapse:separa
 .ip-grid td.ip-slot.ip-pending{background:var(--ip-pending-bg)}
 .ip-grid td.ip-slot.ip-conflict{background:var(--ip-conflict-bg);box-shadow:inset 0 0 0 2px var(--ip-conflict-ring)}
 .ip-grid td.ip-slot.ip-highlight{background:var(--ip-highlight-bg)}
+/* The cell of the target (e.g. a conflict in the list of «Σχολικά Προγράμματα»), as in the Πλήρες Σχολικό Πρόγραμμα,
+   until the next click on the board or the next change of teacher or period. */
+.ip-grid td.ip-slot.ip-target{outline:3px solid var(--ip-target-outline);outline-offset:-3px}
 .ip-grid td.ip-slot.dragover{outline:3px solid var(--ip-drop-outline);outline-offset:-3px;background:var(--ip-drop-bg)}
 .ip-grid td.ip-slot.ip-flash{outline:3px solid var(--ip-flash);outline-offset:-3px}
 /* An hour of the teacher in the Ωρολόγιο or the σχέδιο Ολοημέρου of the period: grey and locked, with its subject
@@ -211,8 +215,9 @@ main.ip-single~.ip-summary{left:18px}
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ατομικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΑΠ</span></span><span class="brand-text"><span>Ατομικά Προγράμματα</span><span class="small version">v0.9</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ατομικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΑΠ</span></span><span class="brand-text"><span>Ατομικά Προγράμματα</span><span class="small version">v0.10</span></span></button></h1></div>
   <select id="period" aria-label="Περίοδος" disabled hidden></select>
+  <span id="periodStatus" class="ui-period-status" hidden></span>
   <span id="staffControl" class="ip-staff-control" hidden>
     <button id="staffButton" class="ip-staff-button" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="staffMenu" disabled>Εκπαιδευτικός</button>
     <span id="staffMenu" class="ip-staff-menu" role="listbox" aria-label="Εκπαιδευτικός" tabindex="-1" hidden></span>
@@ -339,6 +344,9 @@ main.ip-single~.ip-summary{left:18px}
   let copied = {};               // staff id → their cells right after «Αντιγραφή από άλλη περίοδο» (not an «edit»)
   const highlights = new Set();  // 'type:id' of the sidebar items whose cells are highlighted
   let zoom = 100, zoomLoaded = false;
+  // The cell of the target ({day, start}) of another program application, marked until the next click on the board
+  // or the next change of teacher or period; scrolled into view once.
+  let focusCell = null, focusScrolled = false;
 
   // ---- Small helpers ----
   const periodOf = id => context?.periods?.find(period => period.id === id) || null;
@@ -364,9 +372,10 @@ main.ip-single~.ip-summary{left:18px}
   const sourceText = kind => kind === 'oloimero' ? 'στο σχέδιο Ολοημέρου' : 'στο Ωρολόγιο';
   // A Προσχέδιο περιόδου may have no dates.
   const periodText = period => (T.isDraftPeriod(period) ? 'Προσχέδιο περιόδου' + (D.valid(period.from) ? ', ' : '') : '') + (D.valid(period.from) ? D.format(period.from) + ' – ' + D.format(T.periodEnd(period, context.year)) : '');
-  // Periods shown: those with an Ωρολόγιο, and those with individual programs but no Ωρολόγιο (read only).
-  const shownPeriods = () => (context?.periods || []).filter(period => schoolOf(period.id) || individualOf(period.id));
-  const readOnly = () => !schoolOf(periodId);
+  // Every period is shown and can be edited, also without an Ωρολόγιο: then the programs of the τμήματα are built
+  // from the individual programs (a lesson of the class, see SchoolTimetable.supportActivity).
+  const shownPeriods = () => context?.periods || [];
+  const readOnly = () => !periodId;
   const notice = (textValue, error = false) => { const node = $('notice'); if (!node) return; node.textContent = textValue; node.classList.toggle('error', error); };
   const yearClasses = () => context?.classes || [];
   const classById = id => yearClasses().find(item => item.id === id) || null;
@@ -462,11 +471,40 @@ main.ip-single~.ip-summary{left:18px}
     }
     return ids;
   }
-  // A cell has an error: two items, an item outside the Πρωινό, an activity that clashes with another source, or an
-  // incomplete cell on an hour of another source.
-  const cellError = (entries, day, hour, cross = crossIds()) => entries.length > 1 || (entries.length > 0 && !isMorning(hour))
-    || entries.some(entry => entry.kind === 'activity' ? cross.has(entry.activity.id) : schoolAt(staffId, day, hour).length > 0);
-  const lockedReason = (id, day, hour) => readOnly() ? 'readonly' : !isMorning(hour) ? 'zone' : schoolAt(id, day, hour).length ? 'school' : '';
+  // A cell has an error: two items, an item outside the Πρωινό, an activity that clashes with another source on the
+  // teacher or (a lesson of the class) on the students, or an incomplete cell on an hour of another source.
+  const cellError = (entries, day, hour, cross = crossIds(), clash = classConflicts()) => entries.length > 1 || (entries.length > 0 && !isMorning(hour))
+    || entries.some(entry => entry.kind === 'activity' ? cross.has(entry.activity.id) || clash.has(entry.activity.id) : schoolAt(staffId, day, hour).length > 0);
+  // Why an hour does not take an individual hour of the teacher, with the rules of the kinds of the shared
+  // SchoolTimetable.moveProblems (as in the Πλήρες Σχολικό Πρόγραμμα): 'zone' (outside the Πρωινό), 'school' (the
+  // teacher has an hour of another source there: the hours of the Ατομικά are the teacher's alone), or ''. The own
+  // individual hours of the teacher do not lock a cell: a drop there changes or exchanges what it holds.
+  function lockedReason(id, day, hour) {
+    if (readOnly()) return 'readonly';
+    if (!isMorning(hour)) return 'zone';
+    const comp = composition();
+    if (!comp) return schoolAt(id, day, hour).length ? 'school' : '';
+    const probe = {id: '', subject: '', staff: [id], classes: [], times: []};
+    const {errors} = T.moveProblems(comp, [{kind: 'individual', activity: probe, times: [{day, start: hour.start, end: hour.end}]}]);
+    if (errors.some(error => error.code === 'zone')) return 'zone';
+    return errors.some(error => error.code === 'busy' && OTHER_KINDS.includes(error.entry?.kind)) ? 'school' : '';
+  }
+  // Conflicts on students of the individual activities that are a lesson of the class (not support,
+  // SchoolTimetable.supportActivity): activity id → [message], from the conflicts of the composition.
+  function classConflicts() {
+    const result = new Map(), comp = composition();
+    for (const item of comp?.conflicts || []) {
+      if (item.type !== 'class') continue;
+      for (const [own, other] of [[item.a, item.b], [item.b, item.a]]) {
+        if (own.kind !== 'individual') continue;
+        const where = other.kind === 'individual' ? 'στο ατομικό πρόγραμμα του ' + personName(staffById.get(other.activity.staff?.[0])) : sourceText(other.kind);
+        const message = 'Το ' + (C.nameOf(yearClasses(), item.who) || '?') + ' έχει την ίδια ώρα ' + quoted(T.activitySubject(other.activity, {composition: comp, classes: yearClasses()}) || '—') + ' ' + where + '.';
+        if (!result.has(own.activity.id)) result.set(own.activity.id, []);
+        if (!result.get(own.activity.id).includes(message)) result.get(own.activity.id).push(message);
+      }
+    }
+    return result;
+  }
 
   // Writes what a cell holds: a subject makes an activity; chips without a subject make the «μάθημα της τάξης» for
   // the service types that have it (only with Τάξεις, τμήματα Γενικής Παιδείας and Συνενώσεις), otherwise an
@@ -615,13 +653,19 @@ main.ip-single~.ip-summary{left:18px}
     else if (!periodId && periods.some(period => period.id === context.currentPeriod)) periodId = context.currentPeriod;
     if (target?.staffId && staffById.has(target.staffId)) staffId = target.staffId;
     if (!periods.some(period => period.id === periodId)) {
-      const current = T.periodAt(context.periods || [], D.today());
-      periodId = (current && schoolOf(current.id) ? current : [...periods].reverse().find(period => schoolOf(period.id)) || periods[0])?.id || null;
+      const current = T.periodAt(context.periods || [], D.today()), sorted = T.sortPeriods(periods);
+      periodId = (current || [...sorted].reverse().find(period => !T.isDraftPeriod(period)) || sorted[0])?.id || null;
     }
-    loadPeriod(periodId);
+    // The cell of the target: «Ώρες» becomes «Όλες» when it hides the cell.
+    focusCell = target?.day && target?.start ? {day: target.day, start: target.start} : null;
+    focusScrolled = false;
+    const focusHour = focusCell ? hours.find(hour => hour.start === focusCell.start) : null;
+    if (focusHour && !visibleHours().includes(focusHour)) hourFilter = 'all';
+    loadPeriod(periodId, {keepFocus: true});
   }
-  function loadPeriod(id) {
+  function loadPeriod(id, options = {}) {
     periodId = id;
+    if (!options.keepFocus) focusCell = null;
     saved = id ? clone(individualOf(id)) : null;
     savedJson = JSON.stringify(saved);
     program = clone(saved);
@@ -640,9 +684,18 @@ main.ip-single~.ip-summary{left:18px}
       const option = el('option', '', period.name + (T.isDraftPeriod(period) ? ' (προσχέδιο)' : '') + (schoolOf(period.id) ? '' : ' (χωρίς Ωρολόγιο)'));
       option.value = period.id; option.title = periodText(period); return option;
     }));
-    if (!periods.length) select.append(el('option', '', 'Καμία περίοδος με Ωρολόγιο'));
+    if (!periods.length) select.append(el('option', '', 'Δεν υπάρχουν περίοδοι'));
     select.value = periodId || '';
     select.hidden = false;
+    // The status of the period, as in «Σχολικά Προγράμματα» (the shared .ui-period-status).
+    const period = periodOf(periodId), status = $('periodStatus');
+    status.hidden = !period;
+    if (period) {
+      const draft = T.isDraftPeriod(period);
+      status.className = 'ui-period-status ' + (draft ? 'draft' : 'official');
+      status.textContent = draft ? 'Προσχέδιο περιόδου' : 'Επίσημη';
+      status.title = draft ? 'Προσχέδιο περιόδου: δεν το βλέπουν το Σχολικό Ημερολόγιο και ο Documents Templater.' : 'Επίσημη περίοδος';
+    }
   }
   function markText(id, textValue) {
     const mark = hoursMark(id);
@@ -702,6 +755,7 @@ main.ip-single~.ip-summary{left:18px}
     closeStaffMenu(true);
     if (!id || id === staffId) return;
     staffId = id;
+    focusCell = null;
     render();
     reportView();
   }
@@ -744,7 +798,7 @@ main.ip-single~.ip-summary{left:18px}
     const empty = textValue => { work.innerHTML = `<div class="subapp-empty subapp-empty-stack ip-empty"><p>${textValue}</p></div>`; };
     if (hoursError) empty(esc(hoursError));
     else if (!context.periods?.length) empty('Δεν υπάρχουν περίοδοι για το σχολικό έτος.<br>Δημιούργησέ τες στα «Σχολικά Προγράμματα».');
-    else if (!periodId) empty('Καμία περίοδος δεν έχει Ωρολόγιο.<br>Τα ατομικά προγράμματα ορίζονται σε περίοδο που έχει ήδη Ωρολόγιο· η εισαγωγή του από FET γίνεται στα «Σχολικά Προγράμματα».');
+    else if (!periodId) empty('Διάλεξε περίοδο.');
     else if (!context.staff?.length) empty('Δεν υπάρχει Προσωπικό για το σχολικό έτος.<br>Συμπλήρωσέ το πρώτα στο «Προσωπικό».');
     else { renderSide(); renderWorkspace(work); }
     renderSummary(ready && !!context.periods?.length && !!context.staff?.length);
@@ -813,12 +867,11 @@ main.ip-single~.ip-summary{left:18px}
     const person = staffById.get(staffId), period = periodOf(periodId);
     const {slots, outside} = slotsOf(staffId);
     const notes = [];
-    if (readOnly()) notes.push(['warning', 'Η περίοδος δεν έχει Ωρολόγιο: τα ατομικά προγράμματά της φαίνονται, αλλά δεν αλλάζουν. Μπορείς να τα διαγράψεις στα «Σχολικά Προγράμματα».']);
     if (outside.length) notes.push(['warning', outside.length === 1 ? '1 ώρα του ατομικού προγράμματος δεν αντιστοιχεί σε ώρα Δευτέρας–Παρασκευής των Ωρών Διδασκαλίας και δεν φαίνεται στον πίνακα.' : outside.length + ' ώρες του ατομικού προγράμματος δεν αντιστοιχούν σε ώρες Δευτέρας–Παρασκευής των Ωρών Διδασκαλίας και δεν φαίνονται στον πίνακα.']);
-    const cross = crossIds();
+    const cross = crossIds(), clash = classConflicts();
     const conflicts = [...slots.entries()].filter(([key, entries]) => {
       const [day, h] = key.split(':').map(Number);
-      return cellError(entries, day, hours[h], cross);
+      return cellError(entries, day, hours[h], cross, clash);
     }).length;
     if (conflicts) notes.push(['error', conflicts === 1 ? '1 κελί έχει λάθος (σημειώνεται με κόκκινο).' : conflicts + ' κελιά έχουν λάθος (σημειώνονται με κόκκινο).']);
     work.innerHTML = `<div id="head" class="ip-head">
@@ -849,7 +902,7 @@ main.ip-single~.ip-summary{left:18px}
   // Same FET unavailable-time matrix as the FET Timetable Editor: morning periods and weekdays.
   function renderAvailability() {
     const box = $('availability'), morning = hours.filter(isMorning), school = schoolOf(periodId);
-    box.hidden = !staffId || !morning.length;
+    box.hidden = !staffId || !morning.length || !school;
     if (box.hidden) { box.replaceChildren(); return; }
     const source = school?.source;
     const names = source?.type === 'fet' ? (source.teachers || []).filter(item => item.staffId === staffId).map(item => item.name) : [];
@@ -910,6 +963,7 @@ main.ip-single~.ip-summary{left:18px}
     table.append(head, body);
     $('gridWrap').replaceChildren(table);
     applyZoom();
+    scrollToFocus();
     if (gridWidthObserver) gridWidthObserver.disconnect();
     const headBox = $('head'), wrap = $('gridWrap');
     const matchGridWidth = () => {
@@ -941,11 +995,13 @@ main.ip-single~.ip-summary{left:18px}
       if (students.length) box.append(el('div', '', students.join(', ')));
       td.append(box);
     }
-    const conflict = cellError(entries, day, hour);
+    const clash = classConflicts(), conflict = cellError(entries, day, hour, crossIds(), clash);
     if (conflict) td.classList.add('ip-conflict');
+    if (focusCell && focusCell.day === day && focusCell.start === hour.start) td.classList.add('ip-target');
     if (entries.length && entries.every(entry => entry.kind === 'pending')) td.classList.add('ip-pending');
     if (highlighted(entries)) td.classList.add('ip-highlight');
-    entries.forEach((entry, index) => td.append(entryFor(day, hour, entry, index, entries.length > 1 ? 'Δύο δραστηριότητες την ίδια ώρα.' : school.length ? 'Την ίδια ώρα ο εκπαιδευτικός έχει ώρα ' + from + '.' : !isMorning(hour) ? 'Ώρα εκτός Πρωινού.' : '')));
+    entries.forEach((entry, index) => td.append(entryFor(day, hour, entry, index, entries.length > 1 ? 'Δύο δραστηριότητες την ίδια ώρα.' : school.length ? 'Την ίδια ώρα ο εκπαιδευτικός έχει ώρα ' + from + '.' : !isMorning(hour) ? 'Ώρα εκτός Πρωινού.'
+      : entry.kind === 'activity' && clash.has(entry.activity.id) ? clash.get(entry.activity.id).join(' ') : '')));
     if (!locked) {
       td.addEventListener('dragover', event => { if (!dragging) return; event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; td.classList.add('dragover'); });
       td.addEventListener('dragleave', () => td.classList.remove('dragover'));
@@ -985,12 +1041,12 @@ main.ip-single~.ip-summary{left:18px}
       }
       box.append(line);
     } else if (activity) {
-      // «Μάθημα της τάξης»: what the τμήματα of the cell have at this hour in the Ωρολόγιο, in italics.
+      // «Μάθημα της τάξης»: what the τμήματα of the cell have at this hour in the composition, in italics.
       const details = T.activitySubjectDetails(activity, {composition: composition(), classes: yearClasses()});
       const line = handle(el('div', 'ip-class-subject', details.text || 'Μάθημα της τάξης'));
-      line.title = 'Μάθημα της τάξης: το μάθημα που έχουν τα τμήματα αυτή την ώρα στο Ωρολόγιο.';
+      line.title = 'Μάθημα της τάξης: το μάθημα που έχουν τα τμήματα αυτή την ώρα στη σύνθεση της περιόδου (Ωρολόγιο ή ατομικά προγράμματα).';
       box.append(line);
-      if (details.missing.length) box.append(el('div', 'ip-cell-note warning', 'Χωρίς μάθημα στο Ωρολόγιο: ' + details.missing.map(id => C.nameOf(yearClasses(), id) || '?').join(', ')));
+      if (details.missing.length) box.append(el('div', 'ip-cell-note warning', 'Χωρίς μάθημα αυτή την ώρα: ' + details.missing.map(id => C.nameOf(yearClasses(), id) || '?').join(', ')));
     } else {
       // An incomplete cell: chips without a subject (a τμήμα that is not Γενικής Παιδείας always needs one).
       box.append(handle(el('div', 'ip-pending-label', 'Χωρίς μάθημα')));
@@ -1031,7 +1087,14 @@ main.ip-single~.ip-summary{left:18px}
       if (content.chips.some(item => chipKey(item) === chipKey(chip))) { notice('Το κελί έχει ήδη ' + quoted(chipInfo(chip).name) + '.'); return; }
       content.chips.push(chip);
     } else return;
-    if (change(() => writeCell(staffId, day, hour, entry, content))) notice('');
+    if (change(() => writeCell(staffId, day, hour, entry, content))) notice(clashNote([{day, h: hour.index}]).trim());
+  }
+  // After a change: the conflicts on students of the cells given ({day, h}), for the line of messages ('' without).
+  function clashNote(places) {
+    const clash = classConflicts(), {slots} = slotsOf(staffId), messages = [];
+    for (const place of places) for (const entry of slots.get(slotKey(place.day, place.h)) || [])
+      if (entry.kind === 'activity') for (const message of clash.get(entry.activity.id) || []) if (!messages.includes(message)) messages.push(message);
+    return messages.length ? ' Σύγκρουση: ' + messages.join(' ') : '';
   }
 
   // ---- Dialogs of the sidebar ----
@@ -1058,19 +1121,23 @@ main.ip-single~.ip-summary{left:18px}
     return name;
   }
   // Where a subject or a Συνένωση is used: in this period (the page) and in the individual programs of the other
-  // periods of the year (the file). → [{period, hours}]
+  // periods of the year (the file), and in the initial state of each of them (program.initial, kept by the host; the
+  // host refuses a catalog that loses what an initial state uses). → [{period, hours, initial}]
   function usageInPeriods(match) {
     const result = [];
     const count = value => (value?.activities || []).filter(activity => { const place = value.source?.placements?.[activity.id]; return place && match(place); }).length
       + (value?.source?.pending || []).filter(item => match({subjectId: null, chips: item.chips || []})).length;
     for (const period of context.periods || []) {
       const value = period.id === periodId ? program : individualOf(period.id);
-      const hoursUsed = count(value);
-      if (hoursUsed) result.push({period, hours: hoursUsed});
+      const hoursUsed = count(value), initialUsed = value?.initial ? count(value.initial) : 0;
+      if (hoursUsed) result.push({period, hours: hoursUsed, initial: false});
+      if (initialUsed) result.push({period, hours: initialUsed, initial: true});
     }
     return result;
   }
-  const usageText = list => list.map(item => quoted(item.period.name) + ' (' + hoursText(item.hours) + ')').join(', ');
+  // What stops a deletion: another period, or any initial state (also of this period: a change here does not reach it).
+  const blocking = list => list.filter(item => item.period.id !== periodId || item.initial);
+  const usageText = list => list.map(item => quoted(item.period.name) + ' (' + hoursText(item.hours) + (item.initial ? ', στην αρχική κατάσταση' : '') + ')').join(', ');
 
   // Μάθημα: name and colour (the shared colour picker; «Αυτόματο»: without colour).
   function openSubject(id = null) {
@@ -1107,13 +1174,13 @@ main.ip-single~.ip-summary{left:18px}
   async function deleteSubject(id) {
     const subject = subjectById(id);
     if (!subject || busy) return;
-    const used = usageInPeriods(place => place.subjectId === id), elsewhere = used.filter(item => item.period.id !== periodId);
-    const here = used.find(item => item.period.id === periodId);
+    const used = usageInPeriods(place => place.subjectId === id), elsewhere = blocking(used);
+    const here = used.find(item => item.period.id === periodId && !item.initial);
     const hide = () => { change(() => { subjectById(id).hidden = true; }); notice('Το μάθημα ' + quoted(subject.name) + ' κρύφτηκε από την αριστερή μπάρα. Φαίνεται ξανά από το μολυβάκι των Μαθημάτων.'); };
     if (elsewhere.length) {
       const choice = await schoolChoiceDialog({
         title: 'Διαγραφή μαθήματος',
-        content: ['Το μάθημα ' + quoted(subject.name) + ' χρησιμοποιείται στα ατομικά προγράμματα των περιόδων: ' + usageText(used) + '. Δεν διαγράφεται, για να μη χαθούν τα προγράμματα άλλων περιόδων.', 'Μπορείς να το κρύψεις από την αριστερή μπάρα· τα κελιά που το έχουν μένουν όπως είναι.'],
+        content: ['Το μάθημα ' + quoted(subject.name) + ' χρησιμοποιείται στα ατομικά προγράμματα των περιόδων: ' + usageText(used) + '. Δεν διαγράφεται, για να μη χαθούν ' + (elsewhere.some(item => item.initial) ? 'τα προγράμματα άλλων περιόδων ή η αρχική κατάσταση.' : 'τα προγράμματα άλλων περιόδων.'), 'Μπορείς να το κρύψεις από την αριστερή μπάρα· τα κελιά που το έχουν μένουν όπως είναι.'],
         actions: [{label: 'Ακύρωση'}, {label: 'Απόκρυψη', accept: true, value: 'hide'}]
       });
       if (choice === 'hide') hide();
@@ -1187,9 +1254,11 @@ main.ip-single~.ip-summary{left:18px}
     const union = unionById(id);
     if (!union || busy) return;
     const match = place => (place.chips || []).some(chip => chip.type === 'union' && chip.id === id);
-    const used = usageInPeriods(match), elsewhere = used.filter(item => item.period.id !== periodId), here = used.find(item => item.period.id === periodId);
+    const used = usageInPeriods(match), elsewhere = blocking(used), here = used.find(item => item.period.id === periodId && !item.initial);
     if (elsewhere.length) {
-      await schoolMessage('Η συνένωση ' + quoted(union.name) + ' χρησιμοποιείται στα ατομικά προγράμματα των περιόδων: ' + usageText(used) + '. Για να διαγραφεί, αφαίρεσέ τη πρώτα από τα κελιά εκείνων των περιόδων.', {title: 'Διαγραφή συνένωσης'});
+      const initial = elsewhere.some(item => item.initial);
+      await schoolMessage('Η συνένωση ' + quoted(union.name) + ' χρησιμοποιείται στα ατομικά προγράμματα των περιόδων: ' + usageText(used) + '. Για να διαγραφεί, αφαίρεσέ τη πρώτα από τα κελιά εκείνων των περιόδων.'
+        + (initial ? ' Από την αρχική κατάσταση φεύγει με «Ορισμός ως Αρχική» στα «Σχολικά Προγράμματα», αφού αφαιρεθεί από τα κελιά.' : ''), {title: 'Διαγραφή συνένωσης'});
       return;
     }
     if (!await schoolConfirm('Να διαγραφεί η συνένωση ' + quoted(union.name) + ';' + (here ? ' Θα αφαιρεθεί και από ' + hoursText(here.hours) + ' αυτής της περιόδου.' : ''), {title: 'Διαγραφή συνένωσης', accept: 'Διαγραφή'})) return;
@@ -1486,6 +1555,21 @@ main.ip-single~.ip-summary{left:18px}
     notice('Αφαιρέθηκαν όλες οι επισημάνσεις.');
   });
 
+  // The cell of the target comes into view once, when the board is first drawn for it.
+  function scrollToFocus() {
+    if (!focusCell || focusScrolled) return;
+    const td = $('gridWrap')?.querySelector('td.ip-slot.ip-target');
+    if (!td) return;
+    focusScrolled = true;
+    requestAnimationFrame(() => td.scrollIntoView({block: 'center', inline: 'center'}));
+  }
+  // The mark of the target cell goes away with the next click on the board.
+  $('workspace').addEventListener('pointerdown', event => {
+    if (!focusCell || !event.target.closest?.('#gridWrap')) return;
+    focusCell = null;
+    document.querySelectorAll('.ip-grid td.ip-slot.ip-target').forEach(td => td.classList.remove('ip-target'));
+  }, true);
+
   // ---- Drag inside the grid ----
   // Own pointer mechanism, as in the Ολοήμερο Designer, because Ctrl with HTML5 drag and drop is unreliable in
   // Chrome. The sidebar keeps HTML5 drag and drop. A cell (subject and chips together) moves to another hour, or
@@ -1612,11 +1696,23 @@ main.ip-single~.ip-summary{left:18px}
     if (drag.kind === 'entry') {
       const content = contentOf(source);
       if (copy) {
-        notice(change(() => writeCell(staffId, to.day, toHour, target, content)) ? 'Το κελί αντιγράφηκε με Ctrl.' : 'Το κελί-στόχος έχει ήδη το ίδιο περιεχόμενο.');
+        notice(change(() => writeCell(staffId, to.day, toHour, target, content)) ? 'Το κελί αντιγράφηκε με Ctrl.' + clashNote([to]) : 'Το κελί-στόχος έχει ήδη το ίδιο περιεχόμενο.');
         return;
       }
       if (target && sameContent(content, contentOf(target))) { notice('Τα δύο κελιά έχουν το ίδιο περιεχόμενο· δεν άλλαξε τίποτα.'); return; }
-      if (change(() => { placeAt(source, from, to); if (target) placeAt(target, to, from); })) notice(target ? 'Ανταλλάχθηκαν τα δύο κελιά.' : 'Το κελί μετακινήθηκε.');
+      // The rules of the kinds for the moved activities (SchoolTimetable.moveProblems, as in the Πλήρες): an error
+      // stops the move; a conflict on students (a lesson of the class) is allowed and shown in the cell.
+      const comp = composition(), moves = [];
+      const timeAt = place => ({day: place.day, start: hours[place.h].start, end: hours[place.h].end});
+      if (source.kind === 'activity') moves.push({kind: 'individual', activity: source.activity, times: [timeAt(to)]});
+      if (target?.kind === 'activity') moves.push({kind: 'individual', activity: target.activity, times: [timeAt(from)]});
+      const error = comp && moves.length ? T.moveProblems(comp, moves).errors[0] : null;
+      if (error) {
+        const where = error.entry ? sourceText(error.entry.kind) : 'σε άλλο ατομικό κελί';
+        notice(error.code === 'zone' ? 'Οι ώρες εκτός Πρωινού είναι κλειδωμένες και δεν δέχονται ατομικό πρόγραμμα.' : 'Η μετακίνηση δεν γίνεται: την ίδια ώρα ο εκπαιδευτικός έχει ώρα ' + where + '.');
+        return;
+      }
+      if (change(() => { placeAt(source, from, to); if (target) placeAt(target, to, from); })) notice((target ? 'Ανταλλάχθηκαν τα δύο κελιά.' : 'Το κελί μετακινήθηκε.') + clashNote([to, from]));
       return;
     }
     const chip = drag.chip, key = chipKey(chip), name = chipInfo(chip).name, targetContent = contentOf(target);
@@ -1626,7 +1722,7 @@ main.ip-single~.ip-summary{left:18px}
       if (!has) writeCell(staffId, to.day, toHour, target, {...targetContent, chips: [...targetContent.chips, chip]});
       if (!copy) { const content = contentOf(source); writeCell(staffId, from.day, hours[from.h], source, {...content, chips: content.chips.filter(item => chipKey(item) !== key)}); }
     });
-    if (done) notice(copy ? 'Το ' + quoted(name) + ' αντιγράφηκε με Ctrl.' : has ? 'Το ' + quoted(name) + ' υπήρχε ήδη στο κελί-στόχο· αφαιρέθηκε από το αρχικό.' : 'Το ' + quoted(name) + ' μετακινήθηκε.');
+    if (done) notice((copy ? 'Το ' + quoted(name) + ' αντιγράφηκε με Ctrl.' : has ? 'Το ' + quoted(name) + ' υπήρχε ήδη στο κελί-στόχο· αφαιρέθηκε από το αρχικό.' : 'Το ' + quoted(name) + ' μετακινήθηκε.') + clashNote([to, from]));
   }
   // A drop outside the grid removes the item from its cell (as in the Ολοήμερο Designer).
   function removeDragged(drag) {
@@ -1668,8 +1764,9 @@ main.ip-single~.ip-summary{left:18px}
   // ---- «Προσθήκη μαθημάτων…» ----
   // Two groups of checkboxes, only with what the catalog does not have (by name, without tones and case; a hidden
   // subject counts as there): the subjects of the Ωρολόγιο of the period (source.subjects of the FET import,
-  // without a .fet file) and the usual subjects of the individual programs (COMMON_SUBJECTS; more can be added here).
-  const COMMON_SUBJECTS = Object.freeze(['Ενισχυτική Διδασκαλία', 'Γραμματειακή Υποστήριξη', 'Διοικητικό Έργο']);
+  // without a .fet file) and the usual subjects of the individual programs (INDIVIDUAL_COMMON_SUBJECTS of
+  // _data_timetable.js; more can be added there). They are support for every teacher (SchoolTimetable.supportActivity).
+  const COMMON_SUBJECTS = T.INDIVIDUAL_COMMON_SUBJECTS;
   function importSubjects() {
     if (busy || readOnly()) return;
     const school = schoolOf(periodId), all = Array.isArray(school?.source?.subjects) ? school.source.subjects : [];
@@ -1715,7 +1812,7 @@ main.ip-single~.ip-summary{left:18px}
   }
 
   // ---- «Αντιγραφή από άλλη περίοδο…» ----
-  // The other periods with individual programs (also those without Ωρολόγιο, read only here).
+  // The other periods with individual programs (also those without Ωρολόγιο).
   const copySources = () => (context?.periods || []).filter(period => period.id !== periodId && programContent(individualOf(period.id)));
   // What each teacher has in a program: {hours, pending}.
   function staffCounts(value) {
