@@ -12,7 +12,7 @@
   φτιάχνονται από το σύντομο όνομα των δασκάλων («[Α1] - …», classesFromStaff). Με το .data δοκιμής, οι
   έλεγχοι των νέων ετικετών (v2) παίρνουν το Προσωπικό από αυτό, γιατί το CSV του Ολοημέρου έχει τα σύντομα
   ονόματα του Προσωπικού.
-  Έκδοση αρχείου: 0.64
+  Έκδοση αρχείου: 0.65
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -944,6 +944,8 @@ function compositionFileChecks(v2Program, design, staff, classes) {
     check('v2 με το σχέδιο: ίδιες ώρες με το Ωρολόγιο για κάθε εκπαιδευτικό (στο Γεύμα της Δευτέρας αλλάζουν θέση δύο εκπαιδευτικοί)', staff.every(person => (comp.hours.get(person.id)?.total || 0) === (before.get(person.id) || 0)));
     equal('v2 με το σχέδιο: 2 + 2 διαφορές, στο Γεύμα της Δευτέρας 13:20', [comp.oloimeroDiff.fetOnly.length, comp.oloimeroDiff.designOnly.length, [...comp.oloimeroDiff.fetOnly, ...comp.oloimeroDiff.designOnly].every(item => item.time.day === 1 && item.time.start === '13:20')], [2, 2, true]);
     equal('v2 με το σχέδιο: καμία σύγκρουση· τα Γαλλικά και τα Γερμανικά του Ε1/Ε2 δεν συγκρούονται', comp.conflicts.length, 0);
+    equal('v2 με το σχέδιο: η λίστα προβλημάτων (compositionProblems) έχει μόνο τη διαφορά σχεδίου και Ωρολογίου, για τον Ολοήμερο Designer, χωρίς θέση',
+      T.compositionProblems(comp, {staff, classes}).map(item => [item.group, item.code, item.target?.app, item.place]), [['warning', 'oloimeroDiff', 'oloimero', null]]);
     equal('v2 με το σχέδιο: 69 δραστηριότητες του Ωρολογίου στις ζώνες Ολοημέρου δεν μετρούν, όλες του σχεδίου μετρούν', [comp.ignored.filter(item => item.reason === 'design').length, comp.entries.filter(item => item.kind === 'oloimero').length], [69, design.activities.length]);
     const alone = T.composePeriod({periodId: 'p', programs: [school], staff, classes, teachingHours: HOURS_V2});
     check('v2 χωρίς σχέδιο: ίδιες ώρες με όλες τις ώρες του Ωρολογίου, και ο «[ΠΕ05] - Γαλλικά» στις ώρες χωρίς αντιστοίχιση', staff.every(person => (alone.hours.get(person.id)?.total || 0) === (before.get(person.id) || 0)) && alone.unmatchedHours.get('[ΠΕ05] - Γαλλικά') > 0);
@@ -2688,6 +2690,15 @@ function compositionProblemsChecks() {
   const design = {id: 'ol', kind: 'oloimero', periodId: 'p', activities: [act('d1', 'Μελέτη', ['s1'], ['Α1'], [at(1, '14:10', '14:55')]), act('d2', 'Γεύμα', ['s1'], ['Α2'], [at(1, '14:10', '14:55')])], source: {type: 'oloimero-designer', version: 2}};
   const withDesign = T.compositionProblems(T.composePeriod({periodId: 'p', programs: [design], staff, classes, teachingHours: HOURS_V2}), {staff, classes});
   equal('Σύγκρουση μέσα στο σχέδιο Ολοημέρου: ανοίγει ο Ολοήμερος Designer, μόνο με την περίοδο', withDesign.map(brief), ['staff:staff:oloimero/']);
+  // place: where the conflict is, whatever application opens it (the Πλήρες shows it at its cell).
+  equal('Θέση (place) των συγκρούσεων: ο εκπαιδευτικός, το τμήμα· κενή στις προειδοποιήσεις και στις ενημερώσεις', problems.map(item => item.place), [{staffId: 's1'}, {classId: cid('Α2')}, null, null, null]);
+  equal('Σύγκρουση μέσα στο σχέδιο Ολοημέρου: η θέση κρατά τον εκπαιδευτικό', withDesign.map(item => item.place), [{staffId: 's1'}]);
+  const loose = {id: 'lo', kind: 'school', periodId: 'p', activities: [
+    act('u1', 'Γλώσσα', [], ['Α1'], [at(5, '08:15', '09:00')], {unmatched: ['Χ']}),
+    act('u2', 'Μαθηματικά', [], ['Α2'], [at(5, '08:15', '09:00')], {unmatched: ['Χ']})
+  ], source: {type: 'fet'}};
+  const looseProblems = T.compositionProblems(T.composePeriod({periodId: 'p', programs: [loose], staff, classes, teachingHours: HOURS_V2}), {staff, classes}).filter(item => item.group === 'staff');
+  equal('Σύγκρουση εκπαιδευτικού χωρίς αντιστοίχιση: θέση με το όνομα, στόχος μόνο η περίοδος', looseProblems.map(item => [item.code, item.place, item.target]), [['unmatched', {name: 'Χ'}, {app: 'school'}]]);
   equal('Χωρίς σύνθεση: κενή λίστα', T.compositionProblems(null), []);
 }
 

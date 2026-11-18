@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Πλήρες Σχολικό Πρόγραμμα v1.16</title>
+<title>Πλήρες Σχολικό Πρόγραμμα v1.17</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -50,9 +50,10 @@ aside{display:flex;flex-direction:column;gap:0}
 .ft-toolbar{margin-bottom:10px}
 .ft-title{margin:0 0 2px;font-size:18px;font-weight:850;line-height:1.3}
 .ft-title small{font-size:14px;font-weight:400;color:var(--school-ui-muted);margin-left:8px}
-/* Under the title only the period; right under it, when they apply, the notes of the composition (the σχέδιο Ολοημέρου
-   differs from the Ωρολόγιο, or the period has no σχέδιο; incomplete cells of the teacher in the Ατομικά), each with a
-   link to the application that changes it, then the warnings of the programs.
+/* Under the title only the period; right under it, when there are some, the problems of the period (schoolProblems:
+   conflicts, the σχέδιο Ολοημέρου differs from the Ωρολόγιο, the period has no σχέδιο…), whose list opens under the
+   controls; then the note on the incomplete cells of the teacher in the Ατομικά, with a link to the application that
+   changes them, and the warnings of the programs.
    Files, imports and changes are in «Ιστορικό…» of «Σχολικά Προγράμματα».
    The strip ends at the visible right edge of the timetable, never past the workspace. */
 .ft-source-info{margin:0 0 4px;max-width:100%}
@@ -80,6 +81,10 @@ aside{display:flex;flex-direction:column;gap:0}
 .ft-source-note.info{color:var(--school-ui-muted)}
 .ft-source-note .ui-icon-text{white-space:normal;overflow-wrap:anywhere}
 .ft-source-note .ui-link-button{margin-left:6px;white-space:nowrap}
+/* Problems of the period (schoolProblems of _ui.js): the line under the period, and the open list under the controls,
+   as wide as the head. */
+.ft-source-info .school-problems{margin:2px 0 0}
+.ft-problems-list{margin-top:8px;max-width:100%}
 .ft-controls select{min-width:0}
 /* Controls of the board: groups with a small title above, filling the left column of the head (up to the visible
    right edge of the timetable, or up to the availability in the teacher view). Groups wrap as whole units. The spring before the filters takes the free
@@ -162,6 +167,8 @@ button.ui-icon-button.ft-cell-edit>svg{width:var(--school-ui-icon-size-list);hei
 .ft-print-presets{display:flex;flex-wrap:wrap;gap:6px}
 .ft-print-column .subapp-check-list{max-height:42vh}
 .ft-print-column .subapp-check-list label{font-weight:400;margin:2px 0}
+.ft-print-option{display:flex;align-items:baseline;gap:6px;margin:12px 0 0;font-weight:400;cursor:pointer}
+.ft-print-note{margin:10px 0 0}
 .ft-source .ui-validation-warning{margin:0}
 
 @media(max-width:900px){:root{--ft-cell:112px;--ft-hour:108px}}
@@ -180,7 +187,7 @@ button.ui-icon-button.ft-cell-edit>svg{width:var(--school-ui-icon-size-list);hei
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Πλήρες Σχολικό Πρόγραμμα — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΠΛ</span></span><span class="brand-text"><span>Πλήρες Σχολικό Πρόγραμμα</span><span class="small version">v1.16</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Πλήρες Σχολικό Πρόγραμμα — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΠΛ</span></span><span class="brand-text"><span>Πλήρες Σχολικό Πρόγραμμα</span><span class="small version">v1.17</span></span></button></h1></div>
   <select id="period" aria-label="Περίοδος" disabled hidden></select>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <span class="sep" aria-hidden="true"></span>
@@ -196,6 +203,7 @@ button.ui-icon-button.ft-cell-edit>svg{width:var(--school-ui-icon-size-list);hei
         <option value="staff">Προσωπικό</option>
         <option value="classroom">Δάσκαλοι</option>
         <option value="specialties">Ειδικότητες</option>
+        <option value="individual">Ατομικά Προγράμματα</option>
         <option value="available">Διαθέσιμοι Εκπαιδευτικοί</option>
       </select>
     </span>
@@ -234,7 +242,9 @@ button.ui-icon-button.ft-cell-edit>svg{width:var(--school-ui-icon-size-list);hei
   // Τμήματα: those of «Τμήματα» (classes of school-timetables:context, SchoolClasses). Activities refer to them by
   // id, and the page always shows the name from «Τμήματα».
   // Every change happens in the page; «Αποθήκευση» writes the Ωρολόγιο and the Ατομικά of the period (put), all or
-  // nothing.
+  // nothing. The problems of the composition (SchoolTimetable.compositionProblems) are listed under the period, with
+  // the shared schoolProblems (_ui.js): a conflict is shown here, at its cell; the other problems open the application
+  // that changes them.
   const T = SchoolTimetable, C = SchoolClasses, D = SchoolDate, esc = schoolEscape, $ = id => document.getElementById(id);
   const post = schoolHost.post;
   const quoted = value => '«' + value + '»';
@@ -277,6 +287,7 @@ button.ui-icon-button.ft-cell-edit>svg{width:var(--school-ui-icon-size-list);hei
   let gridWidthObserver = null;
   // The cell of the target ({day, start}), marked until the next click on the board; scrolled into view once.
   let focusCell = null, focusScrolled = false;
+  let problemsOpen = false;    // the list of the problems of the period is open (while the page is open)
 
   // ---- Small helpers ----
   const periodOf = id => context?.periods?.find(period => period.id === id) || null;
@@ -348,7 +359,8 @@ button.ui-icon-button.ft-cell-edit>svg{width:var(--school-ui-icon-size-list);hei
     // Conflicts: those of the composition, on every source.
     const conflicts = new Set();
     for (const item of composition?.conflicts || []) { conflicts.add(item.a.activity); conflicts.add(item.b.activity); }
-    cache = {list, byKey: new Map(list.map(item => [item.key, item])), conflicts, homeroom: new Map(), composition};
+    const problems = composition ? T.compositionProblems(composition, {staff: context.staff || [], classes: yearClasses()}) : [];
+    cache = {list, byKey: new Map(list.map(item => [item.key, item])), conflicts, homeroom: new Map(), composition, problems};
     return cache;
   }
   // The composition of the period (T.composePeriod) with the Ωρολόγιο and the Ατομικά of the page in place of the
@@ -435,8 +447,10 @@ button.ui-icon-button.ft-cell-edit>svg{width:var(--school-ui-icon-size-list);hei
     }
     return cells;
   }
+  // The token of a support activity and what it means, by the Είδος υπηρεσίας of its (first) teacher.
+  const supportLabel = item => SUPPORT_TOKENS[personOf(item.keys[0])?.serviceType] || OTHER_SUPPORT;
   function tokenFor(item) {
-    const [label, what] = SUPPORT_TOKENS[personOf(item.keys[0])?.serviceType] || OTHER_SUPPORT;
+    const [label, what] = supportLabel(item);
     const token = el('span', 'ft-token', label);
     const who = item.keys.map(key => shortOf(key) + (fullOf(key) && fullOf(key) !== shortOf(key) ? ' (' + fullOf(key) + ')' : '')).join(', ');
     token.title = what + ': ' + (who || '—') + ' — ' + (subjectOf(item.activity) || (item.activity.subjectFromClasses ? 'μάθημα της τάξης' : '—')) + '\nΜετακινείται από την προβολή του εκπαιδευτικού.';
@@ -615,12 +629,35 @@ button.ui-icon-button.ft-cell-edit>svg{width:var(--school-ui-icon-size-list);hei
     else if (target?.classId) { view = 'classes'; selected.classes = target.classId; }
     focusCell = target?.day && target?.start ? {day: target.day, start: target.start} : null;
     focusScrolled = false;
-    // The cell of the target must be in the hours shown.
-    if (focusCell) {
-      const hour = hours.find(item => item.start === focusCell.start);
-      if (hour && controlState.hourFilter !== 'all' && !(controlState.hourFilter === 'morning' ? isMorning(hour) : isAfternoon(hour))) controlState.hourFilter = 'all';
-    }
+    showFocusHour();
     loadPeriod(periodId, {keepFocus: true});
+  }
+  // The cell of the target must be in the hours shown: «Ώρες» becomes «Όλες» when it hides the cell.
+  function showFocusHour() {
+    if (!focusCell) return;
+    readControls();
+    const hour = hours.find(item => item.start === focusCell.start);
+    if (hour && controlState.hourFilter !== 'all' && !(controlState.hourFilter === 'morning' ? isMorning(hour) : isAfternoon(hour))) {
+      controlState.hourFilter = 'all';
+      if ($('hourFilter')) $('hourFilter').value = 'all';
+    }
+  }
+  // A problem of the list shown here: the teacher (place.staffId, or place.name without a match) or the τμήμα
+  // (place.classId), and its cell (day, start) when it has one. The search and the teacher filter of the τμήμα
+  // no longer hide it.
+  function showPlace(place, day, start) {
+    readControls();
+    if (place.classId) {
+      view = 'classes'; selected.classes = place.classId;
+      controlState.teacherFilter = 'all';
+      if ($('teacherFilter')) $('teacherFilter').value = 'all';
+    } else { view = 'teachers'; selected.teachers = place.staffId ? keyOfId(place.staffId) : keyOfName(place.name); }
+    $('search').value = '';
+    focusCell = day && start ? {day, start} : null;
+    focusScrolled = false;
+    showFocusHour();
+    render();
+    $('entityList').querySelector('.subapp-sidebar-item.selected')?.scrollIntoView({block: 'nearest'});
   }
   function loadPeriod(id, options = {}) {
     periodId = id;
@@ -765,6 +802,7 @@ button.ui-icon-button.ft-cell-edit>svg{width:var(--school-ui-icon-size-list);hei
           </div>
           <div id="availability" class="ft-avail" role="img" hidden></div>
         </div>
+        <div id="problemList" class="ft-problems-list" hidden></div>
         <p id="notice" class="subapp-notice" role="status"></p>
       </div>
       <div id="gridWrap" class="ft-grid-wrap"></div>`;
@@ -814,14 +852,13 @@ button.ui-icon-button.ft-cell-edit>svg{width:var(--school-ui-icon-size-list);hei
       line.append(span);
       parts.push(line);
     }
-    const issues = composition()?.issues || [];
-    const designer = {link: 'Ολοήμερο Designer', title: 'Άνοιγμα του Ολοήμερου Designer στην περίοδο', open: () => openApp('oloimero')};
-    // The σχέδιο Ολοημέρου of the period differs from the Ωρολόγιο in the zones of the Ολοήμερο: how many hours differ,
-    // and that the σχέδιο counts. Or the period has no σχέδιο: the Ωρολόγιο is shown there.
-    const diff = issues.find(issue => issue.code === 'oloimeroDiff');
-    if (diff) parts.push(sourceNote(diff.message, designer));
-    const noDesign = issues.find(issue => issue.code === 'noDesign');
-    if (noDesign) parts.push(sourceNote('Η περίοδος δεν έχει σχέδιο Ολοημέρου: στις ζώνες Ολοημέρου φαίνεται το Ωρολόγιο.', {...designer, info: true}));
+    // The problems of the period (conflicts, the difference of the σχέδιο Ολοημέρου and the Ωρολόγιο, a period without
+    // σχέδιο…), only when there are some.
+    const problems = index().problems;
+    if (problems.length) {
+      const line = el('div'); line.id = 'problems';
+      parts.push(line);
+    }
     // Incomplete cells of the teacher in the Ατομικά: they are not activities, so they are not on the board.
     const current = selected.teachers;
     if (view === 'teachers' && current?.startsWith('id:')) {
@@ -831,6 +868,34 @@ button.ui-icon-button.ft-cell-edit>svg{width:var(--school-ui-icon-size-list);hei
     const warnings = el('div', 'ft-warnings'); warnings.id = 'warnings';
     parts.push(warnings);
     box.replaceChildren(...parts);
+    if ($('problems')) renderProblems($('problems'));
+    else { $('problemList').hidden = true; $('problemList').replaceChildren(); }
+  }
+
+  // The list of the problems of the period (shared schoolProblems of _ui.js), open in #problemList under the controls.
+  // A conflict is shown here (Εμφάνιση); the other problems open the application that changes them.
+  const APP_LINKS = Object.freeze({oloimero: 'Ολοήμερο Designer', individual: 'Ατομικά Προγράμματα'});
+  function renderProblems(line) {
+    if (!line?.isConnected) return;
+    schoolProblems.render(line, {
+      problems: index().problems, open: problemsOpen, compact: true, listBox: $('problemList'),
+      onToggle: open => { problemsOpen = open; requestAnimationFrame(alignAvailability); },
+      help: 'Από τη σύνθεση της περιόδου, όπως είναι τα προγράμματα στη σελίδα (μαζί με τις αλλαγές που δεν έχουν αποθηκευτεί).',
+      link: problemLink
+    });
+  }
+  function problemLink(item) {
+    const when = item.day && item.start ? ', ' + dayLabel(item.day) + ' ' + item.start : '';
+    const place = item.place || (item.target?.app === 'school' && (item.target.classId || item.target.staffId) ? {classId: item.target.classId, staffId: item.target.staffId} : null);
+    if (place) {
+      const what = place.classId ? 'τμήμα ' + quoted(className(place.classId)) : 'εκπαιδευτικός ' + quoted(place.staffId ? shortOf(keyOfId(place.staffId)) : place.name);
+      return {label: 'Εμφάνιση', title: 'Εμφάνιση στον πίνακα: ' + what + when, run: () => showPlace(place, item.day, item.start)};
+    }
+    const app = item.target?.app;
+    if (!APP_LINKS[app]) return null;
+    const extra = {staffId: item.target.staffId, classId: item.target.classId, day: item.day || undefined, start: item.start || undefined};
+    const who = extra.staffId ? ', εκπαιδευτικός ' + quoted(shortOf(keyOfId(extra.staffId))) : '';
+    return {label: APP_LINKS[app], title: 'Άνοιγμα: ' + APP_LINKS[app] + ' — περίοδος ' + quoted(periodOf(periodId)?.name || '') + who + when, run: () => openApp(app, extra)};
   }
 
   // Availability of the chosen teacher in the FET file: the hours of «Πρωινό» × Δευτέρα–Παρασκευή.
@@ -874,7 +939,7 @@ button.ui-icon-button.ft-cell-edit>svg{width:var(--school-ui-icon-size-list);hei
     const capTop = probe.getBoundingClientRect().top - ctx.measureText('Ε').actualBoundingBoxAscent;
     const top = box.getBoundingClientRect().top;
     box.style.marginTop = Math.max(0, capTop - top) + 'px';
-    const note = $('sourceInfo').querySelector('.ft-source-note') || $('warnings')?.children.length;
+    const note = $('sourceInfo').querySelector('.ft-source-note, .school-problems') || $('warnings')?.children.length;
     const twoLines = select.getBoundingClientRect().top > $('modeSafe').getBoundingClientRect().bottom;
     if (note || twoLines) return;
     const rows = box.querySelectorAll('.ft-avail-cell').length / 5, label = box.querySelector('.ft-avail-label');
@@ -998,6 +1063,7 @@ button.ui-icon-button.ft-cell-edit>svg{width:var(--school-ui-icon-size-list);hei
     const headBox = $('head');
     const matchGridWidth = () => {
       headBox.style.width = Math.min(table.getBoundingClientRect().width, wrap.clientWidth) + 'px';
+      if ($('problemList')) $('problemList').style.width = headBox.style.width;
       alignAvailability();
     };
     matchGridWidth();
@@ -1114,19 +1180,21 @@ button.ui-icon-button.ft-cell-edit>svg{width:var(--school-ui-icon-size-list);hei
       return D.format(iso);
     }};
   }
-  // A column of check boxes with preset buttons: items [{value, label, checked}], presets [{label, test(value)}].
-  function checkColumn(title, items, presets) {
+  // A column of check boxes with preset buttons: items [{value, label, checked}], presets [{label, test(value)}];
+  // onChange() after every change of the ticks.
+  function checkColumn(title, items, presets, onChange = null) {
     const box = el('section', 'ft-print-column'), actions = el('div', 'ft-print-presets'), list = el('div', 'subapp-check-list');
     box.append(el('h3', '', title), actions, list);
     const inputs = items.map(item => {
       const label = el('label'), input = el('input');
       input.type = 'checkbox'; input.value = item.value; input.checked = !!item.checked;
       label.append(input, ' ' + item.label); list.append(label);
+      if (onChange) input.addEventListener('change', onChange);
       return input;
     });
     for (const preset of presets) {
       const button = el('button', '', preset.label); button.type = 'button';
-      button.onclick = () => inputs.forEach(input => { input.checked = preset.test(input.value); });
+      button.onclick = () => { inputs.forEach(input => { input.checked = preset.test(input.value); }); onChange?.(); };
       actions.append(button);
     }
     return {box, values: () => inputs.filter(input => input.checked).map(input => input.value)};
@@ -1154,6 +1222,8 @@ button.ui-icon-button.ft-cell-edit>svg{width:var(--school-ui-icon-size-list);hei
     h1{text-align:center;line-height:1;margin:0;font-weight:700}
     .subtitle{margin-top:4px;line-height:1.05;font-weight:400;text-align:center}
     .date{justify-self:end;text-align:right;line-height:1;white-space:nowrap}
+    .draft{justify-self:start;align-self:start;padding:1px 4px;border:1pt solid #000;font-size:8pt;font-weight:700;line-height:1.2;white-space:nowrap}
+    .support{margin-top:2px;font-style:italic}
     table{width:100%;border-collapse:collapse;table-layout:fixed;border:1.4pt solid #000}
     th,td{border:1.4pt solid #000;text-align:center;vertical-align:middle;font-weight:400}
     thead th{font-weight:700}
@@ -1178,48 +1248,70 @@ button.ui-icon-button.ft-cell-edit>svg{width:var(--school-ui-icon-size-list);hei
     else for (const block of blocks) pages += '<section class="page">' + block + '</section>';
     return pages;
   }
+  // A Προσχέδιο περιόδου is marked at the top left of every page, so that it is not taken for the final program.
+  const draftMark = () => T.isDraftPeriod(periodOf(periodId)) ? '<div class="draft">Προσχέδιο περιόδου</div>' : '<div></div>';
   function blockHead(title, subtitle, date) {
-    return '<div class="head"><div></div><div class="title"><h1>' + esc(title) + '</h1>' + (subtitle ? '<div class="subtitle">' + esc(subtitle) + '</div>' : '') + '</div><div class="date">Ισχύει από: ' + esc(date) + '</div></div>';
+    return '<div class="head">' + draftMark() + '<div class="title"><h1>' + esc(title) + '</h1>' + (subtitle ? '<div class="subtitle">' + esc(subtitle) + '</div>' : '') + '</div><div class="date">Ισχύει από: ' + esc(date) + '</div></div>';
   }
-  // The programs of the τμήματα: their lessons (the support of the Ατομικά is not a lesson of the τμήμα).
+  // The programs of the τμήματα: their lessons (the support of the Ατομικά is not a lesson of the τμήμα). With
+  // «Με τη στήριξη των Ατομικών Προγραμμάτων», a small line under the lessons of the cell, with the token of the board
+  // and the teacher, e.g. «ΠΛ: [ΠΕ70.50] - …».
   function printClasses() {
     const date = dateField();
     const classes = checkColumn('Τμήματα', classesList().map(id => ({value: id, label: className(id), checked: true})), [{label: 'Όλα', test: () => true}, {label: 'Κανένα', test: () => false}]);
     const hourColumn = checkColumn('Ώρες', teachingHours().map(hour => ({value: String(hour.index), label: hour.name, checked: isMorning(hour)})), hourPresets());
     const columns = el('div', 'ft-print-columns'); columns.append(classes.box, hourColumn.box);
+    const supportField = el('label', 'ft-print-option'), supportInput = el('input');
+    supportInput.type = 'checkbox';
+    supportField.append(supportInput, ' Με τη στήριξη των Ατομικών Προγραμμάτων (Παράλληλη Στήριξη, Τμήμα Ένταξης, ΕΒΠ κ.ά.)');
     void schoolChoiceDialog({
       title: 'Εκτύπωση τμημάτων', className: 'ft-print-dialog',
-      content: ['Επίλεξε τα τμήματα και τις ώρες. Δεν εκτυπώνονται οι ώρες του υπεύθυνου δασκάλου του τμήματος.', date.field, columns],
+      content: ['Επίλεξε τα τμήματα και τις ώρες. Δεν εκτυπώνονται οι ώρες του υπεύθυνου δασκάλου του τμήματος.', date.field, supportField, columns],
       actions: [{label: 'Ακύρωση'}, {label: 'Εκτύπωση', accept: true, run: () => {
-        const effective = date.value(), ids = classes.values(), selectedHours = hourColumn.values().map(Number).map(i => hours[i]);
+        const effective = date.value(), ids = classes.values(), selectedHours = hourColumn.values().map(Number).map(i => hours[i]), withSupport = supportInput.checked;
         if (!ids.length) throw Error('Επίλεξε τουλάχιστον ένα τμήμα.');
         if (!selectedHours.length) throw Error('Επίλεξε τουλάχιστον μία ώρα.');
         const blocks = ids.map(id => {
           const home = homeroomKey(id);
-          const table = printTable(selectedHours, (day, hour) => activitiesAt(item => !item.support && (item.activity.classes || []).includes(id), day, hour)
+          const inClass = item => (item.activity.classes || []).includes(id);
+          const table = printTable(selectedHours, (day, hour) => activitiesAt(item => !item.support && inClass(item), day, hour)
             .filter(item => !home || !item.keys.includes(home))
-            .map(item => '<div class="activity">' + (subjectOf(item.activity) ? '<div class="subject">' + esc(subjectOf(item.activity)) + '</div>' : '') + '<div>' + esc(item.keys.map(shortOf).join(', ')) + '</div></div>').join(''));
+            .map(item => '<div class="activity">' + (subjectOf(item.activity) ? '<div class="subject">' + esc(subjectOf(item.activity)) + '</div>' : '') + '<div>' + esc(item.keys.map(shortOf).join(', ')) + '</div></div>').join('') +
+            (withSupport ? activitiesAt(item => item.support && inClass(item), day, hour)
+              .map(item => '<div class="support">' + esc(supportLabel(item)[0] + ': ' + item.keys.map(shortOf).join(', ')) + '</div>').join('') : ''));
           return '<section class="block">' + blockHead(className(id), home ? fullOf(home) || shortOf(home) : '', effective) + table + '</section>';
         });
-        const css = `h1{font-size:18pt}.subtitle,.date{font-size:9.5pt}th,td{padding:4px;font-size:9.5pt;line-height:1.15}thead th{font-size:12pt}.hour{width:24mm;font-size:10.5pt}tbody th,tbody td{height:10mm}.subject{font-size:11pt}`;
+        const css = `h1{font-size:18pt}.subtitle,.date{font-size:9.5pt}th,td{padding:4px;font-size:9.5pt;line-height:1.15}thead th{font-size:12pt}.hour{width:24mm;font-size:10.5pt}tbody th,tbody td{height:10mm}.subject{font-size:11pt}.support{font-size:8.5pt}`;
         return openPrintWindow(printDocument('Εκτύπωση τμημάτων', css, pagesOf(blocks, selectedHours.length <= 10)));
       }}]
     });
   }
   // The programs of the teachers: every hour of the teacher in the composition (Ωρολόγιο, Ατομικά, σχέδιο Ολοημέρου).
+  // «Ατομικά Προγράμματα»: the teachers with hours in the Ατομικά, with all their hours. Incomplete cells of the Ατομικά
+  // are not activities and are not printed: the dialog names the chosen teachers who have some.
+  const hasIndividual = key => index().list.some(item => item.kind === 'individual' && item.keys.includes(key));
+  const pendingOf = key => key.startsWith('id:') ? (individual?.source?.pending || []).filter(item => item.staffId === key.slice(3)).length : 0;
   function printTeachers(preset) {
-    const titles = {staff: 'Εκτύπωση προσωπικού', classroom: 'Εκτύπωση δασκάλων', specialties: 'Εκτύπωση ειδικοτήτων'};
+    const titles = {staff: 'Εκτύπωση προσωπικού', classroom: 'Εκτύπωση δασκάλων', specialties: 'Εκτύπωση ειδικοτήτων', individual: 'Εκτύπωση ατομικών προγραμμάτων'};
     const date = dateField();
     const keys = teachersList();
-    const checked = key => preset === 'classroom' ? isClassroom(key) : preset === 'specialties' ? isSpecialty(key) : true;
+    const checked = key => preset === 'classroom' ? isClassroom(key) : preset === 'specialties' ? isSpecialty(key) : preset === 'individual' ? hasIndividual(key) : true;
+    const pendingNote = el('p', 'ui-validation-warning ft-print-note');
     const people = checkColumn('Εκπαιδευτικοί', keys.map(key => ({value: key, label: shortOf(key) + (isUnmatched(key) ? ' (χωρίς αντιστοίχιση)' : ''), checked: checked(key)})), [
-      {label: 'Όλοι', test: () => true}, {label: 'Κανένας', test: () => false}, {label: 'Δάσκαλοι', test: isClassroom}, {label: 'Ειδικότητες', test: isSpecialty}
-    ]);
+      {label: 'Όλοι', test: () => true}, {label: 'Κανένας', test: () => false}, {label: 'Δάσκαλοι', test: isClassroom}, {label: 'Ειδικότητες', test: isSpecialty},
+      {label: 'Με ατομικό πρόγραμμα', test: hasIndividual}
+    ], () => showPending());
+    function showPending() {
+      const list = people.values().filter(key => pendingOf(key) > 0).map(key => shortOf(key) + ' (' + pendingOf(key) + ')');
+      pendingNote.textContent = list.length ? 'Ελλιπή κελιά στα Ατομικά Προγράμματα, που δεν εκτυπώνονται: ' + list.join(', ') + '.' : '';
+      pendingNote.hidden = !list.length;
+    }
+    showPending();
     const hourColumn = checkColumn('Ώρες', teachingHours().map(hour => ({value: String(hour.index), label: hour.name, checked: hour.category !== 'extended'})), hourPresets());
     const columns = el('div', 'ft-print-columns'); columns.append(people.box, hourColumn.box);
     void schoolChoiceDialog({
       title: titles[preset] || titles.staff, className: 'ft-print-dialog',
-      content: ['Επίλεξε τους εκπαιδευτικούς και τις ώρες. Το ωράριο στο κάτω μέρος μετρά όλες τις ώρες του προγράμματος.', date.field, columns],
+      content: ['Επίλεξε τους εκπαιδευτικούς και τις ώρες. Το ωράριο στο κάτω μέρος μετρά όλες τις ώρες του προγράμματος.', date.field, columns, pendingNote],
       actions: [{label: 'Ακύρωση'}, {label: 'Εκτύπωση', accept: true, run: () => {
         const effective = date.value(), chosen = people.values(), selectedHours = hourColumn.values().map(Number).map(i => hours[i]);
         if (!chosen.length) throw Error('Επίλεξε τουλάχιστον έναν εκπαιδευτικό.');
@@ -1264,7 +1356,7 @@ button.ui-icon-button.ft-cell-edit>svg{width:var(--school-ui-icon-size-list);hei
         }).join('') + '</tr>').join('');
         const footnote = notes.size ? '<p class="note">Πρωινή Ζώνη και απογευματινή ώρα την ίδια ημέρα: ' + esc([...notes].map(([id, days]) => (staffById.get(id)?.name || '') + ' (' + days.join(', ') + ')').join('· ')) + '.</p>' : '';
         const css = `@page{size:A4 landscape;margin:9mm}h1{font-size:17pt}.date{font-size:9pt}th,td{padding:4px 5px;font-size:8.5pt;line-height:1.08;vertical-align:top}thead th{font-size:10pt;vertical-align:middle}.hour{width:29mm;font-size:9pt;vertical-align:middle}.count{font-size:8pt;font-weight:700;margin-bottom:4px}.name{margin:0 0 3px}.note{margin:3mm 0 0;font-size:8.5pt}`;
-        return openPrintWindow(printDocument('Διαθέσιμοι Εκπαιδευτικοί', css, '<div class="head"><div></div><div class="title"><h1>Διαθέσιμοι Εκπαιδευτικοί</h1></div><div class="date">Ισχύει από: ' + esc(effective) + '</div></div><table><thead>' + head + '</thead><tbody>' + rows + '</tbody></table>' + footnote));
+        return openPrintWindow(printDocument('Διαθέσιμοι Εκπαιδευτικοί', css, '<div class="head">' + draftMark() + '<div class="title"><h1>Διαθέσιμοι Εκπαιδευτικοί</h1></div><div class="date">Ισχύει από: ' + esc(effective) + '</div></div><table><thead>' + head + '</thead><tbody>' + rows + '</tbody></table>' + footnote));
       }}]
     });
   }

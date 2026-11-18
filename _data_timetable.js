@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων: CSV, FET, προγράμματα
- * Έκδοση αρχείου: 0.07
+ * Έκδοση αρχείου: 0.08
  * Όνομα κατά την εγκατάσταση: _data_timetable.js
  *
  * Ο κοινός κώδικας δεδομένων είναι σε τέσσερα αρχεία, που φορτώνονται πάντα όλα, με αυτή τη σειρά, μετά το _ui.js
@@ -1204,7 +1204,10 @@
   // application that shows it (target.app: a kind, whose owner opens) and, where it helps, the teacher or the τμήμα.
   //   ctx: {staff, classes}.
   //   → [{group:'staff'|'class'|'warning'|'info', level:'error'|'warning'|'info', code, who, message, day, start, end,
-  //       target:{app, staffId, classId} | null}]
+  //       target:{app, staffId, classId} | null, place:{staffId} | {name} | {classId} | null}]
+  //   place: where a conflict is in the composition, whatever application opens it: the teacher (staffId), the name
+  //   of a teacher without a match (name) or the τμήμα (classId); null for the issues. The Πλήρες Σχολικό Πρόγραμμα
+  //   shows a conflict there.
   //   group 'staff' / 'class': the conflicts on a teacher (also a name without a match) or on a τμήμα; 'warning' / 'info':
   //   the issues of the composition. Sorted by group, then by the teacher or τμήμα (order of Προσωπικό / Τμήματα), day and
   //   time. Targets: a conflict that involves the Ατομικά Προγράμματα → the Ατομικά (with the teacher); a conflict inside
@@ -1243,7 +1246,8 @@
         else if (onlyDesign) target = {app: 'oloimero'};
         else target = conflict.type === 'staff' ? {app: 'school', staffId: conflict.who} : {app: 'school'};
       }
-      result.push({group, level: 'error', code: conflict.type, who, day: conflict.day, start: conflict.start, end: conflict.end, target,
+      const place = conflict.type === 'class' ? {classId: conflict.who} : conflict.type === 'staff' ? {staffId: conflict.who} : {name: String(conflict.who)};
+      result.push({group, level: 'error', code: conflict.type, who, day: conflict.day, start: conflict.start, end: conflict.end, target, place,
         order: group === 'staff' ? (conflict.type === 'staff' && staffOrder.has(conflict.who) ? staffOrder.get(conflict.who) : 1e6) : (classOrder.has(conflict.who) ? classOrder.get(conflict.who) : 1e6),
         message: who + ' — ' + when(conflict) + ': ' + what(conflict.a) + ' και ' + what(conflict.b) + '.'});
     }
@@ -1258,7 +1262,7 @@
       else if (issue.code === 'outsideZone' && issue.kind === 'individual') target = activity?.staff?.[0] ? {app: 'individual', staffId: activity.staff[0]} : {app: 'individual'};
       else if (issue.code === 'mixedZone') target = activity?.classes?.[0] ? {app: 'school', classId: activity.classes[0]} : activity?.staff?.[0] ? {app: 'school', staffId: activity.staff[0]} : {app: 'school'};
       const info = issue.level === 'info';
-      result.push({group: info ? 'info' : 'warning', level: info ? 'info' : 'warning', code: issue.code, who: '', day: null, start: '', end: '', target, order: 0, message: issue.message});
+      result.push({group: info ? 'info' : 'warning', level: info ? 'info' : 'warning', code: issue.code, who: '', day: null, start: '', end: '', target, place: null, order: 0, message: issue.message});
     }
     const groups = ['staff', 'class', 'warning', 'info'];
     result.sort((a, b) => groups.indexOf(a.group) - groups.indexOf(b.group) || a.order - b.order || classCollator.compare(a.who, b.who) ||

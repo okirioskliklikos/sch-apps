@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.41
+ * Έκδοση αρχείου: 0.42
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -19,6 +19,7 @@
  *   window.schoolIconText                          εικονίδιο μαζί με κείμενο, στη μέση των κεφαλαίων
  *   window.schoolListSelection                     πολλαπλή επιλογή σε λίστες (κλικ, Shift, Ctrl, βέλη)
  *   window.schoolMenu                              αναδυόμενο μενού («⋮», «⋯»), ένα τη φορά
+ *   window.schoolProblems                          γραμμή και λίστα προβλημάτων μιας περιόδου (συγκρούσεις, προειδοποιήσεις)
  *
  * Μέσα σε iframe (υποεφαρμογή μέσα στο Κεντρικό Μενού) επιπλέον:
  *   - στέλνει μόνο του το school-app:activity, ώστε να μη κλειδώνει η συνεδρία όσο ο χρήστης δουλεύει,
@@ -31,7 +32,8 @@
  * Κουμπιά κάτω δεξιά σε κάθε διάλογο: τέρμα δεξιά η «Ακύρωση», αριστερά της η προεπιλεγμένη ενέργεια
  * (αποδοχή) και πιο αριστερά οι υπόλοιπες. Κάτω αριστερά δεν μπαίνουν κουμπιά.
  * Η εμφάνιση των διαλόγων ορίζεται στο _ui.css (.school-confirm, .school-choice-*, .school-import-*,
- *   .school-color-picker, .school-richtext-*, .school-tag*, .school-tagged-text*), του μενού στο _ui.css (.ui-menu)
+ *   .school-color-picker, .school-richtext-*, .school-tag*, .school-tagged-text*), του μενού στο _ui.css (.ui-menu),
+ *   της λίστας προβλημάτων στο _ui.css (.school-problems*)
  * και του κουμπιού «☰» στο _subapp.css.
  */
 (() => {
@@ -1694,6 +1696,101 @@
   const schoolTaggedText = Object.freeze({create: createTaggedText});
 
 
+  // Λίστα προβλημάτων μιας περιόδου (π.χ. τα προβλήματα της σύνθεσης, SchoolTimetable.compositionProblems): μία γραμμή
+  // με την κατάσταση (κόκκινο «!» με συγκρούσεις, πορτοκαλί με προειδοποιήσεις, πράσινο τικ χωρίς προβλήματα) και το
+  // πλήθος ως κουμπί-σύνδεσμο που ανοίγει τη λίστα, σε ομάδες. Κάθε γραμμή έχει το μήνυμα και, όταν η εφαρμογή τον
+  // δίνει, σύνδεσμο στο τέλος.
+  //   schoolProblems.render(box, {problems, failure, open, onToggle, link, help, label, compact, listBox}) → η σύνοψη
+  //   {state:'error'|'warning'|'ok', conflicts, warnings, infos, text}
+  //     problems  [{group:'staff'|'class'|'warning'|'info', message, …}]· οι ομάδες με αυτή τη σειρά
+  //     failure   κείμενο: ο έλεγχος δεν έγινε (πορτοκαλί, χωρίς λίστα)
+  //     open      αν η λίστα είναι ανοιχτή· onToggle(open): καλείται όταν ο χρήστης την ανοίγει ή την κλείνει (η
+  //               εφαρμογή κρατά την τιμή· το component ξαναζωγραφίζεται μόνο του)
+  //     link(problem) → {label, title, run} | null: ο σύνδεσμος της γραμμής· run(problem) στο κλικ
+  //     help      κείμενο κάτω από τη λίστα· label: το κείμενο πριν από το πλήθος (προεπιλογή «Έλεγχος περιόδου:»)
+  //     compact   χωρίς πλαίσιο, με γράμματα 13px (π.χ. κάτω από την Περίοδο στο Πλήρες Σχολικό Πρόγραμμα)
+  //     listBox   στοιχείο όπου μπαίνει η ανοιχτή λίστα, σε δικό της πλαίσιο, αντί για κάτω από τη γραμμή· κρύβεται
+  //               όταν η λίστα είναι κλειστή
+  //   Η εμφάνιση ορίζεται στο _ui.css (.school-problems*).
+  const PROBLEM_GROUPS = Object.freeze([['staff', 'Συγκρούσεις εκπαιδευτικών'], ['class', 'Συγκρούσεις τμημάτων'], ['warning', 'Προειδοποιήσεις'], ['info', 'Ενημερώσεις']]);
+  const problemCount = (count, one, many) => count + ' ' + (count === 1 ? one : many);
+  function problemsSummary(problems, failure) {
+    const count = group => problems.filter(item => item.group === group).length;
+    const conflicts = count('staff') + count('class'), warnings = count('warning'), infos = count('info');
+    const infoText = infos ? problemCount(infos, 'ενημέρωση', 'ενημερώσεις') : '';
+    if (failure) return {state: 'warning', icon: 'warning', conflicts, warnings, infos, text: failure};
+    if (conflicts || warnings) {
+      return {state: conflicts ? 'error' : 'warning', icon: conflicts ? 'alert' : 'warning', conflicts, warnings, infos,
+        text: [conflicts ? problemCount(conflicts, 'σύγκρουση', 'συγκρούσεις') : '', warnings ? problemCount(warnings, 'προειδοποίηση', 'προειδοποιήσεις') : '', infoText].filter(Boolean).join(' · ')};
+    }
+    return {state: 'ok', icon: 'check', conflicts, warnings, infos, text: 'Χωρίς συγκρούσεις και προειδοποιήσεις' + (infoText ? ' · ' + infoText : '')};
+  }
+  function renderProblems(box, options = {}) {
+    const problems = (Array.isArray(options.problems) ? options.problems : []).filter(item => item && typeof item === 'object');
+    const failure = String(options.failure || ''), summary = problemsSummary(problems, failure);
+    const result = {state: summary.state, conflicts: summary.conflicts, warnings: summary.warnings, infos: summary.infos, text: summary.text};
+    if (!box) return result;
+    const open = !!options.open, listBox = options.listBox || null;
+    const hideList = () => { if (listBox) { listBox.hidden = true; listBox.replaceChildren(); } };
+    box.classList.add('school-problems');
+    box.classList.toggle('school-problems-compact', !!options.compact);
+    const head = document.createElement('div'), label = document.createElement('span');
+    head.className = 'school-problems-head';
+    label.className = 'school-problems-state ' + summary.state;
+    label.innerHTML = schoolIconText(summary.icon, problems.length && !failure ? options.label || 'Έλεγχος περιόδου:' : summary.text);
+    head.append(label);
+    if (!problems.length || failure) { box.replaceChildren(head); hideList(); return result; }
+    const toggle = document.createElement('button');
+    toggle.type = 'button'; toggle.className = 'ui-link-button'; toggle.setAttribute('aria-expanded', String(open));
+    toggle.innerHTML = schoolIconText(open ? 'chevron-down' : 'chevron-right', summary.text, {end: true});
+    toggle.title = open ? 'Απόκρυψη της λίστας' : 'Πού είναι κάθε πρόβλημα και από ποιες πηγές προκαλείται';
+    toggle.onclick = () => {
+      const next = !open;
+      if (typeof options.onToggle === 'function') options.onToggle(next);
+      renderProblems(box, {...options, open: next});
+      box.querySelector('.school-problems-head .ui-link-button')?.focus();
+    };
+    head.append(toggle);
+    if (!open) { box.replaceChildren(head); hideList(); return result; }
+    const list = document.createElement('div');
+    list.className = 'school-problems-list';
+    for (const [group, title] of PROBLEM_GROUPS) {
+      const items = problems.filter(item => item.group === group);
+      if (!items.length) continue;
+      const heading = document.createElement('h3'), ul = document.createElement('ul');
+      heading.textContent = title + ' (' + items.length + ')';
+      for (const item of items) {
+        const li = document.createElement('li'), textNode = document.createElement('span');
+        textNode.textContent = String(item.message ?? '');
+        li.append(textNode);
+        const link = typeof options.link === 'function' ? options.link(item) : null;
+        if (link?.label && typeof link.run === 'function') {
+          const button = document.createElement('button');
+          button.type = 'button'; button.className = 'ui-link-button';
+          button.innerHTML = schoolIconText('chevron-right', link.label, {end: true});
+          if (link.title) button.title = link.title;
+          button.onclick = () => link.run(item);
+          li.append(button);
+        }
+        ul.append(li);
+      }
+      list.append(heading, ul);
+    }
+    if (options.help) {
+      const help = document.createElement('p');
+      help.className = 'ui-helper'; help.textContent = String(options.help);
+      list.append(help);
+    }
+    if (listBox) {
+      box.replaceChildren(head);
+      listBox.classList.add('school-problems-panel');
+      listBox.hidden = false;
+      listBox.replaceChildren(list);
+    } else box.replaceChildren(head, list);
+    return result;
+  }
+  const schoolProblems = Object.freeze({render: renderProblems});
+
   // Αναδυόμενο μενού (π.χ. «⋮» μιας κάρτας, «⋯» της κεφαλίδας), ένα τη φορά.
   //   schoolMenu.open(anchor, items, {label, align}) → Promise με την τιμή (value) του στοιχείου που επιλέχθηκε, ή
   //   null όταν το μενού κλείσει χωρίς επιλογή (Esc, κλικ έξω, Tab, αλλαγή μεγέθους, ή δεύτερο κλικ στο ίδιο κουμπί).
@@ -1793,4 +1890,5 @@
   window.schoolTags = schoolTags;
   window.schoolTaggedText = schoolTaggedText;
   window.schoolMenu = schoolMenu;
+  window.schoolProblems = schoolProblems;
 })();

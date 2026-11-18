@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Σχολικά Προγράμματα v0.28</title>
+<title>Σχολικά Προγράμματα v0.29</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -22,8 +22,7 @@
   --sp-modified:#9a4d00;--sp-modified-bg:#fff4e5;--sp-modified-border:#f3d3b0;
   --sp-note-bg:#fff7ed;--sp-note-border:#fed7aa;--sp-note-text:#9a3412;
   --sp-new-text:#1d6b46;
-  --sp-row-selected:#e8f1ff;
-  --sp-ok:#1d6b46
+  --sp-row-selected:#e8f1ff
 }
 /* «⋯» of the header: an icon button with an invisible character, so it keeps the shared baseline of the header. */
 header .sp-more{display:inline-flex;align-items:center;justify-content:center;flex:none;width:var(--school-ui-control-height);padding-left:0;padding-right:0}
@@ -94,21 +93,8 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
 .sp-drafts .ui-helper{flex-basis:100%;margin:0}
 .sp-board-empty{min-height:260px}
 
-/* Warnings of the composition, under the Πλήρες Σχολικό Πρόγραμμα: one line, which opens into a list. */
-.sp-problems{margin-top:12px;padding:10px 14px;background:var(--school-ui-surface);border:1px solid var(--school-ui-border);border-radius:10px;font-size:15px;line-height:1.45}
-.sp-problems-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px}
-.sp-problems-head .ui-icon-text{--ui-icon-text-size:var(--school-ui-icon-size)}
-.sp-problems-state{font-weight:650}
-.sp-problems-state.error{color:var(--school-ui-error)}
-.sp-problems-state.warning{color:var(--school-ui-warning)}
-.sp-problems-state.ok{color:var(--sp-ok)}
-.sp-problems-list{margin-top:8px;max-height:min(50vh,420px);overflow:auto;border-top:1px solid var(--school-ui-border)}
-.sp-problems-list h3{margin:10px 0 4px;font-size:15px}
-.sp-problems-list ul{list-style:none;margin:0;padding:0}
-.sp-problems-list li{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px 14px;padding:5px 2px;border-bottom:1px solid var(--school-ui-border);font-size:14px}
-.sp-problems-list li>span{flex:1 1 320px;min-width:0;overflow-wrap:anywhere}
-.sp-problems-list li .ui-link-button{flex:none;margin-left:auto;white-space:nowrap}
-.sp-problems-list .ui-helper{margin:8px 0 2px}
+/* Warnings of the composition, under the Πλήρες Σχολικό Πρόγραμμα: the shared schoolProblems of _ui.js. */
+#problems{margin-top:12px}
 .sp-dialog-warning{margin:6px 0 0!important}
 .sp-restore-target{display:grid;gap:8px;margin:14px 0 0;padding:10px 12px;border:1px solid var(--school-ui-border);border-radius:8px}
 .sp-restore-target legend{padding:0 6px;font-weight:650}
@@ -194,7 +180,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΣΠ</span></span><span class="brand-text"><span>Σχολικά Προγράμματα</span><span class="small version">v0.28</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" aria-hidden="true"><span>ΣΠ</span></span><span class="brand-text"><span>Σχολικά Προγράμματα</span><span class="small version">v0.29</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="more" class="sp-more" type="button" title="Περισσότερες ενέργειες" aria-label="Περισσότερες ενέργειες" disabled></button>
@@ -214,7 +200,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
   // with «Αποθήκευση», as one school-timetables:save (periods + put/delete, and the new τμήματα of the imports), all or
   // nothing. The current period is shared with the program applications (school-timetables:period), and they open
   // from here with a target (school-timetables:open). Under the Πλήρες, the warnings of the composition of the period
-  // (SchoolTimetable.compositionProblems). In the menu «⋯», the backup of a period to an external file and its restore
+  // (SchoolTimetable.compositionProblems, shown with schoolProblems of _ui.js). In the menu «⋯», the backup of a period to an external file and its restore
   // (SchoolTimetable.periodBackup …; the file is written and read by the host, school-programs:file). A new import from
   // FET (also by dropping the CSV and the .fet onto its card) always gives the period a σχέδιο Ολοημέρου, and offers a
   // backup of the period before stored programs are replaced (placeFetImport).
@@ -444,7 +430,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
         <div class="sp-full-text"><h2 id="fullTitle">Πλήρες Σχολικό Πρόγραμμα</h2><p>Η σύνθεση των τριών πηγών της περιόδου: προβολή, επεξεργασία ωρών και εκτύπωση.</p></div>
         <button id="openFull" type="button" class="primary">Άνοιγμα προγράμματος</button>
       </section>
-      <section id="problems" class="sp-problems" aria-label="Συγκρούσεις και προειδοποιήσεις της περιόδου" hidden></section>
+      <section id="problems" aria-label="Συγκρούσεις και προειδοποιήσεις της περιόδου" hidden></section>
       <div id="drafts" class="sp-drafts"></div>`;
     board.querySelectorAll('[data-menu]').forEach(button => { button.innerHTML = schoolIcon('more-vertical'); button.onclick = () => cardMenu(button, button.dataset.menu); });
     board.querySelectorAll('[data-open]').forEach(button => { button.onclick = () => openApp(button.dataset.open); });
@@ -457,11 +443,10 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
   }
   // ---- Warnings of the composition (under the Πλήρες) ----
   // The conflicts and the warnings of the composition of the period, as the programs are in the page (unsaved changes
-  // included), from SchoolTimetable.composePeriod and compositionProblems. One line, closed at first; opened, a list in
-  // groups, each problem with a link to the application that shows it (period, and teacher or τμήμα).
+  // included), from SchoolTimetable.composePeriod and compositionProblems, with the shared schoolProblems (_ui.js):
+  // one line, closed at first; opened, a list in groups, each problem with a link to the application that shows it
+  // (period, and teacher or τμήμα).
   const APP_LINKS = Object.freeze({school: 'Πλήρες Πρόγραμμα', oloimero: 'Ολοήμερο Designer', individual: 'Ατομικά Προγράμματα'});
-  const PROBLEM_GROUPS = Object.freeze([['staff', 'Συγκρούσεις εκπαιδευτικών'], ['class', 'Συγκρούσεις τμημάτων'], ['warning', 'Προειδοποιήσεις'], ['info', 'Ενημερώσεις']]);
-  const plural = (count, one, many) => count + ' ' + (count === 1 ? one : many);
   function renderProblems() {
     const box = $('problems'), period = periodById(selectedId);
     if (!box) return;
@@ -472,56 +457,14 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
       const composition = T.composePeriod({periodId: period.id, programs: draft.programs, staff: context.staff || [], classes: yearClasses(), teachingHours: context.teachingHours});
       problems = T.compositionProblems(composition, {staff: context.staff || [], classes: yearClasses()});
     } catch (error) { failure = 'Ο έλεγχος των προγραμμάτων της περιόδου δεν γίνεται: ' + error.message; }
-    const count = group => problems.filter(item => item.group === group).length;
-    const conflicts = count('staff') + count('class'), warnings = count('warning'), infos = count('info');
-    let state, icon, summary;
-    if (failure) { state = 'warning'; icon = 'warning'; summary = failure; }
-    else if (conflicts || warnings) {
-      state = conflicts ? 'error' : 'warning'; icon = conflicts ? 'alert' : 'warning';
-      summary = [conflicts ? plural(conflicts, 'σύγκρουση', 'συγκρούσεις') : '', warnings ? plural(warnings, 'προειδοποίηση', 'προειδοποιήσεις') : '', infos ? plural(infos, 'ενημέρωση', 'ενημερώσεις') : ''].filter(Boolean).join(' · ');
-    } else { state = 'ok'; icon = 'check'; summary = 'Χωρίς συγκρούσεις και προειδοποιήσεις' + (infos ? ' · ' + plural(infos, 'ενημέρωση', 'ενημερώσεις') : ''); }
-    const head = document.createElement('div');
-    head.className = 'sp-problems-head';
-    const label = document.createElement('span');
-    label.className = 'sp-problems-state ' + state;
-    label.innerHTML = schoolIconText(icon, problems.length ? 'Έλεγχος περιόδου:' : summary);
-    head.append(label);
-    if (!problems.length) { box.replaceChildren(head); return; }
-    const toggle = document.createElement('button');
-    toggle.type = 'button'; toggle.className = 'ui-link-button'; toggle.setAttribute('aria-expanded', String(problemsOpen));
-    toggle.innerHTML = schoolIconText(problemsOpen ? 'chevron-down' : 'chevron-right', summary, {end: true});
-    toggle.title = problemsOpen ? 'Απόκρυψη της λίστας' : 'Πού είναι κάθε πρόβλημα και από ποιες πηγές προκαλείται';
-    toggle.onclick = () => { problemsOpen = !problemsOpen; renderProblems(); $('problems')?.querySelector('.sp-problems-head .ui-link-button')?.focus(); };
-    head.append(toggle);
-    if (!problemsOpen) { box.replaceChildren(head); return; }
-    const list = document.createElement('div');
-    list.className = 'sp-problems-list';
-    for (const [group, title] of PROBLEM_GROUPS) {
-      const items = problems.filter(item => item.group === group);
-      if (!items.length) continue;
-      const heading = document.createElement('h3'), ul = document.createElement('ul');
-      heading.textContent = title + ' (' + items.length + ')';
-      for (const item of items) {
-        const li = document.createElement('li'), text = document.createElement('span');
-        text.textContent = item.message;
-        li.append(text);
-        if (item.target?.app && APP_LINKS[item.target.app]) {
-          const link = document.createElement('button');
-          link.type = 'button'; link.className = 'ui-link-button';
-          link.innerHTML = schoolIconText('chevron-right', APP_LINKS[item.target.app], {end: true});
-          link.title = targetText(period, item.target);
-          link.onclick = () => openApp(item.target.app, {staffId: item.target.staffId, classId: item.target.classId, day: item.day, start: item.start});
-          li.append(link);
-        }
-        ul.append(li);
-      }
-      list.append(heading, ul);
-    }
-    const help = document.createElement('p');
-    help.className = 'ui-helper';
-    help.textContent = 'Από τη σύνθεση της περιόδου, όπως είναι τα προγράμματα στη σελίδα (μαζί με τις αλλαγές που δεν έχουν αποθηκευτεί).';
-    list.append(help);
-    box.replaceChildren(head, list);
+    schoolProblems.render(box, {
+      problems, failure, open: problemsOpen, onToggle: open => { problemsOpen = open; },
+      help: 'Από τη σύνθεση της περιόδου, όπως είναι τα προγράμματα στη σελίδα (μαζί με τις αλλαγές που δεν έχουν αποθηκευτεί).',
+      link: item => item.target?.app && APP_LINKS[item.target.app] ? {
+        label: APP_LINKS[item.target.app], title: targetText(period, item.target),
+        run: () => openApp(item.target.app, {staffId: item.target.staffId, classId: item.target.classId, day: item.day, start: item.start})
+      } : null
+    });
   }
   // «Άνοιγμα: Ατομικά Προγράμματα — περίοδος «Α», εκπαιδευτικός «…»».
   function targetText(period, target) {

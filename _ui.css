@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινό περιβάλλον χρήστη
- * Έκδοση αρχείου: 0.54
+ * Έκδοση αρχείου: 0.55
  * Όνομα κατά την εγκατάσταση: _ui.css
  */
 
@@ -34,6 +34,8 @@
   /* Warning: something to check that does not stop the action (e.g. two homeroom teachers for one class).
      Dark amber, readable on white and on the grey of disabled fields (at least 5:1). */
   --school-ui-warning:#a14a00;
+  /* All is well (e.g. a period without conflicts in schoolProblems): dark green, readable on white. */
+  --school-ui-ok:#1d6b46;
   --school-ui-disabled-bg:#edf0f4;
   --school-ui-disabled-text:#657182;
   --school-ui-disabled-button-bg:#f6f8fa;
@@ -628,3 +630,26 @@ fieldset.ui-fields{margin:0;padding:0;min-width:0;border:0}
 .ui-menu button.ui-menu-item.danger:hover:not(:disabled),.ui-menu button.ui-menu-item.danger:focus-visible{background:#fdecea;color:var(--school-ui-error)}
 .ui-menu button.ui-menu-item:disabled{opacity:1;background:transparent;color:var(--school-ui-disabled-text);cursor:default}
 .ui-menu-separator{height:1px;margin:4px 6px;background:var(--school-ui-border)}
+
+/* Problems of a period (schoolProblems of _ui.js): one line with the state and the count, which opens into a list
+   in groups, each problem with a link at its end. Framed box by default; .school-problems-compact without a frame,
+   in 13px letters (e.g. under the period in the Πλήρες Σχολικό Πρόγραμμα); .school-problems-panel: the open list in
+   its own box (option listBox). */
+.school-problems{padding:10px 14px;background:var(--school-ui-surface);border:1px solid var(--school-ui-border);border-radius:10px;font-size:15px;line-height:1.45}
+.school-problems.school-problems-compact{padding:0;background:none;border:0;border-radius:0;font-size:13px;line-height:1.5}
+.school-problems-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px}
+.school-problems-head .ui-icon-text{--ui-icon-text-size:var(--school-ui-icon-size)}
+.school-problems-compact .school-problems-head .ui-icon-text{--ui-icon-text-size:var(--school-ui-icon-size-list)}
+.school-problems-state{font-weight:650}
+.school-problems-state.error{color:var(--school-ui-error)}
+.school-problems-state.warning{color:var(--school-ui-warning)}
+.school-problems-state.ok{color:var(--school-ui-ok)}
+.school-problems-list{margin-top:8px;max-height:min(50vh,420px);overflow:auto;border-top:1px solid var(--school-ui-border)}
+.school-problems-list h3{margin:10px 0 4px;font-size:15px}
+.school-problems-list ul{list-style:none;margin:0;padding:0}
+.school-problems-list li{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px 14px;padding:5px 2px;border-bottom:1px solid var(--school-ui-border);font-size:14px}
+.school-problems-list li>span{flex:1 1 320px;min-width:0;overflow-wrap:anywhere}
+.school-problems-list li .ui-link-button{flex:none;margin-left:auto;white-space:nowrap}
+.school-problems-list .ui-helper{margin:8px 0 2px}
+.school-problems-panel{box-sizing:border-box;padding:0 14px 6px;background:var(--school-ui-surface);border:1px solid var(--school-ui-border);border-radius:10px;font-size:15px;line-height:1.45}
+.school-problems-panel .school-problems-list{margin-top:0;max-height:min(40vh,360px);border-top:0}
