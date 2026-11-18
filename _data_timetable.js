@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων: CSV, FET, προγράμματα
- * Έκδοση αρχείου: 0.06
+ * Έκδοση αρχείου: 0.07
  * Όνομα κατά την εγκατάσταση: _data_timetable.js
  *
  * Ο κοινός κώδικας δεδομένων είναι σε τέσσερα αρχεία, που φορτώνονται πάντα όλα, με αυτή τη σειρά, μετά το _ui.js
@@ -23,7 +23,8 @@
  *                           Ατομικά Προγράμματα (νέο πρόγραμμα, δραστηριότητες από τα κελιά, αντιγραφή ανά
  *                           εκπαιδευτικό), σύνθεση περιόδου (composePeriod: Ωρολόγιο, σχέδιο Ολοημέρου και Ατομικά
  *                           Προγράμματα μαζί, με ώρες, συγκρούσεις και ζώνες· oloimeroDiff: σύγκριση Ωρολογίου και
- *                           σχεδίου Ολοημέρου στις ζώνες Ολοημέρου), Επίσημες περίοδοι και Προσχέδια
+ *                           σχεδίου Ολοημέρου στις ζώνες Ολοημέρου· moveProblems: οι κανόνες μετακίνησης
+ *                           δραστηριοτήτων ανά είδος), Επίσημες περίοδοι και Προσχέδια
  *                           περιόδων, αρχική και τρέχουσα κατάσταση προγράμματος (program.initial), διαθέσιμες ώρες
  *                           Ολοημέρου της περιόδου, τα προβλήματα της σύνθεσης για τον χρήστη (compositionProblems),
  *                           αντίγραφο ασφαλείας περιόδου και επαναφορά του. Δεν είναι ακόμη παγωμένο: το
@@ -138,16 +139,18 @@
   //   importers: οι εισαγωγείς του είδους (βλέπε «Εισαγωγείς» παρακάτω)· κενό όταν δεν υπάρχει εισαγωγή.
   //   zone: η ζώνη της ημέρας που δίνει το είδος στη σύνθεση της περιόδου (composePeriod): 'morning' (Πρωινό) ή
   //   'oloimero' (Πρωινή Ζώνη, Γεύμα, Ολοήμερο, Διευρυμένο)· support: οι δραστηριότητές του είναι στήριξη (δεν
-  //   συγκρούονται στους μαθητές και δεν είναι μαθήματα της τάξης).
+  //   συγκρούονται στους μαθητές και δεν είναι μαθήματα της τάξης)· exclusive: μια ώρα του είδους είναι μόνο του
+  //   εκπαιδευτικού της: καμία άλλη δραστηριότητα του ίδιου εκπαιδευτικού την ίδια ώρα, σε καμία λειτουργία
+  //   (βλέπε moveProblems).
   //   initialSource: τα κλειδιά του source που ανήκουν στην κατάσταση του προγράμματος, μαζί με τις δραστηριότητες,
   //   για την αρχική και την τρέχουσα κατάσταση (βλέπε «Αρχική και τρέχουσα κατάσταση»).
   // Νέο είδος: μια εγγραφή εδώ (με εισαγωγέα, αν η εφαρμογή του εξάγει αρχείο), και στο host τα
   // δικαιώματα και ο validator του source.
   // Ο εισαγωγέας του Ολοημέρου μπαίνει στο oloimero.importers από το _data_oloimero.js, που μετά παγώνει τη λίστα.
   const KINDS = Object.freeze({
-    school: Object.freeze({label: 'Ωρολόγιο', owner: 'fet_timetable_editor.html', ownerTitle: 'FET Timetable Editor', counts: true, drafts: true, history: true, zone: 'morning', support: false, initialSource: Object.freeze(['unavailable']), importers: Object.freeze([fetImporter()])}),
-    oloimero: Object.freeze({label: 'Ολοήμερο', owner: 'oloimero_designer.html', ownerTitle: 'Ολοήμερο Designer', counts: false, drafts: true, history: false, zone: 'oloimero', support: false, initialSource: Object.freeze(['placements', 'pending', 'design']), importers: []}),
-    individual: Object.freeze({label: 'Ατομικά Προγράμματα', owner: 'individual_programs.html', ownerTitle: 'Ατομικά Προγράμματα', counts: true, drafts: false, history: true, zone: 'morning', support: true, initialSource: Object.freeze(['placements', 'pending']), importers: Object.freeze([])})
+    school: Object.freeze({label: 'Ωρολόγιο', owner: 'fet_timetable_editor.html', ownerTitle: 'Πλήρες Σχολικό Πρόγραμμα', counts: true, drafts: true, history: true, zone: 'morning', support: false, exclusive: false, initialSource: Object.freeze(['unavailable']), importers: Object.freeze([fetImporter()])}),
+    oloimero: Object.freeze({label: 'Ολοήμερο', owner: 'oloimero_designer.html', ownerTitle: 'Ολοήμερο Designer', counts: false, drafts: true, history: false, zone: 'oloimero', support: false, exclusive: false, initialSource: Object.freeze(['placements', 'pending', 'design']), importers: []}),
+    individual: Object.freeze({label: 'Ατομικά Προγράμματα', owner: 'individual_programs.html', ownerTitle: 'Ατομικά Προγράμματα', counts: true, drafts: false, history: true, zone: 'morning', support: true, exclusive: true, initialSource: Object.freeze(['placements', 'pending']), importers: Object.freeze([])})
   });
   const countsInHours = kind => !!KINDS[kind]?.counts;
   // Οι εισαγωγείς ενός είδους, και ένας συγκεκριμένος εισαγωγέας (ή null).
@@ -700,6 +703,56 @@
     return result;
   }
 
+  // ---- Μετακίνηση δραστηριοτήτων ----
+  // Moving activities of a period to other times, with the rules of their kinds, in one place for every app that
+  // moves them: the Πλήρες Σχολικό Πρόγραμμα (the Ωρολόγιο and the Ατομικά Προγράμματα), and the Ατομικά Προγράμματα
+  // themselves from Step 7. Nothing changes here.
+  //   composition: the composition of the period (composePeriod) before the moves; moves: [{kind, activity, times}],
+  //   the new times of each activity (a swap is two moves).
+  //   Rules of the kinds (errors: no mode allows them):
+  //     'zone': a time outside the zone of the kind (KINDS[kind].zone), e.g. an hour of the Ωρολόγιο or of the Ατομικά
+  //             in a zone of the Ολοήμερο, which belong to the Ολοήμερο Designer;
+  //     'busy': a time where the teacher has another hour and one of the two is of a kind whose hour is the
+  //             teacher's alone (KINDS[kind].exclusive: the Ατομικά Προγράμματα).
+  //   conflicts: what the moves clash with, among the entries that count in the composition (without the moved
+  //   activities) and among the moves themselves: on the teacher always, on the students only when neither is support
+  //   (the rules of composePeriod). A 'busy' error is not repeated as a conflict on the teacher.
+  // → {errors:[{code:'zone'|'busy', move, time, entry, other}], conflicts:[{type:'staff'|'unmatched'|'class', who,
+  //    day, start, end, move, entry, other}]} (entry: the entry of the composition; other: the other move, when the
+  //    clash is between two moves).
+  function moveProblems(composition, moves) {
+    const result = {errors: [], conflicts: []};
+    if (!composition || !Array.isArray(moves) || !moves.length) return result;
+    const zoneHours = oloimeroTimes(composition.teachingHours);
+    const list = moves.filter(move => isObject(move) && isObject(move.activity));
+    const moved = new Set(list.map(move => move.activity));
+    const others = (composition.entries || []).filter(entry => !moved.has(entry.activity));
+    const common = (a, b) => unique(a || []).filter(item => (b || []).includes(item));
+    // One time of a move against one time of something else (an entry of the composition, or another move).
+    const check = (move, time, otherActivity, otherKind, otherTime, where) => {
+      if (!timesOverlap(time, otherTime)) return;
+      const base = {day: time.day, start: time.start > otherTime.start ? time.start : otherTime.start, end: time.end < otherTime.end ? time.end : otherTime.end, move, entry: where.entry || null, other: where.other || null};
+      const staff = common(move.activity.staff, otherActivity.staff), unmatched = common(move.activity.unmatched, otherActivity.unmatched);
+      const exclusive = !!KINDS[move.kind]?.exclusive || !!KINDS[otherKind]?.exclusive;
+      if ((staff.length || unmatched.length) && exclusive) result.errors.push({code: 'busy', move, time, entry: base.entry, other: base.other});
+      else {
+        for (const id of staff) result.conflicts.push({type: 'staff', who: id, ...base});
+        for (const name of unmatched) result.conflicts.push({type: 'unmatched', who: name, ...base});
+      }
+      if (!KINDS[move.kind]?.support && !KINDS[otherKind]?.support) for (const id of unique(studentsClash(move.activity, otherActivity))) result.conflicts.push({type: 'class', who: id, ...base});
+    };
+    list.forEach((move, index) => {
+      const times = (Array.isArray(move.times) ? move.times : []).filter(validTime);
+      const zone = KINDS[move.kind]?.zone;
+      for (const time of times) {
+        if (zone && zoneIn(time, zoneHours) !== zone) result.errors.push({code: 'zone', move, time, entry: null, other: null});
+        for (const entry of others) for (const otherTime of entry.times) check(move, time, entry.activity, entry.kind, otherTime, {entry});
+        for (const other of list.slice(index + 1)) for (const otherTime of (other.times || []).filter(validTime)) check(move, time, other.activity, other.kind, otherTime, {other});
+      }
+    });
+    return result;
+  }
+
   // ---- Διαθεσιμότητα ----
   // Οι ώρες μη διαθεσιμότητας ενός εκπαιδευτικού από το source ενός προγράμματος FET: [{day, start, end}].
   function unavailableTimes(program, staffId) {
@@ -831,7 +884,8 @@
   //   'import'    {importer, files:[name…], activities}            import from files
   //   'copy'      {fromPeriod, replacements:[{fromName, toName}]}  copy from another period (individual:
   //               {fromPeriod, staff:[name…]}, the teachers that were copied)
-  //   'oloimero'  {design, kept, removed, added, assigned}          Εισαγωγή Ολοημέρου (also with no change)
+  //   'oloimero'  {design, kept, removed, added, assigned}          Εισαγωγή Ολοημέρου of the FET Timetable Editor (old
+  //               entries only: no longer written)
   //   'edit'      {activities}                                      manual changes, one entry per save (individual:
   //               {staff:[name…]}, the teachers whose program changed)
   //   'setInitial' {}                                               «Ορισμός ως Αρχική» (setInitial)
@@ -841,8 +895,8 @@
   const HISTORY_LIMIT = 20;
   const historyTime = entry => { const time = Date.parse(entry?.at); return Number.isNaN(time) ? 0 : time; };
   // The history of a program (a copy), newest first. Without the key: built from the source of a program from
-  // FET (import and files, last Εισαγωγή Ολοημέρου, replacements and moves of modifiedAfterImport), with
-  // derived:true, since times and counts there are not exact.
+  // FET (import and files, last Εισαγωγή Ολοημέρου, replacements and moves of modifiedAfterImport: the last two only
+  // in older programs), with derived:true, since times and counts there are not exact.
   function programHistory(program) {
     if (Array.isArray(program?.history)) return clone(program.history.filter(isObject));
     const source = program?.source, list = [];
@@ -1629,7 +1683,7 @@
     PERIOD_STATUSES, isDraftPeriod, officialPeriods, sortPeriods, periodNumbers, periodEnd, periodAt, programAt, programsAt, periodWarnings,
     classSpelling, studentsIndex, expandStudents, studentsFromNames, studentsText, activitySubject, activitySubjectDetails, homeroomTeacher, isGeneralTeacher, sortStaff, sortStaffAlphabetically,
     conflicts, studentsClash, unavailableTimes, availability, staffBusyAt, replaceStaff,
-    OLOIMERO_CATEGORIES, hourZone, composePeriod, compositionAt, oloimeroDiff,
+    OLOIMERO_CATEGORIES, hourZone, composePeriod, compositionAt, moveProblems, oloimeroDiff,
     HISTORY_LIMIT, history: programHistory, ensureHistory, addHistory,
     programState, initialSnapshot, initialProgram, isModified, keepInitial, restoreInitial, setInitial,
     OLOIMERO_HOURS_MAX, oloimeroAvailableHours,

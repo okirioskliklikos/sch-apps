@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Προγράμματα στο Κεντρικό Μενού (host)
- * Έκδοση αρχείου: 0.20
+ * Έκδοση αρχείου: 0.21
  * Όνομα κατά την εγκατάσταση: _host_timetables.js
  *
  * Κώδικας μόνο του host για τα προγράμματα (timetablesByYear). Το φορτώνει το index.html μετά το
@@ -72,14 +72,9 @@
   // Το μέγεθος δεν έχει όριο εδώ: το index προειδοποιεί στην αποθήκευση όταν το αρχείο είναι πολύ μεγάλο.
   const LIMITS = Object.freeze({periods: 15, programs: 200, activities: 2000, times: 100, people: 100, text: 2000, ops: 1000});
   const WARN_RATIO = 0.9;
-  // Εξαιρέσεις στα δικαιώματα: μια εφαρμογή που αναθέτει σε περίοδο ένα υπάρχον πρόγραμμα άλλου είδους,
-  // χωρίς να αλλάζει το περιεχόμενό του. Ο FET Timetable Editor, μετά από Εισαγωγή Ολοημέρου από
-  // προσχέδιο, δημιουργεί ανεξάρτητο σχέδιο Ολοημέρου στην περίοδο (νέο id), αφήνοντας το αρχικό
-  // προσχέδιο ανέπαφο. Η ενέργεια αποθηκεύεται μαζί με το ωρολόγιο.
-  const ASSIGN = Object.freeze({[T.kinds.school.owner]: Object.freeze(['oloimero'])});
   // Εφαρμογές που γράφουν και είδος που δεν είναι δικό τους, μόνο σε προγράμματα περιόδων (όχι προσχέδια, όχι διαγραφή,
-  // όχι τον κατάλογο): ο FET Timetable Editor (το Πλήρες Σχολικό Πρόγραμμα) αλλάζει και τις πρωινές ώρες των Ατομικών
-  // Προγραμμάτων.
+  // όχι τον κατάλογο): το Πλήρες Σχολικό Πρόγραμμα (fet_timetable_editor.html) αλλάζει και τις πρωινές ώρες των
+  // Ατομικών Προγραμμάτων. Τα σχέδια του Ολοημέρου τα γράφουν μόνο ο Ολοήμερος Designer και τα Σχολικά Προγράμματα.
   const WRITERS = Object.freeze({individual: Object.freeze([T.kinds.school.owner])});
 
   const clone = value => structuredClone(value);
@@ -95,17 +90,16 @@
   // ---- Δικαιώματα ----
   // periods: γράφει τη λίστα περιόδων· kinds: τα είδη που γράφει· owned: τα είδη της (εφαρμογή-κάτοχος)· drafts: 'own'
   // (φτιάχνει, αλλάζει και σβήνει προσχέδια των ειδών της), 'fromPeriod' (μόνο προσχέδιο από πρόγραμμα που ήταν σε
-  // περίοδο) ή 'none'· assign: είδη άλλων εφαρμογών που μόνο αναθέτει σε περίοδο (και βλέπει τα προσχέδιά τους)·
-  // oloimeroHours: γράφει τις διαθέσιμες ώρες Ολοημέρου των περιόδων. Τα είδη του kinds που δεν είναι στο owned (WRITERS)
+  // περίοδο) ή 'none'· oloimeroHours: γράφει τις διαθέσιμες ώρες Ολοημέρου των περιόδων. Τα είδη του kinds που δεν είναι στο owned (WRITERS)
   // τα γράφει μόνο σε προγράμματα περιόδων.
   function permissions(app) {
-    if (app === PROGRAMS_APP) return {app, periods: true, kinds: Object.keys(T.kinds), owned: [], drafts: 'fromPeriod', assign: [], oloimeroHours: true};
+    if (app === PROGRAMS_APP) return {app, periods: true, kinds: Object.keys(T.kinds), owned: [], drafts: 'fromPeriod', oloimeroHours: true};
     const owned = Object.keys(T.kinds).filter(kind => T.kinds[kind].owner === app);
     const kinds = Object.keys(T.kinds).filter(kind => owned.includes(kind) || (WRITERS[kind] || []).includes(app));
-    return {app, periods: false, kinds, owned, drafts: owned.length ? 'own' : 'none', assign: [...(ASSIGN[app] || [])].filter(kind => known(kind) && !kinds.includes(kind)), oloimeroHours: owned.includes('oloimero')};
+    return {app, periods: false, kinds, owned, drafts: owned.length ? 'own' : 'none', oloimeroHours: owned.includes('oloimero')};
   }
   // Εφαρμογή που μόνο διαβάζει προγράμματα (π.χ. Σχολικό Ημερολόγιο): δεν βλέπει τα Προσχέδια περιόδων.
-  const readerOnly = rights => !rights.periods && !rights.kinds.length && !rights.assign.length;
+  const readerOnly = rights => !rights.periods && !rights.kinds.length;
 
   // ---- Δεδομένα του έτους ----
   // Το timetablesByYear[year], ή κενή δομή όταν δεν υπάρχει ακόμη. Δεν αλλάζει το data.
@@ -270,11 +264,11 @@
   }
 
   // school-timetables:context για μια εφαρμογή: τα προγράμματα περιόδων όλων των γνωστών ειδών και τα
-  // προσχέδια των ειδών της εφαρμογής (και των ειδών που αναθέτει). Προγράμματα άγνωστου είδους δεν στέλνονται.
+  // προσχέδια των ειδών της εφαρμογής. Προγράμματα άγνωστου είδους δεν στέλνονται.
   // Μια εφαρμογή που μόνο διαβάζει δεν παίρνει τα Προσχέδια περιόδων και τα προγράμματά τους.
   function context(data, app, revision) {
     const year = data.school.year, timetables = yearData(data, year), rights = permissions(app);
-    const drafts = new Set([...(rights.drafts === 'own' ? rights.owned : []), ...rights.assign]);
+    const drafts = new Set(rights.drafts === 'own' ? rights.owned : []);
     const periods = readerOnly(rights) ? T.officialPeriods(timetables.periods) : timetables.periods;
     const periodIds = new Set(periods.map(period => period?.id));
     const draftCounts = Object.fromEntries(Object.keys(T.kinds).map(kind => [kind, 0]));
@@ -548,7 +542,7 @@
       validateCatalog(message.individualCatalog);
     }
     if (!ops.length && !changesPeriods && !changesCatalog && !changesHours) throw Error('Δεν υπάρχουν αλλαγές για αποθήκευση.');
-    if (!rights.kinds.length && !rights.assign.length) throw Error('Η εφαρμογή δεν έχει δικαίωμα να αλλάξει προγράμματα.');
+    if (!rights.kinds.length) throw Error('Η εφαρμογή δεν έχει δικαίωμα να αλλάξει προγράμματα.');
 
     const candidate = clone(data), current = yearData(candidate, year);
     const periods = changesPeriods ? clone(message.periods) : clone(current.periods);
@@ -566,14 +560,7 @@
     const may = kind => rights.kinds.includes(kind);
     // Είδη που η εφαρμογή γράφει χωρίς να είναι δικά της (WRITERS): μόνο προγράμματα περιόδων.
     const periodOnly = kind => may(kind) && !rights.owned.includes(kind) && rights.app !== PROGRAMS_APP;
-    // Είδη που η εφαρμογή μόνο αναθέτει σε περίοδο (ASSIGN): αλλάζει μόνο η περίοδος, και το όνομα όταν γίνεται
-    // προσχέδιο· διαγράφει πρόγραμμα περιόδου μόνο όταν στη θέση του ανατίθεται άλλο στην ίδια αποθήκευση·
-    // επιτρέπει επίσης νέο πρόγραμμα περιόδου μόνο ως ακριβές αντίγραφο υπάρχοντος προσχεδίου που παραμένει
-    // ανέπαφο, και την παλιότερη μετακίνηση προσχεδίου με αντίγραφο για συμβατότητα.
-    const assignOnly = kind => !may(kind) && rights.assign.includes(kind);
-    const withoutPlace = program => { const {periodId, name, updatedAt, ...rest} = program; return stableJson(rest); };
-    const withoutCopy = program => { const {id, periodId, updatedAt, ...rest} = program; return stableJson(rest); };
-    const assignDeletes = [], assignMoves = [], assignCopies = [], assignPeriodCopies = [], draftCopies = [];
+    const draftCopies = [];
     // A copy of a period program: the same, apart from its identity, place, name, dates, history and initial state.
     const asDraftCopy = program => { const {id, periodId, name, createdAt, updatedAt, history, initial, initialSetAt, ...rest} = program; return stableJson(rest); };
 
@@ -585,40 +572,16 @@
       touched.add(id);
       const existing = before.get(id);
       if (existing && !known(existing.kind)) throw Error('Το πρόγραμμα ' + programName(existing) + ' είναι άγνωστου είδους και δεν αλλάζει από εδώ. Βεβαιώσου ότι το index.html είναι η τελευταία έκδοση.');
-      if (existing && !may(existing.kind) && !assignOnly(existing.kind)) throw Error('Η εφαρμογή δεν μπορεί να αλλάξει το πρόγραμμα ' + programName(existing) + '.');
+      if (existing && !may(existing.kind)) throw Error('Η εφαρμογή δεν μπορεί να αλλάξει το πρόγραμμα ' + programName(existing) + '.');
       if (existing && rights.drafts === 'fromPeriod' && existing.periodId == null) throw Error('Το προσχέδιο ' + programName(existing) + ' αλλάζει ή σβήνεται μόνο από την εφαρμογή του είδους του.');
       if (existing && periodOnly(existing.kind) && (op.op === 'delete' || existing.periodId == null)) throw Error('Η εφαρμογή μπορεί μόνο να αλλάξει το πρόγραμμα ' + programName(existing) + ' μιας περιόδου, όχι να το διαγράψει.');
       if (op.op === 'delete') {
         if (!existing) throw Error('Το πρόγραμμα που ζητήθηκε να διαγραφεί δεν υπάρχει πια. Φόρτωσε ξανά τα στοιχεία.');
-        if (assignOnly(existing.kind)) {
-          if (existing.periodId == null) throw Error('Το προσχέδιο ' + programName(existing) + ' σβήνεται μόνο από την εφαρμογή του είδους του.');
-          assignDeletes.push(existing);
-        }
         result.delete(id);
         continue;
       }
       const program = clone(op.program);
       if (!known(program.kind)) throw Error('Ένα πρόγραμμα έχει άγνωστο είδος ' + quoted(String(program.kind)) + '.');
-      if (assignOnly(program.kind)) {
-        if (!existing && program.periodId == null) {
-          assignCopies.push(program);
-          result.set(id, program);
-          puts.push(program);
-          continue;
-        }
-        if (!existing && program.periodId != null) {
-          assignPeriodCopies.push(program);
-          result.set(id, program);
-          puts.push(program);
-          continue;
-        }
-        if (!existing) throw Error('Η εφαρμογή μπορεί μόνο να αναθέσει σε περίοδο ένα υπάρχον πρόγραμμα του είδους ' + quoted(kindLabel(program.kind)) + '.');
-        if (withoutPlace(program) !== withoutPlace(existing) || (program.periodId != null && (program.name || '') !== (existing.name || ''))) throw Error('Η εφαρμογή μπορεί μόνο να αναθέσει σε περίοδο το πρόγραμμα ' + programName(existing) + ', χωρίς να αλλάξει το περιεχόμενό του.');
-        if (program.periodId != null && program.periodId !== existing.periodId) assignMoves.push(program);
-        result.set(id, program);
-        puts.push(program);
-        continue;
-      }
       if (!may(program.kind)) throw Error('Η εφαρμογή δεν μπορεί να γράψει προγράμματα του είδους ' + quoted(kindLabel(program.kind)) + '.');
       if (existing && existing.kind !== program.kind) throw Error('Το είδος ενός προγράμματος δεν αλλάζει.');
       // «Σχολικά Προγράμματα»: a draft only from a program that was in a period, or as a copy of a period program
@@ -633,31 +596,10 @@
       result.set(id, program);
       puts.push(program);
     }
-    // Αντίγραφα: το καθένα ίδιο (εκτός από id, περίοδο και ημερομηνία αλλαγής) με ένα προσχέδιο που ανατίθεται σε
-    // περίοδο στην ίδια αποθήκευση, ένα αντίγραφο ανά προσχέδιο.
-    const copied = new Set();
-    for (const copy of assignCopies) {
-      const original = assignMoves.map(program => before.get(program.id)).find(item => item && item.periodId == null && item.kind === copy.kind && !copied.has(item.id) && withoutCopy(item) === withoutCopy(copy));
-      if (!original) throw Error('Η εφαρμογή μπορεί να φτιάξει πρόγραμμα του είδους ' + quoted(kindLabel(copy.kind)) + ' μόνο ως αντίγραφο του προσχεδίου που ανατίθεται σε περίοδο στην ίδια αποθήκευση, χωρίς αλλαγές.');
-      copied.add(original.id);
-    }
-    // New-period assignment: only one exact copy per original draft, which must remain unchanged.
-    // This cannot grant the FET Editor general creation or editing rights over Ολοήμερο designs.
-    const assignedFrom = new Set();
-    for (const copy of assignPeriodCopies) {
-      const original = [...before.values()].find(item => item.periodId == null && item.kind === copy.kind &&
-        !assignedFrom.has(item.id) && withoutCopy(item) === withoutCopy(copy) &&
-        result.has(item.id) && stableJson(result.get(item.id)) === stableJson(item));
-      if (!original) throw Error('Η εφαρμογή μπορεί να αναθέσει νέο σχέδιο περιόδου μόνο ως ακριβές αντίγραφο υπάρχοντος προσχεδίου που παραμένει ανέπαφο.');
-      assignedFrom.add(original.id);
-    }
     // «Αντίγραφο ως προσχέδιο»: each new draft of «Σχολικά Προγράμματα» is a copy of a period program of the save.
     for (const copy of draftCopies) {
       const text = asDraftCopy(copy);
       if (![...result.values()].some(item => isObject(item) && item.periodId != null && item.kind === copy.kind && item.id !== copy.id && asDraftCopy(item) === text)) throw Error('Η εφαρμογή «' + PROGRAMS_TITLE + '» φτιάχνει προσχέδιο μόνο από πρόγραμμα που ήταν σε περίοδο, ή ως αντίγραφο ενός προγράμματος περιόδου.');
-    }
-    for (const removed of assignDeletes) {
-      if (![...assignMoves, ...assignPeriodCopies].some(program => program.kind === removed.kind && program.periodId === removed.periodId)) throw Error('Το πρόγραμμα ' + programName(removed) + ' σβήνεται από εδώ μόνο όταν στη θέση του ανατίθεται άλλο σχέδιο.');
     }
 
     // Κανόνες του συνόλου: κανένα πρόγραμμα σε περίοδο που δεν υπάρχει, ένα πρόγραμμα ανά είδος και περίοδο.

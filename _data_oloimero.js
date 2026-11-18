@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων: Ολοήμερο
- * Έκδοση αρχείου: 0.03
+ * Έκδοση αρχείου: 0.04
  * Όνομα κατά την εγκατάσταση: _data_oloimero.js
  *
  * Ο κοινός κώδικας δεδομένων είναι σε τέσσερα αρχεία, που φορτώνονται πάντα όλα, με αυτή τη σειρά, μετά το _ui.js
@@ -13,9 +13,8 @@
  * φορτώθηκαν πριν από αυτό τα προηγούμενα, και αλλιώς σταματά με μήνυμα που λέει ποιο λείπει.
  * Χρειάζεται τα _data.js και _data_timetable.js.
  * Προσθέτει στο window.SchoolTimetable, και μετά το παγώνει:
- *   Εισαγωγή Ολοημέρου στο ωρολόγιο (analyzeOloimeroReplace, applyOloimeroReplace), σχέδια του Ολοήμερου Designer
- *   (ώρες, μαθητές των κελιών από ονόματα, χρώμα εκπαιδευτικού, γραμμές σχεδίου), το CSV του Ολοημέρου για το FET
- *   (ανάγνωση και εξαγωγή), τον εισαγωγέα «CSV Ολοημέρου» του είδους oloimero (kinds.oloimero.importers), και το
+ *   σχέδια του Ολοήμερου Designer (ώρες, μαθητές των κελιών από ονόματα, χρώμα εκπαιδευτικού, γραμμές σχεδίου), το
+ *   CSV του Ολοημέρου για το FET (ανάγνωση και εξαγωγή), τον εισαγωγέα «CSV Ολοημέρου» του είδους oloimero (kinds.oloimero.importers), και το
  *   σχέδιο Ολοημέρου στην εισαγωγή FET (σύγκριση των σχεδίων με το Ωρολόγιο: oloimeroDesignMatches· αυτόματη
  *   δημιουργία σχεδίου από το Ωρολόγιο: oloimeroDesignFromSchool).
  * Τα προγράμματα είναι στη μορφή formatVersion:2: οι δραστηριότητες αναφέρονται στα τμήματα με το id τους
@@ -29,7 +28,7 @@
   const {BOM, parse, quote, compareKey, DAY_KEYS, DAY_LABELS, uid, clone, unique, nowIso, quoted, isObject,
     timedHours, GRADES, GRADE_LABELS, gradeKey, gradeName, isGeneralClass, classKey, sortClasses, classesById,
     classNameOf, classGrades, classResolver, combineStudents, subsetParent, studentsParts, expandGrade, studentsText,
-    ensureHistory, addHistory, tagSets, tagsOf, isGeneralTeacher, sortStaff, sameKey, OLOIMERO_CATEGORIES} = parts;
+    tagSets, tagsOf, isGeneralTeacher, sortStaff, OLOIMERO_CATEGORIES} = parts;
 
   // ---- CSV του Ολοήμερου Designer ----
   // CSV του Ολοήμερου Designer → γραμμές σχεδίου. Οι γραμμές σχολίων («#») και η ενσωματωμένη
@@ -51,146 +50,6 @@
       teachers: tagsOf(row[columns.teachers]),
       tags: tagsOf(row[columns.tags])
     }));
-  }
-
-  // =============================================================================================
-  // ---- Εισαγωγή Ολοημέρου στο ωρολόγιο ----
-  // =============================================================================================
-  // Οι δραστηριότητες ενός σχεδίου του Ολοήμερου Designer (kind 'oloimero') συγκρίνονται μία προς μία με τις
-  // δραστηριότητες ενός προγράμματος (του ωρολογίου) που είναι ολόκληρες σε ώρες Ολοημέρου: τις ώρες του
-  // πίνακα του Designer (OLOIMERO_CATEGORIES: Πρωινή Ζώνη, Γεύμα, Ολοήμερο, Διευρυμένο). Όσες είναι ίδιες
-  // μένουν όπως είναι (με το id τους και τα στοιχεία του FET)· όσες του ωρολογίου δεν έχουν ίδια στο σχέδιο
-  // αφαιρούνται· όσες του σχεδίου δεν έχουν ίδια στο ωρολόγιο μπαίνουν. Δεν χρειάζονται Activity Id ή
-  // ετικέτες FET: μάθημα, μαθητές, εκπαιδευτικοί, ημέρες και ώρες έρχονται από το σχέδιο.
-  const timeText = time => (DAY_LABELS[time.day - 1] || 'ημέρα ' + time.day) + ' ' + time.start + '–' + time.end;
-  const byTime = (a, b) => a.day - b.day || (a.start < b.start ? -1 : a.start > b.start ? 1 : 0);
-  // «Ίδια» δραστηριότητα: sameKey του _data_timetable.js (ίδιο μάθημα, εκπαιδευτικοί, μαθητές, ημέρα και ώρες).
-
-  // Ανάλυση (δεν αλλάζει τίποτα).
-  //   program: το ωρολόγιο· design: το σχέδιο του .data· options: {staff, classes, teachingHours, designName}
-  //   (classes: τα Τμήματα του έτους).
-  // → {ok, errors, warnings, info, unmatchedTeachers, kept:[id…], removed:[id…], added:[δραστηριότητες],
-  //    unchanged, counts:{kept, removed, added}, designName}. kept: οι ίδιες, που μένουν· removed: του
-  //    ωρολογίου που αφαιρούνται· added: του σχεδίου που μπαίνουν. Με λάθη η εισαγωγή δεν γίνεται:
-  //   – δραστηριότητα του ωρολογίου με ώρες και μέσα και έξω από τις ώρες Ολοημέρου,
-  //   – δραστηριότητα του σχεδίου σε ώρα που δεν είναι ώρα Ολοημέρου των Ωρών Διδασκαλίας,
-  //   – εκπαιδευτικός του σχεδίου που δεν υπάρχει πια στο Προσωπικό.
-  //   unchanged: όλες οι δραστηριότητες είναι ίδιες (τίποτα δεν αφαιρείται και τίποτα δεν μπαίνει).
-  function analyzeOloimeroReplace(program, design, options = {}) {
-    const result = {ok: false, errors: [], warnings: [], info: [], unmatchedTeachers: [], kept: [], removed: [], added: [], unchanged: false, counts: {}, designName: options.designName || design?.name || ''};
-    const stop = message => { result.errors.push(message); return result; };
-    if (!program) return stop('Δεν υπάρχει ωρολόγιο για την Εισαγωγή Ολοημέρου.');
-    if (design?.kind !== 'oloimero') return stop('Το σχέδιο δεν είναι σχέδιο του Ολοήμερου Designer.');
-    let hours;
-    try { hours = oloimeroHours(options.teachingHours); } catch (error) { return stop(error.message); }
-    if (!hours.length) return stop('Δεν έχουν οριστεί ώρες Πρωινής Ζώνης, Γεύματος, Ολοήμερου ή Διευρυμένου στις «Ώρες Διδασκαλίας».');
-    const staff = options.staff || [], staffById = new Map(staff.map(person => [person.id, person])), classes = options.classes || [];
-    // Μια ώρα είναι «ώρα Ολοημέρου» όταν χωρά ολόκληρη σε μια ώρα Ολοημέρου των Ωρών Διδασκαλίας.
-    const inside = time => hours.some(hour => hour.start <= time.start && time.end <= hour.end);
-    const touches = time => hours.some(hour => time.start < hour.end && hour.start < time.end);
-    const describe = activity => {
-      const people = [...(activity.staff || []).map(id => staffById.get(id)?.shortName || '?'), ...(activity.unmatched || [])].join(', ');
-      const parts = [studentsText(activity, {classes}), people].filter(Boolean);
-      return quoted(activity.subject || '—') + (parts.length ? ' (' + parts.join(' · ') + ')' : '');
-    };
-    const more = (count, one, many) => count > 0 ? ' Το ίδιο ισχύει για ' + count + ' ακόμη ' + (count === 1 ? one : many) + '.' : '';
-
-    // Το ωρολόγιο: οι δραστηριότητές του σε ώρες Ολοημέρου.
-    const mixed = [], current = [];
-    for (const activity of program.activities || []) {
-      const times = activity.times || [];
-      if (!times.length) continue;
-      const outside = times.filter(time => !inside(time));
-      if (!outside.length) current.push(activity);
-      else if (outside.length < times.length || outside.some(touches)) mixed.push(activity);
-    }
-    if (mixed.length) {
-      const first = mixed[0];
-      const times = [...first.times].sort(byTime).map(time => timeText(time) + (inside(time) ? ' (ώρα Ολοημέρου)' : ' (άλλη ώρα)')).join(', ');
-      return stop('Η δραστηριότητα ' + describe(first) + ' του ωρολογίου έχει ώρες και μέσα και έξω από τις ώρες Ολοημέρου: ' + times + '.' +
-        more(mixed.length - 1, 'δραστηριότητα', 'δραστηριότητες') +
-        ' Η Εισαγωγή Ολοημέρου αντικαθιστά μόνο δραστηριότητες που είναι ολόκληρες σε ώρες Ολοημέρου (Πρωινή Ζώνη, Γεύμα, Ολοήμερο, Διευρυμένο). Χώρισε τη δραστηριότητα στο FET και δημιούργησε ξανά το ωρολόγιο, ή έλεγξε τις κατηγορίες των ωρών στις «Ώρες Διδασκαλίας».');
-    }
-
-    // Το σχέδιο: οι δραστηριότητές του, σε μορφή δραστηριότητας του ωρολογίου.
-    const misplaced = [], unknownStaff = [], incoming = [];
-    for (const activity of design.activities || []) {
-      const times = activity.times || [];
-      if (!times.length || times.some(time => !Number.isInteger(time.day) || time.day < 1 || time.day > 5 || !inside(time))) { misplaced.push(activity); continue; }
-      if ((activity.staff || []).some(id => !staffById.has(id))) { unknownStaff.push(activity); continue; }
-      incoming.push({
-        id: uid(), subject: String(activity.subject || ''), staff: unique(activity.staff || []), unmatched: unique(activity.unmatched || []),
-        classes: [...(activity.classes || [])], subsets: [...(activity.subsets || [])], otherStudents: [...(activity.otherStudents || [])], room: String(activity.room || ''),
-        times: [...times].sort(byTime).map(({day, start, end}) => ({day, start, end}))
-      });
-    }
-    const designText = quoted(result.designName || 'Σχέδιο');
-    if (misplaced.length) {
-      const first = misplaced[0], times = [...(first.times || [])].sort(byTime).map(timeText).join(', ');
-      return stop('Η δραστηριότητα ' + describe(first) + ' του σχεδίου ' + designText + ' είναι σε ώρα που δεν είναι ώρα Ολοημέρου στις Ώρες Διδασκαλίας' + (times ? ' (' + times + ')' : '') + '.' +
-        more(misplaced.length - 1, 'δραστηριότητα', 'δραστηριότητες') +
-        ' Μάλλον οι Ώρες Διδασκαλίας άλλαξαν μετά το σχέδιο. Άνοιξε το σχέδιο στον Ολοήμερο Designer, έλεγξε τις θέσεις των δραστηριοτήτων και αποθήκευσέ το ξανά.');
-    }
-    if (unknownStaff.length) return stop('Το σχέδιο ' + designText + ' αναφέρεται σε εκπαιδευτικό που δεν υπάρχει πια στο Προσωπικό (δραστηριότητα ' + describe(unknownStaff[0]) + '). Άνοιξε το σχέδιο στον Ολοήμερο Designer και αποθήκευσέ το ξανά.');
-
-    // Σύγκριση μία προς μία: κάθε δραστηριότητα του σχεδίου κρατά μία ίδια του ωρολογίου, αν υπάρχει.
-    const waiting = new Map();
-    for (const activity of current) {
-      const key = sameKey(activity, classes);
-      if (!waiting.has(key)) waiting.set(key, []);
-      waiting.get(key).push(activity.id);
-    }
-    for (const activity of incoming) {
-      const match = waiting.get(sameKey(activity, classes));
-      if (match?.length) result.kept.push(match.shift());
-      else result.added.push(activity);
-    }
-    const kept = new Set(result.kept);
-    result.removed = current.filter(activity => !kept.has(activity.id)).map(activity => activity.id);
-    result.unchanged = !result.removed.length && !result.added.length;
-    result.counts = {kept: result.kept.length, removed: result.removed.length, added: result.added.length};
-
-    // Εκπαιδευτικοί χωρίς αντιστοίχιση: μόνο όσοι μπαίνουν τώρα (οι ίδιες δραστηριότητες είναι ήδη στο ωρολόγιο).
-    result.unmatchedTeachers = unique(result.added.flatMap(activity => activity.unmatched));
-    if (result.unmatchedTeachers.length) result.warnings.push('Εκπαιδευτικοί του σχεδίου χωρίς αντιστοίχιση στο Προσωπικό: ' + result.unmatchedTeachers.map(quoted).join(', ') + '. Μπαίνουν στο ωρολόγιο χωρίς αντιστοίχιση.');
-    if (!incoming.length && current.length) result.warnings.push('Το σχέδιο ' + designText + ' δεν έχει δραστηριότητες: η εισαγωγή αφαιρεί όλες τις δραστηριότητες Ολοημέρου του ωρολογίου.');
-    const pending = Array.isArray(design.source?.pending) ? design.source.pending.length : 0;
-    if (pending) result.info.push(pending === 1 ? 'Ένα ελλιπές κελί του σχεδίου (χωρίς εκπαιδευτικό, μάθημα ή μαθητές) δεν εισάγεται.' : pending + ' ελλιπή κελιά του σχεδίου (χωρίς εκπαιδευτικό, μάθημα ή μαθητές) δεν εισάγονται.');
-
-    result.ok = true;
-    return result;
-  }
-
-  // Εφαρμογή σε αντίγραφο του προγράμματος. Οι ίδιες δραστηριότητες μένουν όπως είναι· όσες αφαιρούνται
-  // φεύγουν (και οι εγγραφές τους από το source.activities) και όσες μπαίνουν προστίθενται στο τέλος. Το
-  // source.oloimero κρατά ποιο σχέδιο εισήχθη. Σε ωρολόγιο από FET που άλλαξε, το πρόγραμμα σημειώνεται
-  // «τροποποιήθηκε μετά την εισαγωγή» (source.modifiedAfterImport.oloimero), γιατί δεν συμφωνεί πια με το
-  // αρχείο του FET· χωρίς αλλαγές η σημείωση δεν μπαίνει.
-  // Also with no change (analysis.unchanged) the last import (source.oloimero) is updated, and an Ωρολόγιο gets an
-  // 'oloimero' entry in its history (assigned:true with options.assigned).
-  //   options: {designId (το id του σχεδίου στο .data· μετά από ανάθεση προσχεδίου, το id του νέου σχεδίου
-  //   της περιόδου), designName, assigned, now}.
-  function applyOloimeroReplace(program, analysis, options = {}) {
-    if (!analysis?.ok) throw Error('Η Εισαγωγή Ολοημέρου δεν μπορεί να γίνει: ' + (analysis?.errors?.[0] || 'δεν έγινε ανάλυση.'));
-    const result = ensureHistory(clone(program)), removed = new Set(analysis.removed), at = options.now || nowIso();
-    const name = analysis.designName || options.designName || '';
-    result.activities = [...(result.activities || []).filter(activity => !removed.has(activity.id)), ...clone(analysis.added)];
-    result.updatedAt = at;
-    if (isObject(result.source)) {
-      if (isObject(result.source.activities)) for (const id of removed) delete result.source.activities[id];
-      result.source.oloimero = {design: options.designId || null, name, at};
-      if (result.source.type === 'fet' && (removed.size || analysis.added.length)) {
-        const note = isObject(result.source.modifiedAfterImport) ? result.source.modifiedAfterImport : {replacements: []};
-        note.at = at;
-        note.oloimero = {name, at};
-        result.source.modifiedAfterImport = note;
-      }
-    }
-    if (result.kind === 'school') {
-      const counts = analysis.counts || {kept: (analysis.kept || []).length, removed: removed.size, added: (analysis.added || []).length};
-      addHistory(result, {at, type: 'oloimero', design: name, kept: counts.kept, removed: counts.removed, added: counts.added, ...(options.assigned ? {assigned: true} : {})});
-    }
-    return result;
   }
 
   // =============================================================================================
@@ -792,7 +651,6 @@
   timetable.kinds.oloimero.importers.push(oloimeroImporter());
   Object.freeze(timetable.kinds.oloimero.importers);
   Object.freeze(Object.assign(timetable, {
-    analyzeOloimeroReplace, applyOloimeroReplace,
     OLOIMERO_MAX_SLOTS, oloimeroHours, oloimeroTeacherColor, oloimeroStudents,
     oloimeroRowsFromCsv, oloimeroRowsFromProgram, oloimeroCsvFromProgram, oloimeroCells, analyzeOloimeroImport, buildOloimeroProgram,
     oloimeroDesignMatches, oloimeroDesignFromSchool
