@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ολοήμερο Designer v1.98</title>
+<title>Ολοήμερο Designer v1.99</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -39,20 +39,37 @@ main.ol-without-design :is(#board,#boardTimeOverlayAnchor,.board-zoom-controls,.
 .ol-notices:empty{display:none}
 .ol-notices p{margin:0 0 4px;font-size:13px}
 
-/* «Διαχείριση προσχεδίων…» and the additions from FET (inside schoolChoiceDialog) */
-.school-confirm.ol-drafts-dialog{width:min(640px,calc(100vw - 32px))}
-.ol-draft-list{max-height:min(320px,45vh);overflow:auto;margin-top:14px}
+/* «Διαχείριση προσχεδίων»: inline rename, multiple selection, common schoolIcon buttons. */
+.school-confirm.ol-drafts-dialog{width:min(720px,calc(100vw - 32px))}
+.ol-draft-help{margin:0 0 4px!important;color:var(--school-ui-muted);font-size:13px;line-height:1.45}
+.ol-draft-list{min-height:132px;max-height:min(350px,46vh);overflow:auto;margin-top:14px;padding:5px}
 .ol-draft-list:focus-visible{outline:2px solid var(--school-ui-focus);outline-offset:2px}
-.ol-draft-row{display:flex;align-items:baseline;justify-content:space-between;gap:12px;border:1px solid transparent;border-radius:6px;cursor:pointer;user-select:none}
+.ol-draft-row{
+  display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:10px;
+  min-height:43px;padding:4px 5px 4px 10px;border:1px solid transparent;border-radius:7px;
+  cursor:pointer;user-select:none;font-size:15px;line-height:1.4;white-space:normal
+}
 .ol-draft-row:hover:not(.selected){background:#f1f4f8}
-.ol-draft-name{min-width:0;overflow:hidden;text-overflow:ellipsis}
-.ol-draft-date{flex:none;font-size:13px;color:var(--school-ui-muted)}
+.ol-draft-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ol-draft-name-group{display:flex;align-items:center;gap:8px;min-width:0}
+.ol-draft-open{flex:none;padding:2px 8px;border:1px solid #a5d4b3;border-radius:999px;background:#e7f5ec;color:#176534;font-size:12px;line-height:1.3}
+.ol-draft-date{flex:none;font-size:13px;color:var(--school-ui-muted);white-space:nowrap}
+.school-confirm .ol-draft-edit{width:32px;height:32px;min-width:32px;border-color:transparent;background:transparent;color:var(--school-ui-label-text)}
+.school-confirm .ol-draft-edit:hover:not(:disabled){background:var(--school-ui-primary-bg);border-color:var(--school-ui-primary-border)}
+.ol-draft-edit svg,.ol-draft-inline-actions svg{display:block;width:var(--school-ui-icon-size);height:var(--school-ui-icon-size)}
+.ol-draft-row.is-editing{grid-template-columns:minmax(0,1fr) auto;user-select:text}
+.ol-draft-inline{display:flex;align-items:center;gap:6px;min-width:0}
+.ol-draft-inline input{flex:1;min-width:0;width:100%;height:var(--school-ui-control-height);padding:var(--school-ui-control-padding-y) 9px;border:1px solid var(--school-ui-input-border);border-radius:7px}
+.ol-draft-inline-actions{display:flex;gap:4px;flex:none}
+.school-confirm .ol-draft-inline-actions button{display:grid;place-items:center;width:32px;height:32px;padding:0}
+.ol-draft-inline-actions .ol-draft-accept{background:var(--school-ui-success-bg);border-color:var(--school-ui-success-border);color:var(--school-ui-success-text)}
+.ol-draft-inline-actions .ol-draft-accept:hover:not(:disabled){background:var(--school-ui-success-hover-bg);border-color:var(--school-ui-success-border)}
 .ol-draft-empty{margin:8px;color:var(--school-ui-muted)}
 .ol-drafts-dialog .ui-validation-warning{margin-top:8px}
-.ol-draft-tools{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
-.ol-draft-rename{display:flex;align-items:flex-end;gap:8px;margin-top:4px}
-.ol-draft-rename .school-choice-field{flex:1;min-width:0}
-.ol-drafts-dialog .ui-helper{margin:10px 0 0}
+.ol-draft-tools{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.ol-draft-tools button .ui-icon-text{white-space:nowrap}
+.ol-drafts-dialog .ui-helper{margin:12px 0 0}
+@media(max-width:520px){.ol-draft-row{gap:5px;padding-left:5px}.ol-draft-date{font-size:11px}.ol-draft-open{padding:2px 5px}}
 .school-confirm.ol-fet-import{width:min(680px,calc(100vw - 32px))}
 .ol-fet-import .subapp-import-list{min-width:0}
 .teacher-unmatched{font-style:italic}
@@ -593,7 +610,7 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
 <body>
 
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark is-sub" data-app-icon="oloimero" aria-hidden="true"></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v1.98</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark is-sub" data-app-icon="oloimero" aria-hidden="true"></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v1.99</span></span></button></h1></div>
   <select id="program" aria-label="Σχέδιο" hidden></select>
   <span id="periodStatus" class="ui-period-status" hidden></span>
   <span class="save-control">
@@ -3903,84 +3920,119 @@ function renameDraft(id,name){
 async function manageDrafts(){
   closeMenus();
   if(busy||!isReady())return;
-  let selected=new Set(),anchor=null,openId=null,controls=null;
+  let selected=new Set(),anchor=null,openId=null,controls=null,editingId=null,editingValue="";
   const element=(tag,className,text)=>{const node=document.createElement(tag);if(className)node.className=className;if(text!=null)node.textContent=text;return node};
+  const help=element("p","ol-draft-help","Για πολλαπλή επιλογή: Ctrl+κλικ ή Shift+κλικ. Μετονομασία: μολυβάκι, διπλό κλικ ή F2.");
   const list=element("div","subapp-list ol-draft-list");
   list.tabIndex=0;list.setAttribute("role","listbox");list.setAttribute("aria-multiselectable","true");list.setAttribute("aria-label","Προσχέδια");
   const warning=element("p","ui-validation-warning");
   const tools=element("div","ol-draft-tools");
-  const openButton=element("button","","Άνοιγμα");openButton.type="button";
-  const deleteButton=element("button","danger","Διαγραφή επιλεγμένων");deleteButton.type="button";
+  const action=(label,icon,className="")=>{
+    const button=element("button",className);button.type="button";
+    const span=element("span","ui-icon-text");span.innerHTML=schoolIcon(icon);span.append(element("span","",label));button.append(span);
+    return button;
+  };
+  const openButton=action("Άνοιγμα","import","primary");
+  const deleteButton=action("Διαγραφή επιλεγμένων","close","danger");
   tools.append(openButton,deleteButton);
-  const renameRow=element("div","ol-draft-rename");
-  const field=element("label","school-choice-field","Όνομα"),input=element("input");
-  input.type="text";input.maxLength=300;field.append(input);
-  const renameButton=element("button","","Μετονομασία");renameButton.type="button";
-  renameRow.append(field,renameButton);
-  const hint=element("p","ui-helper");
+  const hint=element("p","ui-helper","Οι διαγραφές και οι μετονομασίες γίνονται με την «Αποθήκευση».");
   const drafts=()=>draftsList();
+  const editField=()=>list.querySelector(".ol-draft-inline input");
+  const beginRename=id=>{
+    if(!id)return;
+    const item=drafts().find(entry=>entry.id===id);if(!item)return;
+    selected=new Set([id]);anchor=id;editingId=id;editingValue=item.name;
+    render();const input=editField();input?.focus();input?.select();
+  };
+  const cancelRename=()=>{if(editingId===null)return;editingId=null;render();list.focus()};
+  const saveRename=()=>{
+    if(editingId===null)return;
+    const id=editingId,item=drafts().find(entry=>entry.id===id),input=editField();
+    const name=(input?.value??editingValue).trim();
+    if(!item){cancelRename();return}
+    if(!name){if(input){input.setCustomValidity("Συμπλήρωσε όνομα προσχεδίου.");input.reportValidity();input.focus()}return}
+    editingId=null;
+    if(name!==item.name){renameDraft(id,name);setStatus(`Το προσχέδιο ονομάζεται τώρα ${quoted(name)} — πάτησε «Αποθήκευση»`)}
+    render();list.focus();
+  };
   const render=()=>{
     const items=drafts();
     selected=new Set([...selected].filter(id=>items.some(item=>item.id===id)));
+    if(editingId&&!items.some(item=>item.id===editingId))editingId=null;
     list.replaceChildren(...items.map(item=>{
-      const row=element("div","subapp-list-item ol-draft-row"+(selected.has(item.id)?" selected":""));
+      const editing=editingId===item.id;
+      const row=element("div","subapp-list-item ol-draft-row"+(selected.has(item.id)?" selected":"")+(editing?" is-editing":""));
       row.setAttribute("role","option");row.setAttribute("aria-selected",String(selected.has(item.id)));row.dataset.id=item.id;
       const date=item.isNew?"νέο":item.updatedAt?D.format(localDay(item.updatedAt)):"";
-      row.append(element("span","ol-draft-name",item.name+(current?.id===item.id?" (ανοιχτό)":"")),element("span","ol-draft-date",date));
+      if(editing){
+        const inline=element("div","ol-draft-inline");
+        const input=element("input");input.type="text";input.maxLength=300;input.value=editingValue;
+        input.setAttribute("aria-label","Νέο όνομα προσχεδίου");
+        input.addEventListener("input",()=>{editingValue=input.value;input.setCustomValidity("")});
+        const actions=element("span","ol-draft-inline-actions");
+        const accept=element("button","ol-draft-accept"," ");accept.type="button";accept.innerHTML=schoolIcon("check");accept.title="Αποδοχή μετονομασίας";accept.setAttribute("aria-label",accept.title);
+        const cancel=element("button",""," ");cancel.type="button";cancel.innerHTML=schoolIcon("close");cancel.title="Ακύρωση μετονομασίας";cancel.setAttribute("aria-label",cancel.title);
+        accept.addEventListener("click",event=>{event.stopPropagation();saveRename()});
+        cancel.addEventListener("click",event=>{event.stopPropagation();cancelRename()});
+        actions.append(accept,cancel);inline.append(input,actions);row.append(inline,element("span","ol-draft-date",date));
+      }else{
+        const group=element("span","ol-draft-name-group");
+        group.append(element("span","ol-draft-name",item.name));
+        if(current?.id===item.id)group.append(element("span","ol-draft-open","Ανοιχτό"));
+        const edit=element("button","ui-icon-button ol-draft-edit");edit.type="button";edit.innerHTML=schoolIcon("edit");
+        edit.title="Μετονομασία";edit.setAttribute("aria-label",`Μετονομασία: ${item.name}`);
+        edit.addEventListener("click",event=>{event.stopPropagation();beginRename(item.id)});
+        row.append(group,element("span","ol-draft-date",date),edit);
+      }
       return row;
     }));
     if(!items.length)list.append(element("p","ol-draft-empty","Δεν υπάρχουν προσχέδια."));
     warning.textContent=items.length>DRAFT_WARNING_LIMIT?`Υπάρχουν ${items.length} προσχέδια. Τα προσχέδια μεγαλώνουν το αρχείο .data· καλό είναι να διαγράφεις όσα δεν χρειάζονται.`:"";
     warning.hidden=!warning.textContent;
     const one=selected.size===1?items.find(item=>selected.has(item.id)):null;
-    deleteButton.disabled=!selected.size;
-    renameButton.disabled=input.disabled=!one;
-    if(one&&document.activeElement!==input)input.value=one.name;
-    if(!one)input.value="";
-    openButton.disabled=!one||current?.id===one.id||(dirty&&!!one);
+    deleteButton.disabled=!selected.size||!!editingId;
+    openButton.disabled=!one||current?.id===one.id||dirty||!!editingId;
     hint.textContent=dirty&&one&&current?.id!==one.id?"Για να ανοίξεις άλλο προσχέδιο, αποθήκευσε πρώτα τις αλλαγές.":"Οι διαγραφές και οι μετονομασίες γίνονται με την «Αποθήκευση».";
   };
   list.addEventListener("click",event=>{
+    if(editingId||event.target.closest("button,input"))return;
     const row=event.target.closest(".ol-draft-row");if(!row)return;
     const result=schoolListSelection.click(drafts().map(item=>item.id),selected,anchor,row.dataset.id,event);
     selected=result.selected;anchor=result.anchor;render();
   });
-  list.addEventListener("dblclick",event=>{const row=event.target.closest(".ol-draft-row");if(row&&!openButton.disabled){openId=row.dataset.id;controls?.dialog.close()}});
+  list.addEventListener("dblclick",event=>{
+    if(editingId||event.target.closest("button,input"))return;
+    const row=event.target.closest(".ol-draft-row");if(row){event.preventDefault();beginRename(row.dataset.id)}
+  });
   list.addEventListener("keydown",event=>{
+    if(editingId){
+      if(event.key==="Enter"){event.preventDefault();event.stopPropagation();saveRename()}
+      else if(event.key==="Escape"){event.preventDefault();event.stopPropagation();cancelRename()}
+      return;
+    }
     const order=drafts().map(item=>item.id);
+    if(event.key==="F2"&&selected.size===1){event.preventDefault();beginRename([...selected][0]);return}
     if(schoolListSelection.isSelectAll(event)){event.preventDefault();selected=new Set(order);render();return}
     if(event.key==="ArrowDown"||event.key==="ArrowUp"){
-      event.preventDefault();
-      const result=schoolListSelection.step(order,selected,anchor,event.key==="ArrowDown"?1:-1);
+      event.preventDefault();const result=schoolListSelection.step(order,selected,anchor,event.key==="ArrowDown"?1:-1);
       selected=result.selected;anchor=result.anchor;render();
       list.querySelector(".ol-draft-row.selected")?.scrollIntoView({block:"nearest"});
     }
     if(event.key==="Delete"&&selected.size){event.preventDefault();deleteButton.click()}
   });
   deleteButton.onclick=async()=>{
-    const items=drafts().filter(item=>selected.has(item.id));
-    if(!items.length)return;
+    if(editingId)return;
+    const items=drafts().filter(item=>selected.has(item.id));if(!items.length)return;
     const names=items.slice(0,8).map(item=>`• ${item.name}`).join("\n")+(items.length>8?`\n• και ${items.length-8} ακόμη`:"");
     if(!await schoolConfirm(`Να διαγραφούν ${items.length===1?"το προσχέδιο":`τα ${items.length} προσχέδια`};\n\n${names}\n\nΗ διαγραφή γίνεται με την «Αποθήκευση».`,{title:"Διαγραφή προσχεδίων",accept:"Διαγραφή"}))return;
-    deleteDrafts(items.map(item=>item.id));
-    selected=new Set();render();
+    deleteDrafts(items.map(item=>item.id));selected=new Set();render();
     setStatus(items.length===1?`Διαγράφηκε το προσχέδιο ${quoted(items[0].name)} — πάτησε «Αποθήκευση»`:`Διαγράφηκαν ${items.length} προσχέδια — πάτησε «Αποθήκευση»`);
   };
-  const rename=()=>{
-    const item=drafts().find(entry=>selected.has(entry.id)),name=input.value.trim();
-    if(!item||selected.size!==1)return;
-    if(!name){input.focus();setStatus("Συμπλήρωσε όνομα για το προσχέδιο");return}
-    if(name===item.name)return;
-    renameDraft(item.id,name);render();
-    setStatus(`Το προσχέδιο ονομάζεται τώρα ${quoted(name)}`);
-  };
-  renameButton.onclick=rename;
-  input.addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();rename()}});
-  openButton.onclick=()=>{const id=[...selected][0];if(id){openId=id;controls?.dialog.close()}};
+  openButton.onclick=()=>{if(openButton.disabled)return;const id=[...selected][0];if(id){openId=id;controls?.dialog.close()}};
   render();
   await schoolChoiceDialog({
     title:"Διαχείριση προσχεδίων",className:"ol-drafts-dialog",
-    content:["Τα προσχέδια του Ολοημέρου για το σχολικό έτος. Επίλεξε με κλικ, Ctrl+κλικ ή Shift+κλικ.",list,warning,tools,renameRow,hint],
+    content:["Τα προσχέδια του Ολοημέρου για το σχολικό έτος.",help,list,warning,tools,hint],
     actions:[{label:"Κλείσιμο",accept:true}],
     ready:api=>{controls=api;list.focus()}
   });
