@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ολοήμερο Designer v2.04</title>
+<title>Ολοήμερο Designer v2.05</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -579,7 +579,7 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
 <body>
 
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark is-sub" data-app-icon="oloimero" aria-hidden="true"></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v2.04</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark is-sub" data-app-icon="oloimero" aria-hidden="true"></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v2.05</span></span></button></h1></div>
   <select id="program" aria-label="Σχέδιο" hidden></select>
   <span class="save-control">
     <button id="saveData" class="save-main" type="button" disabled>Αποθήκευση</button>
@@ -1280,6 +1280,17 @@ let pending=new Map();
 let undoStack=[],redoStack=[];
 let currentSnapshot="",baselineSnapshot="";
 let cleanById=new Map();       // design id → its snapshot as stored in the file (to know whether it changed)
+// A design not stored yet that came from an import or a copy: id → the program as it was on the board right after
+// the import or the copy, with its history. The first «Αποθήκευση» compares with it (SchoolTimetable.oloimeroHistoryEdit)
+// and keeps its history.
+let originById=new Map();
+// The origin of the design shown, just after an import or a copy (see originById).
+function setOrigin(history){
+  ensureActivityIds();
+  const origin=buildProgram(current,captureModel());
+  origin.history=history;
+  originById.set(current.id,origin);
+}
 let dirty=false,busy=false;
 
 // The cells of the board, by their place: [hourId|day index|slot, {cards, subjectId, lowerItems, activityId}].
@@ -3443,7 +3454,7 @@ function openInternal(target){
 }
 // Shows a design as stored in the file, without changes: «Αναίρεση» starts again.
 function loadClean(target){
-  pending=new Map();cleanById=new Map();pageNewClasses=[];periodHoursEdits=new Map();boardTarget=null;
+  pending=new Map();cleanById=new Map();originById=new Map();pageNewClasses=[];periodHoursEdits=new Map();boardTarget=null;
   if(target?.programId&&!savedProgram(target.programId))target=defaultTarget();
   openInternal(target);
   sidebarHighlights.clear();
@@ -3687,6 +3698,7 @@ async function importCsv({periodId=null,dropped=null}={}){
   current={...baseOf(program),isNew:true};
   selectedPeriodId=current.periodId;
   applyModel(modelFromProgram(program));
+  setOrigin(T.history(program));
   commit();renderAll();
   setStatus(`Εισήχθησαν ${program.activities.length} δραστηριότητες από το ${quoted(program.source.csvName||"CSV")}`+
     (created.length?` και τα νέα τμήματα ${created.map(item=>item.name).join(", ")}`:"")+" — αποθηκεύονται με την «Αποθήκευση»");
@@ -3741,6 +3753,8 @@ async function copyFromPeriod(){
   current={id:crypto.randomUUID(),periodId,name:"",createdAt:now,updatedAt:now,csvName:"",importedAt:"",isNew:true};
   selectedPeriodId=periodId;
   applyModel(withNewActivityIds(modelFromProgram(source)));
+  // The copy keeps the history of the source, with a «copy» entry (as «Αντιγραφή περιόδου…» of «Σχολικά Προγράμματα»).
+  setOrigin(T.addHistory({history:T.history(source)},{at:now,type:"copy",fromPeriod:periodOf(chosen)?.name||"",replacements:[]}).history);
   commit();renderAll();
   setStatus(`Αντιγράφηκε το σχέδιο της περιόδου ${quoted(periodOf(chosen)?.name||"")} — αποθηκεύεται με την «Αποθήκευση»`);
 }
@@ -3768,7 +3782,15 @@ async function saveDesigns(){
     }
     if(changed)ops[ops.length-1]={op:"put",program:buildProgram({...current,updatedAt:ops[ops.length-1].program.updatedAt},captureModel(),classes)};
   }
-  if(changed)put=ops[ops.length-1].program;
+  if(changed){
+    put=ops[ops.length-1].program;
+    // The history: of the design as stored (or as it came from an import or a copy), with one «edit» entry for this
+    // save: the teachers whose cells changed, or only other changes (SchoolTimetable.oloimeroHistoryEdit).
+    const before=current.isNew?originById.get(current.id)||null:savedProgram(current.id);
+    put.history=T.history(before);
+    const entry=T.oloimeroHistoryEdit(before,put,{staff:context.staff||[]});
+    if(entry)T.addHistory(put,{...entry,at:put.updatedAt});
+  }
   // The period shown is remembered together with this save.
   if(current&&put){const view=`period:${current.periodId}`;if(view!==reportedView){reportedView=view;post({type:"school-timetables:view",view})}}
   setBusy(true);

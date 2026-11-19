@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων: Ολοήμερο
- * Έκδοση αρχείου: 0.05
+ * Έκδοση αρχείου: 0.06
  * Όνομα κατά την εγκατάσταση: _data_oloimero.js
  *
  * Ο κοινός κώδικας δεδομένων είναι σε τέσσερα αρχεία, που φορτώνονται πάντα όλα, με αυτή τη σειρά, μετά το _ui.js
@@ -16,7 +16,8 @@
  *   σχέδια του Ολοήμερου Designer (ώρες, μαθητές των κελιών από ονόματα, χρώμα εκπαιδευτικού, γραμμές σχεδίου), το
  *   CSV του Ολοημέρου για το FET (ανάγνωση και εξαγωγή), τον εισαγωγέα «CSV Ολοημέρου» του είδους oloimero (kinds.oloimero.importers), και το
  *   σχέδιο Ολοημέρου στην εισαγωγή FET (σύγκριση των σχεδίων με το Ωρολόγιο: oloimeroDesignMatches· αυτόματη
- *   δημιουργία σχεδίου από το Ωρολόγιο: oloimeroDesignFromSchool).
+ *   δημιουργία σχεδίου από το Ωρολόγιο: oloimeroDesignFromSchool), και την εγγραφή Ιστορικού μιας αποθήκευσης
+ *   του Designer (oloimeroHistoryEdit).
  * Τα προγράμματα είναι στη μορφή formatVersion:2: οι δραστηριότητες αναφέρονται στα τμήματα με το id τους
  * (classes), και τα ονόματα μαθητών των αρχείων που δεν είναι τμήματα μπαίνουν στο otherStudents.
  */
@@ -490,6 +491,8 @@
     return {
       id: options.id || uid(), formatVersion: 2, kind: options.kind || 'oloimero', periodId: options.periodId ?? null,
       name: options.name || '', createdAt: at, updatedAt: at, activities,
+      // A new import starts its history with the import (see SchoolTimetable.history).
+      history: [{at, type: 'import', importer: 'csv', files: [analysis.csvName].filter(Boolean), activities: activities.length}],
       source: {
         type: 'oloimero-designer', version: 2, csvName: analysis.csvName, importedAt: at,
         design: clone(design), teachers, subjects,
@@ -636,6 +639,7 @@
     return {
       id: options.id || uid(), formatVersion: 2, kind: 'oloimero', periodId: options.periodId ?? null,
       name: options.name || '', createdAt: at, updatedAt: at, activities,
+      history: [{at, type: 'create', from: 'school'}],
       source: {
         type: 'oloimero-designer', version: 2,
         design, teachers, subjects, unions: [], hidden: {grades: [], classes: []},
@@ -643,6 +647,60 @@
         placements, pending
       }
     };
+  }
+
+  // ---- Ιστορικό: η εγγραφή μιας αποθήκευσης του Designer ----
+  // The history entry of one save of a σχέδιο, as in the Ατομικά Προγράμματα: before is the σχέδιο as stored (or, for
+  // a σχέδιο not stored yet, as it came from an import or a copy; null for a new empty one), after the one saved.
+  //   → {type:'edit', staff:[name…]} when the cells of teachers changed: their activities or incomplete cells (day,
+  //     hour, place, subject, students). Names as they are now: of the Προσωπικό (full name, or short name), in its
+  //     order, then the names without a match, alphabetically.
+  //   → {type:'edit'} when only something else of the σχέδιο changed (e.g. formatting, colours, subjects, Συνενώσεις,
+  //     the places of an hour, the classes shown, an incomplete cell without a teacher), and there is a before.
+  //   → null when nothing changed.
+  // The ids of the activities and the classes of the cells (computed from the students) do not count.
+  function oloimeroHistoryEdit(before, after, options = {}) {
+    const staffById = new Map((options.staff || []).filter(isObject).map(person => [person.id, person]));
+    const signatures = program => {
+      const map = new Map(), source = isObject(program?.source) ? program.source : {};
+      const subjects = new Map((Array.isArray(source.subjects) ? source.subjects : []).filter(isObject).map(item => [compareKey(item.name), item.id]));
+      const placements = isObject(source.placements) ? source.placements : {};
+      const add = (key, row) => { if (!map.has(key)) map.set(key, []); map.get(key).push(row); };
+      for (const activity of Array.isArray(program?.activities) ? program.activities.filter(isObject) : []) {
+        const place = isObject(placements[activity.id]) ? placements[activity.id] : {};
+        const subject = subjects.get(compareKey(activity.subject)) ?? 'n:' + compareKey(activity.subject);
+        const row = JSON.stringify(['a', place.hourId ?? '', place.day ?? '', place.slot ?? '', place.students ?? [], subject, activity.times || []]);
+        for (const id of activity.staff || []) add('id:' + id, row);
+        for (const name of activity.unmatched || []) add('name:' + compareKey(name), row);
+      }
+      for (const cell of (Array.isArray(source.pending) ? source.pending : []).filter(isObject)) {
+        const row = JSON.stringify(['p', cell.hourId ?? '', cell.day ?? '', cell.slot ?? '', cell.students ?? [], cell.subjectId ?? '']);
+        if (cell.staffId) add('id:' + cell.staffId, row); else if (cell.name) add('name:' + compareKey(cell.name), row);
+      }
+      for (const rows of map.values()) rows.sort();
+      return map;
+    };
+    const was = signatures(before), now = signatures(after);
+    const changed = unique([...was.keys(), ...now.keys()]).filter(key => JSON.stringify(was.get(key) || []) !== JSON.stringify(now.get(key) || []));
+    if (changed.length) {
+      // The name of a teacher: of the Προσωπικό, else as the σχέδιο has it (a deleted teacher, or a name without a match).
+      const teacherName = (program, key) => (program?.source?.teachers || []).filter(isObject)
+        .find(item => key.startsWith('id:') ? item.staffId === key.slice(3) : !item.staffId && compareKey(item.name) === key.slice(5))?.name;
+      const people = sortStaff(changed.filter(key => key.startsWith('id:') && staffById.has(key.slice(3))).map(key => staffById.get(key.slice(3))));
+      const others = changed.filter(key => !(key.startsWith('id:') && staffById.has(key.slice(3))))
+        .map(key => teacherName(after, key) || teacherName(before, key) || (key.startsWith('name:') ? key.slice(5) : '?'))
+        .sort((a, b) => a.localeCompare(b, 'el', {numeric: true, sensitivity: 'base'}));
+      return {type: 'edit', staff: [...people.map(person => String(person.name || person.shortName || '')), ...others]};
+    }
+    if (!isObject(before)) return null;
+    // The rest of the σχέδιο, with the incomplete cells without a teacher (they belong to no one).
+    const rest = program => {
+      const {placements, pending, csvName, importedAt, ...source} = isObject(program?.source) ? program.source : {};
+      const orphans = (Array.isArray(pending) ? pending : []).filter(cell => isObject(cell) && !cell.staffId && !cell.name)
+        .map(cell => JSON.stringify([cell.hourId ?? '', cell.day ?? '', cell.slot ?? '', cell.students ?? [], cell.subjectId ?? ''])).sort();
+      return JSON.stringify({name: program?.name || '', source, orphans});
+    };
+    return rest(before) !== rest(after) ? {type: 'edit'} : null;
   }
 
   Object.assign(parts, {OLOIMERO_MAX_SLOTS, oloimeroStudents});
@@ -653,7 +711,7 @@
   Object.freeze(Object.assign(timetable, {
     OLOIMERO_MAX_SLOTS, oloimeroHours, oloimeroTeacherColor, oloimeroStudents,
     oloimeroRowsFromCsv, oloimeroRowsFromProgram, oloimeroCsvFromProgram, oloimeroCells, analyzeOloimeroImport, buildOloimeroProgram,
-    oloimeroDesignMatches, oloimeroDesignFromSchool
+    oloimeroDesignMatches, oloimeroDesignFromSchool, oloimeroHistoryEdit
   }));
   parts.loaded('_data_oloimero.js');
 })();

@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων: CSV, FET, προγράμματα
- * Έκδοση αρχείου: 0.12
+ * Έκδοση αρχείου: 0.13
  * Όνομα κατά την εγκατάσταση: _data_timetable.js
  *
  * Ο κοινός κώδικας δεδομένων είναι σε τέσσερα αρχεία, που φορτώνονται πάντα όλα, με αυτή τη σειρά, μετά το _ui.js
@@ -149,7 +149,7 @@
   // Ο εισαγωγέας του Ολοημέρου μπαίνει στο oloimero.importers από το _data_oloimero.js, που μετά παγώνει τη λίστα.
   const KINDS = Object.freeze({
     school: Object.freeze({label: 'Ωρολόγιο', owner: 'fet_timetable_editor.html', ownerTitle: 'Πλήρες Σχολικό Πρόγραμμα', counts: true, history: true, zone: 'morning', support: false, exclusive: false, initialSource: Object.freeze(['unavailable']), importers: Object.freeze([fetImporter()])}),
-    oloimero: Object.freeze({label: 'Ολοήμερο', owner: 'oloimero_designer.html', ownerTitle: 'Ολοήμερο Designer', counts: false, history: false, zone: 'oloimero', support: false, exclusive: false, initialSource: Object.freeze(['placements', 'pending', 'design']), importers: []}),
+    oloimero: Object.freeze({label: 'Ολοήμερο', owner: 'oloimero_designer.html', ownerTitle: 'Ολοήμερο Designer', counts: false, history: true, zone: 'oloimero', support: false, exclusive: false, initialSource: Object.freeze(['placements', 'pending', 'design']), importers: []}),
     individual: Object.freeze({label: 'Ατομικά Προγράμματα', owner: 'individual_programs.html', ownerTitle: 'Ατομικά Προγράμματα', counts: true, history: true, zone: 'morning', support: true, exclusive: true, initialSource: Object.freeze(['placements', 'pending']), importers: Object.freeze([])})
   });
   const countsInHours = kind => !!KINDS[kind]?.counts;
@@ -887,16 +887,19 @@
   }
 
   // ---- Ιστορικό προγράμματος (program.history) ----
-  // The events that created or changed a program of the Ωρολόγιο (kind 'school') or of the Ατομικά Προγράμματα
-  // (kind 'individual'), newest first, at most
+  // The events that created or changed a program of the kinds with history (KINDS[kind].history: the Ωρολόγιο
+  // 'school', the Ολοήμερο 'oloimero', the Ατομικά Προγράμματα 'individual'), newest first, at most
   // HISTORY_LIMIT. Only for information: nothing is undone from it. An entry is {at (ISO date and time), type, …}:
   //   'import'    {importer, files:[name…], activities}            import from files
+  //   'create'    {from:'school'}                                  σχέδιο Ολοημέρου made automatically from the
+  //               Ωρολόγιο of an import from FET (oloimeroDesignFromSchool)
   //   'copy'      {fromPeriod, replacements:[{fromName, toName}]}  copy from another period (individual:
   //               {fromPeriod, staff:[name…]}, the teachers that were copied)
   //   'oloimero'  {design, kept, removed, added, assigned}          Εισαγωγή Ολοημέρου of the FET Timetable Editor (old
   //               entries only: no longer written)
-  //   'edit'      {activities}                                      manual changes, one entry per save (individual:
-  //               {staff:[name…]}, the teachers whose program changed)
+  //   'edit'      {activities}                                      manual changes, one entry per save (individual
+  //               and oloimero: {staff:[name…]}, the teachers whose cells changed; oloimero without staff: only
+  //               other changes of the σχέδιο, e.g. formatting, subjects, Συνενώσεις; see oloimeroHistoryEdit)
   //   'setInitial' {}                                               «Ορισμός ως Αρχική» (setInitial)
   //   'restore'   {}                                                «Επαναφορά» στην αρχική κατάσταση (restoreInitial)
   // Names are written as they were at the time of the event. history:[] (after «Καθαρισμός Ιστορικού») stays
@@ -905,10 +908,16 @@
   const historyTime = entry => { const time = Date.parse(entry?.at); return Number.isNaN(time) ? 0 : time; };
   // The history of a program (a copy), newest first. Without the key: built from the source of a program from
   // FET (import and files, last Εισαγωγή Ολοημέρου, replacements and moves of modifiedAfterImport: the last two only
-  // in older programs), with derived:true, since times and counts there are not exact.
+  // in older programs), or of a σχέδιο Ολοημέρου imported from its CSV (the import), with derived:true, since times
+  // and counts there are not exact.
   function programHistory(program) {
     if (Array.isArray(program?.history)) return clone(program.history.filter(isObject));
     const source = program?.source, list = [];
+    if (isObject(source) && source.type === 'oloimero-designer') {
+      if (typeof source.importedAt === 'string' && source.importedAt && !Number.isNaN(Date.parse(source.importedAt)))
+        list.push({at: source.importedAt, type: 'import', importer: 'csv', files: [source.csvName].filter(name => typeof name === 'string' && name), derived: true});
+      return list;
+    }
     if (!isObject(source) || source.type !== 'fet') return list;
     const note = isObject(source.modifiedAfterImport) ? source.modifiedAfterImport : null;
     if (source.importedAt) list.push({at: source.importedAt, type: 'import', importer: 'fet', files: [source.csvName, source.fetName].filter(Boolean), derived: true});

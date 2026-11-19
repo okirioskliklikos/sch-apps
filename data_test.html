@@ -12,7 +12,7 @@
   φτιάχνονται από το σύντομο όνομα των δασκάλων («[Α1] - …», classesFromStaff). Με το .data δοκιμής, οι
   έλεγχοι των νέων ετικετών (v2) παίρνουν το Προσωπικό από αυτό, γιατί το CSV του Ολοημέρου έχει τα σύντομα
   ονόματα του Προσωπικού.
-  Έκδοση αρχείου: 0.72
+  Έκδοση αρχείου: 0.73
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -39,7 +39,7 @@ button{font:inherit;padding:6px 14px;border-radius:8px;border:1px solid #94a3b8;
 </head>
 <body>
 <main>
-<h1><span>Έλεγχος του _data.js και των _host_*.js</span><span class="version" aria-label="Έκδοση 0.72">v0.72</span></h1>
+<h1><span>Έλεγχος του _data.js και των _host_*.js</span><span class="version" aria-label="Έκδοση 0.73">v0.73</span></h1>
 <p>Η σελίδα ελέγχει τις κοινές λειτουργίες του <code>_data.js</code> και τις καθαρές συναρτήσεις του <code>_host_timetables.js</code>, του <code>_host_calendar.js</code>, του <code>_host_classes.js</code>, του <code>_host_students.js</code> και του <code>_host_tags.js</code> με τα αρχεία δοκιμής (βλέπε «Αρχεία δοκιμής» στο <code>project_instructions.md</code>). Δεν αλλάζει κανένα αρχείο.</p>
 <div class="drop" id="drop">
   <p><strong>Αρχεία δοκιμής:</strong> σύρε τα εδώ ή <input type="file" id="files" multiple accept=".fet,.csv,.data"></p>
@@ -290,7 +290,7 @@ function basics() {
   equal('Πρόγραμμα σε ημερομηνία: school 01/10 → p1, school 12/11 → κανένα (δεν συνεχίζει)', [T.programAt(timetables, 'school', '2026-10-01')?.id, T.programAt(timetables, 'school', '2026-11-12')], ['p1', null]);
   equal('classSpelling: ΣΤ1, στ2, Στ 1, α1, Ά2, Ε10, Α\', Υποδοχή, Ζ1, κενό', ['ΣΤ1', 'στ2', 'Στ 1', 'α1', 'Ά2', 'Ε10', "Α'", 'Υποδοχή', 'Ζ1', ''].map(T.classSpelling), ['Στ1', 'Στ2', 'Στ1', 'Α1', 'Α2', 'Ε10', '', '', '', '']);
   equal('Κατάλογος ειδών: μετρούν school, individual', Object.keys(T.kinds).filter(T.countsInHours), ['school', 'individual']);
-  equal('Κατάλογος ειδών: Ιστορικό (history), χωρίς προσχέδια (drafts)', Object.fromEntries(Object.keys(T.kinds).map(kind => [kind, [T.kinds[kind].history, 'drafts' in T.kinds[kind]]])), {school: [true, false], oloimero: [false, false], individual: [true, false]});
+  equal('Κατάλογος ειδών: Ιστορικό (history), χωρίς προσχέδια (drafts)', Object.fromEntries(Object.keys(T.kinds).map(kind => [kind, [T.kinds[kind].history, 'drafts' in T.kinds[kind]]])), {school: [true, false], oloimero: [true, false], individual: [true, false]});
 }
 
 // Τμήματα (SchoolClasses): είδος, κλειδί, ταξινόμηση, τάξεις, μετονομασία και αντιστοίχιση ονομάτων (resolver).
@@ -820,6 +820,56 @@ function fetDesignChecks() {
   equal('Χωρίς αντιστοίχιση αλλά κρατημένος: εκπαιδευτικός με όνομα στο σχέδιο', kept.source.teachers.filter(t => !t.staffId).map(t => [t.name, t.color]), [['Άγνωστος', '#bfe3ff']]);
   const empty = T.oloimeroDesignFromSchool({activities: []}, {...ctx, periodId: 'pa'});
   equal('Ωρολόγιο χωρίς ώρες Ολοημέρου: κενό σχέδιο', [empty.activities.length, empty.source.design.hours.every(h => h.count === 0)], [0, true]);
+
+  // Ιστορικό του Ολοημέρου: δημιουργία, εισαγωγή CSV, αρχικό Ιστορικό παλαιότερων σχεδίων, εγγραφή αποθήκευσης.
+  check('Το Ολοήμερο κρατά Ιστορικό (kinds.oloimero.history)', T.kinds.oloimero.history === true);
+  equal('Αυτόματο σχέδιο: Ιστορικό με την αυτόματη δημιουργία από το Ωρολόγιο', design.history, [{at: '2026-11-18T10:00:00.000Z', type: 'create', from: 'school'}]);
+  const exported = T.oloimeroCsvFromProgram(design, ctx);
+  const importer = T.importer('oloimero', 'csv');
+  const csvAnalysis = importer.analyze({csv: {name: 'olo.csv', text: exported.text}}, {staff: MINI_STAFF, classes, teachingHours: HOURS_V2});
+  if (csvAnalysis.ok) {
+    const fromCsv = importer.build(csvAnalysis, {unmatched: 'keep', kind: 'oloimero', periodId: 'pa', name: '', now: '2026-11-19T10:00:00.000Z'});
+    equal('Εισαγωγή CSV Ολοημέρου: Ιστορικό με την εισαγωγή (αρχείο, πλήθος δραστηριοτήτων)', fromCsv.history,
+      [{at: '2026-11-19T10:00:00.000Z', type: 'import', importer: 'csv', files: ['olo.csv'], activities: fromCsv.activities.length}]);
+    check('Το σχέδιο από CSV με Ιστορικό το δέχεται το host', !hostError(fromCsv, MINI_STAFF, classes), hostError(fromCsv, MINI_STAFF, classes));
+  } else check('Εισαγωγή CSV Ολοημέρου από την εξαγωγή του αυτόματου σχεδίου', false, messages(csvAnalysis));
+  const older = structuredClone(design); delete older.history;
+  older.source.csvName = 'παλιό.csv'; older.source.importedAt = '2026-10-05T09:30:00.000Z';
+  equal('Παλαιότερο σχέδιο χωρίς Ιστορικό, από CSV: αρχικό Ιστορικό με την εισαγωγή (από παλαιότερα στοιχεία)', T.history(older),
+    [{at: '2026-10-05T09:30:00.000Z', type: 'import', importer: 'csv', files: ['παλιό.csv'], derived: true}]);
+  const noCsv = structuredClone(design); delete noCsv.history;
+  equal('Παλαιότερο σχέδιο χωρίς Ιστορικό και χωρίς CSV: κενό Ιστορικό', T.history(noCsv), []);
+  // Η εγγραφή μιας αποθήκευσης του Designer (oloimeroHistoryEdit).
+  const nameOf = id => { const person = MINI_STAFF.find(item => item.id === id); return person.name || person.shortName; };
+  const edit = (before, after) => T.oloimeroHistoryEdit(before, after, {staff: MINI_STAFF});
+  equal('Αποθήκευση χωρίς αλλαγές: καμία εγγραφή', edit(design, structuredClone(design)), null);
+  const moved = structuredClone(design), english = moved.activities.find(a => a.subject === 'Αγγλικά');
+  english.times[0] = {day: 3, start: '14:10', end: '14:55'}; moved.source.placements[english.id] = {...moved.source.placements[english.id], day: 3};
+  equal('Μετακίνηση κελιού: εγγραφή με τον εκπαιδευτικό που άλλαξε', edit(design, moved), {type: 'edit', staff: english.staff.map(nameOf)});
+  const recoloured = structuredClone(design); recoloured.source.teachers[0].color = '#123456';
+  equal('Μόνο αλλαγή χρώματος: εγγραφή χωρίς εκπαιδευτικούς (άλλες αλλαγές)', edit(design, recoloured), {type: 'edit'});
+  const renamed = structuredClone(design), subject = renamed.source.subjects.find(item => item.name === 'Αγγλικά');
+  subject.name = 'Αγγλική γλώσσα'; for (const activity of renamed.activities) if (activity.subject === 'Αγγλικά') activity.subject = 'Αγγλική γλώσσα';
+  equal('Μετονομασία μαθήματος: δεν αλλάζει τα κελιά των εκπαιδευτικών (άλλες αλλαγές)', edit(design, renamed), {type: 'edit'});
+  const newIds = structuredClone(design);
+  newIds.activities.forEach((activity, index) => { const id = 'new-' + index; newIds.source.placements[id] = newIds.source.placements[activity.id]; delete newIds.source.placements[activity.id]; activity.id = id; });
+  equal('Νέα id δραστηριοτήτων (π.χ. αντιγραφή): καμία εγγραφή', edit(design, newIds), null);
+  const people = T.sortStaff([...new Set(design.activities.flatMap(a => a.staff))].map(id => MINI_STAFF.find(item => item.id === id)));
+  equal('Νέο σχέδιο χωρίς προηγούμενο: όσοι έχουν κελιά, με τη σειρά του Προσωπικού', edit(null, design), {type: 'edit', staff: people.map(person => person.name || person.shortName)});
+  equal('Νέο κενό σχέδιο χωρίς προηγούμενο: καμία εγγραφή', edit(null, empty), null);
+  const keptMoved = structuredClone(kept), unknownCell = keptMoved.activities.find(a => a.unmatched.includes('Άγνωστος'));
+  if (unknownCell) {
+    unknownCell.times[0] = {day: 2, start: '14:10', end: '14:55'}; keptMoved.source.placements[unknownCell.id] = {...keptMoved.source.placements[unknownCell.id], day: 2};
+    equal('Όνομα χωρίς αντιστοίχιση: γράφεται όπως είναι', edit(kept, keptMoved), {type: 'edit', staff: ['Άγνωστος']});
+  } else check('Όνομα χωρίς αντιστοίχιση σε δραστηριότητα του σχεδίου', false, JSON.stringify(kept.activities.map(a => a.unmatched)));
+  const droppedMoved = structuredClone(dropped);
+  if (droppedMoved.source.pending.length) {
+    droppedMoved.source.pending[0].day = droppedMoved.source.pending[0].day === 1 ? 2 : 1;
+    equal('Αλλαγή σε ελλιπές κελί χωρίς εκπαιδευτικό: εγγραφή χωρίς εκπαιδευτικούς (άλλες αλλαγές)', edit(dropped, droppedMoved), {type: 'edit'});
+  }
+  const withEdit = T.addHistory(structuredClone(moved), {...edit(design, moved), at: '2026-11-19T11:00:00.000Z'});
+  equal('Η εγγραφή μπαίνει πάνω από την αυτόματη δημιουργία', withEdit.history.map(h => h.type), ['edit', 'create']);
+  check('Σχέδιο με εγγραφή «edit»: το δέχεται το host', !hostError(withEdit, MINI_STAFF, classes), hostError(withEdit, MINI_STAFF, classes));
 
   // Host: δεν υπάρχουν προσχέδια προγραμμάτων χωρίς περίοδο· η διαγραφή περιόδου παίρνει μαζί τα προγράμματά της.
   const H = window.SchoolHostTimetables, year = '2026-2027', PROG = H.PROGRAMS_APP, OLO = T.kinds.oloimero.owner, FET = T.kinds.school.owner;
@@ -2532,8 +2582,8 @@ function programStateChecks() {
   equal('Ολοήμερο: η αρχική κρατά τοποθετήσεις, ελλιπή κελιά, θέσεις και μόνο τους ορισμούς που χρησιμοποιεί', [Object.keys(oloSaved.initial.source).sort(), oloSaved.initial.source.teachers.map(t => t.staffId), oloSaved.initial.source.subjects.map(t => t.id), oloSaved.initial.source.unions.map(t => t.id)],
     [['design', 'pending', 'placements', 'subjects', 'teachers', 'unions'], ['s1'], ['m'], ['u']]);
   const oloBack = T.restoreInitial(oloSaved);
-  equal('Ολοήμερο: η Επαναφορά φέρνει τις τοποθετήσεις και ξαναβάζει μόνο ό,τι λείπει, χωρίς να αλλάξει τα υπόλοιπα', [oloBack.source.placements.o1.slot, oloBack.source.teachers.map(t => t.staffId + ':' + t.color), oloBack.source.unions.map(u => u.id), oloBack.source.subjects.length, 'history' in oloBack],
-    [0, ['s2:#000000', 's1:#ffeeaa'], ['u'], 2, false]);
+  equal('Ολοήμερο: η Επαναφορά φέρνει τις τοποθετήσεις και ξαναβάζει μόνο ό,τι λείπει, χωρίς να αλλάξει τα υπόλοιπα, με εγγραφή «restore» στο Ιστορικό', [oloBack.source.placements.o1.slot, oloBack.source.teachers.map(t => t.staffId + ':' + t.color), oloBack.source.unions.map(u => u.id), oloBack.source.subjects.length, oloBack.history?.[0]?.type],
+    [0, ['s2:#000000', 's1:#ffeeaa'], ['u'], 2, 'restore']);
   // Ατομικά
   const ind = {id: 'i', formatVersion: 2, kind: 'individual', periodId: 'pa', name: '', activities: [{id: 'i1', subject: 'Παλιό', staff: ['s1'], classes: [], times: [{day: 1, start: '08:15', end: '09:00'}]}],
     source: {type: 'individual', version: 1, placements: {i1: {subjectId: 'sub', chips: []}}, pending: []}, history: []};
