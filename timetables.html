@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Σχολικά Προγράμματα v0.40</title>
+<title>Σχολικά Προγράμματα v0.41</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -136,7 +136,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
 .sp-period-group.draft .sp-period-group-head{background:var(--school-ui-period-draft-bg);color:var(--school-ui-period-draft-text)}
 .sp-period-group-head svg{flex:none;width:var(--school-ui-icon-size-20);height:var(--school-ui-icon-size-20)}
 .sp-period-row{
-  display:grid;grid-template-columns:2.5em minmax(0,1fr) 7.5em 10.5em 10em;align-items:baseline;gap:8px;padding:9px 12px;
+  display:grid;grid-template-columns:2.5em minmax(0,1fr) 7.5em 10.5em 8.5em;align-items:baseline;gap:8px;padding:9px 12px;
   border-top:1px solid var(--school-ui-border);font-size:15px;line-height:1.4;cursor:pointer
 }
 .sp-period-row.head{background:#f0f3f7;color:#405367;font-weight:650;cursor:default}
@@ -182,7 +182,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
 @media(max-width:620px){
   .sp-morning{grid-template-columns:minmax(0,1fr)}
   .sp-period-bar #managePeriods{margin-left:0}
-  .sp-period-row{grid-template-columns:2em minmax(0,1fr) 10em}
+  .sp-period-row{grid-template-columns:2em minmax(0,1fr) 7.5em}
   .sp-period-row>:nth-child(3),.sp-period-row>:nth-child(4){display:none}
   .sp-form-grid{grid-template-columns:1fr 1fr}
   .sp-form-grid>:first-child{grid-column:1 / -1}
@@ -199,7 +199,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" data-app-icon="timetables" aria-hidden="true"></span><span class="brand-text"><span>Σχολικά Προγράμματα</span><span class="small version">v0.40</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" data-app-icon="timetables" aria-hidden="true"></span><span class="brand-text"><span>Σχολικά Προγράμματα</span><span class="small version">v0.41</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="more" class="sp-more" type="button" title="Περισσότερες ενέργειες" aria-label="Περισσότερες ενέργειες" disabled></button>
@@ -399,8 +399,11 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
   function renderBar() {
     const select = $('period'), period = periodById(selectedId);
     schoolPeriodSelect(select, draft.periods, {year: context.year, selected: period?.id || '', fit: true, note: item => programsOf(item.id).length ? '' : '(κενή)'});
+    // Next to the list: the dates of an Επίσημη (an empty «Έως» is the end of the school year), or that a Προσχέδιο
+    // περιόδου is not in force on any date yet.
     const note = $('periodNote');
-    note.textContent = period && isDraftPeriod(period) ? 'Δεν ισχύει ακόμη σε καμία ημερομηνία.' : '';
+    note.textContent = !period ? '' : isDraftPeriod(period) ? 'Δεν ισχύει ακόμη σε καμία ημερομηνία.'
+      : D.valid(period.from) ? D.format(period.from) + ' – ' + D.format(T.periodEnd(period, context.year)) : '';
     note.hidden = !note.textContent;
     renderWarnings();
     buttons();
@@ -717,7 +720,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
         if (!dated) to.textContent = '—';
         else if (period.to) to.textContent = D.format(period.to);
         else { to.textContent = D.format(teachingEnd()) + ' '; to.append(make('span', 'end-note', '(τέλος έτους)')); to.title = 'Χωρίς ημερομηνία λήξης: μέχρι το τέλος του σχολικού έτους'; }
-        const status = make('span', ''), badge = make('span', 'ui-period-status ' + (isDraftPeriod(period) ? 'draft' : 'official'), isDraftPeriod(period) ? 'Προσχέδιο' : 'Επίσημη περίοδος');
+        const status = make('span', ''), badge = make('span', 'ui-period-status ' + (isDraftPeriod(period) ? 'draft' : 'official'), isDraftPeriod(period) ? 'Προσχέδιο' : 'Επίσημη');
         status.append(badge);
         row.append(make('span', 'num', String(periodNumber(period))), title, from, to, status);
         row.onclick = () => { chosen = period.id; draw(); table.focus({preventScroll: true}); };
