@@ -12,7 +12,7 @@
   φτιάχνονται από το σύντομο όνομα των δασκάλων («[Α1] - …», classesFromStaff). Με το .data δοκιμής, οι
   έλεγχοι των νέων ετικετών (v2) παίρνουν το Προσωπικό από αυτό, γιατί το CSV του Ολοημέρου έχει τα σύντομα
   ονόματα του Προσωπικού.
-  Έκδοση αρχείου: 0.71
+  Έκδοση αρχείου: 0.72
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -39,7 +39,7 @@ button{font:inherit;padding:6px 14px;border-radius:8px;border:1px solid #94a3b8;
 </head>
 <body>
 <main>
-<h1><span>Έλεγχος του _data.js και των _host_*.js</span><span class="version" aria-label="Έκδοση 0.71">v0.71</span></h1>
+<h1><span>Έλεγχος του _data.js και των _host_*.js</span><span class="version" aria-label="Έκδοση 0.72">v0.72</span></h1>
 <p>Η σελίδα ελέγχει τις κοινές λειτουργίες του <code>_data.js</code> και τις καθαρές συναρτήσεις του <code>_host_timetables.js</code>, του <code>_host_calendar.js</code>, του <code>_host_classes.js</code>, του <code>_host_students.js</code> και του <code>_host_tags.js</code> με τα αρχεία δοκιμής (βλέπε «Αρχεία δοκιμής» στο <code>project_instructions.md</code>). Δεν αλλάζει κανένα αρχείο.</p>
 <div class="drop" id="drop">
   <p><strong>Αρχεία δοκιμής:</strong> σύρε τα εδώ ή <input type="file" id="files" multiple accept=".fet,.csv,.data"></p>
@@ -2470,7 +2470,7 @@ function programStateChecks() {
   const list = [p('d2', 'Ζήτα προσχέδιο', '', '', 'draft'), p('b', 'Β', '2026-11-16', ''), p('a2', 'Α πρώτη', '2026-09-11', '2026-11-15'),
     p('a1', 'Α δεύτερη', '2026-09-11', '2026-11-15'), p('d1', 'Άλφα προσχέδιο', '2026-12-01', '2026-12-20', 'draft'), p('a0', 'Α μικρή', '2026-09-11', '2026-10-01', 'official')];
   equal('Σειρά: Επίσημες κατά έναρξη (μετά κατά λήξη, μετά αλφαβητικά), μετά τα Προσχέδια περιόδων αλφαβητικά', T.sortPeriods(list).map(x => x.id), ['a0', 'a1', 'a2', 'b', 'd1', 'd2']);
-  equal('Αύξων αριθμός από τη σειρά (δεν αποθηκεύεται)', [...T.periodNumbers(list)], [['a0', 1], ['a1', 2], ['a2', 3], ['b', 4], ['d1', 5], ['d2', 6]]);
+  equal('Αύξων αριθμός από τη σειρά, ξεχωριστά στις Επίσημες και στα Προσχέδια περιόδων (δεν αποθηκεύεται)', [...T.periodNumbers(list)], [['a0', 1], ['a1', 2], ['a2', 3], ['b', 4], ['d1', 1], ['d2', 2]]);
   check('Η σειρά δεν αλλάζει τη λίστα', list[0].id === 'd2');
   equal('Επίσημες: χωρίς status ή με «official»', T.officialPeriods(list).map(x => x.id), ['b', 'a2', 'a1', 'a0']);
   equal('Ίδια έναρξη: ισχύει αυτή που λήγει αργότερα, και με ίδια λήξη η πρώτη αλφαβητικά', T.periodAt(list, '2026-09-20')?.id, 'a1');

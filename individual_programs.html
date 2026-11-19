@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ατομικά Προγράμματα v0.13</title>
+<title>Ατομικά Προγράμματα v0.14</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -25,7 +25,7 @@
   --ip-floating-bottom:12px;--ip-scrollbar-lift:0px
 }
 /* Header: the lists give up width before anything wraps out of the page. */
-#period{flex:0 1 auto;min-width:0;max-width:min(300px,100%)}
+#period{flex:0 1 auto;min-width:0;max-width:min(440px,100%)}
 .ip-staff-control{position:relative;display:inline-flex;min-width:0;max-width:min(320px,100%);flex:0 1 auto}
 /* The teacher list: a button with the look of a select (the marks of the hours are SVG, which a select cannot show). */
 .ip-staff-button{
@@ -214,7 +214,7 @@ main.ip-single~.ip-summary{left:18px}
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ατομικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark is-sub" data-app-icon="individual" aria-hidden="true"></span><span class="brand-text"><span>Ατομικά Προγράμματα</span><span class="small version">v0.13</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ατομικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark is-sub" data-app-icon="individual" aria-hidden="true"></span><span class="brand-text"><span>Ατομικά Προγράμματα</span><span class="small version">v0.14</span></span></button></h1></div>
   <select id="period" aria-label="Περίοδος" disabled hidden></select>
   <span id="periodStatus" class="ui-period-status" hidden></span>
   <span id="staffControl" class="ip-staff-control" hidden>
@@ -678,13 +678,9 @@ main.ip-single~.ip-summary{left:18px}
 
   // ---- Header: period and teacher ----
   function renderPeriods() {
-    const select = $('period'), periods = T.sortPeriods(shownPeriods());
-    select.replaceChildren(...periods.map(period => {
-      const option = el('option', '', period.name + (T.isDraftPeriod(period) ? ' (προσχέδιο)' : '') + (schoolOf(period.id) ? '' : ' (χωρίς Ωρολόγιο)'));
-      option.value = period.id; option.title = periodText(period); return option;
-    }));
-    if (!periods.length) select.append(el('option', '', 'Δεν υπάρχουν περίοδοι'));
-    select.value = periodId || '';
+    // The shared period list (schoolPeriodSelect of _ui.js), with «(χωρίς Ωρολόγιο)».
+    const select = $('period');
+    schoolPeriodSelect(select, shownPeriods(), {year: context?.year, selected: periodId || '', note: period => schoolOf(period.id) ? '' : '(χωρίς Ωρολόγιο)'});
     select.hidden = false;
     // The status of the period, as in «Σχολικά Προγράμματα» (the shared .ui-period-status).
     const period = periodOf(periodId), status = $('periodStatus');
@@ -1834,11 +1830,7 @@ main.ip-single~.ip-summary{left:18px}
     if (!sources.length) return;
     const order = (context.periods || []).map(period => period.id), here = order.indexOf(periodId);
     const select = el('select');
-    for (const period of sources) {
-      const option = el('option', '', period.name + (schoolOf(period.id) ? '' : ' (χωρίς Ωρολόγιο)') + ' — ' + periodText(period));
-      option.value = period.id; select.append(option);
-    }
-    select.value = ([...sources].reverse().find(period => order.indexOf(period.id) < here) || sources[sources.length - 1]).id;
+    schoolPeriodSelect(select, sources, {year: context?.year, selected: ([...sources].reverse().find(period => order.indexOf(period.id) < here) || sources[sources.length - 1]).id, note: period => schoolOf(period.id) ? '' : '(χωρίς Ωρολόγιο)'});
     const listBox = el('div');
     const draw = () => {
       const counts = staffCounts(individualOf(select.value));

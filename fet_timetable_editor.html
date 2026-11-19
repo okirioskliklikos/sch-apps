@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Πλήρες Σχολικό Πρόγραμμα v1.21</title>
+<title>Πλήρες Σχολικό Πρόγραμμα v1.22</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -29,7 +29,7 @@
   --ft-target-outline:#2e90fa
 }
 /* Header: the period list may be long; it gives up width before anything wraps out of the page. */
-#period{flex:0 1 auto;min-width:0;max-width:min(340px,100%)}
+#period{flex:0 1 auto;min-width:0;max-width:min(440px,100%)}
 /* Busy: the shared main.busy of _subapp.css fades the sidebar and the workspace together. */
 main.ft-single{grid-template-columns:minmax(0,1fr)}
 
@@ -186,7 +186,7 @@ button.ui-icon-button.ft-cell-edit>svg{width:var(--school-ui-icon-size-list);hei
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Πλήρες Σχολικό Πρόγραμμα — άνοιγμα κεντρικού μενού"><span class="app-mark is-sub" data-app-icon="full" aria-hidden="true"></span><span class="brand-text"><span>Πλήρες Σχολικό Πρόγραμμα</span><span class="small version">v1.21</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Πλήρες Σχολικό Πρόγραμμα — άνοιγμα κεντρικού μενού"><span class="app-mark is-sub" data-app-icon="full" aria-hidden="true"></span><span class="brand-text"><span>Πλήρες Σχολικό Πρόγραμμα</span><span class="small version">v1.22</span></span></button></h1></div>
   <select id="period" aria-label="Περίοδος" disabled hidden></select>
   <span id="periodStatus" class="ui-period-status" hidden></span>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
@@ -295,7 +295,6 @@ button.ui-icon-button.ft-cell-edit>svg{width:var(--school-ui-icon-size-list);hei
   const periodPrograms = id => (context?.programs || []).filter(item => item.periodId === id && Object.prototype.hasOwnProperty.call(T.kinds, item.kind));
   // A Προσχέδιο περιόδου has no dates.
   const periodRange = period => D.valid(period.from) ? D.format(period.from) + ' – ' + D.format(T.periodEnd(period, context.year)) : '';
-  const periodText = period => period.name + (T.isDraftPeriod(period) ? ' (προσχέδιο περιόδου)' : ' (' + periodRange(period) + ')');
   const notice = (textValue, error = false) => { const node = $('notice'); if (!node) return; node.textContent = textValue; node.classList.toggle('error', error); };
   const message = (textValue, title) => schoolMessage(textValue, title ? {title} : {});
   const modeSafe = () => controlState.mode !== 'free';
@@ -683,15 +682,9 @@ button.ui-icon-button.ft-cell-edit>svg{width:var(--school-ui-icon-size-list);hei
 
   // ---- Rendering ----
   function renderPeriods() {
-    const select = $('period'), periods = T.sortPeriods(context?.periods || []);
-    select.replaceChildren(...periods.map(period => {
-      const has = periodPrograms(period.id).length > 0;
-      const option = el('option', '', period.name + (T.isDraftPeriod(period) ? ' (προσχέδιο)' : '') + (!has ? ' (κενή)' : programOf(period.id, 'school') ? '' : ' (χωρίς Ωρολόγιο)'));
-      option.value = period.id; option.title = periodText(period); return option;
-    }));
-    if (!periods.length) select.append(el('option', '', 'Δεν υπάρχουν περίοδοι'));
-    select.value = periodId || '';
-    select.title = periodOf(periodId) ? periodText(periodOf(periodId)) : '';
+    // The shared period list (schoolPeriodSelect of _ui.js), with «(κενή)» or «(χωρίς Ωρολόγιο)».
+    const select = $('period');
+    schoolPeriodSelect(select, context?.periods || [], {year: context?.year, selected: periodId || '', note: period => !periodPrograms(period.id).length ? '(κενή)' : programOf(period.id, 'school') ? '' : '(χωρίς Ωρολόγιο)'});
     select.hidden = false;
     // The status of the period, as in «Σχολικά Προγράμματα» (the shared .ui-period-status).
     const period = periodOf(periodId), status = $('periodStatus');

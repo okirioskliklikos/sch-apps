@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινό περιβάλλον χρήστη
- * Έκδοση αρχείου: 0.61
+ * Έκδοση αρχείου: 0.62
  * Όνομα κατά την εγκατάσταση: _ui.css
  */
 
@@ -40,6 +40,10 @@
      a Προσχέδιο περιόδου (light violet, dashed). */
   --school-ui-period-official-bg:#1f8a5b;--school-ui-period-official-text:#fff;
   --school-ui-period-draft-bg:#f4f0fd;--school-ui-period-draft-border:#7c5cc4;--school-ui-period-draft-text:#5b3fa3;
+  /* The headings of the two groups of the period lists (.ui-period-select): soft green for the Περίοδοι, the light
+     violet of the draft status for the Προσχέδια περιόδων; the selected period in the open list is blue. */
+  --school-ui-period-official-soft-bg:#e6f6ec;--school-ui-period-official-soft-text:#176534;
+  --school-ui-period-selected-bg:#0b5ed7;--school-ui-period-selected-text:#fff;--school-ui-period-hover-bg:#eef3fb;
   /* The «Προσοχή» panel of schoolBackupConfirm, with the «Αντίγραφο Ασφαλείας…» button: soft amber. */
   --school-ui-backup-bg:#fff7e6;--school-ui-backup-border:#f1cf8f;
   --school-ui-disabled-bg:#edf0f4;
@@ -541,6 +545,38 @@ fieldset.ui-fields{margin:0;padding:0;min-width:0;border:0}
 .ui-period-status{flex:none;display:inline-block;padding:2px 10px;border-radius:999px;font-size:13px;line-height:1.5;white-space:nowrap}
 .ui-period-status.official{background:var(--school-ui-period-official-bg);color:var(--school-ui-period-official-text)}
 .ui-period-status.draft{background:var(--school-ui-period-draft-bg);color:var(--school-ui-period-draft-text);border:1px dashed var(--school-ui-period-draft-border);padding:1px 9px}
+/* Period list (schoolPeriodSelect of _ui.js): a <select> with the customizable look of Chrome (appearance:base-select,
+   Chrome 135 or newer; older versions show a plain list). The closed list keeps the height, the text and the arrow
+   of every select, and shows «1. Όνομα · dates» (the note of the application only in the open list). The open list
+   has the two groups with a coloured heading and icon, «Περίοδοι» and «Προσχέδια περιόδων». */
+select.ui-period-select,select.ui-period-select::picker(select){appearance:base-select}
+select.ui-period-select{max-width:100%;color:var(--school-ui-text);text-align:left}
+select.ui-period-select::picker-icon{display:none}
+select.ui-period-select>button{
+  all:unset;display:block;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis
+}
+select.ui-period-select>button>selectedcontent{display:inline;white-space:nowrap}
+select.ui-period-select selectedcontent .ui-period-select-note{display:none}
+select.ui-period-select:disabled{color:var(--school-ui-disabled-text);background-color:var(--school-ui-disabled-bg);cursor:not-allowed}
+select.ui-period-select::picker(select){
+  margin-top:2px;padding:0;border:1px solid var(--school-ui-control-border);border-radius:10px;background:#fff;
+  box-shadow:0 8px 24px rgba(15,23,42,.18);max-height:min(70vh,520px);overflow:auto
+}
+select.ui-period-select optgroup{display:block;padding:0;margin:0}
+select.ui-period-select optgroup legend{
+  display:flex;align-items:center;gap:8px;padding:7px 12px;font-weight:700;font-size:var(--school-ui-control-font-size)
+}
+select.ui-period-select optgroup.official legend{background:var(--school-ui-period-official-soft-bg);color:var(--school-ui-period-official-soft-text)}
+select.ui-period-select optgroup.draft legend{background:var(--school-ui-period-draft-bg);color:var(--school-ui-period-draft-text)}
+select.ui-period-select optgroup legend svg{flex:none;width:var(--school-ui-icon-size-20);height:var(--school-ui-icon-size-20)}
+select.ui-period-select option{
+  display:block;padding:6px 14px 6px 40px;white-space:nowrap;font-size:var(--school-ui-control-font-size);
+  line-height:var(--school-ui-control-line-height);color:var(--school-ui-text);background:#fff
+}
+select.ui-period-select option::checkmark{display:none}
+select.ui-period-select option:hover:not(:checked){background:var(--school-ui-period-hover-bg)}
+select.ui-period-select option:checked{background:var(--school-ui-period-selected-bg);color:var(--school-ui-period-selected-text)}
+select.ui-period-select option:focus-visible{outline:2px solid var(--school-ui-focus);outline-offset:-2px}
 .ui-toggle[aria-pressed="true"]{
   background:#dceaf4;color:#244b69;border-color:#7a9eb9;box-shadow:inset 0 2px 4px #183c5b26
 }

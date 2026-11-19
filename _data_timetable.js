@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων: CSV, FET, προγράμματα
- * Έκδοση αρχείου: 0.11
+ * Έκδοση αρχείου: 0.12
  * Όνομα κατά την εγκατάσταση: _data_timetable.js
  *
  * Ο κοινός κώδικας δεδομένων είναι σε τέσσερα αρχεία, που φορτώνονται πάντα όλα, με αυτή τη σειρά, μετά το _ui.js
@@ -239,8 +239,13 @@
     });
     return [...official, ...list.filter(isDraftPeriod).sort(periodByName)];
   }
-  // Ο αύξων αριθμός κάθε περιόδου (η θέση της στο sortPeriods, από 1): Map(id → αριθμός).
-  const periodNumbers = periods => new Map(sortPeriods(periods).map((period, index) => [period.id, index + 1]));
+  // Ο αύξων αριθμός κάθε περιόδου, ξεχωριστά στις Επίσημες και στα Προσχέδια περιόδων (η θέση της στην ομάδα της,
+  // με τη σειρά του sortPeriods, από 1): Map(id → αριθμός).
+  function periodNumbers(periods) {
+    const numbers = new Map(), counts = {official: 0, draft: 0};
+    for (const period of sortPeriods(periods)) numbers.set(period.id, ++counts[isDraftPeriod(period) ? 'draft' : 'official']);
+    return numbers;
+  }
   // Ποια από δύο Επίσημες περιόδους που επικαλύπτονται ισχύει: αυτή που ξεκινά αργότερα· με ίδια έναρξη, αυτή που
   // λήγει αργότερα· με ίδια και τη λήξη, αυτή που είναι πρώτη αλφαβητικά. → true όταν ισχύει η a.
   function periodPrevails(a, b) {

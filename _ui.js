@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.45
+ * Έκδοση αρχείου: 0.46
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -21,6 +21,8 @@
  *   window.schoolListSelection                     πολλαπλή επιλογή σε λίστες (κλικ, Shift, Ctrl, βέλη)
  *   window.schoolMenu                              αναδυόμενο μενού («⋮», «⋯»), ένα τη φορά
  *   window.schoolProblems                          γραμμή και λίστα προβλημάτων μιας περιόδου (συγκρούσεις, προειδοποιήσεις)
+ *   window.schoolPeriodSelect                      λίστα περιόδων σε δύο ομάδες, Περίοδοι / Προσχέδια περιόδων
+ *                                                  (χρειάζεται το _data_timetable.js)
  *
  * Μέσα σε iframe (υποεφαρμογή μέσα στο Κεντρικό Μενού) επιπλέον:
  *   - στέλνει μόνο του το school-app:activity, ώστε να μη κλειδώνει η συνεδρία όσο ο χρήστης δουλεύει,
@@ -34,7 +36,7 @@
  * (αποδοχή) και πιο αριστερά οι υπόλοιπες. Κάτω αριστερά δεν μπαίνουν κουμπιά.
  * Η εμφάνιση των διαλόγων ορίζεται στο _ui.css (.school-confirm, .school-choice-*, .school-import-*,
  *   .school-backup-notice, .school-color-picker, .school-richtext-*, .school-tag*, .school-tagged-text*), του μενού στο _ui.css (.ui-menu),
- *   της λίστας προβλημάτων στο _ui.css (.school-problems*)
+ *   της λίστας προβλημάτων στο _ui.css (.school-problems*), της λίστας περιόδων στο _ui.css (.ui-period-select)
  * και του κουμπιού «☰» στο _subapp.css.
  */
 (() => {
@@ -841,6 +843,10 @@
     'file-import': ['2', 'M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M12 11v6m-3-3 3 3 3-3'],
     'calendar-month': ['2', 'M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zM7 3v4M17 3v4M3 10h18M7 14h3M14 14h3M7 18h3M14 18h3'],
     'calendar-year': ['2', 'M5 4h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM3 9h18M8 9v12M13 9v12M18 9v12M3 13h18M3 17h18'],
+    // The two groups of the period lists (schoolPeriodSelect): an Επίσημη περίοδος (a calendar with a check mark, it is
+    // in force) and a Προσχέδιο περιόδου (a dashed calendar, like the dashed «Προσχέδιο περιόδου» status: no dates yet).
+    'calendar-check': ['2', 'M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zM7 3v4M17 3v4M3 10h18M8.5 15.2l2.5 2.5 4.6-4.6'],
+    'calendar-dashed': ['2', 'M3 8V7a2 2 0 0 1 2-2h1M10 5h4M18 5h1a2 2 0 0 1 2 2v1M21 12.5v3M21 18v1a2 2 0 0 1-2 2h-1M10 21h4M6 21H5a2 2 0 0 1-2-2v-1M3 12.5v3M7 3v4M17 3v4M3 10h18'],
     // Sections of a day (e.g. the indicators of the Σχολικό Ημερολόγιο). Small icons (12–16px), so a heavier stroke.
     note: ['2.4', 'M6 3h9l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM15 3v4h4M8.5 12h7M8.5 16h5'],
     book: ['2.4', 'M12 6.5C10 5 7 4.5 3.5 5v13.5c3.5-.5 6.5 0 8.5 1.5 2-1.5 5-2 8.5-1.5V5C17 4.5 14 5 12 6.5zM12 6.5V20'],
@@ -858,6 +864,64 @@
   function schoolIconText(name, text, {end = false} = {}) {
     const label = `<span>${schoolEscape(text)}</span>`;
     return `<span class="ui-icon-text">${end ? label + schoolIcon(name) : schoolIcon(name) + label}</span>`;
+  }
+  // Λίστα περιόδων: ένα υπάρχον <select> γεμίζει με δύο ομάδες, «Περίοδοι» (οι Επίσημες) και «Προσχέδια περιόδων»,
+  // με τη σειρά του SchoolTimetable.sortPeriods και τον αριθμό της περιόδου μέσα στην ομάδα της (periodNumbers).
+  //   schoolPeriodSelect(select, periods, {note, value, year, selected, empty})
+  //     note(period)   η σημείωση της εφαρμογής μετά τις ημερομηνίες (π.χ. «(κενή)»), ή κενό· μόνο στην ανοιχτή λίστα
+  //     value(period)  η τιμή της γραμμής (προεπιλογή: το id της περιόδου)
+  //     year           το σχολικό έτος, για το κενό «Έως» (τέλος του έτους, SchoolTimetable.periodEnd)
+  //     selected       η τιμή που επιλέγεται (προεπιλογή: η τρέχουσα τιμή, όταν υπάρχει ακόμη)
+  //     empty          το κείμενο όταν δεν υπάρχει καμία περίοδος (προεπιλογή «Δεν υπάρχουν περίοδοι»)
+  // Γραμμή: «1. Όνομα · 14/09/2026 – 25/09/2026 · (σημείωση)»· ένα Προσχέδιο περιόδου δεν έχει ημερομηνίες. Η κλειστή
+  // λίστα δείχνει τον αριθμό, το όνομα και, σε Επίσημη, τις ημερομηνίες. Μια ομάδα χωρίς περιόδους δεν φαίνεται.
+  // Η εμφάνιση (.ui-period-select, με appearance:base-select) είναι στο _ui.css· σε Chrome χωρίς base-select (πριν
+  // από το 135) η λίστα είναι απλή, με τις ομάδες χωρίς χρώματα και εικονίδια, και δουλεύει κανονικά.
+  function schoolPeriodSelect(select, periods, {note, value, year, selected, empty = 'Δεν υπάρχουν περίοδοι'} = {}) {
+    const T = window.SchoolTimetable, D = window.SchoolDate;
+    if (!T || !D) throw new Error('Λείπει το _data_timetable.js.');
+    const previous = selected !== undefined ? selected : select.value;
+    const list = T.sortPeriods(periods || []), numbers = T.periodNumbers(list);
+    const make = (tag, className, text) => {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (text != null) node.textContent = text;
+      return node;
+    };
+    const button = make('button');
+    button.type = 'button';
+    button.append(document.createElement('selectedcontent'));
+    const children = [button];
+    for (const [draft, label, icon] of [[false, 'Περίοδοι', 'calendar-check'], [true, 'Προσχέδια περιόδων', 'calendar-dashed']]) {
+      const items = list.filter(period => T.isDraftPeriod(period) === draft);
+      if (!items.length) continue;
+      const group = make('optgroup', draft ? 'draft' : 'official');
+      group.label = label;
+      const legend = make('legend');
+      legend.innerHTML = schoolIcon(icon);
+      legend.append(make('span', '', label));
+      group.append(legend);
+      for (const period of items) {
+        const option = make('option');
+        option.value = value ? String(value(period)) : period.id;
+        option.append(make('span', 'ui-period-select-name', numbers.get(period.id) + '. ' + (String(period.name || '').trim() || 'Χωρίς όνομα')));
+        if (!draft && D.valid(period.from)) option.append(make('span', 'ui-period-select-dates', ' · ' + D.format(period.from) + ' – ' + D.format(T.periodEnd(period, year))));
+        const extra = note ? String(note(period) || '').trim() : '';
+        if (extra) option.append(make('span', 'ui-period-select-note', ' · ' + extra));
+        group.append(option);
+      }
+      children.push(group);
+    }
+    if (children.length === 1) {
+      const option = make('option', '', empty);
+      option.value = '';
+      children.push(option);
+    }
+    select.classList.add('ui-period-select');
+    select.replaceChildren(...children);
+    select.value = [...select.options].some(option => option.value === previous) ? previous : '';
+    if (select.selectedIndex < 0 && select.options.length) select.selectedIndex = 0;
+    return select;
   }
   for (const element of document.querySelectorAll('[data-school-icon],[data-school-icon-end]')) {
     if (element.firstElementChild) continue;
@@ -2030,4 +2094,5 @@
   window.schoolTaggedText = schoolTaggedText;
   window.schoolMenu = schoolMenu;
   window.schoolProblems = schoolProblems;
+  window.schoolPeriodSelect = schoolPeriodSelect;
 })();

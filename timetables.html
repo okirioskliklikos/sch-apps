@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Σχολικά Προγράμματα v0.36</title>
+<title>Σχολικά Προγράμματα v0.37</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -188,7 +188,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" data-app-icon="timetables" aria-hidden="true"></span><span class="brand-text"><span>Σχολικά Προγράμματα</span><span class="small version">v0.36</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" data-app-icon="timetables" aria-hidden="true"></span><span class="brand-text"><span>Σχολικά Προγράμματα</span><span class="small version">v0.37</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="more" class="sp-more" type="button" title="Περισσότερες ενέργειες" aria-label="Περισσότερες ενέργειες" disabled></button>
@@ -384,16 +384,11 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
     renderBar(); renderBoard();
     sharePeriod();
   }
-  function optionText(period) {
-    const empty = !programsOf(period.id).length ? ' (κενή)' : '';
-    if (isDraftPeriod(period)) return periodNumber(period) + ' · ' + periodName(period) + ' · Προσχέδιο' + empty;
-    return periodNumber(period) + ' · ' + periodName(period) + ' · ' + rangeText(period) + empty;
-  }
+  // The period list of the shared schoolPeriodSelect (_ui.js): Περίοδοι and Προσχέδια περιόδων, «(κενή)» for a period
+  // without programs.
   function renderBar() {
     const select = $('period'), period = periodById(selectedId);
-    select.replaceChildren(...orderedPeriods().map(item => new Option(optionText(item), item.id)));
-    if (!draft.periods.length) select.append(new Option('Δεν υπάρχουν περίοδοι', ''));
-    select.value = period?.id || '';
+    schoolPeriodSelect(select, draft.periods, {year: context.year, selected: period?.id || '', note: item => programsOf(item.id).length ? '' : '(κενή)'});
     const status = $('periodStatus'), note = $('periodNote');
     status.hidden = !period;
     if (period) {
@@ -1315,8 +1310,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
       return select;
     };
     const source = make('select');
-    source.append(...orderedPeriods().map(period => make('option', {value: period.id}, periodNumber(period) + ' · ' + periodName(period) + (isDraftPeriod(period) ? ' (προσχέδιο)' : ' (' + rangeText(period) + ')'))));
-    source.value = periodById(sourceId)?.id || periodById(selectedId)?.id || orderedPeriods()[0].id;
+    schoolPeriodSelect(source, draft.periods, {year: context.year, selected: periodById(sourceId)?.id || periodById(selectedId)?.id || orderedPeriods()[0].id});
     const name = make('input', {type: 'text', maxlength: '200'});
     const from = make('input', {type: 'text', inputmode: 'numeric', maxlength: '10', placeholder: 'ηη/μμ/εεεε'});
     const to = make('input', {type: 'text', inputmode: 'numeric', maxlength: '10', placeholder: 'ηη/μμ/εεεε'});
