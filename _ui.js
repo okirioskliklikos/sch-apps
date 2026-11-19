@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.47
+ * Έκδοση αρχείου: 0.48
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -867,12 +867,14 @@
   }
   // Λίστα περιόδων: ένα υπάρχον <select> γεμίζει με δύο ομάδες, «Περίοδοι» (οι Επίσημες) και «Προσχέδια περιόδων»,
   // με τη σειρά του SchoolTimetable.sortPeriods και τον αριθμό της περιόδου μέσα στην ομάδα της (periodNumbers).
-  //   schoolPeriodSelect(select, periods, {note, value, year, selected, empty})
+  //   schoolPeriodSelect(select, periods, {note, value, year, selected, empty, fit})
   //     note(period)   η σημείωση της εφαρμογής μετά τις ημερομηνίες (π.χ. «(κενή)»), ή κενό· μόνο στην ανοιχτή λίστα
   //     value(period)  η τιμή της γραμμής (προεπιλογή: το id της περιόδου)
   //     year           το σχολικό έτος, για το κενό «Έως» (τέλος του έτους, SchoolTimetable.periodEnd)
   //     selected       η τιμή που επιλέγεται (προεπιλογή: η τρέχουσα τιμή, όταν υπάρχει ακόμη)
   //     empty          το κείμενο όταν δεν υπάρχει καμία περίοδος (προεπιλογή «Δεν υπάρχουν περίοδοι»)
+  //     fit            true: η κλειστή λίστα δείχνει ολόκληρο το όνομα και παίρνει το πλάτος της περιόδου που φαίνεται
+  //                    (μεγαλώνει και μικραίνει με την επιλογή, π.χ. στη γραμμή περιόδου των Σχολικών Προγραμμάτων)
   // Ανοιχτή λίστα: «1. Όνομα · 14/09/2026 – 25/09/2026 · (σημείωση)»· ένα Προσχέδιο περιόδου δεν έχει ημερομηνίες.
   // Κλειστή λίστα: «1. Όνομα» (το όνομα έως PERIOD_NAME_LIMIT χαρακτήρες και «…») και δεξιά, δίπλα στο βελάκι, η
   // ένδειξη «Επίσημη περίοδος» / «Προσχέδιο περιόδου» (.ui-period-status). Το tooltip έχει ολόκληρο το όνομα και, σε
@@ -911,7 +913,7 @@
     const extra = px('paddingLeft') + px('paddingRight') + px('borderLeftWidth') + px('borderRightWidth');
     select.style.setProperty('--ui-period-select-width', Math.ceil(widest + extra + 1) + 'px');
   }
-  function schoolPeriodSelect(select, periods, {note, value, year, selected, empty = 'Δεν υπάρχουν περίοδοι'} = {}) {
+  function schoolPeriodSelect(select, periods, {note, value, year, selected, empty = 'Δεν υπάρχουν περίοδοι', fit = false} = {}) {
     const T = window.SchoolTimetable, D = window.SchoolDate;
     if (!T || !D) throw new Error('Λείπει το _data_timetable.js.');
     const previous = selected !== undefined ? selected : select.value;
@@ -946,7 +948,7 @@
         const extra = note ? String(note(period) || '').trim() : '';
         if (extra) option.append(make('span', 'ui-period-select-note', ' · ' + extra));
         if (periodSelectCustom) {
-          const short = name.length > PERIOD_NAME_LIMIT ? name.slice(0, PERIOD_NAME_LIMIT).trimEnd() + '…' : name;
+          const short = !fit && name.length > PERIOD_NAME_LIMIT ? name.slice(0, PERIOD_NAME_LIMIT).trimEnd() + '…' : name;
           option.append(make('span', 'ui-period-select-short', number + short),
             make('span', 'ui-period-status ' + (draft ? 'draft' : 'official'), draft ? 'Προσχέδιο περιόδου' : 'Επίσημη περίοδος'));
         }
@@ -969,7 +971,9 @@
     if (!periodSelectTitles.has(select)) for (const type of ['change', 'pointerenter', 'focus']) select.addEventListener(type, () => periodSelectTitle(select));
     periodSelectTitles.set(select, titles);
     periodSelectTitle(select);
-    if (periodSelectCustom) {
+    // With fit the list has the width of the period it shows (no measured width).
+    if (periodSelectCustom && fit) select.style.removeProperty('--ui-period-select-width');
+    else if (periodSelectCustom) {
       periodSelectMeasure(select);
       // Measured again once the fonts are loaded, so the width follows the font the list is drawn with.
       document.fonts?.ready?.then(() => { if (select.isConnected) periodSelectMeasure(select); });

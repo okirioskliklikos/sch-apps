@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Σχολικά Προγράμματα v0.39</title>
+<title>Σχολικά Προγράμματα v0.40</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -199,7 +199,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" data-app-icon="timetables" aria-hidden="true"></span><span class="brand-text"><span>Σχολικά Προγράμματα</span><span class="small version">v0.39</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" data-app-icon="timetables" aria-hidden="true"></span><span class="brand-text"><span>Σχολικά Προγράμματα</span><span class="small version">v0.40</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="more" class="sp-more" type="button" title="Περισσότερες ενέργειες" aria-label="Περισσότερες ενέργειες" disabled></button>
@@ -395,15 +395,13 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
     sharePeriod();
   }
   // The period list of the shared schoolPeriodSelect (_ui.js): Περίοδοι and Προσχέδια περιόδων, «(κενή)» for a period
-  // without programs.
+  // without programs; with fit, the closed list has the whole name and the width of the period it shows.
   function renderBar() {
     const select = $('period'), period = periodById(selectedId);
-    schoolPeriodSelect(select, draft.periods, {year: context.year, selected: period?.id || '', note: item => programsOf(item.id).length ? '' : '(κενή)'});
+    schoolPeriodSelect(select, draft.periods, {year: context.year, selected: period?.id || '', fit: true, note: item => programsOf(item.id).length ? '' : '(κενή)'});
     const note = $('periodNote');
-    if (period) {
-      const isDraft = isDraftPeriod(period);
-      note.textContent = isDraft ? 'Δεν ισχύει ακόμη σε καμία ημερομηνία.' : !period.to ? '«Έως»: τέλος σχολικού έτους (' + D.format(teachingEnd()) + ')' : '';
-    } else note.textContent = '';
+    note.textContent = period && isDraftPeriod(period) ? 'Δεν ισχύει ακόμη σε καμία ημερομηνία.' : '';
+    note.hidden = !note.textContent;
     renderWarnings();
     buttons();
   }
