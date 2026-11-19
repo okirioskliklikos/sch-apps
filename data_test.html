@@ -12,7 +12,7 @@
   φτιάχνονται από το σύντομο όνομα των δασκάλων («[Α1] - …», classesFromStaff). Με το .data δοκιμής, οι
   έλεγχοι των νέων ετικετών (v2) παίρνουν το Προσωπικό από αυτό, γιατί το CSV του Ολοημέρου έχει τα σύντομα
   ονόματα του Προσωπικού.
-  Έκδοση αρχείου: 0.73
+  Έκδοση αρχείου: 0.74
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -39,7 +39,7 @@ button{font:inherit;padding:6px 14px;border-radius:8px;border:1px solid #94a3b8;
 </head>
 <body>
 <main>
-<h1><span>Έλεγχος του _data.js και των _host_*.js</span><span class="version" aria-label="Έκδοση 0.73">v0.73</span></h1>
+<h1><span>Έλεγχος του _data.js και των _host_*.js</span><span class="version" aria-label="Έκδοση 0.74">v0.74</span></h1>
 <p>Η σελίδα ελέγχει τις κοινές λειτουργίες του <code>_data.js</code> και τις καθαρές συναρτήσεις του <code>_host_timetables.js</code>, του <code>_host_calendar.js</code>, του <code>_host_classes.js</code>, του <code>_host_students.js</code> και του <code>_host_tags.js</code> με τα αρχεία δοκιμής (βλέπε «Αρχεία δοκιμής» στο <code>project_instructions.md</code>). Δεν αλλάζει κανένα αρχείο.</p>
 <div class="drop" id="drop">
   <p><strong>Αρχεία δοκιμής:</strong> σύρε τα εδώ ή <input type="file" id="files" multiple accept=".fet,.csv,.data"></p>
@@ -207,6 +207,17 @@ function rawHours(programs) {
   const hours = new Map();
   for (const program of Array.isArray(programs) ? programs : [programs]) {
     if (!program || !SchoolTimetable.countsInHours(program.kind)) continue;
+    for (const activity of program.activities || []) for (const id of new Set(activity.staff || [])) hours.set(id, (hours.get(id) || 0) + (activity.times || []).length);
+  }
+  return hours;
+}
+// The hours a composition of a period should give from its programs: those of rawHours and, in a period without an
+// Ωρολόγιο, also the hours of the σχέδιο Ολοημέρου (with an Ωρολόγιο the σχέδιο takes the place of its Ολοήμερο,
+// with the same hours, so rawHours is enough).
+function expectedHours(programs) {
+  const list = Array.isArray(programs) ? programs : [programs], hours = rawHours(list);
+  if (list.some(program => program?.kind === 'school')) return hours;
+  for (const program of list.filter(item => item?.kind === 'oloimero')) {
     for (const activity of program.activities || []) for (const id of new Set(activity.staff || [])) hours.set(id, (hours.get(id) || 0) + (activity.times || []).length);
   }
   return hours;
@@ -804,6 +815,10 @@ function fetDesignChecks() {
   const same = T.oloimeroDiff(school, design, ctx);
   equal('Το αυτόματο σχέδιο είναι ίδιο με το Ωρολόγιο (oloimeroDiff)', [same.fetOnly.length, same.designOnly.length], [0, 0]);
   const composed = T.composePeriod({periodId: 'pa', programs: [school, design], ...ctx});
+  // A period with a σχέδιο and without an Ωρολόγιο: the hours of the σχέδιο count (expectedHours, as for the .data).
+  const designOnly = T.composePeriod({periodId: 'pa', programs: [design], ...ctx}), designOnlyHours = expectedHours([design]);
+  equal('Περίοδος μόνο με σχέδιο (χωρίς Ωρολόγιο): η σύνθεση μετρά τις ώρες του σχεδίου', MINI_STAFF.map(person => designOnly.hours.get(person.id)?.total || 0), MINI_STAFF.map(person => designOnlyHours.get(person.id) || 0));
+  check('Περίοδος μόνο με σχέδιο: οι ώρες του σχεδίου δεν είναι μηδέν (ο έλεγχος έχει νόημα)', MINI_STAFF.some(person => (designOnlyHours.get(person.id) || 0) > 0));
   equal('Η σύνθεση δίνει την ίδια σύγκριση με το oloimeroDiff', [composed.oloimeroDiff.fetOnly.length, composed.oloimeroDiff.designOnly.length, composed.issues.some(i => i.code === 'oloimeroDiff')], [0, 0, false]);
   const changed = structuredClone(design); changed.id = 'olo-changed';
   changed.activities.find(a => a.subject === 'Αγγλικά').times[0] = {day: 3, start: '14:10', end: '14:55'};
@@ -1047,7 +1062,7 @@ function compositionFileChecks(v2Program, design, staff, classes) {
   const people = file.staffByYear[year], list = file.classesByYear[year].classes, hours = file.teachingHoursByYear[year];
   for (const period of timetables.periods) {
     const comp = T.composePeriod({periodId: period.id, programs: timetables.programs, staff: people, classes: list, teachingHours: hours});
-    const counted = rawHours(timetables.programs.filter(item => item.periodId === period.id));
+    const counted = expectedHours(timetables.programs.filter(item => item.periodId === period.id));
     const same = people.every(person => (comp.hours.get(person.id)?.total || 0) === (counted.get(person.id) || 0));
     // Μια περίοδος χωρίς σχέδιο και χωρίς Ωρολόγιο (π.χ. Επίσημη περίοδος που δεν έχει ακόμη προγράμματα): 'none'.
     const from = comp.programs.oloimero ? 'design' : comp.programs.school ? 'fet' : 'none';
