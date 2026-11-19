@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Σχολικά Προγράμματα v0.37</title>
+<title>Σχολικά Προγράμματα v0.38</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -19,7 +19,8 @@
   --sp-modified:#9a4d00;--sp-modified-bg:#fff4e5;--sp-modified-border:#f3d3b0;
   --sp-note-bg:#fff7ed;--sp-note-border:#fed7aa;--sp-note-text:#9a3412;
   --sp-new-text:#1d6b46;
-  --sp-row-selected:#e8f1ff
+  --sp-row-selected:#e8f1ff;
+  --sp-group-official-border:#cfe5d7;--sp-group-draft-border:#ddd3f4
 }
 /* «⋯» of the header: an icon button with an invisible character, so it keeps the shared baseline of the header. */
 header .sp-more{display:inline-flex;align-items:center;justify-content:center;flex:none;width:var(--school-ui-control-height);padding-left:0;padding-right:0}
@@ -123,12 +124,23 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
 /* «Διαχείριση περιόδων» (inside schoolChoiceDialog) */
 .school-confirm.sp-periods-dialog{width:min(1000px,calc(100vw - 32px))}
 .sp-periods{display:grid;grid-template-columns:minmax(0,1fr) 230px;gap:16px;margin-top:12px}
-.sp-period-table{border:1px solid var(--school-ui-border);border-radius:10px;overflow:auto;max-height:min(52vh,460px);outline-offset:2px}
+/* Two framed groups, like the groups of the shared period list: «Περίοδοι» (official) and «Προσχέδια περιόδων».
+   The area has a fixed height, the last group stretches to its bottom, and the whole area scrolls. */
+.sp-period-table{display:flex;flex-direction:column;gap:12px;overflow:auto;height:min(52vh,460px);border-radius:10px;outline-offset:2px}
+.sp-period-group{flex:none;display:flex;flex-direction:column;border:1px solid var(--sp-group-official-border);border-radius:10px;overflow:hidden;background:#fff}
+.sp-period-group.draft{border-color:var(--sp-group-draft-border)}
+.sp-period-group:last-child{flex:1 0 auto}
+.sp-period-group-head{
+  display:flex;align-items:center;gap:8px;padding:8px 12px;font-size:18px;font-weight:700;line-height:1.3;
+  background:var(--school-ui-period-official-soft-bg);color:var(--school-ui-period-official-soft-text)
+}
+.sp-period-group.draft .sp-period-group-head{background:var(--school-ui-period-draft-bg);color:var(--school-ui-period-draft-text)}
+.sp-period-group-head svg{flex:none;width:var(--school-ui-icon-size-20);height:var(--school-ui-icon-size-20)}
 .sp-period-row{
   display:grid;grid-template-columns:2.5em minmax(0,1fr) 7.5em 10.5em 8.5em;align-items:baseline;gap:8px;padding:9px 12px;
   border-top:1px solid var(--school-ui-border);font-size:15px;line-height:1.4;cursor:pointer
 }
-.sp-period-row.head{position:sticky;top:0;z-index:1;border-top:0;background:#f0f3f7;color:#405367;font-weight:650;cursor:default}
+.sp-period-row.head{background:#f0f3f7;color:#405367;font-weight:650;cursor:default}
 .sp-period-row:not(.head):hover{background:#f6f8fb}
 .sp-period-row.selected,.sp-period-row.selected:hover{background:var(--sp-row-selected);font-weight:650}
 .sp-period-row .num{color:var(--school-ui-muted)}
@@ -136,7 +148,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
 .sp-period-row .muted{color:var(--school-ui-muted);font-weight:400}
 .sp-period-row .end-note{font-size:12px;font-weight:400;color:var(--school-ui-muted)}
 .sp-period-row .unsaved{display:block;font-size:12px;font-weight:400;color:var(--sp-new-text)}
-.sp-periods-empty{margin:0;padding:24px 12px;text-align:center;color:var(--school-ui-muted)}
+.sp-periods-empty{margin:0;padding:10px 12px;border-top:1px solid var(--school-ui-border);font-size:14px;color:var(--school-ui-muted)}
 .sp-period-actions{display:flex;flex-direction:column;gap:8px}
 .sp-period-actions button{justify-content:flex-start;text-align:left;white-space:normal}
 .sp-period-actions .ui-helper{margin:4px 0 0;line-height:1.45}
@@ -188,7 +200,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" data-app-icon="timetables" aria-hidden="true"></span><span class="brand-text"><span>Σχολικά Προγράμματα</span><span class="small version">v0.37</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" data-app-icon="timetables" aria-hidden="true"></span><span class="brand-text"><span>Σχολικά Προγράμματα</span><span class="small version">v0.38</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="more" class="sp-more" type="button" title="Περισσότερες ενέργειες" aria-label="Περισσότερες ενέργειες" disabled></button>
@@ -682,10 +694,27 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
     function draw() {
       const list = orderedPeriods();
       if (!periodById(chosen)) chosen = list[0]?.id || null;
-      const rows = [make('div', 'sp-period-row head')];
-      rows[0].setAttribute('aria-hidden', 'true');
-      rows[0].append(make('span', '', '#'), make('span', '', 'Τίτλος περιόδου'), make('span', '', 'Από'), make('span', '', 'Έως'), make('span', '', 'Κατάσταση'));
-      for (const period of list) {
+      // Two groups, always shown (an empty one with a faint line); the column headings once, in the first group.
+      const groups = [];
+      for (const [isDraft, label, icon, empty] of [[false, 'Περίοδοι', 'calendar-check', 'Δεν υπάρχουν Επίσημες περίοδοι.'], [true, 'Προσχέδια περιόδων', 'calendar-dashed', 'Δεν υπάρχουν Προσχέδια περιόδων.']]) {
+        const group = make('div', 'sp-period-group ' + (isDraft ? 'draft' : 'official'));
+        group.setAttribute('role', 'group'); group.setAttribute('aria-label', label);
+        const head = make('div', 'sp-period-group-head');
+        head.setAttribute('aria-hidden', 'true');
+        head.innerHTML = schoolIcon(icon);
+        head.append(make('span', '', label));
+        group.append(head);
+        if (!isDraft) {
+          const columns = make('div', 'sp-period-row head');
+          columns.setAttribute('aria-hidden', 'true');
+          columns.append(make('span', '', '#'), make('span', '', 'Τίτλος περιόδου'), make('span', '', 'Από'), make('span', '', 'Έως'), make('span', '', 'Κατάσταση'));
+          group.append(columns);
+        }
+        const items = list.filter(period => isDraftPeriod(period) === isDraft);
+        if (!items.length) group.append(make('p', 'sp-periods-empty', empty + (!list.length && !isDraft ? ' Πάτησε «Νέα περίοδος…».' : '')));
+        groups.push({group, items});
+      }
+      for (const {group, items} of groups) for (const period of items) {
         const row = make('div', 'sp-period-row' + (period.id === chosen ? ' selected' : ''));
         row.id = 'sp-row-' + period.id; row.setAttribute('role', 'option'); row.setAttribute('aria-selected', String(period.id === chosen));
         const title = make('span', '', periodName(period));
@@ -701,10 +730,9 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
         row.append(make('span', 'num', String(periodNumber(period))), title, from, to, status);
         row.onclick = () => { chosen = period.id; draw(); table.focus({preventScroll: true}); };
         row.ondblclick = () => { chosen = period.id; editPeriod(); };
-        rows.push(row);
+        group.append(row);
       }
-      table.replaceChildren(...rows);
-      if (!list.length) table.append(make('p', 'sp-periods-empty', 'Δεν υπάρχουν περίοδοι. Πάτησε «Νέα περίοδος…».'));
+      table.replaceChildren(...groups.map(item => item.group));
       if (chosen) { table.setAttribute('aria-activedescendant', 'sp-row-' + chosen); $('sp-row-' + chosen)?.scrollIntoView({block: 'nearest'}); }
       else table.removeAttribute('aria-activedescendant');
       const period = periodById(chosen), full = draft.periods.length >= limits().periods;
