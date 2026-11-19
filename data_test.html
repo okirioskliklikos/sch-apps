@@ -12,7 +12,7 @@
   φτιάχνονται από το σύντομο όνομα των δασκάλων («[Α1] - …», classesFromStaff). Με το .data δοκιμής, οι
   έλεγχοι των νέων ετικετών (v2) παίρνουν το Προσωπικό από αυτό, γιατί το CSV του Ολοημέρου έχει τα σύντομα
   ονόματα του Προσωπικού.
-  Έκδοση αρχείου: 0.70
+  Έκδοση αρχείου: 0.71
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -39,7 +39,7 @@ button{font:inherit;padding:6px 14px;border-radius:8px;border:1px solid #94a3b8;
 </head>
 <body>
 <main>
-<h1><span>Έλεγχος του _data.js και των _host_*.js</span><span class="version" aria-label="Έκδοση 0.70">v0.70</span></h1>
+<h1><span>Έλεγχος του _data.js και των _host_*.js</span><span class="version" aria-label="Έκδοση 0.71">v0.71</span></h1>
 <p>Η σελίδα ελέγχει τις κοινές λειτουργίες του <code>_data.js</code> και τις καθαρές συναρτήσεις του <code>_host_timetables.js</code>, του <code>_host_calendar.js</code>, του <code>_host_classes.js</code>, του <code>_host_students.js</code> και του <code>_host_tags.js</code> με τα αρχεία δοκιμής (βλέπε «Αρχεία δοκιμής» στο <code>project_instructions.md</code>). Δεν αλλάζει κανένα αρχείο.</p>
 <div class="drop" id="drop">
   <p><strong>Αρχεία δοκιμής:</strong> σύρε τα εδώ ή <input type="file" id="files" multiple accept=".fet,.csv,.data"></p>
@@ -2465,6 +2465,8 @@ function programStateChecks() {
   const T = SchoolTimetable, stable = value => JSON.stringify(value);
   // Περίοδοι
   const p = (id, name, from, to, status) => ({id, name, from, to, ...(status ? {status} : {})});
+  // Το «Άλφα προσχέδιο» έχει ημερομηνίες, όπως σε παλαιότερο αρχείο (σήμερα ένα Προσχέδιο περιόδου δεν έχει): οι
+  // συναρτήσεις του _data_timetable.js δεν τις λαμβάνουν υπόψη.
   const list = [p('d2', 'Ζήτα προσχέδιο', '', '', 'draft'), p('b', 'Β', '2026-11-16', ''), p('a2', 'Α πρώτη', '2026-09-11', '2026-11-15'),
     p('a1', 'Α δεύτερη', '2026-09-11', '2026-11-15'), p('d1', 'Άλφα προσχέδιο', '2026-12-01', '2026-12-20', 'draft'), p('a0', 'Α μικρή', '2026-09-11', '2026-10-01', 'official')];
   equal('Σειρά: Επίσημες κατά έναρξη (μετά κατά λήξη, μετά αλφαβητικά), μετά τα Προσχέδια περιόδων αλφαβητικά', T.sortPeriods(list).map(x => x.id), ['a0', 'a1', 'a2', 'b', 'd1', 'd2']);
@@ -2572,7 +2574,16 @@ function hostProgramStateChecks() {
   if (!withPeriods) return;
   rejects('Επίσημη χωρίς ημερομηνία έναρξης', trySave(base, {ops: [], periods: [{...official, from: ''}]}, PROG), 'ημερομηνία έναρξης');
   rejects('Άγνωστη κατάσταση περιόδου', trySave(base, {ops: [], periods: [{...official, status: 'άλλη'}]}, PROG), 'άγνωστη κατάσταση');
-  rejects('Προσχέδιο περιόδου με ημερομηνία έξω από το σχολικό έτος', trySave(base, {ops: [], periods: [{...draft, from: '2027-09-01'}]}, PROG), 'μέσα στο σχολικό έτος');
+  rejects('Προσχέδιο περιόδου με ημερομηνία έναρξης', trySave(base, {ops: [], periods: [{...draft, from: '2026-12-01'}]}, PROG), 'δεν έχει ημερομηνίες');
+  rejects('Προσχέδιο περιόδου με ημερομηνία λήξης', trySave(base, {ops: [], periods: [{...draft, to: '2026-12-20'}]}, PROG), 'δεν έχει ημερομηνίες');
+  // Παλαιότερο αρχείο με Προσχέδιο περιόδου που έχει ημερομηνίες: το host τις σβήνει στο context και στην αποθήκευση.
+  const dated = {...draft, from: '2026-12-01', to: '2026-12-20'};
+  const oldFile = {...base, timetablesByYear: {[year]: {periods: [official, dated], programs: []}}};
+  const stripped = H.withoutDraftDates([official, dated]);
+  equal('withoutDraftDates: κενές ημερομηνίες μόνο στο Προσχέδιο, χωρίς αλλαγή της λίστας που δίνεται', [stripped, dated.from], [[official, draft], '2026-12-01']);
+  equal('Παλαιότερο αρχείο: τα Σχολικά Προγράμματα και ο Ολοήμερος Designer παίρνουν το Προσχέδιο χωρίς ημερομηνίες', [H.context(oldFile, PROG, 1).periods, H.context(oldFile, OLO, 1).periods], [[official, draft], [official, draft]]);
+  const oldHours = accepts('Παλαιότερο αρχείο: ο Ολοήμερος Designer αποθηκεύει διαθέσιμες ώρες Ολοημέρου', trySave(oldFile, {ops: [], periodHours: [{periodId: 'pd', oloimeroHours: {s1: 2}}]}, OLO));
+  if (oldHours) equal('… και στο αρχείο το Προσχέδιο μένει χωρίς ημερομηνίες', H.yearData(oldHours, year).periods, [official, {...draft, oloimeroHours: {s1: 2}}]);
   accepts('Επίσημη με διαθέσιμες ώρες Ολοημέρου', trySave(base, {ops: [], periods: [{...official, oloimeroHours: {s1: 3, s2: 0}}]}, PROG));
   rejects('Διαθέσιμες ώρες Ολοημέρου πάνω από 99', trySave(base, {ops: [], periods: [{...official, oloimeroHours: {s1: 100}}]}, PROG), 'από 0 έως 99');
   rejects('Διαθέσιμες ώρες Ολοημέρου εκπαιδευτικού που δεν υπάρχει', trySave(base, {ops: [], periods: [{...official, oloimeroHours: {xx: 1}}]}, PROG), 'δεν υπάρχει στο Προσωπικό');
@@ -2815,7 +2826,7 @@ function backupChecks() {
   // Host: ο κατάλογος από τα Σχολικά Προγράμματα δέχεται μόνο προσθήκες, μαζί με προγράμματα.
   let small = accepts('Προετοιμασία: μικρότερος κατάλογος και τα τμήματα με νέα id', trySave({...data, classesByYear: {[year]: {classes: readded}}, timetablesByYear: {[year]: {...yearData, programs: [], individualCatalog: smaller}}}, {ops: [], periods: yearData.periods}, PROG));
   if (!small) return;
-  const newPeriod = {id: 'pr', name: 'Α περίοδος (επαναφορά)', from: '2026-09-11', to: '2026-11-15', status: 'draft', oloimeroHours: built.oloimeroHours};
+  const newPeriod = {id: 'pr', name: 'Α περίοδος (επαναφορά)', from: '', to: '', status: 'draft', oloimeroHours: built.oloimeroHours};
   const periods = [...H.yearData(small, year).periods, newPeriod];
   const restoredData = accepts('Επαναφορά ως νέο Προσχέδιο περιόδου, με προσθήκες στον κατάλογο', trySave(small, {ops: built.programs.map(put), periods, individualCatalog: built.catalog}, PROG));
   if (restoredData) {

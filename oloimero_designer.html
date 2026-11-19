@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ολοήμερο Designer v2.01</title>
+<title>Ολοήμερο Designer v2.02</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -579,7 +579,7 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
 <body>
 
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark is-sub" data-app-icon="oloimero" aria-hidden="true"></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v2.01</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark is-sub" data-app-icon="oloimero" aria-hidden="true"></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v2.02</span></span></button></h1></div>
   <select id="program" aria-label="Σχέδιο" hidden></select>
   <span id="periodStatus" class="ui-period-status" hidden></span>
   <span class="save-control">
@@ -3382,9 +3382,9 @@ const asideEl=document.querySelector("aside");
 const isReady=()=>!!context&&!hoursError;
 const periodsList=()=>context?.periods||[];
 const periodOf=id=>periodsList().find(period=>period.id===id)||null;
-// A Προσχέδιο περιόδου may have no dates.
+// A Προσχέδιο περιόδου has no dates.
 const periodRange=period=>D.valid(period.from)?`${D.format(period.from)} – ${D.format(T.periodEnd(period,context.year))}`:"";
-const periodText=period=>T.isDraftPeriod(period)?`${period.name} (προσχέδιο περιόδου${periodRange(period)?", "+periodRange(period):""})`:`${period.name} (${periodRange(period)})`;
+const periodText=period=>T.isDraftPeriod(period)?`${period.name} (προσχέδιο περιόδου)`:`${period.name} (${periodRange(period)})`;
 const savedPrograms=()=>(context?.programs||[]).filter(program=>program.kind===KIND);
 const savedProgram=id=>savedPrograms().find(program=>program.id===id)||null;
 const savedOfPeriod=periodId=>savedPrograms().find(program=>program.periodId===periodId)||null;

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Σχολικά Προγράμματα v0.35</title>
+<title>Σχολικά Προγράμματα v0.36</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -182,11 +182,13 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
   .pg-history li{grid-template-columns:minmax(0,1fr)}
 }
 @media(max-width:400px){.sp-form-grid{grid-template-columns:1fr}}
+/* A Προσχέδιο περιόδου has no dates: only the name. */
+.sp-form-grid.no-dates{grid-template-columns:minmax(0,1fr)}
 </style>
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" data-app-icon="timetables" aria-hidden="true"></span><span class="brand-text"><span>Σχολικά Προγράμματα</span><span class="small version">v0.35</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" data-app-icon="timetables" aria-hidden="true"></span><span class="brand-text"><span>Σχολικά Προγράμματα</span><span class="small version">v0.36</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="more" class="sp-more" type="button" title="Περισσότερες ενέργειες" aria-label="Περισσότερες ενέργειες" disabled></button>
@@ -266,9 +268,9 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
   const yearRangeText = () => D.format(yearRange().from) + '–' + D.format(yearRange().to);
   const teachingEnd = () => D.schoolYearTeachingEnd(context.year);
   const isDraftPeriod = period => T.isDraftPeriod(period);
-  // «11/09/2026 – 15/11/2026»; an empty «Έως» ends on the last teaching day; a Προσχέδιο περιόδου may have no dates.
+  // «11/09/2026 – 15/11/2026»; an empty «Έως» ends on the last teaching day; a Προσχέδιο περιόδου has no dates.
   function rangeText(period) {
-    if (!D.valid(period.from)) return D.valid(period.to) ? '… – ' + D.format(period.to) : '';
+    if (isDraftPeriod(period) || !D.valid(period.from)) return '';
     return D.format(period.from) + ' – ' + D.format(T.periodEnd(period, context.year));
   }
   const periodName = period => period?.name?.trim() || 'Χωρίς όνομα';
@@ -384,7 +386,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
   }
   function optionText(period) {
     const empty = !programsOf(period.id).length ? ' (κενή)' : '';
-    if (isDraftPeriod(period)) return periodNumber(period) + ' · ' + periodName(period) + ' · Προσχέδιο' + (rangeText(period) ? ' · ' + rangeText(period) : '') + empty;
+    if (isDraftPeriod(period)) return periodNumber(period) + ' · ' + periodName(period) + ' · Προσχέδιο' + empty;
     return periodNumber(period) + ' · ' + periodName(period) + ' · ' + rangeText(period) + empty;
   }
   function renderBar() {
@@ -693,10 +695,11 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
         row.id = 'sp-row-' + period.id; row.setAttribute('role', 'option'); row.setAttribute('aria-selected', String(period.id === chosen));
         const title = make('span', '', periodName(period));
         if (!isStoredPeriod(period)) title.append(make('span', 'unsaved', 'νέα· με την «Αποθήκευση»'));
-        const from = make('span', D.valid(period.from) ? '' : 'muted', D.valid(period.from) ? D.format(period.from) : '—');
-        const to = make('span', period.to || D.valid(period.from) ? '' : 'muted');
-        if (period.to) to.textContent = D.format(period.to);
-        else if (isDraftPeriod(period) || !D.valid(period.from)) to.textContent = '—';
+        const dated = !isDraftPeriod(period) && D.valid(period.from);
+        const from = make('span', dated ? '' : 'muted', dated ? D.format(period.from) : '—');
+        const to = make('span', dated ? '' : 'muted');
+        if (!dated) to.textContent = '—';
+        else if (period.to) to.textContent = D.format(period.to);
         else { to.textContent = D.format(teachingEnd()) + ' '; to.append(make('span', 'end-note', '(τέλος έτους)')); to.title = 'Χωρίς ημερομηνία λήξης: μέχρι το τέλος του σχολικού έτους'; }
         const status = make('span', ''), badge = make('span', 'ui-period-status ' + (isDraftPeriod(period) ? 'draft' : 'official'), isDraftPeriod(period) ? 'Προσχέδιο' : 'Επίσημη');
         status.append(badge);
@@ -751,14 +754,15 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
   }
 
   // A period: new (mode 'new', Επίσημη or Προσχέδιο), changed (mode 'edit'), or made official (mode 'official').
-  // An official period needs a start date; a Προσχέδιο περιόδου may have no dates. The warnings of the list (overlaps,
-  // same start, empty «Έως» before the last one) are shown as the dates are written. → the id of the period, or null.
+  // An official period needs a start date; a Προσχέδιο περιόδου has no dates (the fields are hidden), and gets them
+  // with «Ορισμός ως Επίσημης». The warnings of the list (overlaps, same start, empty «Έως» before the last one) are
+  // shown as the dates are written. → the id of the period, or null.
   async function periodForm({period = null, mode}) {
     const make = (tag, attributes = {}, textValue) => { const node = document.createElement(tag); for (const [key, value] of Object.entries(attributes)) node.setAttribute(key, value); if (textValue != null) node.textContent = textValue; return node; };
     const labelled = (labelText, control) => { const label = make('label', {class: 'school-choice-field'}, labelText); label.append(control); return label; };
     const name = make('input', {type: 'text', maxlength: '200'}), from = make('input', {type: 'text', inputmode: 'numeric', maxlength: '10', placeholder: 'ηη/μμ/εεεε'}), to = make('input', {type: 'text', inputmode: 'numeric', maxlength: '10', placeholder: 'ηη/μμ/εεεε'});
-    const grid = make('div', {class: 'sp-form-grid'});
-    grid.append(labelled('Όνομα', name), labelled('Από', from), labelled('Έως', to));
+    const grid = make('div', {class: 'sp-form-grid'}), fromField = labelled('Από', from), toField = labelled('Έως', to);
+    grid.append(labelled('Όνομα', name), fromField, toField);
     const help = make('p', {class: 'sp-form-help'}), warnings = make('div', {class: 'sp-form-warnings'});
     const content = [];
     let status = null;
@@ -783,9 +787,11 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
       while (names.has(suggestion)) suggestion = 'Νέα περίοδος ' + number++;
       name.value = suggestion; from.value = D.format(start);
     } else {
-      name.value = period.name; from.value = D.valid(period.from) ? D.format(period.from) : ''; to.value = D.valid(period.to) ? D.format(period.to) : '';
+      // A Προσχέδιο περιόδου has no dates: «Ορισμός ως Επίσημης» starts with empty fields.
+      name.value = period.name;
+      if (!isDraftPeriod(period)) { from.value = D.valid(period.from) ? D.format(period.from) : ''; to.value = D.valid(period.to) ? D.format(period.to) : ''; }
     }
-    if (mode === 'official') content.push('Το Προσχέδιο περιόδου ' + quoted(periodName(period)) + ' θα γίνει Επίσημη περίοδος και θα ισχύει στις ημερομηνίες της. Αν επικαλύπτεται με άλλη Επίσημη, ισχύει η περίοδος που ξεκινά αργότερα· οι ημερομηνίες δεν αλλάζουν αυτόματα.');
+    if (mode === 'official') content.push('Το Προσχέδιο περιόδου ' + quoted(periodName(period)) + ' θα γίνει Επίσημη περίοδος και θα ισχύει στις ημερομηνίες που ορίζεις εδώ. Αν επικαλύπτεται με άλλη Επίσημη, ισχύει η περίοδος που ξεκινά αργότερα· οι ημερομηνίες δεν αλλάζουν αυτόματα.');
     if (status) content.push(status);
     content.push(grid, help, warnings);
     const read = () => {
@@ -794,7 +800,9 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
     };
     const update = () => {
       const draftStatus = isDraft() && mode !== 'official';
-      help.textContent = (draftStatus ? 'Στο Προσχέδιο περιόδου οι ημερομηνίες είναι προαιρετικές. ' : '') + 'Ημερομηνίες μέσα στο σχολικό έτος (' + yearRangeText() + '). Κενό «Έως»: μέχρι το τέλος του σχολικού έτους (' + D.format(teachingEnd()) + ').';
+      fromField.hidden = toField.hidden = draftStatus;
+      grid.classList.toggle('no-dates', draftStatus);
+      help.textContent = draftStatus ? 'Ένα Προσχέδιο περιόδου δεν έχει ημερομηνίες· τις αποκτά με τον «Ορισμό ως Επίσημης».' : 'Ημερομηνίες μέσα στο σχολικό έτος (' + yearRangeText() + '). Κενό «Έως»: μέχρι το τέλος του σχολικού έτους (' + D.format(teachingEnd()) + ').';
       const {fromIso, toIso, toText} = read();
       const messages = [];
       if (!draftStatus && fromIso && (toIso || !toText)) {
@@ -807,12 +815,13 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
     const run = () => {
       const draftStatus = isDraft() && mode !== 'official', newName = name.value.trim(), {fromText, toText, fromIso, toIso} = read();
       if (!newName) { name.focus(); throw Error('Συμπλήρωσε όνομα για την περίοδο.'); }
-      if (!fromText && !draftStatus) { from.focus(); throw Error('Μια Επίσημη περίοδος χρειάζεται ημερομηνία έναρξης (ηη/μμ/εεεε).'); }
+      if (draftStatus) return {name: newName, from: '', to: '', status: 'draft'};
+      if (!fromText) { from.focus(); throw Error('Μια Επίσημη περίοδος χρειάζεται ημερομηνία έναρξης (ηη/μμ/εεεε).'); }
       if (fromText && (!fromIso || !D.inSchoolYear(fromIso, context.year))) { from.focus(); throw Error('Η ημερομηνία «Από» πρέπει να είναι ηη/μμ/εεεε, μέσα στο σχολικό έτος (' + yearRangeText() + ').'); }
       if (toText && (!toIso || !D.inSchoolYear(toIso, context.year))) { to.focus(); throw Error('Η ημερομηνία «Έως» πρέπει να είναι ηη/μμ/εεεε, μέσα στο σχολικό έτος, ή κενή.'); }
       if (toText && !fromText) { from.focus(); throw Error('Συμπλήρωσε και την ημερομηνία «Από», ή άφησε κενό και το «Έως».'); }
       if (fromIso && toIso && toIso < fromIso) { to.focus(); throw Error('Η λήξη είναι πριν από την έναρξη.'); }
-      return {name: newName, from: fromIso || '', to: toIso || '', status: draftStatus ? 'draft' : 'official'};
+      return {name: newName, from: fromIso, to: toIso || '', status: 'official'};
     };
     for (const control of [name, from, to]) control.addEventListener('input', update);
     status?.addEventListener('change', update);
@@ -931,7 +940,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
       where.append(label);
       return radio;
     };
-    const asNew = option('new', 'Ως νέο Προσχέδιο περιόδου ' + quoted(newName) + ', με τις ημερομηνίες του αντιγράφου.', full, 'Ένα σχολικό έτος έχει έως ' + limits().periods + ' περιόδους.');
+    const asNew = option('new', 'Ως νέο Προσχέδιο περιόδου ' + quoted(newName) + ', χωρίς ημερομηνίες.', full, 'Ένα σχολικό έτος έχει έως ' + limits().periods + ' περιόδους.');
     const inCurrent = current ? option('current', 'Στην περίοδο ' + quoted(periodName(current)) + ': αντικαθίστανται όλα τα προγράμματά της και οι διαθέσιμες ώρες Ολοημέρου· το όνομα, οι ημερομηνίες και η κατάστασή της μένουν.', false, '') : null;
     (full ? inCurrent : asNew)?.click();
     content.push(where);
@@ -950,8 +959,8 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
       if (!period || !await clearForRestore(period)) return;
     } else {
       if (draft.periods.length >= limits().periods) { notice('Ένα σχολικό έτος έχει έως ' + limits().periods + ' περιόδους.', true); return; }
-      period = {id: uid(), name: newName, from: D.valid(source.from) && D.inSchoolYear(source.from, context.year) ? source.from : '', to: '', status: 'draft'};
-      if (period.from && D.valid(source.to) && D.inSchoolYear(source.to, context.year) && source.to >= period.from) period.to = source.to;
+      // A Προσχέδιο περιόδου has no dates: they come with «Ορισμός ως Επίσημης».
+      period = {id: uid(), name: newName, from: '', to: '', status: 'draft'};
       draft.periods.push(period);
     }
     let result;
@@ -1289,7 +1298,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
   }
 
   // ---- Copy a period with replacements ----
-  // The new period is an official period or a Προσχέδιο περιόδου (dates optional). → the id of the new period, or null.
+  // The new period is an official period or a Προσχέδιο περιόδου (without dates). → the id of the new period, or null.
   async function copyPeriod(sourceId) {
     if (busy || !draft.periods.length) return null;
     const staff = [...(context.staff || [])].sort(byShortName);
@@ -1306,7 +1315,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
       return select;
     };
     const source = make('select');
-    source.append(...orderedPeriods().map(period => make('option', {value: period.id}, periodNumber(period) + ' · ' + periodName(period) + (isDraftPeriod(period) ? ' (προσχέδιο)' : '') + (rangeText(period) ? ' (' + rangeText(period) + ')' : ''))));
+    source.append(...orderedPeriods().map(period => make('option', {value: period.id}, periodNumber(period) + ' · ' + periodName(period) + (isDraftPeriod(period) ? ' (προσχέδιο)' : ' (' + rangeText(period) + ')'))));
     source.value = periodById(sourceId)?.id || periodById(selectedId)?.id || orderedPeriods()[0].id;
     const name = make('input', {type: 'text', maxlength: '200'});
     const from = make('input', {type: 'text', inputmode: 'numeric', maxlength: '10', placeholder: 'ηη/μμ/εεεε'});
@@ -1344,8 +1353,8 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
     const addButton = make('button', {type: 'button', class: 'copy-add'}); addButton.innerHTML = schoolIconText('plus', 'Αντικατάσταση');
     addButton.onclick = () => addRow().querySelector('select').focus();
     const summary = make('p', {class: 'copy-summary'}), warnings = make('div', {class: 'sp-form-warnings'});
-    const grid = make('div', {class: 'sp-form-grid'});
-    grid.append(labelled('Όνομα', name), labelled('Από', from), labelled('Έως', to));
+    const grid = make('div', {class: 'sp-form-grid'}), fromField = labelled('Από', from), toField = labelled('Έως', to);
+    grid.append(labelled('Όνομα', name), fromField, toField);
     const help = make('p', {class: 'sp-form-help'});
     const form = make('div');
     form.append(labelled('Περίοδος-πηγή', source), make('h3', {class: 'copy-section'}, 'Νέα περίοδος'), status, grid, help,
@@ -1355,7 +1364,9 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
     const replacements = () => [...rows.querySelectorAll('.copy-row')].map(row => { const [a, b] = row.querySelectorAll('select'); return {from: a.value, to: b.value}; });
     const shortName = id => { const person = staff.find(item => item.id === id); return person ? person.shortName || person.name : '?'; };
     function update() {
-      help.textContent = (isDraft() ? 'Στο Προσχέδιο περιόδου οι ημερομηνίες είναι προαιρετικές. ' : '') + 'Κενό «Έως»: μέχρι το τέλος του σχολικού έτους.';
+      fromField.hidden = toField.hidden = isDraft();
+      grid.classList.toggle('no-dates', isDraft());
+      help.textContent = isDraft() ? 'Ένα Προσχέδιο περιόδου δεν έχει ημερομηνίες· τις αποκτά με τον «Ορισμό ως Επίσημης».' : 'Κενό «Έως»: μέχρι το τέλος του σχολικού έτους.';
       const period = periodById(source.value), programs = programsOf(period.id), list = replacements().filter(item => item.from && item.to && item.from !== item.to);
       if (!programs.length) summary.textContent = 'Η περίοδος-πηγή δεν έχει προγράμματα· θα δημιουργηθεί κενή περίοδος.';
       else {
@@ -1384,7 +1395,8 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
       const period = periodById(source.value), draftStatus = isDraft();
       const newName = name.value.trim();
       if (!newName) { name.focus(); throw Error('Συμπλήρωσε όνομα για τη νέα περίοδο.'); }
-      const fromText = from.value.trim(), toText = to.value.trim();
+      // A Προσχέδιο περιόδου has no dates.
+      const fromText = draftStatus ? '' : from.value.trim(), toText = draftStatus ? '' : to.value.trim();
       const fromIso = fromText ? D.parse(fromText) : '';
       if (!fromText && !draftStatus) { from.focus(); throw Error('Μια Επίσημη περίοδος χρειάζεται ημερομηνία έναρξης (ηη/μμ/εεεε).'); }
       if (fromText && (!fromIso || !D.inSchoolYear(fromIso, context.year))) { from.focus(); throw Error('Η ημερομηνία «Από» πρέπει να είναι ηη/μμ/εεεε, μέσα στο σχολικό έτος (' + yearRangeText() + ').'); }

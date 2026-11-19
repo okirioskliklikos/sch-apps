@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Προγράμματα στο Κεντρικό Μενού (host)
- * Έκδοση αρχείου: 0.23
+ * Έκδοση αρχείου: 0.24
  * Όνομα κατά την εγκατάσταση: _host_timetables.js
  *
  * Κώδικας μόνο του host για τα προγράμματα (timetablesByYear). Το φορτώνει το index.html μετά το
@@ -14,8 +14,10 @@
  *   checkCatalogAdditions(before, after)    ο κατάλογος που στέλνουν τα Σχολικά Προγράμματα έχει μόνο προσθήκες στο
  *                                           τέλος (επαναφορά από αντίγραφο ασφαλείας· πετά λάθος)
  *   context(data, app, revision)            το school-timetables:context για μια εφαρμογή
- *   validatePeriods(periods, year, options) έλεγχος της λίστας περιόδων: Επίσημες και Προσχέδια περιόδων, διαθέσιμες
- *                                           ώρες Ολοημέρου (πετά λάθος)
+ *   validatePeriods(periods, year, options) έλεγχος της λίστας περιόδων: Επίσημες και Προσχέδια περιόδων (χωρίς
+ *                                           ημερομηνίες), διαθέσιμες ώρες Ολοημέρου (πετά λάθος)
+ *   withoutDraftDates(periods)              η λίστα περιόδων με κενές ημερομηνίες στα Προσχέδια περιόδων (παλαιότερα
+ *                                           αρχεία· δεν αλλάζει τη λίστα που παίρνει)
  *   validateProgram(program, options)       πλήρης έλεγχος ενός προγράμματος, μαζί με το Ιστορικό και την αρχική
  *                                           κατάστασή του (πετά λάθος)
  *   applySave(data, message, app)           εφαρμογή ενός school-timetables:save σε αντίγραφο· κρατά την αρχική
@@ -263,9 +265,11 @@
   // school-timetables:context για μια εφαρμογή: τα προγράμματα περιόδων όλων των γνωστών ειδών. Προγράμματα
   // άγνωστου είδους, ή χωρίς περίοδο, δεν στέλνονται.
   // Μια εφαρμογή που μόνο διαβάζει δεν παίρνει τα Προσχέδια περιόδων και τα προγράμματά τους.
+  // Τα Προσχέδια περιόδων ενός παλαιότερου αρχείου μπορεί να έχουν ημερομηνίες: εδώ σβήνονται, και το αρχείο
+  // διορθώνεται με την επόμενη αποθήκευση προγραμμάτων.
   function context(data, app, revision) {
     const year = data.school.year, timetables = yearData(data, year), rights = permissions(app);
-    const periods = readerOnly(rights) ? T.officialPeriods(timetables.periods) : timetables.periods;
+    const periods = readerOnly(rights) ? T.officialPeriods(timetables.periods) : withoutDraftDates(timetables.periods);
     const periodIds = new Set(periods.map(period => period?.id));
     return clone({
       revision, school: {...data.school}, year,
@@ -308,9 +312,15 @@
   const textList = (value, max = LIMITS.people) => Array.isArray(value) && value.length <= max && value.every(item => isText(item) && item.trim() !== '');
   const integer = (value, min, max) => Number.isInteger(value) && value >= min && value <= max;
 
+  // Ένα Προσχέδιο περιόδου δεν έχει ημερομηνίες· τις αποκτά με τον «Ορισμό ως Επίσημης». Παλαιότερα αρχεία μπορεί να
+  // έχουν Προσχέδια με ημερομηνίες: εδώ γίνονται κενές. Η λίστα που δίνεται δεν αλλάζει.
+  const hasDate = value => value != null && value !== '';
+  const withoutDraftDates = periods => (Array.isArray(periods) ? periods : []).map(period =>
+    T.isDraftPeriod(period) && (hasDate(period.from) || hasDate(period.to)) ? {...period, from: '', to: ''} : period);
+
   // Λίστα περιόδων: μορφή, μοναδικά id και όνομα, κατάσταση (Επίσημη ή Προσχέδιο περιόδου), ημερομηνίες μέσα στο
-  // σχολικό έτος, διαθέσιμες ώρες Ολοημέρου. Μια Επίσημη χρειάζεται ημερομηνία έναρξης· ένα Προσχέδιο περιόδου μπορεί
-  // να μην έχει ημερομηνίες. Επικαλύψεις, κενό «έως» σε περίοδο που δεν είναι τελευταία κ.λπ. είναι προειδοποιήσεις των
+  // σχολικό έτος, διαθέσιμες ώρες Ολοημέρου. Μια Επίσημη χρειάζεται ημερομηνία έναρξης· ένα Προσχέδιο περιόδου δεν
+  // έχει ημερομηνίες. Επικαλύψεις, κενό «έως» σε περίοδο που δεν είναι τελευταία κ.λπ. είναι προειδοποιήσεις των
   // εφαρμογών. options.staffIds: τα id του Προσωπικού, για τις διαθέσιμες ώρες Ολοημέρου (χωρίς αυτό δεν ελέγχεται αν
   // υπάρχουν).
   function validatePeriods(periods, year, options = {}) {
@@ -326,9 +336,12 @@
       ids.add(period.id);
       if (!isText(period.name, 200) || !period.name.trim()) throw Error('Η περίοδος ' + (index + 1) + ' χρειάζεται όνομα.');
       if (period.status != null && !T.PERIOD_STATUSES.includes(period.status)) throw Error(label + ' έχει άγνωστη κατάσταση. Βεβαιώσου ότι η εφαρμογή είναι η τελευταία έκδοση.');
-      const draft = T.isDraftPeriod(period);
-      if (draft ? !(period.from === '' || period.from == null || D.inSchoolYear(period.from, year)) : !D.inSchoolYear(period.from, year)) throw Error(label + ' χρειάζεται ημερομηνία έναρξης μέσα στο σχολικό έτος (' + rangeText + ')' + (draft ? ', ή κενή.' : '.'));
-      if (!(period.to === '' || (draft && period.to == null) || D.inSchoolYear(period.to, year))) throw Error(label + ' χρειάζεται ημερομηνία λήξης μέσα στο σχολικό έτος (' + rangeText + '), ή κενή.');
+      if (T.isDraftPeriod(period)) {
+        if (hasDate(period.from) || hasDate(period.to)) throw Error(label + ': ένα Προσχέδιο περιόδου δεν έχει ημερομηνίες. Τις αποκτά με τον «Ορισμό ως Επίσημης».');
+      } else {
+        if (!D.inSchoolYear(period.from, year)) throw Error(label + ' χρειάζεται ημερομηνία έναρξης μέσα στο σχολικό έτος (' + rangeText + ').');
+        if (!(period.to === '' || D.inSchoolYear(period.to, year))) throw Error(label + ' χρειάζεται ημερομηνία λήξης μέσα στο σχολικό έτος (' + rangeText + '), ή κενή.');
+      }
       if (period.oloimeroHours != null) {
         const hours = period.oloimeroHours;
         if (!isObject(hours) || Object.keys(hours).length > LIMITS.people) throw Error(label + ': οι διαθέσιμες ώρες Ολοημέρου δεν είναι έγκυρες.');
@@ -535,7 +548,8 @@
     if (!rights.kinds.length) throw Error('Η εφαρμογή δεν έχει δικαίωμα να αλλάξει προγράμματα.');
 
     const candidate = clone(data), current = yearData(candidate, year);
-    const periods = changesPeriods ? clone(message.periods) : clone(current.periods);
+    // Σε ένα παλαιότερο αρχείο, τα Προσχέδια περιόδων χάνουν εδώ τις ημερομηνίες τους (withoutDraftDates).
+    const periods = changesPeriods ? clone(message.periods) : clone(withoutDraftDates(current.periods));
     // The available hours of the Ολοήμερο of a period (period.oloimeroHours): all of them together.
     for (const item of changesHours ? message.periodHours : []) {
       const period = periods.find(entry => isObject(entry) && entry.id === item.periodId);
@@ -1021,7 +1035,7 @@
 
   window.SchoolHostTimetables = Object.freeze({
     PROGRAMS_APP, PROGRAMS_TITLE, LIMITS, WARN_RATIO, CATALOG_LIMITS, permissions, yearData, individualCatalog, validateCatalog, checkCatalogAdditions, context,
-    validatePeriods, validateProgram, applySave, viewKey, lastView, withView, currentPeriod, periodViews, openTarget, ZOOM, zoom, withZoom,
+    validatePeriods, withoutDraftDates, validateProgram, applySave, viewKey, lastView, withView, currentPeriod, periodViews, openTarget, ZOOM, zoom, withZoom,
     staffUsage, applyStaffRemovals, importFile, programsFile, oloimeroFile, individualFile, droppedImportFile, rememberedFile, install
   });
 })();

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Πλήρες Σχολικό Πρόγραμμα v1.20</title>
+<title>Πλήρες Σχολικό Πρόγραμμα v1.21</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -186,7 +186,7 @@ button.ui-icon-button.ft-cell-edit>svg{width:var(--school-ui-icon-size-list);hei
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Πλήρες Σχολικό Πρόγραμμα — άνοιγμα κεντρικού μενού"><span class="app-mark is-sub" data-app-icon="full" aria-hidden="true"></span><span class="brand-text"><span>Πλήρες Σχολικό Πρόγραμμα</span><span class="small version">v1.20</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Πλήρες Σχολικό Πρόγραμμα — άνοιγμα κεντρικού μενού"><span class="app-mark is-sub" data-app-icon="full" aria-hidden="true"></span><span class="brand-text"><span>Πλήρες Σχολικό Πρόγραμμα</span><span class="small version">v1.21</span></span></button></h1></div>
   <select id="period" aria-label="Περίοδος" disabled hidden></select>
   <span id="periodStatus" class="ui-period-status" hidden></span>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
@@ -293,9 +293,9 @@ button.ui-icon-button.ft-cell-edit>svg{width:var(--school-ui-icon-size-list);hei
   const periodOf = id => context?.periods?.find(period => period.id === id) || null;
   const programOf = (id, kind) => (context?.programs || []).find(item => item.kind === kind && item.periodId === id) || null;
   const periodPrograms = id => (context?.programs || []).filter(item => item.periodId === id && Object.prototype.hasOwnProperty.call(T.kinds, item.kind));
-  // A Προσχέδιο περιόδου may have no dates.
+  // A Προσχέδιο περιόδου has no dates.
   const periodRange = period => D.valid(period.from) ? D.format(period.from) + ' – ' + D.format(T.periodEnd(period, context.year)) : '';
-  const periodText = period => period.name + (T.isDraftPeriod(period) ? ' (προσχέδιο περιόδου' + (periodRange(period) ? ', ' + periodRange(period) : '') + ')' : ' (' + periodRange(period) + ')');
+  const periodText = period => period.name + (T.isDraftPeriod(period) ? ' (προσχέδιο περιόδου)' : ' (' + periodRange(period) + ')');
   const notice = (textValue, error = false) => { const node = $('notice'); if (!node) return; node.textContent = textValue; node.classList.toggle('error', error); };
   const message = (textValue, title) => schoolMessage(textValue, title ? {title} : {});
   const modeSafe = () => controlState.mode !== 'free';
@@ -858,7 +858,7 @@ button.ui-icon-button.ft-cell-edit>svg{width:var(--school-ui-icon-size-list);hei
     const box = $('sourceInfo'), period = periodOf(periodId), parts = [];
     if (period) {
       const line = el('div', 'ft-source'), span = el('span');
-      span.append(el('b', '', 'Περίοδος: '), T.isDraftPeriod(period) ? 'Προσχέδιο περιόδου' + (periodRange(period) ? ', ' + periodRange(period) : '') : periodRange(period));
+      span.append(el('b', '', 'Περίοδος: '), T.isDraftPeriod(period) ? 'Προσχέδιο περιόδου' : periodRange(period));
       line.append(span);
       parts.push(line);
     }
