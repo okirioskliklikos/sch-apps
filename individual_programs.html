@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ατομικά Προγράμματα v0.14</title>
+<title>Ατομικά Προγράμματα v0.15</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -25,7 +25,7 @@
   --ip-floating-bottom:12px;--ip-scrollbar-lift:0px
 }
 /* Header: the lists give up width before anything wraps out of the page. */
-#period{flex:0 1 auto;min-width:0;max-width:min(440px,100%)}
+#period{flex:0 1 auto;min-width:0}
 .ip-staff-control{position:relative;display:inline-flex;min-width:0;max-width:min(320px,100%);flex:0 1 auto}
 /* The teacher list: a button with the look of a select (the marks of the hours are SVG, which a select cannot show). */
 .ip-staff-button{
@@ -214,9 +214,8 @@ main.ip-single~.ip-summary{left:18px}
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ατομικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark is-sub" data-app-icon="individual" aria-hidden="true"></span><span class="brand-text"><span>Ατομικά Προγράμματα</span><span class="small version">v0.14</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ατομικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark is-sub" data-app-icon="individual" aria-hidden="true"></span><span class="brand-text"><span>Ατομικά Προγράμματα</span><span class="small version">v0.15</span></span></button></h1></div>
   <select id="period" aria-label="Περίοδος" disabled hidden></select>
-  <span id="periodStatus" class="ui-period-status" hidden></span>
   <span id="staffControl" class="ip-staff-control" hidden>
     <button id="staffButton" class="ip-staff-button" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="staffMenu" disabled>Εκπαιδευτικός</button>
     <span id="staffMenu" class="ip-staff-menu" role="listbox" aria-label="Εκπαιδευτικός" tabindex="-1" hidden></span>
@@ -682,15 +681,6 @@ main.ip-single~.ip-summary{left:18px}
     const select = $('period');
     schoolPeriodSelect(select, shownPeriods(), {year: context?.year, selected: periodId || '', note: period => schoolOf(period.id) ? '' : '(χωρίς Ωρολόγιο)'});
     select.hidden = false;
-    // The status of the period, as in «Σχολικά Προγράμματα» (the shared .ui-period-status).
-    const period = periodOf(periodId), status = $('periodStatus');
-    status.hidden = !period;
-    if (period) {
-      const draft = T.isDraftPeriod(period);
-      status.className = 'ui-period-status ' + (draft ? 'draft' : 'official');
-      status.textContent = draft ? 'Προσχέδιο περιόδου' : 'Επίσημη';
-      status.title = draft ? 'Προσχέδιο περιόδου: δεν το βλέπουν το Σχολικό Ημερολόγιο και ο Documents Templater.' : 'Επίσημη περίοδος';
-    }
   }
   function markText(id, textValue) {
     const mark = hoursMark(id);

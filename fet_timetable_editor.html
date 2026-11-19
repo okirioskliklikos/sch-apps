@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Πλήρες Σχολικό Πρόγραμμα v1.22</title>
+<title>Πλήρες Σχολικό Πρόγραμμα v1.23</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -29,7 +29,7 @@
   --ft-target-outline:#2e90fa
 }
 /* Header: the period list may be long; it gives up width before anything wraps out of the page. */
-#period{flex:0 1 auto;min-width:0;max-width:min(440px,100%)}
+#period{flex:0 1 auto;min-width:0}
 /* Busy: the shared main.busy of _subapp.css fades the sidebar and the workspace together. */
 main.ft-single{grid-template-columns:minmax(0,1fr)}
 
@@ -186,9 +186,8 @@ button.ui-icon-button.ft-cell-edit>svg{width:var(--school-ui-icon-size-list);hei
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Πλήρες Σχολικό Πρόγραμμα — άνοιγμα κεντρικού μενού"><span class="app-mark is-sub" data-app-icon="full" aria-hidden="true"></span><span class="brand-text"><span>Πλήρες Σχολικό Πρόγραμμα</span><span class="small version">v1.22</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Πλήρες Σχολικό Πρόγραμμα — άνοιγμα κεντρικού μενού"><span class="app-mark is-sub" data-app-icon="full" aria-hidden="true"></span><span class="brand-text"><span>Πλήρες Σχολικό Πρόγραμμα</span><span class="small version">v1.23</span></span></button></h1></div>
   <select id="period" aria-label="Περίοδος" disabled hidden></select>
-  <span id="periodStatus" class="ui-period-status" hidden></span>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <span class="sep" aria-hidden="true"></span>
   <button id="undo" type="button" disabled title="Αναίρεση της τελευταίας ενέργειας" data-school-icon="undo">Αναίρεση</button>
@@ -686,15 +685,6 @@ button.ui-icon-button.ft-cell-edit>svg{width:var(--school-ui-icon-size-list);hei
     const select = $('period');
     schoolPeriodSelect(select, context?.periods || [], {year: context?.year, selected: periodId || '', note: period => !periodPrograms(period.id).length ? '(κενή)' : programOf(period.id, 'school') ? '' : '(χωρίς Ωρολόγιο)'});
     select.hidden = false;
-    // The status of the period, as in «Σχολικά Προγράμματα» (the shared .ui-period-status).
-    const period = periodOf(periodId), status = $('periodStatus');
-    status.hidden = !period;
-    if (period) {
-      const draft = T.isDraftPeriod(period);
-      status.className = 'ui-period-status ' + (draft ? 'draft' : 'official');
-      status.textContent = draft ? 'Προσχέδιο περιόδου' : 'Επίσημη';
-      status.title = draft ? 'Προσχέδιο περιόδου: δεν το βλέπουν το Σχολικό Ημερολόγιο και ο Documents Templater.' : 'Επίσημη περίοδος';
-    }
   }
   function render() {
     if (!context) return;

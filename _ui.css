@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινό περιβάλλον χρήστη
- * Έκδοση αρχείου: 0.62
+ * Έκδοση αρχείου: 0.63
  * Όνομα κατά την εγκατάσταση: _ui.css
  */
 
@@ -546,17 +546,28 @@ fieldset.ui-fields{margin:0;padding:0;min-width:0;border:0}
 .ui-period-status.official{background:var(--school-ui-period-official-bg);color:var(--school-ui-period-official-text)}
 .ui-period-status.draft{background:var(--school-ui-period-draft-bg);color:var(--school-ui-period-draft-text);border:1px dashed var(--school-ui-period-draft-border);padding:1px 9px}
 /* Period list (schoolPeriodSelect of _ui.js): a <select> with the customizable look of Chrome (appearance:base-select,
-   Chrome 135 or newer; older versions show a plain list). The closed list keeps the height, the text and the arrow
-   of every select, and shows «1. Όνομα · dates» (the note of the application only in the open list). The open list
-   has the two groups with a coloured heading and icon, «Περίοδοι» and «Προσχέδια περιόδων». */
+   Chrome 135 or newer; older versions show a plain list). The closed list keeps the height and the arrow of every
+   select, and shows «1. Όνομα» (the name cut by _ui.js, and with «…» when it does not fit) with the status
+   «Επίσημη περίοδος» / «Προσχέδιο περιόδου» on the right, next to the arrow. Its width is the widest name and status
+   of the list (--ui-period-select-width, measured by _ui.js); a page that gives a width of its own (e.g. width:100% in
+   a dialog) keeps it, since this rule has no specificity. The dates and the note of the application are only in the
+   open list, which has the two groups with a coloured heading and icon, «Περίοδοι» and «Προσχέδια περιόδων». */
 select.ui-period-select,select.ui-period-select::picker(select){appearance:base-select}
 select.ui-period-select{max-width:100%;color:var(--school-ui-text);text-align:left}
+:where(select.ui-period-select){width:var(--ui-period-select-width,auto)}
+@supports not (appearance:base-select){select.ui-period-select{max-width:min(440px,100%)}}
 select.ui-period-select::picker-icon{display:none}
-select.ui-period-select>button{
-  all:unset;display:block;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis
-}
-select.ui-period-select>button>selectedcontent{display:inline;white-space:nowrap}
-select.ui-period-select selectedcontent .ui-period-select-note{display:none}
+select.ui-period-select>button{all:unset;display:block;box-sizing:border-box;width:100%;min-width:0}
+/* The closed list, and the probe of _ui.js that measures it: the name shrinks with «…», the status keeps its width. */
+select.ui-period-select>button>selectedcontent,.ui-period-select-closed{display:flex;align-items:center;gap:8px;min-width:0;white-space:nowrap}
+:is(select.ui-period-select>button>selectedcontent,.ui-period-select-closed) .ui-period-select-short{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+/* The status is as tall as the line of the list (18px + 2px padding on each side = 22px), so the list stays 36px tall;
+   the flex box takes its baseline from the name, so the list keeps the common baseline of the header. */
+:is(select.ui-period-select>button>selectedcontent,.ui-period-select-closed) .ui-period-status{margin-left:auto;line-height:calc(var(--school-ui-control-line-height) - 4px)}
+select.ui-period-select selectedcontent :is(.ui-period-select-name,.ui-period-select-dates,.ui-period-select-note){display:none}
+select.ui-period-select option :is(.ui-period-select-short,.ui-period-status){display:none}
+.ui-period-select-probe{position:absolute;left:-10000px;top:0;visibility:hidden;pointer-events:none;display:flex;flex-direction:column;align-items:flex-start}
+.ui-period-select-probe .ui-period-select-closed{display:inline-flex}
 select.ui-period-select:disabled{color:var(--school-ui-disabled-text);background-color:var(--school-ui-disabled-bg);cursor:not-allowed}
 select.ui-period-select::picker(select){
   margin-top:2px;padding:0;border:1px solid var(--school-ui-control-border);border-radius:10px;background:#fff;

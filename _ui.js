@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.46
+ * Έκδοση αρχείου: 0.47
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -873,10 +873,44 @@
   //     year           το σχολικό έτος, για το κενό «Έως» (τέλος του έτους, SchoolTimetable.periodEnd)
   //     selected       η τιμή που επιλέγεται (προεπιλογή: η τρέχουσα τιμή, όταν υπάρχει ακόμη)
   //     empty          το κείμενο όταν δεν υπάρχει καμία περίοδος (προεπιλογή «Δεν υπάρχουν περίοδοι»)
-  // Γραμμή: «1. Όνομα · 14/09/2026 – 25/09/2026 · (σημείωση)»· ένα Προσχέδιο περιόδου δεν έχει ημερομηνίες. Η κλειστή
-  // λίστα δείχνει τον αριθμό, το όνομα και, σε Επίσημη, τις ημερομηνίες. Μια ομάδα χωρίς περιόδους δεν φαίνεται.
+  // Ανοιχτή λίστα: «1. Όνομα · 14/09/2026 – 25/09/2026 · (σημείωση)»· ένα Προσχέδιο περιόδου δεν έχει ημερομηνίες.
+  // Κλειστή λίστα: «1. Όνομα» (το όνομα έως PERIOD_NAME_LIMIT χαρακτήρες και «…») και δεξιά, δίπλα στο βελάκι, η
+  // ένδειξη «Επίσημη περίοδος» / «Προσχέδιο περιόδου» (.ui-period-status). Το tooltip έχει ολόκληρο το όνομα και, σε
+  // Επίσημη, τις ημερομηνίες. Το πλάτος της κλειστής λίστας είναι του μεγαλύτερου ζεύγους «όνομα + ένδειξη» των
+  // περιόδων της λίστας (--ui-period-select-width), ώστε να μην αλλάζει με την επιλογή· μια σελίδα που δίνει δικό της
+  // πλάτος (π.χ. width:100% σε διάλογο) κρατά το δικό της. Μια ομάδα χωρίς περιόδους δεν φαίνεται.
   // Η εμφάνιση (.ui-period-select, με appearance:base-select) είναι στο _ui.css· σε Chrome χωρίς base-select (πριν
-  // από το 135) η λίστα είναι απλή, με τις ομάδες χωρίς χρώματα και εικονίδια, και δουλεύει κανονικά.
+  // από το 135) η λίστα είναι απλή, όπως πριν (χωρίς ένδειξη και χωρίς σύντομο όνομα), και δουλεύει κανονικά.
+  const PERIOD_NAME_LIMIT = 20;
+  const periodSelectCustom = (() => { try { return CSS.supports('appearance', 'base-select'); } catch { return false; } })();
+  const periodSelectTitles = new WeakMap();
+  function periodSelectTitle(select) {
+    select.title = periodSelectTitles.get(select)?.get(select.value) || '';
+  }
+  // The width of the closed list: the widest «1. Όνομα» with its status, measured with the font of the list, plus
+  // the padding and the border of the list (they hold the arrow). A list that is hidden is measured too.
+  function periodSelectMeasure(select) {
+    const options = [...select.querySelectorAll('option')].filter(option => option.querySelector('.ui-period-select-short'));
+    if (!options.length) { select.style.removeProperty('--ui-period-select-width'); return; }
+    const style = getComputedStyle(select);
+    const probe = document.createElement('span');
+    probe.className = 'ui-period-select-probe';
+    probe.style.font = style.font;
+    probe.style.letterSpacing = style.letterSpacing;
+    (document.body || document.documentElement).append(probe);
+    let widest = 0;
+    for (const option of options) {
+      const row = document.createElement('span');
+      row.className = 'ui-period-select-closed';
+      row.append(option.querySelector('.ui-period-select-short').cloneNode(true), option.querySelector('.ui-period-status').cloneNode(true));
+      probe.append(row);
+      widest = Math.max(widest, row.getBoundingClientRect().width);
+    }
+    probe.remove();
+    const px = name => parseFloat(style[name]) || 0;
+    const extra = px('paddingLeft') + px('paddingRight') + px('borderLeftWidth') + px('borderRightWidth');
+    select.style.setProperty('--ui-period-select-width', Math.ceil(widest + extra + 1) + 'px');
+  }
   function schoolPeriodSelect(select, periods, {note, value, year, selected, empty = 'Δεν υπάρχουν περίοδοι'} = {}) {
     const T = window.SchoolTimetable, D = window.SchoolDate;
     if (!T || !D) throw new Error('Λείπει το _data_timetable.js.');
@@ -888,6 +922,7 @@
       if (text != null) node.textContent = text;
       return node;
     };
+    const titles = new Map();
     const button = make('button');
     button.type = 'button';
     button.append(document.createElement('selectedcontent'));
@@ -904,10 +939,18 @@
       for (const period of items) {
         const option = make('option');
         option.value = value ? String(value(period)) : period.id;
-        option.append(make('span', 'ui-period-select-name', numbers.get(period.id) + '. ' + (String(period.name || '').trim() || 'Χωρίς όνομα')));
-        if (!draft && D.valid(period.from)) option.append(make('span', 'ui-period-select-dates', ' · ' + D.format(period.from) + ' – ' + D.format(T.periodEnd(period, year))));
+        const number = numbers.get(period.id) + '. ', name = String(period.name || '').trim() || 'Χωρίς όνομα';
+        const dates = !draft && D.valid(period.from) ? D.format(period.from) + ' – ' + D.format(T.periodEnd(period, year)) : '';
+        option.append(make('span', 'ui-period-select-name', number + name));
+        if (dates) option.append(make('span', 'ui-period-select-dates', ' · ' + dates));
         const extra = note ? String(note(period) || '').trim() : '';
         if (extra) option.append(make('span', 'ui-period-select-note', ' · ' + extra));
+        if (periodSelectCustom) {
+          const short = name.length > PERIOD_NAME_LIMIT ? name.slice(0, PERIOD_NAME_LIMIT).trimEnd() + '…' : name;
+          option.append(make('span', 'ui-period-select-short', number + short),
+            make('span', 'ui-period-status ' + (draft ? 'draft' : 'official'), draft ? 'Προσχέδιο περιόδου' : 'Επίσημη περίοδος'));
+        }
+        titles.set(option.value, number + name + (dates ? ' · ' + dates : ''));
         group.append(option);
       }
       children.push(group);
@@ -921,6 +964,16 @@
     select.replaceChildren(...children);
     select.value = [...select.options].some(option => option.value === previous) ? previous : '';
     if (select.selectedIndex < 0 && select.options.length) select.selectedIndex = 0;
+    // The tooltip follows the selected period, also when the application sets the value itself (e.g. back to the
+    // previous period after «Ακύρωση»): it is read again when the pointer or the focus comes to the list.
+    if (!periodSelectTitles.has(select)) for (const type of ['change', 'pointerenter', 'focus']) select.addEventListener(type, () => periodSelectTitle(select));
+    periodSelectTitles.set(select, titles);
+    periodSelectTitle(select);
+    if (periodSelectCustom) {
+      periodSelectMeasure(select);
+      // Measured again once the fonts are loaded, so the width follows the font the list is drawn with.
+      document.fonts?.ready?.then(() => { if (select.isConnected) periodSelectMeasure(select); });
+    }
     return select;
   }
   for (const element of document.querySelectorAll('[data-school-icon],[data-school-icon-end]')) {

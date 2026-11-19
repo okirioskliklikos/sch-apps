@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ολοήμερο Designer v2.03</title>
+<title>Ολοήμερο Designer v2.04</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -20,7 +20,7 @@
   --ol-copy-mark:#1769d2;--ol-target-outline:#2e90fa
 }
 /* Header: the list of designs gives up width before anything wraps out of the page. */
-#program{flex:0 1 auto;min-width:0;max-width:min(440px,100%)}
+#program{flex:0 1 auto;min-width:0}
 #planMenuButton{
   padding-right:32px;
   background-image:var(--school-ui-dropdown-arrow);
@@ -579,9 +579,8 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
 <body>
 
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark is-sub" data-app-icon="oloimero" aria-hidden="true"></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v2.03</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark is-sub" data-app-icon="oloimero" aria-hidden="true"></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v2.04</span></span></button></h1></div>
   <select id="program" aria-label="Σχέδιο" hidden></select>
-  <span id="periodStatus" class="ui-period-status" hidden></span>
   <span class="save-control">
     <button id="saveData" class="save-main" type="button" disabled>Αποθήκευση</button>
     <button id="saveMenuButton" class="save-menu-button" type="button" aria-haspopup="true" aria-expanded="false" title="Περισσότερες επιλογές αποθήκευσης" disabled aria-label="Περισσότερες επιλογές αποθήκευσης"></button>
@@ -3517,12 +3516,7 @@ function renderProgramSelect(){
   const list=effectivePrograms();
   // The shared period list (schoolPeriodSelect of _ui.js), with «(χωρίς σχέδιο)»; the value is «period:<id>».
   schoolPeriodSelect(programSelect,periodsList(),{year:context?.year,selected:selectionValue(),value:period=>`period:${period.id}`,note:period=>designOfPeriod(period.id,list)?"":"(χωρίς σχέδιο)"});
-  const period=current?.periodId!=null?periodOf(current.periodId):selectedPeriodId?periodOf(selectedPeriodId):null;
   programSelect.hidden=!context;
-  // What the Designer works on, as in the other program applications (the shared .ui-period-status).
-  const status=document.querySelector("#periodStatus");
-  const [label,kind]=period?(T.isDraftPeriod(period)?["Προσχέδιο περιόδου","draft"]:["Επίσημη","official"]):["",""];
-  status.textContent=label;status.className="ui-period-status"+(kind?" "+kind:"");status.hidden=!context||!label;
 }
 // The period shown is remembered in .data (lastViewByYear, through the Index), so the Designer opens there
 // next time.
