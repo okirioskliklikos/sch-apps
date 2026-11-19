@@ -12,7 +12,7 @@
   φτιάχνονται από το σύντομο όνομα των δασκάλων («[Α1] - …», classesFromStaff). Με το .data δοκιμής, οι
   έλεγχοι των νέων ετικετών (v2) παίρνουν το Προσωπικό από αυτό, γιατί το CSV του Ολοημέρου έχει τα σύντομα
   ονόματα του Προσωπικού.
-  Έκδοση αρχείου: 0.75
+  Έκδοση αρχείου: 0.76
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -39,7 +39,7 @@ button{font:inherit;padding:6px 14px;border-radius:8px;border:1px solid #94a3b8;
 </head>
 <body>
 <main>
-<h1><span>Έλεγχος του _data.js και των _host_*.js</span><span class="version" aria-label="Έκδοση 0.75">v0.75</span></h1>
+<h1><span>Έλεγχος του _data.js και των _host_*.js</span><span class="version" aria-label="Έκδοση 0.76">v0.76</span></h1>
 <p>Η σελίδα ελέγχει τις κοινές λειτουργίες του <code>_data.js</code> και τις καθαρές συναρτήσεις του <code>_host_timetables.js</code>, του <code>_host_calendar.js</code>, του <code>_host_classes.js</code>, του <code>_host_students.js</code> και του <code>_host_tags.js</code> με τα αρχεία δοκιμής (βλέπε «Αρχεία δοκιμής» στο <code>project_instructions.md</code>). Δεν αλλάζει κανένα αρχείο.</p>
 <div class="drop" id="drop">
   <p><strong>Αρχεία δοκιμής:</strong> σύρε τα εδώ ή <input type="file" id="files" multiple accept=".fet,.csv,.data"></p>
@@ -696,7 +696,7 @@ function moveChecks() {
 function historyChecks() {
   start('3γ. Ιστορικό προγράμματος');
   const T = SchoolTimetable, hours = HOURS_V2, LIMIT = T.HISTORY_LIMIT;
-  equal('Όριο εγγραφών', LIMIT, 20);
+  equal('Όριο εγγραφών', LIMIT, 60);
   const staff = [{id: 's1', shortName: '[Α1] - Δοκιμή', code: 'Α1', branch: 'ΠΕ70', name: 'Άλφα Δοκιμή'}, {id: 's2', shortName: '[ΠΕ06] - Αγγλικά', code: 'ΠΕ06', serviceType: 'specialty', branch: 'ΠΕ06', name: 'Βήτα Αγγλικά'}];
   const classes = [generalClass('Α1', {homeroomStaffId: 's1'})];
   const act = (id, subject, times, people = ['s1']) => ({id, subject, staff: people, unmatched: [], classes: [cid('Α1')], subsets: [], otherStudents: [], room: '', times: times.map(([day, from, to]) => ({day, start: from, end: to}))});
@@ -713,12 +713,12 @@ function historyChecks() {
   check('Το T.history δεν αλλάζει το πρόγραμμα και επιστρέφει αντίγραφο', !('history' in old) && T.history({history: derived}) !== derived);
   equal('Καθαρισμένο Ιστορικό (history:[]) μένει κενό', T.history({...clone(old), history: []}), []);
   equal('Πρόγραμμα που δεν είναι από FET: κενό αρχικό Ιστορικό', T.history({kind: 'oloimero', source: {type: 'oloimero-designer'}}), []);
-  // addHistory: στην αρχή, το πολύ 20, με το αρχικό Ιστορικό όταν λείπει το κλειδί.
+  // addHistory: στην αρχή, το πολύ HISTORY_LIMIT, με το αρχικό Ιστορικό όταν λείπει το κλειδί.
   const added = T.addHistory(clone(old), {type: 'copy', fromPeriod: 'Α περίοδος', replacements: [], at: '2026-11-10T10:00:00.000Z'});
   equal('addHistory σε πρόγραμμα χωρίς history: η νέα εγγραφή πρώτη, μετά το αρχικό Ιστορικό', added.history.map(h => h.type), ['copy', 'copy', 'edit', 'oloimero', 'import']);
   const many = clone(added);
-  for (let i = 0; i < 25; i++) T.addHistory(many, {type: 'edit', activities: i + 1});
-  equal('Πάνω από 20 εγγραφές: μένουν οι 20 νεότερες', [many.history.length, many.history[0].activities, many.history[19].activities], [LIMIT, 25, 6]);
+  for (let i = 0; i < LIMIT + 5; i++) T.addHistory(many, {type: 'edit', activities: i + 1});
+  equal('Πάνω από ' + LIMIT + ' εγγραφές: μένουν οι ' + LIMIT + ' νεότερες', [many.history.length, many.history[0].activities, many.history[LIMIT - 1].activities], [LIMIT, LIMIT + 5, 6]);
   check('addHistory χωρίς at: η τρέχουσα ημερομηνία και ώρα', !Number.isNaN(Date.parse(many.history[0].at)));
   let rejected = false; try { T.addHistory(clone(old), {at: '2026-11-10T10:00:00.000Z'}); } catch { rejected = true; }
   check('addHistory χωρίς type: λάθος', rejected);
@@ -740,10 +740,10 @@ function historyChecks() {
   if (!window.SchoolHostTimetables) return skip('Επικύρωση του Ιστορικού στο host', 'Το _host_timetables.js δεν φορτώθηκε.');
   const ok = program => hostError(program, staff, classes);
   check('Πρόγραμμα χωρίς history: δεκτό', !ok(old), ok(old));
-  check('Πρόγραμμα με Ιστορικό 20 εγγραφών, με άγνωστο είδος εγγραφής: δεκτό', !ok({...many, history: [{at: '2026-11-14T10:00:00.000Z', type: 'μελλοντικό', x: 1}, ...many.history.slice(1)]}), ok(many));
+  check('Πρόγραμμα με Ιστορικό ' + SchoolTimetable.HISTORY_LIMIT + ' εγγραφών, με άγνωστο είδος εγγραφής: δεκτό', !ok({...many, history: [{at: '2026-11-14T10:00:00.000Z', type: 'μελλοντικό', x: 1}, ...many.history.slice(1)]}), ok(many));
   check('Κενό Ιστορικό: δεκτό', !ok({...clone(old), history: []}));
   const bad = (label, history, text) => { const error = ok({...clone(old), history}); check(label, error.includes(text), error); };
-  bad('21 εγγραφές: απορρίπτεται', [...many.history, many.history[0]], 'πάνω από το όριο των 20');
+  bad((SchoolTimetable.HISTORY_LIMIT + 1) + ' εγγραφές: απορρίπτεται', [...many.history, many.history[0]], 'πάνω από το όριο των ' + SchoolTimetable.HISTORY_LIMIT);
   bad('Ιστορικό που δεν είναι λίστα: απορρίπτεται', {type: 'edit'}, 'μη έγκυρο Ιστορικό');
   bad('Εγγραφή χωρίς type: απορρίπτεται', [{at: '2026-11-14T10:00:00.000Z'}], 'μη έγκυρη εγγραφή');
   bad('Εγγραφή με λάθος ημερομηνία: απορρίπτεται', [{at: 'χθες', type: 'edit'}], 'μη έγκυρη εγγραφή');

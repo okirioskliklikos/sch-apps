@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων: CSV, FET, προγράμματα
- * Έκδοση αρχείου: 0.14
+ * Έκδοση αρχείου: 0.15
  * Όνομα κατά την εγκατάσταση: _data_timetable.js
  *
  * Ο κοινός κώδικας δεδομένων είναι σε τέσσερα αρχεία, που φορτώνονται πάντα όλα, με αυτή τη σειρά, μετά το _ui.js
@@ -896,7 +896,7 @@
   //   'restore'   {}                                                «Επαναφορά» στην αρχική κατάσταση (restoreInitial)
   // Names are written as they were at the time of the event. history:[] (after «Καθαρισμός Ιστορικού») stays
   // empty; a program without the key gets an initial history from what its source already has.
-  const HISTORY_LIMIT = 20;
+  const HISTORY_LIMIT = 60;
   const historyTime = entry => { const time = Date.parse(entry?.at); return Number.isNaN(time) ? 0 : time; };
   // The history of a program (a copy), newest first. Without the key: built from the source of a program from
   // FET (import and files, last Εισαγωγή Ολοημέρου, replacements and moves of modifiedAfterImport: the last two only
