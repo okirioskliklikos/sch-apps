@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Σχολικά Προγράμματα v0.47</title>
+<title>Σχολικά Προγράμματα v0.48</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -70,6 +70,12 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
   flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:110px;padding:12px;
   border:1px dashed var(--school-ui-control-border);border-radius:10px;text-align:center;color:var(--school-ui-muted);font-size:14px;line-height:1.45
 }
+/* Compact use of the shared file-drop component in empty source cards. Its colours, border and icon come from _subapp.css. */
+.sp-card .sp-file-drop{display:flex;width:100%;min-height:110px;margin:0;padding:12px 10px;gap:5px;box-sizing:border-box}
+.sp-file-drop .subapp-file-drop-title{font-size:15px;line-height:1.4}
+.sp-file-drop .subapp-file-drop-text{font-size:13px;line-height:1.4}
+.sp-file-drop .subapp-file-drop-icon{--subapp-file-drop-icon-size:var(--school-ui-icon-size-18)}
+.sp-file-drop .sp-drop-state{font-size:13px;color:var(--school-ui-muted);line-height:1.4}
 .sp-empty p{margin:0}
 .sp-card-actions{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px;margin-top:auto}
 .sp-card-actions .ui-link-button{font-weight:650}
@@ -211,7 +217,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" data-app-icon="timetables" aria-hidden="true"></span><span class="brand-text"><span>Σχολικά Προγράμματα</span><span class="small version">v0.47</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" data-app-icon="timetables" aria-hidden="true"></span><span class="brand-text"><span>Σχολικά Προγράμματα</span><span class="small version">v0.48</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="more" class="sp-more" type="button" title="Περισσότερες ενέργειες" aria-label="Περισσότερες ενέργειες" disabled></button>
@@ -546,13 +552,19 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
         <div class="sp-card-title"><h2 id="card-${esc(kind)}">${esc(card.title)}</h2>${card.line ? `<p>${esc(card.line)}</p>` : ''}</div>
         ${menu ? `<button type="button" class="ui-icon-button" data-menu="${esc(kind)}" title="Ενέργειες" aria-label="Ενέργειες: ${esc(card.title)}"></button>` : ''}
       </div>`;
+    const dropKind = kind === 'school' || kind === 'oloimero' ? ` data-drop="${kind}"` : '';
     const open = card.open && info.owner ? `<button type="button" class="ui-link-button" data-open="${esc(kind)}">${schoolIconText('chevron-right', 'Άνοιγμα', {end: true})}</button>` : '';
     const action = kind === 'school' && importable ? `<button type="button" class="ui-link-button" data-import="school">${schoolIconText('chevron-right', 'Εισαγωγή', {end: true})}</button>` : open;
     if (!program) {
       const help = kind === 'individual' ? 'Ορίζεται στην εφαρμογή ' + quoted(info.ownerTitle) + '.' : importable ? '' : info.ownerTitle ? 'Ανατίθεται σε περίοδο από την εφαρμογή ' + quoted(info.ownerTitle) + '.' : '';
-      const dropHint = kind === 'school' && schoolHost.hosted ? '<p class="sp-drop-hint">Ή άφησε εδώ το CSV ωρολογίου και το αρχείο .fet.</p>' : '';
-      return `<article class="sp-card" aria-labelledby="card-${esc(kind)}"${kind === 'school' ? ' data-drop="school"' : ''}>${head}
-        <div class="sp-empty"><p>Δεν υπάρχει πρόγραμμα στην περίοδο.</p>${help ? `<p>${esc(help)}</p>` : ''}${importable && kind !== 'school' ? `<button type="button" class="primary" data-import="${esc(kind)}">Εισαγωγή…</button>` : ''}${dropHint}</div>
+      const dropArea = (kind === 'school' || kind === 'oloimero') && schoolHost.hosted
+        ? `<div class="subapp-file-drop visible sp-file-drop" aria-label="Περιοχή απόθεσης αρχείων: ${esc(card.title)}">
+            <span class="subapp-file-drop-icon" aria-hidden="true">${schoolIcon('file-import')}</span>
+            <div class="subapp-file-drop-title">${kind === 'school' ? 'Σύρε εδώ τα αρχεία CSV και FET' : 'Σύρε εδώ το αρχείο CSV του Ολοημέρου'}</div>
+            <p class="sp-drop-state">Δεν υπάρχει πρόγραμμα στην περίοδο.</p>
+          </div>` : '';
+      return `<article class="sp-card" aria-labelledby="card-${esc(kind)}"${dropKind}>${head}
+        ${dropArea || `<div class="sp-empty"><p>Δεν υπάρχει πρόγραμμα στην περίοδο.</p>${help ? `<p>${esc(help)}</p>` : ''}${importable ? `<button type="button" class="primary" data-import="${esc(kind)}">Εισαγωγή…</button>` : ''}</div>`}
         ${action ? `<div class="sp-card-actions">${action}</div>` : ''}</article>`;
     }
     // The same five facts on every card; «Τελ. αλλαγή» only when the program differs from its initial state.
@@ -568,7 +580,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
     const replacements = source.modifiedAfterImport?.replacements || [];
     const note = replacements.length ? 'Αντικαταστάσεις εκπαιδευτικών: ' + replacements.map(item => (item.fromName || '?') + ' → ' + (item.toName || '?')).join(', ') : '';
     const pendingInitial = initialIds.has(program.id) ? 'Η τρέχουσα κατάσταση θα γίνει η αρχική με την «Αποθήκευση».' : '';
-    return `<article class="sp-card" aria-labelledby="card-${esc(kind)}"${kind === 'school' ? ' data-drop="school"' : ''}>${head}
+    return `<article class="sp-card" aria-labelledby="card-${esc(kind)}"${dropKind}>${head}
       <dl class="sp-facts">${facts.map(([label, value, className]) => `<dt>${esc(label)}</dt><dd${className ? ` class="${className}"` : ''}>${esc(value)}</dd>`).join('')}</dl>
       ${pendingInitial ? `<p class="sp-state">${esc(pendingInitial)}</p>` : ''}
       ${pendingCells ? `<p class="sp-note">${pendingCells === 1 ? '1 ελλιπές κελί' : pendingCells + ' ελλιπή κελιά'}</p>` : ''}
@@ -1033,10 +1045,9 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
     return true;
   }
 
-  // ---- Drop of the CSV and the .fet onto the card of the Ωρολόγιο FET ----
-  // A file dragged over the card: the Index lays a drop surface over the card (school-programs:drag-start with the
-  // card's rect), takes the drop, keeps the files as the last files of the FET importer and answers with
-  // school-programs:dropped-files; then the import of the period opens with them. Elsewhere in the page a drop does nothing.
+  // ---- Drop onto the Ωρολόγιο FET or Ολοήμερο Designer card ----
+  // Index lays a drop surface over the source card; it stores file handles in that kind's importer,
+  // then returns school-programs:dropped-files with the destination kind. The existing import dialog opens.
   const isFileDrag = event => [...(event.dataTransfer?.types || [])].includes('Files');
   function watchDrop(card) {
     if (!schoolHost.hosted) return;
@@ -1044,7 +1055,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
       if (!isFileDrag(event) || busy) return;
       event.preventDefault();
       const r = card.getBoundingClientRect();
-      post({type: 'school-programs:drag-start', area: {left: r.left, top: r.top, width: r.width, height: r.height}});
+      post({type: 'school-programs:drag-start', kind: card.dataset.drop, area: {left: r.left, top: r.top, width: r.width, height: r.height}});
     };
     card.addEventListener('dragenter', start);
     card.addEventListener('dragover', start);
@@ -1055,9 +1066,10 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
   schoolHost.on('school-programs:dropped-files', message => {
     const period = periodById(selectedId);
     if (busy || !context || !period) return;
+    const kind = message.kind === 'oloimero' ? 'oloimero' : 'school';
     const names = ['csv', 'fet'].map(key => message.files?.[key]?.name).filter(Boolean);
     if (names.length) notice('Αφέθηκ' + (names.length === 1 ? 'ε το αρχείο ' : 'αν τα αρχεία ') + names.map(quoted).join(' και ') + '.');
-    importProgram(period, 'school');
+    importProgram(period, kind);
   });
   schoolHost.on('school-programs:dropped-file-error', message => { notice(message.error || 'Η απόθεση του αρχείου δεν έγινε.', true); });
 
