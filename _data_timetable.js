@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων: CSV, FET, προγράμματα
- * Έκδοση αρχείου: 0.13
+ * Έκδοση αρχείου: 0.14
  * Όνομα κατά την εγκατάσταση: _data_timetable.js
  *
  * Ο κοινός κώδικας δεδομένων είναι σε τέσσερα αρχεία, που φορτώνονται πάντα όλα, με αυτή τη σειρά, μετά το _ui.js
@@ -593,10 +593,11 @@
   //      between two sources),
   //    oloimeroDiff: {fetOnly:[{activity, time}], designOnly:[{activity, time}]} or null (only with both the
   //      Ωρολόγιο and the σχέδιο: the times of the Ωρολόγιο in the zones of the Ολοήμερο compared with the σχέδιο,
-  //      time by time, with the rule of sameKey),
+  //      time by time, with the rule of sameKey; data only, not an issue: changing the σχέδιο in the Designer is
+  //      the normal work, so a σχέδιο that differs from the Ωρολόγιο is expected),
   //    issues: [{level:'warning'|'info', code, message, kind, activityId}]}
   //   codes: 'noDesign' (info), 'mixedZone' (an activity of the Ωρολόγιο in the Πρωινό and in a zone of the Ολοήμερο),
-  //   'outsideZone' (times ignored with reason 'zone'), 'oloimeroDiff' (the σχέδιο differs from the Ωρολόγιο).
+  //   'outsideZone' (times ignored with reason 'zone').
   function composePeriod(input = {}) {
     const periodId = input.periodId ?? null, classes = input.classes || [], staff = Array.isArray(input.staff) ? input.staff : [];
     const staffById = new Map(staff.filter(isObject).map(person => [person.id, person]));
@@ -658,18 +659,9 @@
       for (const name of unique(one.unmatched || []).filter(name => (two.unmatched || []).includes(name))) conflictsList.push({type: 'unmatched', who: name, ...base});
       if (!x.entry.support && !y.entry.support) for (const id of unique(studentsClash(one, two))) conflictsList.push({type: 'class', who: id, ...base});
     }
-    // The σχέδιο Ολοημέρου compared with the Ωρολόγιο, in the zones of the Ολοήμερο, time by time.
-    let oloimeroDiff = null;
-    if (school && design) {
-      oloimeroDiff = diffInZones(school, design, zoneHours, classes);
-      const {fetOnly, designOnly} = oloimeroDiff;
-      if (fetOnly.length || designOnly.length) {
-        const count = (n, one, many) => n + ' ' + (n === 1 ? one : many);
-        const pieces = [fetOnly.length ? count(fetOnly.length, 'ώρα του Ωρολογίου δεν υπάρχει', 'ώρες του Ωρολογίου δεν υπάρχουν') + ' στο σχέδιο' : '',
-          designOnly.length ? count(designOnly.length, 'ώρα του σχεδίου δεν υπάρχει', 'ώρες του σχεδίου δεν υπάρχουν') + ' στο Ωρολόγιο' : ''].filter(Boolean);
-        issues.push({level: 'warning', code: 'oloimeroDiff', message: 'Το σχέδιο Ολοημέρου της περιόδου διαφέρει από το Ωρολόγιο στις ζώνες Ολοημέρου: ' + pieces.join(' και ') + '. Στις ώρες μετρά το σχέδιο.', kind: 'oloimero', activityId: null});
-      }
-    }
+    // The σχέδιο Ολοημέρου compared with the Ωρολόγιο, in the zones of the Ολοήμερο, time by time. No issue: the
+    // σχέδιο is changed in the Designer on purpose, and only the σχέδιο counts in these zones.
+    const oloimeroDiff = school && design ? diffInZones(school, design, zoneHours, classes) : null;
     return {periodId, programs, staff, classes, teachingHours: input.teachingHours, oloimeroFrom, entries, ignored, hours, unmatchedHours, conflicts: conflictsList, oloimeroDiff, issues};
   }
 
@@ -1298,7 +1290,7 @@
     for (const issue of composition.issues || []) {
       const activity = activityOf(issue);
       let target = null;
-      if (issue.code === 'oloimeroDiff' || (issue.code === 'outsideZone' && issue.kind === 'oloimero')) target = {app: 'oloimero'};
+      if (issue.code === 'outsideZone' && issue.kind === 'oloimero') target = {app: 'oloimero'};
       else if (issue.code === 'outsideZone' && issue.kind === 'individual') target = activity?.staff?.[0] ? {app: 'individual', staffId: activity.staff[0]} : {app: 'individual'};
       else if (issue.code === 'mixedZone') target = activity?.classes?.[0] ? {app: 'school', classId: activity.classes[0]} : activity?.staff?.[0] ? {app: 'school', staffId: activity.staff[0]} : {app: 'school'};
       const info = issue.level === 'info';

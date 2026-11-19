@@ -12,7 +12,7 @@
   φτιάχνονται από το σύντομο όνομα των δασκάλων («[Α1] - …», classesFromStaff). Με το .data δοκιμής, οι
   έλεγχοι των νέων ετικετών (v2) παίρνουν το Προσωπικό από αυτό, γιατί το CSV του Ολοημέρου έχει τα σύντομα
   ονόματα του Προσωπικού.
-  Έκδοση αρχείου: 0.74
+  Έκδοση αρχείου: 0.75
 -->
 <style>
 :root{--ok:#15803d;--ok-bg:#ecfdf3;--fail:#b91c1c;--fail-bg:#fef2f2;--skip:#64748b;--skip-bg:#f1f5f9;--line:#e2e8f0;--text:#0f172a}
@@ -39,7 +39,7 @@ button{font:inherit;padding:6px 14px;border-radius:8px;border:1px solid #94a3b8;
 </head>
 <body>
 <main>
-<h1><span>Έλεγχος του _data.js και των _host_*.js</span><span class="version" aria-label="Έκδοση 0.74">v0.74</span></h1>
+<h1><span>Έλεγχος του _data.js και των _host_*.js</span><span class="version" aria-label="Έκδοση 0.75">v0.75</span></h1>
 <p>Η σελίδα ελέγχει τις κοινές λειτουργίες του <code>_data.js</code> και τις καθαρές συναρτήσεις του <code>_host_timetables.js</code>, του <code>_host_calendar.js</code>, του <code>_host_classes.js</code>, του <code>_host_students.js</code> και του <code>_host_tags.js</code> με τα αρχεία δοκιμής (βλέπε «Αρχεία δοκιμής» στο <code>project_instructions.md</code>). Δεν αλλάζει κανένα αρχείο.</p>
 <div class="drop" id="drop">
   <p><strong>Αρχεία δοκιμής:</strong> σύρε τα εδώ ή <input type="file" id="files" multiple accept=".fet,.csv,.data"></p>
@@ -954,7 +954,7 @@ function compositionChecks() {
   equal('Όσα δεν μετρούν: του Ωρολογίου στις ζώνες Ολοημέρου (design), του σχεδίου στο Πρωινό και των Ατομικών στο Ολοήμερο (zone)',
     full.ignored.map(item => item.activity.id + ':' + item.reason + ':' + item.times.map(time => time.start).join('+')), ['f3:design:14:10', 'f4:design:13:20', 'f5:design:13:20', 'd3:zone:10:00', 'i4:zone:15:05', 'i5:zone:14:10']);
   equal('Το δίωρο που περνά από το Πρωινό στο Ολοήμερο μετρά μόνο την πρωινή του ώρα', full.entries.find(entry => entry.activity.id === 'f5').times, [at(1, '12:35', '13:15')]);
-  equal('Παρατηρήσεις', codes(full), ['mixedZone:f5', 'outsideZone:d3', 'outsideZone:i4', 'outsideZone:i5', 'oloimeroDiff:']);
+  equal('Παρατηρήσεις (η διαφορά σχεδίου και Ωρολογίου δεν είναι παρατήρηση: το σχέδιο αλλάζει σκόπιμα στον Designer)', codes(full), ['mixedZone:f5', 'outsideZone:d3', 'outsideZone:i4', 'outsideZone:i5']);
   equal('Συγκρούσεις: ο ίδιος εκπαιδευτικός στο Ωρολόγιο και στα Ατομικά (ανάμεσα σε πηγές)· η στήριξη δεν συγκρούεται στους μαθητές',
     full.conflicts.map(item => [item.type, item.who, item.start, item.a.activity.id, item.b.activity.id, item.cross].join(':')), ['staff:s1:08:15:f1:i3:true']);
   check('Χωρίς τον κανόνα της στήριξης θα ήταν σύγκρουση στο Β1 (Γλώσσα με «μάθημα της τάξης», Γυμναστική με Ενισχυτική)', T.studentsClash(school.activities[0], individual.activities[0]).length && T.studentsClash(school.activities[1], individual.activities[1]).length);
@@ -987,7 +987,7 @@ function compositionChecks() {
   equal('Η σύγκρουση με ατομικό μάθημα της τάξης ανοίγει τα Ατομικά Προγράμματα με τον εκπαιδευτικό του',
     T.compositionProblems(lessonComp, {staff, classes}).filter(item => item.code === 'class').map(item => [item.target.app, item.target.staffId]), [['individual', 's2']]);
   equal('Σχέδιο και Ωρολόγιο: οι διαφορές ώρα προς ώρα (το Γεύμα με άλλον εκπαιδευτικό, το δίωρο)', [full.oloimeroDiff.fetOnly.map(item => item.activity.id), full.oloimeroDiff.designOnly.map(item => item.activity.id)], [['f4', 'f5'], ['d2']]);
-  check('Η παρατήρηση της διαφοράς λέει πόσες ώρες', has(full.issues.map(item => item.message), '2 ώρες του Ωρολογίου δεν υπάρχουν στο σχέδιο και 1 ώρα του σχεδίου δεν υπάρχει στο Ωρολόγιο'), full.issues.map(item => item.message).join('\n'));
+  check('Η διαφορά σχεδίου και Ωρολογίου δεν δίνει παρατήρηση (το σχέδιο αλλάζει σκόπιμα στον Designer)', !full.issues.some(item => /διαφέρει από το Ωρολόγιο/.test(item.message)), full.issues.map(item => item.message).join('\n'));
   const subject = (activity, comp) => T.activitySubject(activity, {composition: comp});
   const probe = (names, time) => ({id: 'probe', subject: '', subjectFromClasses: true, staff: ['s3'], classes: names.map(cid), times: [time]});
   equal('«Μάθημα της τάξης» από τη σύνθεση: Πρωινό από το Ωρολόγιο, Γεύμα από το σχέδιο (όχι από το Ωρολόγιο), όχι από τα Ατομικά',
@@ -1049,8 +1049,8 @@ function compositionFileChecks(v2Program, design, staff, classes) {
     check('v2 με το σχέδιο: ίδιες ώρες με το Ωρολόγιο για κάθε εκπαιδευτικό (στο Γεύμα της Δευτέρας αλλάζουν θέση δύο εκπαιδευτικοί)', staff.every(person => (comp.hours.get(person.id)?.total || 0) === (before.get(person.id) || 0)));
     equal('v2 με το σχέδιο: 2 + 2 διαφορές, στο Γεύμα της Δευτέρας 13:20', [comp.oloimeroDiff.fetOnly.length, comp.oloimeroDiff.designOnly.length, [...comp.oloimeroDiff.fetOnly, ...comp.oloimeroDiff.designOnly].every(item => item.time.day === 1 && item.time.start === '13:20')], [2, 2, true]);
     equal('v2 με το σχέδιο: καμία σύγκρουση· τα Γαλλικά και τα Γερμανικά του Ε1/Ε2 δεν συγκρούονται', comp.conflicts.length, 0);
-    equal('v2 με το σχέδιο: η λίστα προβλημάτων (compositionProblems) έχει μόνο τη διαφορά σχεδίου και Ωρολογίου, για τον Ολοήμερο Designer, χωρίς θέση',
-      T.compositionProblems(comp, {staff, classes}).map(item => [item.group, item.code, item.target?.app, item.place]), [['warning', 'oloimeroDiff', 'oloimero', null]]);
+    equal('v2 με το σχέδιο: η λίστα προβλημάτων (compositionProblems) είναι κενή· η διαφορά σχεδίου και Ωρολογίου δεν είναι προειδοποίηση',
+      T.compositionProblems(comp, {staff, classes}).map(item => [item.group, item.code]), []);
     equal('v2 με το σχέδιο: 69 δραστηριότητες του Ωρολογίου στις ζώνες Ολοημέρου δεν μετρούν, όλες του σχεδίου μετρούν', [comp.ignored.filter(item => item.reason === 'design').length, comp.entries.filter(item => item.kind === 'oloimero').length], [69, design.activities.length]);
     const alone = T.composePeriod({periodId: 'p', programs: [school], staff, classes, teachingHours: HOURS_V2});
     check('v2 χωρίς σχέδιο: ίδιες ώρες με όλες τις ώρες του Ωρολογίου, και ο «[ΠΕ05] - Γαλλικά» στις ώρες χωρίς αντιστοίχιση', staff.every(person => (alone.hours.get(person.id)?.total || 0) === (before.get(person.id) || 0)) && alone.unmatchedHours.get('[ΠΕ05] - Γαλλικά') > 0);
