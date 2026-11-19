@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.48
+ * Έκδοση αρχείου: 0.49
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -243,6 +243,8 @@
   function importDialog(options, preset) {
     const files = options.files || [], loaded = preset.loaded, rowErrors = preset.rowErrors;
     const fetDrop = files.length === 2 && files.some(file => file.key === 'csv') && files.some(file => file.key === 'fet');
+    const oloimeroDrop = files.length === 1 && files[0].key === 'csv' && files[0].label === 'CSV Ολοημέρου';
+    const richDrop = fetDrop || oloimeroDrop;
     let analysis = preset.analysis, analysisError = preset.analysisError, controls = null, rowButtons = [];
     const element = (tag, className, textValue) => {
       const node = document.createElement(tag);
@@ -260,8 +262,8 @@
       input.type = 'radio'; input.name = 'school-import-unmatched'; input.value = value; input.checked = value === 'keep';
       row.append(input, ' ' + label); unmatchedBox.append(row);
     }
-    const dropZone = fetDrop ? element('div', 'school-import-drop') : null;
-    const fileInput = fetDrop ? element('input', 'school-import-native') : null;
+    const dropZone = richDrop ? element('div', 'school-import-drop') : null;
+    const fileInput = richDrop ? element('input', 'school-import-native') : null;
     let filePickerActive = false, filePickerCancelledAt = 0;
     const openFilePicker = () => {
       if (controls?.working) return;
@@ -269,26 +271,26 @@
       try { fileInput.click(); } catch (problem) { filePickerActive = false; throw problem; }
     };
     const focusImport = () => {
-      if (fetDrop && analysis?.ok && !controls?.working)
+      if (richDrop && analysis?.ok && !controls?.working)
         controls?.dialog.querySelector('.school-confirm-actions .confirm-accept:not(:disabled)')?.focus();
     };
-    if (fetDrop) {
+    if (richDrop) {
       dropZone.tabIndex = 0;
       dropZone.setAttribute('role', 'button');
-      dropZone.setAttribute('aria-label', 'Επιλογή αρχείων CSV και FET');
+      dropZone.setAttribute('aria-label', fetDrop ? 'Επιλογή αρχείων CSV και FET' : 'Επιλογή CSV Ολοημέρου');
       const icon = element('span', 'subapp-file-drop-icon');
       icon.innerHTML = schoolIcon('file-import');
-      const heading = element('strong', 'school-import-drop-title', 'Σύρε εδώ τα αρχεία CSV και FET');
-      const hint = element('span', 'school-import-drop-hint', 'ή κάνε κλικ για επιλογή αρχείων');
-      fileInput.type = 'file'; fileInput.accept = '.csv,.fet'; fileInput.multiple = true;
+      const heading = element('strong', 'school-import-drop-title', fetDrop ? 'Σύρε εδώ τα αρχεία CSV και FET' : 'Σύρε εδώ το αρχείο CSV του Ολοημέρου');
+      const hint = element('span', 'school-import-drop-hint', fetDrop ? 'ή κάνε κλικ για επιλογή αρχείων' : 'ή κάνε κλικ για επιλογή αρχείου');
+      fileInput.type = 'file'; fileInput.accept = fetDrop ? '.csv,.fet' : '.csv'; fileInput.multiple = fetDrop;
       fileInput.tabIndex = -1; fileInput.setAttribute('aria-hidden', 'true');
       dropZone.append(icon, heading, hint, list, fileInput);
       const receive = async incoming => {
         if (controls?.working) return;
         const chosen = [...incoming];
         if (!chosen.length) return;
-        const valid = chosen.filter(item => /\.(csv|fet)$/i.test(item.name));
-        if (!valid.length) { analysis = null; analysisError = 'Επίλεξε αρχεία .csv ή .fet.'; renderResult(); return; }
+        const valid = chosen.filter(item => (fetDrop ? /\.(csv|fet)$/i : /\.csv$/i).test(item.name));
+        if (!valid.length) { analysis = null; analysisError = fetDrop ? 'Επίλεξε αρχεία .csv ή .fet.' : 'Επίλεξε αρχείο .csv.'; renderResult(); return; }
         await controls?.busy(async () => {
           for (const file of valid) {
             const key = /\.csv$/i.test(file.name) ? 'csv' : 'fet';
@@ -347,7 +349,7 @@
         textBox.append(element('span', 'school-import-file-label', file.label),
           element('span', 'school-import-file-name', loaded[file.key] ? current : current ? 'Τελευταίο αρχείο: ' + current : 'Δεν έχει επιλεγεί αρχείο'));
         if (rowErrors[file.key]) textBox.append(element('span', 'school-import-file-error', rowErrors[file.key]));
-        if (fetDrop) {
+        if (richDrop) {
           const status = element('span', 'school-import-file-state');
           status.innerHTML = schoolIcon(loaded[file.key] ? 'check' : 'file-import');
           status.classList.toggle('is-ready', !!loaded[file.key]);
@@ -385,7 +387,7 @@
         parts.push(section('error', 'Η εισαγωγή δεν μπορεί να γίνει', analysis.errors));
         if (!fetDrop) {
           parts.push(section('warning', 'Προειδοποιήσεις', analysis.warnings));
-          parts.push(section('info', 'Ενημερωτικά', analysis.info));
+          if (!oloimeroDrop) parts.push(section('info', 'Ενημερωτικά', analysis.info));
         }
         if (analysis.ok && analysis.unmatchedTeachers?.length) parts.push(unmatchedBox);
       }
@@ -403,8 +405,8 @@
     renderFiles(); renderResult();
     return schoolChoiceDialog({
       title: options.title || 'Εισαγωγή προγράμματος',
-      className: 'school-import' + (fetDrop ? ' school-import-fet' : ''),
-      content: [options.intro, fetDrop ? dropZone : list, result],
+      className: 'school-import' + (richDrop ? ' school-import-drop-mode' : '') + (fetDrop ? ' school-import-fet' : ''),
+      content: [options.intro, richDrop ? dropZone : list, result],
       actions: [
         {label: options.accept || 'Εισαγωγή', accept: true, get disabled() { return !analysis?.ok; },
           run: async () => options.build(analysis, {unmatched: unmatchedBox.querySelector('input:checked')?.value === 'drop' ? 'drop' : 'keep', direct: false})},
@@ -413,14 +415,14 @@
       working: on => { for (const button of rowButtons) button.disabled = on; },
       ready: async api => {
         controls = api; api.refresh();
-        if (fetDrop) api.dialog.addEventListener('cancel', event => {
+        if (richDrop) api.dialog.addEventListener('cancel', event => {
           // Capture runs before schoolChoiceDialog's normal Esc handler.
           // Suppress Esc while the native chooser is open and immediately after its cancellation.
           if (!filePickerActive && Date.now() - filePickerCancelledAt >= 500) return;
           event.preventDefault();
           event.stopImmediatePropagation();
         }, {capture: true});
-        if (fetDrop) api.dialog.addEventListener('keydown', event => {
+        if (richDrop) api.dialog.addEventListener('keydown', event => {
           if (event.key !== 'Enter' || event.defaultPrevented || event.target === dropZone ||
               event.target.closest('button, textarea') || event.ctrlKey || event.altKey || event.metaKey) return;
           event.preventDefault();

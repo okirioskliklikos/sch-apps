@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινό περιβάλλον χρήστη
- * Έκδοση αρχείου: 0.63
+ * Έκδοση αρχείου: 0.64
  * Όνομα κατά την εγκατάσταση: _ui.css
  */
 
@@ -290,35 +290,36 @@ dialog button:focus-visible,dialog input:focus-visible,dialog select:focus-visib
 .school-confirm.oloimero-requirements-dialog .school-confirm-actions{flex-wrap:nowrap}
 @media(max-width:760px){.school-confirm.oloimero-requirements-dialog .school-confirm-actions{flex-wrap:wrap}}
 
-/* FET import: the same blue dashed drop area and file-import icon as .subapp-file-drop.
-   Defined in _ui.css because the Index-hosted import dialog does not load _subapp.css. */
-.school-import-fet .school-import-drop{
+/* Shared FET / Ολοήμερο CSV import drop area: same blue dashed style and file-import icon
+   as .subapp-file-drop. Defined here because the Index-hosted dialog does not load _subapp.css. */
+.school-import-drop-mode .school-import-drop{
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
   margin-top:16px;padding:22px 18px;border:2px dashed #79a2ff;border-radius:16px;
   background:#f3f7ff;color:#7f8fa6;text-align:center;cursor:pointer;
   transition:background .16s,border-color .16s,box-shadow .16s
 }
-.school-import-fet .school-import-drop.drag-over{background:#e7f0ff;border-color:#2768df;box-shadow:0 0 0 4px rgba(39,104,223,.14)}
-.school-import-fet .school-import-drop:focus-visible{outline:2px solid var(--school-ui-focus);outline-offset:3px}
-.school-import-fet .school-import-drop .subapp-file-drop-icon{color:#1455c0}
-.school-import-fet .school-import-drop .subapp-file-drop-icon>svg{display:block;width:var(--school-ui-icon-size-22);height:var(--school-ui-icon-size-22)}
-.school-import-fet .school-import-drop-title{font-size:18px;line-height:1.35;color:#1455c0}
-.school-import-fet .school-import-drop-hint{font-size:14px;line-height:1.45}
-.school-import-fet .school-import-native{display:none}
-.school-import-fet .school-import-files{width:100%;margin-top:8px;gap:7px}
-.school-import-fet .school-import-file{
+.school-import-drop-mode .school-import-drop.drag-over{background:#e7f0ff;border-color:#2768df;box-shadow:0 0 0 4px rgba(39,104,223,.14)}
+.school-import-drop-mode .school-import-drop:focus-visible{outline:2px solid var(--school-ui-focus);outline-offset:3px}
+.school-import-drop-mode .school-import-drop .subapp-file-drop-icon{color:#1455c0}
+.school-import-drop-mode .school-import-drop .subapp-file-drop-icon>svg{display:block;width:var(--school-ui-icon-size-22);height:var(--school-ui-icon-size-22)}
+.school-import-drop-mode .school-import-drop-title{font-size:18px;line-height:1.35;color:#1455c0}
+.school-import-drop-mode .school-import-drop-hint{font-size:14px;line-height:1.45}
+.school-import-drop-mode .school-import-native{display:none}
+.school-import-drop-mode .school-import-files{width:100%;margin-top:8px;gap:7px}
+.school-import-drop-mode .school-import-file{
   justify-content:flex-start;text-align:left;padding:9px 11px;
   border:1px solid #c8daf8;border-radius:9px;background:var(--school-ui-surface)
 }
-.school-import-fet .school-import-file-state{display:grid;place-items:center;flex:none;color:var(--school-ui-muted)}
-.school-import-fet .school-import-file-state.is-ready{color:var(--school-ui-ok)}
-.school-import-fet .school-import-file-state svg{display:block;width:var(--school-ui-icon-size);height:var(--school-ui-icon-size)}
-.school-import-fet .school-import-file-text{min-width:0}
-.school-import-fet .school-import-result{margin-top:14px}
+.school-import-drop-mode .school-import-file-state{display:grid;place-items:center;flex:none;color:var(--school-ui-muted)}
+.school-import-drop-mode .school-import-file-state.is-ready{color:var(--school-ui-ok)}
+.school-import-drop-mode .school-import-file-state svg{display:block;width:var(--school-ui-icon-size);height:var(--school-ui-icon-size)}
+.school-import-drop-mode .school-import-file-text{min-width:0}
+.school-import-drop-mode .school-import-result{margin-top:14px}
 .school-import-fet .school-import-summary{grid-template-columns:repeat(4,minmax(0,1fr))}
+.school-import-drop-mode:not(.school-import-fet) .school-import-summary{grid-template-columns:repeat(3,minmax(0,1fr))}
 @media(max-width:560px){
-  .school-import-fet .school-import-drop{padding:16px 10px}
-  .school-import-fet .school-import-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .school-import-drop-mode .school-import-drop{padding:16px 10px}
+  .school-import-drop-mode .school-import-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 
 /* Colour picker (window.schoolColorPicker in _ui.js) and the button that shows the chosen colour.
