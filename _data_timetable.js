@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες δεδομένων: CSV, FET, προγράμματα
- * Έκδοση αρχείου: 0.09
+ * Έκδοση αρχείου: 0.10
  * Όνομα κατά την εγκατάσταση: _data_timetable.js
  *
  * Ο κοινός κώδικας δεδομένων είναι σε τέσσερα αρχεία, που φορτώνονται πάντα όλα, με αυτή τη σειρά, μετά το _ui.js
@@ -134,8 +134,8 @@
 
   // Κατάλογος ειδών προγραμμάτων. Τα δικαιώματα εγγραφής και οι validators του source μένουν στο host.
   //   owner: η εφαρμογή-κάτοχος (null: δεν υπάρχει ακόμη)· ownerTitle: το όνομά της για τον χρήστη·
-  //   counts: μετρά στις ώρες και στη διαθεσιμότητα· drafts: έχει προσχέδια (τα Ατομικά Προγράμματα όχι: ανήκουν
-  //   πάντα σε περίοδο)· history: κρατά Ιστορικό (program.history)·
+  //   counts: μετρά στις ώρες και στη διαθεσιμότητα· history: κρατά Ιστορικό (program.history)·
+  //   κάθε πρόγραμμα ανήκει πάντα σε περίοδο (δεν υπάρχουν προσχέδια προγραμμάτων χωρίς περίοδο)·
   //   importers: οι εισαγωγείς του είδους (βλέπε «Εισαγωγείς» παρακάτω)· κενό όταν δεν υπάρχει εισαγωγή.
   //   zone: η ζώνη της ημέρας που δίνει το είδος στη σύνθεση της περιόδου (composePeriod): 'morning' (Πρωινό) ή
   //   'oloimero' (Πρωινή Ζώνη, Γεύμα, Ολοήμερο, Διευρυμένο)· support: οι δραστηριότητές του μπορεί να είναι στήριξη
@@ -148,9 +148,9 @@
   // δικαιώματα και ο validator του source.
   // Ο εισαγωγέας του Ολοημέρου μπαίνει στο oloimero.importers από το _data_oloimero.js, που μετά παγώνει τη λίστα.
   const KINDS = Object.freeze({
-    school: Object.freeze({label: 'Ωρολόγιο', owner: 'fet_timetable_editor.html', ownerTitle: 'Πλήρες Σχολικό Πρόγραμμα', counts: true, drafts: true, history: true, zone: 'morning', support: false, exclusive: false, initialSource: Object.freeze(['unavailable']), importers: Object.freeze([fetImporter()])}),
-    oloimero: Object.freeze({label: 'Ολοήμερο', owner: 'oloimero_designer.html', ownerTitle: 'Ολοήμερο Designer', counts: false, drafts: true, history: false, zone: 'oloimero', support: false, exclusive: false, initialSource: Object.freeze(['placements', 'pending', 'design']), importers: []}),
-    individual: Object.freeze({label: 'Ατομικά Προγράμματα', owner: 'individual_programs.html', ownerTitle: 'Ατομικά Προγράμματα', counts: true, drafts: false, history: true, zone: 'morning', support: true, exclusive: true, initialSource: Object.freeze(['placements', 'pending']), importers: Object.freeze([])})
+    school: Object.freeze({label: 'Ωρολόγιο', owner: 'fet_timetable_editor.html', ownerTitle: 'Πλήρες Σχολικό Πρόγραμμα', counts: true, history: true, zone: 'morning', support: false, exclusive: false, initialSource: Object.freeze(['unavailable']), importers: Object.freeze([fetImporter()])}),
+    oloimero: Object.freeze({label: 'Ολοήμερο', owner: 'oloimero_designer.html', ownerTitle: 'Ολοήμερο Designer', counts: false, history: false, zone: 'oloimero', support: false, exclusive: false, initialSource: Object.freeze(['placements', 'pending', 'design']), importers: []}),
+    individual: Object.freeze({label: 'Ατομικά Προγράμματα', owner: 'individual_programs.html', ownerTitle: 'Ατομικά Προγράμματα', counts: true, history: true, zone: 'morning', support: true, exclusive: true, initialSource: Object.freeze(['placements', 'pending']), importers: Object.freeze([])})
   });
   const countsInHours = kind => !!KINDS[kind]?.counts;
   // Οι εισαγωγείς ενός είδους, και ένας συγκεκριμένος εισαγωγέας (ή null).
@@ -567,7 +567,7 @@
   // (individual) of the period together, the one source of hours, conflicts and availability for every app.
   //   input: {periodId, programs, staff, classes, teachingHours}. programs: the programs of the year (an app that
   //   edits a program gives its working copy instead of the stored one); only those of the period count, one per
-  //   kind (the first one found), never drafts. Throws when the Ώρες Διδασκαλίας are missing or unreadable.
+  //   kind (the first one found). Throws when the Ώρες Διδασκαλίας are missing or unreadable.
   // Rules:
   //   - Each kind fills its zone (KINDS[kind].zone): the Ωρολόγιο and the Ατομικά the Πρωινό, the σχέδιο Ολοημέρου
   //     the zones of the Ολοήμερο. The times of an activity are split one by one.
@@ -683,7 +683,7 @@
     return {fetOnly: fetOnly.sort(order), designOnly: designOnly.sort(order)};
   }
   // The same, for a program of the Ωρολόγιο and a σχέδιο Ολοημέρου (any two programs; e.g. a new import compared with
-  // the drafts of the Designer). options: {classes, teachingHours}. → {fetOnly:[{activity, time}], designOnly:[…]}.
+  // the designs of other periods). options: {classes, teachingHours}. → {fetOnly:[{activity, time}], designOnly:[…]}.
   // Throws when the Ώρες Διδασκαλίας are missing or unreadable.
   const oloimeroDiff = (school, design, options = {}) => diffInZones(school, design, oloimeroTimes(options.teachingHours), options.classes || []);
 
@@ -1106,7 +1106,7 @@
   }
 
   // ---- Ατομικά Προγράμματα (kind 'individual', source type 'individual', version 1) ----
-  // One program per period, with the activities of every teacher that has an individual program, and no drafts.
+  // One program per period, with the activities of every teacher that has an individual program.
   // Every activity is one hour of one teacher (staff:[id], one entry in times). The source keeps what the cells
   // show: placements[activity id] = {subjectId|null, chips:[{type:'grade', grade} | {type:'class', id} |
   // {type:'union', id}]} and pending (incomplete cells, not activities: {staffId, day, start, end, chips}). The
@@ -1622,7 +1622,7 @@
 
   // Κατασκευή του προγράμματος από την ανάλυση (δεύτερη φάση). Τα νέα τμήματα της ανάλυσης
   // (analysis.newClasses) τα αποθηκεύει η εφαρμογή μαζί με το πρόγραμμα.
-  //   options: {unmatched:'keep'|'drop', kind ('school'), name, periodId (ή null για προσχέδιο), now}.
+  //   options: {unmatched:'keep'|'drop', kind ('school'), name, periodId, now}.
   function buildFetProgram(analysis, options = {}) {
     if (!analysis?.ok || !analysis.plan) throw Error('Η εισαγωγή δεν μπορεί να γίνει: ' + (analysis?.errors?.[0] || 'δεν έγινε ανάλυση.'));
     const {activities, fet, teacherMatch, dayNumber} = analysis.plan;

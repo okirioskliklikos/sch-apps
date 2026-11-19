@@ -393,7 +393,7 @@ body.session-locked #app-shell { visibility:hidden; pointer-events:none; }
     <div class="sidebar-head">
       <div class="brand">
         <span class="brand-name">Εφαρμογές σχολείου</span>
-        <span class="sidebar-version" aria-label="Έκδοση 1.17">v1.17</span>
+        <span class="sidebar-version" aria-label="Έκδοση 1.18">v1.18</span>
       </div>
     </div>
     <div id="sidebar-school" class="sidebar-school" hidden><span id="nav-school-name" class="sidebar-school-name"></span><span id="nav-school-year" class="sidebar-school-year"></span></div>
@@ -932,7 +932,7 @@ globalThis.SchoolDataCodec = (() => {
     const text = JSON.stringify(box, null, 2);
     // A large file is never refused: the user decides whether to save it. Every valid .data file opens.
     const bytes = new TextEncoder().encode(text).byteLength;
-    if (bytes > FILE_WARNING_BYTES && !(await schoolConfirm('Το αρχείο θα γίνει ' + Math.ceil(bytes / 1048576) + ' MB, πάνω από το προτεινόμενο όριο των ' + Math.round(FILE_WARNING_BYTES / 1048576) + ' MB. Μεγάλο αρχείο ανοίγει και αποθηκεύεται πιο αργά.\n\nΓια να το μικρύνεις, μπορείς να διαγράψεις προσχέδια που δεν χρειάζονται ή να κρατήσεις αντίγραφο του αρχείου και να αφαιρέσεις από αυτό τα παλαιότερα σχολικά έτη.\n\nΝα αποθηκευτεί;', {title:'Μεγάλο αρχείο', accept:'Αποθήκευση', queue:true}))) {
+    if (bytes > FILE_WARNING_BYTES && !(await schoolConfirm('Το αρχείο θα γίνει ' + Math.ceil(bytes / 1048576) + ' MB, πάνω από το προτεινόμενο όριο των ' + Math.round(FILE_WARNING_BYTES / 1048576) + ' MB. Μεγάλο αρχείο ανοίγει και αποθηκεύεται πιο αργά.\n\nΓια να το μικρύνεις, μπορείς να διαγράψεις περιόδους που δεν χρειάζονται (π.χ. παλιά Προσχέδια περιόδων) ή να κρατήσεις αντίγραφο του αρχείου και να αφαιρέσεις από αυτό τα παλαιότερα σχολικά έτη.\n\nΝα αποθηκευτεί;', {title:'Μεγάλο αρχείο', accept:'Αποθήκευση', queue:true}))) {
       throw new DOMException('Η αποθήκευση ακυρώθηκε.', 'AbortError');
     }
     if (handle) {
@@ -1595,7 +1595,7 @@ const StaffStorage = (() => {
 
   // Documents Templater works without the shared file; its context carries only the school, when one is open.
   // Documents Templater: without a shared file only the school (null). With it, read-only data of the current year for
-  // the {{@…}} fields: Προσωπικό, Τμήματα, Ώρες Διδασκαλίας, the official periods with their Ωρολόγιο (school, no drafts;
+  // the {{@…}} fields: Προσωπικό, Τμήματα, Ώρες Διδασκαλίας, the official periods with their Ωρολόγιο (school;
   // the Προσχέδια περιόδων do not count outside the Σχολικά Προγράμματα) and the number of students per class (not the
   // students themselves).
   function documentsContext() {

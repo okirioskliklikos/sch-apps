@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Σχολικά Προγράμματα v0.34</title>
+<title>Σχολικά Προγράμματα v0.35</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -91,10 +91,9 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
 .sp-full-text{flex:1;min-width:220px}
 .sp-full-text h2{margin:0;font-size:24px;line-height:1.3}
 .sp-full-text p{margin:2px 0 0;font-size:15px;color:#405367}
-.sp-drafts{margin-top:18px;padding-top:10px;border-top:1px solid var(--school-ui-border);display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px;font-size:13px;color:var(--school-ui-muted)}
-.sp-drafts strong{font-weight:650;color:var(--school-ui-muted)}
-.sp-drafts .ui-validation-warning{margin:0}
-.sp-drafts .ui-helper{flex-basis:100%;margin:0}
+.sp-limits{margin-top:18px}
+.sp-limits[hidden]{display:none}
+.sp-limits p{margin:0}
 .sp-board-empty{min-height:260px}
 
 /* Warnings of the composition, under the Πλήρες Σχολικό Πρόγραμμα: the shared schoolProblems of _ui.js. */
@@ -187,7 +186,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" data-app-icon="timetables" aria-hidden="true"></span><span class="brand-text"><span>Σχολικά Προγράμματα</span><span class="small version">v0.34</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" data-app-icon="timetables" aria-hidden="true"></span><span class="brand-text"><span>Σχολικά Προγράμματα</span><span class="small version">v0.35</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="more" class="sp-more" type="button" title="Περισσότερες ενέργειες" aria-label="Περισσότερες ενέργειες" disabled></button>
@@ -213,17 +212,15 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
   // backup of the period before stored programs are replaced (placeFetImport).
   const T = SchoolTimetable, D = SchoolDate, esc = schoolEscape, $ = id => document.getElementById(id);
   const root = $('root'), post = schoolHost.post;
-  const DRAFT_WARNING_LIMIT = 5;
   // Count limits of the host (school-timetables:context): above them a save is refused; from warnRatio on, a warning.
   const limits = () => ({programs: 200, periods: 15, classes: 50, warnRatio: 0.9, ...(context.limits || {})});
   const nearLimit = (count, limit) => count >= Math.ceil(limit * limits().warnRatio);
-  // Programs of the year after «Αποθήκευση»: every program of the file (drafts of all applications included),
-  // with the period programs as this page holds them, plus the drafts it will create.
+  // Programs of the year after «Αποθήκευση»: every program of the file, with the period programs as this page holds
+  // them.
   const programCount = () => (Number(context.programCount) || saved.programs.length) - saved.programs.length + draft.programs.length;
   const kindKeys = Object.keys(T.kinds);
   const kindLabel = kind => T.kinds[kind]?.label || kind;
-  // Kinds with drafts (the Ατομικά Προγράμματα have none: they always belong to a period) and kinds with a history.
-  const hasDrafts = kind => T.kinds[kind]?.drafts !== false;
+  // Kinds with a history.
   const hasHistory = kind => !!T.kinds[kind]?.history;
   const quoted = value => '«' + value + '»';
   const uid = () => crypto.randomUUID();
@@ -436,14 +433,14 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
         <button id="openFull" type="button" class="success">${schoolIconText('chevron-right', 'Άνοιγμα προγράμματος', {end: true})}</button>
       </section>
       <section id="problems" aria-label="Συγκρούσεις και προειδοποιήσεις της περιόδου" hidden></section>
-      <div id="drafts" class="sp-drafts"></div>`;
+      <div id="limits" class="sp-limits" hidden></div>`;
     board.querySelectorAll('[data-menu]').forEach(button => { button.innerHTML = schoolIcon('more-vertical'); button.onclick = () => cardMenu(button, button.dataset.menu); });
     board.querySelectorAll('[data-open]').forEach(button => { button.onclick = () => openApp(button.dataset.open); });
     board.querySelectorAll('[data-import]').forEach(button => { button.onclick = () => importProgram(period, button.dataset.import); });
     board.querySelectorAll('[data-drop]').forEach(watchDrop);
     $('openFull').onclick = () => openApp('school');
     renderProblems();
-    renderDrafts();
+    renderLimits();
     drawArrows();
   }
   // ---- Warnings of the composition (under the Πλήρες) ----
@@ -573,20 +570,14 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
     if (program.kind === 'school') return 'αρχική: το FET της εισαγωγής';
     return 'αρχική: όπως δημιουργήθηκε';
   }
-  function renderDrafts() {
-    const box = $('drafts');
+  // The limit of programs of the year: a warning near it, an error above it (the save is refused).
+  function renderLimits() {
+    const box = $('limits');
     if (!box) return;
-    // Counts of the file: this page does not make drafts.
-    const counts = Object.fromEntries(kindKeys.map(kind => [kind, Number(context.draftCounts?.[kind]) || 0]));
-    const parts = kindKeys.filter(hasDrafts).map(kind => {
-      const many = counts[kind] > DRAFT_WARNING_LIMIT, owner = T.kinds[kind].ownerTitle || kindLabel(kind);
-      return `<span${many ? ' class="ui-validation-warning" title="Πολλά προσχέδια: καλό είναι να γίνει εκκαθάριση μέσα από την εφαρμογή."' : ''}>${esc(owner)}: ${counts[kind]}</span>`;
-    });
     const total = programCount(), limit = limits().programs;
-    const over = total > limit ? '<p class="ui-validation-error" style="flex-basis:100%;margin:0">Το σχολικό έτος θα είχε ' + total + ' προγράμματα (μαζί με τα προσχέδια), πάνω από το όριο των ' + limit + '. Η αποθήκευση δεν θα γίνει· διάγραψε προσχέδια που δεν χρειάζονται.</p>'
-      : nearLimit(total, limit) ? '<p class="ui-validation-warning" style="flex-basis:100%">Το σχολικό έτος έχει ' + total + ' από τα ' + limit + ' προγράμματα που επιτρέπονται, μαζί με τα προσχέδια.</p>' : '';
-    box.innerHTML = `<strong>Προσχέδια προγραμμάτων (χωρίς περίοδο):</strong> ${parts.join(' · ')}
-      <p class="ui-helper">Δεν ανήκουν σε περίοδο και δεν τα αλλάζει αυτή η σελίδα. Μεγαλώνουν το αρχείο· καλό είναι να γίνεται εκκαθάριση μέσα από την εφαρμογή τους.</p>${over}`;
+    box.innerHTML = total > limit ? '<p class="ui-validation-error">Το σχολικό έτος θα είχε ' + total + ' προγράμματα, πάνω από το όριο των ' + limit + '. Η αποθήκευση δεν θα γίνει· διάγραψε περιόδους ή προγράμματα που δεν χρειάζονται.</p>'
+      : nearLimit(total, limit) ? '<p class="ui-validation-warning">Το σχολικό έτος έχει ' + total + ' από τα ' + limit + ' προγράμματα που επιτρέπονται.</p>' : '';
+    box.hidden = !box.innerHTML;
   }
 
   // ---- Opening the program applications (school-timetables:open) ----
@@ -987,7 +978,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
   }
 
   // ---- Removing a period ----
-  // Its programs are deleted with it (none is kept as a draft). A stored period with stored programs offers first a
+  // Its programs are deleted with it. A stored period with stored programs offers first a
   // backup to an external file, from which the period can come back («Επαναφορά από αντίγραφο…»).
   // → true when the period was removed from the page.
   async function removePeriod(period) {
@@ -1098,13 +1089,13 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
 
   }
   // ---- Import from FET: the σχέδιο Ολοημέρου of the period and the replacement ----
-  // Every period with an Ωρολόγιο has a σχέδιο Ολοημέρου. After a new import from FET the σχέδια (the one of the period,
-  // the drafts of the Designer and the σχέδια of the other periods) are compared with the new Ωρολόγιο in the zones of
+  // Every period with an Ωρολόγιο has a σχέδιο Ολοημέρου. After a new import from FET the σχέδια (the one of the period
+  // and the σχέδια of the other periods) are compared with the new Ωρολόγιο in the zones of
   // the Ολοήμερο (SchoolTimetable.oloimeroDesignMatches). The user chooses one; preselected is one exactly the same,
-  // otherwise «Αυτόματη δημιουργία» (SchoolTimetable.oloimeroDesignFromSchool). A draft or the σχέδιο of another period
+  // otherwise «Αυτόματη δημιουργία» (SchoolTimetable.oloimeroDesignFromSchool). The σχέδιο of another period
   // goes to the period as a new copy (the original stays). Then, when stored programs are replaced (the Ωρολόγιο, or the
   // σχέδιο of the period when another one is chosen), a backup of the period to an external file is offered; the old
-  // programs are replaced fully (they are not kept as drafts).
+  // programs are replaced fully.
   // → {design: text for the notice, backup: text for the notice}, or null when the user cancelled.
   const DESIGN_TITLE = 'Σχέδιο Ολοημέρου της περιόδου';
   const DAY_NAMES = ['Δευτέρα', 'Τρίτη', 'Τετάρτη', 'Πέμπτη', 'Παρασκευή'];
@@ -1123,8 +1114,8 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
   async function chooseDesign(period, school, classes) {
     const own = programOf(period.id, 'oloimero');
     const others = draft.programs.filter(program => program.kind === 'oloimero' && program.periodId && program.periodId !== period.id);
-    const candidates = [...(own ? [own] : []), ...(context.oloimeroDrafts || []), ...others];
-    const where = program => program === own ? 'Το σχέδιο της περιόδου' : program.periodId == null ? 'Προσχέδιο' : 'Σχέδιο της περιόδου ' + quoted(periodName(periodById(program.periodId)));
+    const candidates = [...(own ? [own] : []), ...others];
+    const where = program => program === own ? 'Το σχέδιο της περιόδου' : 'Σχέδιο της περιόδου ' + quoted(periodName(periodById(program.periodId)));
     const matches = T.oloimeroDesignMatches(school, candidates, {classes, teachingHours: context.teachingHours});
     if (!matches.length) return {mode: 'auto'};
     const box = document.createElement('fieldset');
@@ -1152,7 +1143,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
     (sameIndex >= 0 ? radios[sameIndex] : auto).checked = true;
     const content = ['Κάθε περίοδος με Ωρολόγιο έχει σχέδιο Ολοημέρου. Τα σχέδια συγκρίνονται με το νέο Ωρολόγιο στις ώρες Ολοημέρου, ώρα προς ώρα. ' +
       (sameIndex >= 0 ? 'Επιλέχθηκε το σχέδιο που είναι ίδιο με το Ωρολόγιο.' : 'Κανένα σχέδιο δεν είναι ίδιο με το Ωρολόγιο, γι’ αυτό επιλέχθηκε η αυτόματη δημιουργία.'),
-      'Ένα προσχέδιο ή το σχέδιο άλλης περιόδου μπαίνει στην περίοδο ως νέο αντίγραφο· το αρχικό μένει όπως είναι.', box];
+      'Το σχέδιο άλλης περιόδου μπαίνει στην περίοδο ως νέο αντίγραφο· το αρχικό μένει όπως είναι.', box];
     const value = await schoolChoiceDialog({
       title: DESIGN_TITLE, content,
       actions: [{label: 'Ακύρωση'}, {label: 'Συνέχεια', accept: true, run: () => {
@@ -1165,7 +1156,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
     if (value === 'auto') return {mode: 'auto'};
     const match = matches[Number(value)];
     const named = match.program.name ? ' ' + quoted(match.program.name) : '';
-    const from = match.program.periodId == null ? 'του προσχεδίου' + named : 'του σχεδίου' + named + ' της περιόδου ' + quoted(periodName(periodById(match.program.periodId)));
+    const from = 'του σχεδίου' + named + ' της περιόδου ' + quoted(periodName(periodById(match.program.periodId)));
     return {mode: match.program === own ? 'keep' : 'copy', program: match.program, from, same: match.same};
   }
   // The available hours of the Ολοήμερο for the new σχέδιο: the hours of the period (automatic suggestion or written by
@@ -1456,15 +1447,14 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
   }
   // After «Αποθήκευση»: the file must hold exactly what the page asked for. The host writes the time of a «Ορισμός ως
   // Αρχική» (initialSetAt) itself.
-  function verifySaved(result, periods, expectedDraftCounts, added) {
+  function verifySaved(result, periods, added) {
     const comparable = program => { if (!program || !initialIds.has(program.id)) return program; const {initialSetAt, ...rest} = program; return rest; };
     const same = (a, b) => JSON.stringify(comparable(a)) === JSON.stringify(comparable(b));
     const expected = draft.programs.filter(program => program.periodId != null);
     const got = new Map((result.programs || []).filter(program => program.periodId != null).map(program => [program.id, program]));
     const classIds = new Set((result.classes || []).map(item => item?.id));
     const ok = JSON.stringify(result.periods) === JSON.stringify(periods) && got.size === expected.length && expected.every(program => same(got.get(program.id), program)) &&
-      added.every(item => classIds.has(item.id)) &&
-      kindKeys.every(kind => (Number(result.draftCounts?.[kind]) || 0) === expectedDraftCounts[kind]);
+      added.every(item => classIds.has(item.id));
     if (!ok) throw Error('Η αποθήκευση ολοκληρώθηκε, αλλά τα δεδομένα του αρχείου δεν είναι ίδια με αυτά της σελίδας. Έλεγξε τις περιόδους και τα προγράμματα που φαίνονται τώρα. Βεβαιώσου ότι το index.html είναι η τελευταία έκδοση.');
   }
   async function save() {
@@ -1478,7 +1468,6 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
     if (draft.programs.some(program => program.periodId != null && !periodIds.has(program.periodId))) { notice('Βρέθηκε πρόγραμμα σε περίοδο που δεν υπάρχει. Πάτησε «Αναίρεση Όλων».', true); return; }
     for (const period of draft.periods) period.name = period.name.trim();
     const periods = clone(draft.periods), ops = saveOps(), added = clone(usedNewClasses());
-    const expectedDraftCounts = Object.fromEntries(kindKeys.map(kind => [kind, (Number(context.draftCounts?.[kind]) || 0) + draft.programs.filter(program => program.kind === kind && program.periodId == null).length]));
     setBusy(true);
     let result = null;
     try {
@@ -1488,7 +1477,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
       // The subjects and Συνενώσεις of the restores, only together with programs (the host accepts only additions).
       if (catalogDraft && ops.length) request.individualCatalog = catalogDraft;
       result = await schoolHost.request('school-timetables:save', request);
-      verifySaved(result, periods, expectedDraftCounts, added);
+      verifySaved(result, periods, added);
       receive(result);
       sharePeriod();
       notice('Οι περίοδοι και τα προγράμματα αποθηκεύτηκαν στο κοινό αρχείο .data.' + (added.length ? ' Δημιουργήθηκαν στα «Τμήματα» τα τμήματα: ' + added.map(item => item.name).join(', ') + '.' : ''));

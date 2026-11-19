@@ -77,7 +77,7 @@
 .staff-list-header .staff-view-buttons{grid-column:2;grid-row:1;justify-self:center}
 .staff-list-header .subapp-transfer-actions{grid-column:3;grid-row:1;justify-self:end}
 @container staff-list (max-width:520px){.staff-list-header{grid-template-columns:minmax(0,1fr) auto;gap:8px}.staff-list-header .subapp-transfer-actions{grid-column:2}.staff-list-header .staff-view-buttons{grid-column:1 / -1;grid-row:2;justify-self:center}}
-</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" aria-label="Προσωπικό — άνοιγμα κεντρικού μενού" title="Άνοιγμα κεντρικού μενού"><span class="app-mark" data-app-icon="staff" aria-hidden="true"></span><span class="brand-text"><span>Προσωπικό</span><span class="small version">v0.89</span></span></button></h1></div><button id="applyStaff" class="save-main" type="button" disabled>Αποθήκευση</button><button id="cancelStaff" type="button" disabled>Αναίρεση Όλων</button><div class="header-right"><span id="staffSchoolYear" class="school-year-indicator" hidden><span>Σχολικό έτος:</span> <span id="staffSchoolYearValue"></span></span></div></header><main id="staff-root" class="page-main"><p class="connection subapp-connection">Άνοιξε τη σελίδα «Προσωπικό» μέσα από το Κεντρικό Μενού, αφού ανοίξεις το αρχείο πληροφοριών του σχολείου.</p></main><script src="_ui.js"></script>
+</style></head><body><header class="page-head"><div class="toolbar-brand"><h1><button class="brand-menu" type="button" aria-label="Προσωπικό — άνοιγμα κεντρικού μενού" title="Άνοιγμα κεντρικού μενού"><span class="app-mark" data-app-icon="staff" aria-hidden="true"></span><span class="brand-text"><span>Προσωπικό</span><span class="small version">v0.90</span></span></button></h1></div><button id="applyStaff" class="save-main" type="button" disabled>Αποθήκευση</button><button id="cancelStaff" type="button" disabled>Αναίρεση Όλων</button><div class="header-right"><span id="staffSchoolYear" class="school-year-indicator" hidden><span>Σχολικό έτος:</span> <span id="staffSchoolYearValue"></span></span></div></header><main id="staff-root" class="page-main"><p class="connection subapp-connection">Άνοιξε τη σελίδα «Προσωπικό» μέσα από το Κεντρικό Μενού, αφού ανοίξεις το αρχείο πληροφοριών του σχολείου.</p></main><script src="_ui.js"></script>
 <script src="_data.js"></script>
 <script src="_data_timetable.js"></script>
 <script src="_data_oloimero.js"></script>
@@ -416,7 +416,7 @@ function openStaffManager(){
  function removalDialog(people,usage,selectedCount){
   const many=people.length>1,element=(tag,className,text)=>{const node=document.createElement(tag);if(className)node.className=className;if(text!=null)node.textContent=text;return node};
   const label=person=>person.name.trim()||person.shortName.trim()||person.code.trim()||'χωρίς όνομα';
-  const where=item=>`${item.kindLabel} – ${item.periodId?'περίοδος «'+(item.periodName||'χωρίς όνομα')+'»':'προσχέδιο «'+(item.name||'χωρίς όνομα')+'»'}: ${item.activities} ${item.activities===1?'δραστηριότητα':'δραστηριότητες'}`;
+  const where=item=>`${item.kindLabel} – περίοδος «${item.periodName||'χωρίς όνομα'}»: ${item.activities} ${item.activities===1?'δραστηριότητα':'δραστηριότητες'}`;
   const list=element('ul','staff-removal-list');
   for(const person of people){const row=element('li'),programs=element('ul');row.append(element('strong','',label(person)));for(const item of usage[person.id])programs.append(element('li','',where(item)));row.append(programs);list.append(row)}
   const notes=[];
@@ -425,7 +425,7 @@ function openStaffManager(){
   if(people.some(person=>usage[person.id].some(item=>item.kind==='individual')))notes.push(element('p','staff-removal-note','Στα Ατομικά Προγράμματα οι δραστηριότητες του εκπαιδευτικού σβήνονται πάντα, με οποιαδήποτε από τις δύο επιλογές, γιατί ένα ατομικό πρόγραμμα ανήκει πάντα σε έναν εκπαιδευτικό.'));
   return schoolChoiceDialog({
    title:many?'Αφαίρεση εκπαιδευτικών που εμφανίζονται σε προγράμματα':'Αφαίρεση εκπαιδευτικού που εμφανίζεται σε προγράμματα',
-   content:[many?'Οι παρακάτω εκπαιδευτικοί εμφανίζονται σε προγράμματα του σχολικού έτους (και σε προσχέδια):':'Ο/Η εκπαιδευτικός εμφανίζεται σε προγράμματα του σχολικού έτους (και σε προσχέδια):',list,...notes],
+   content:[many?'Οι παρακάτω εκπαιδευτικοί εμφανίζονται σε προγράμματα του σχολικού έτους:':'Ο/Η εκπαιδευτικός εμφανίζεται σε προγράμματα του σχολικού έτους:',list,...notes],
    choices:[{label:'Διαγραφή, κράτησε τις αναφορές χωρίς αντιστοίχιση',value:'unmatch'},{label:`Διαγραφή μαζί με όλες τις αναφορές ${many?'τους':'του'}`,value:'remove'}],
    actions:[{label:'Ακύρωση'}],
    // «Ακύρωση» is the default: it takes the focus instead of the first choice.

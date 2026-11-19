@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Πλήρες Σχολικό Πρόγραμμα v1.19</title>
+<title>Πλήρες Σχολικό Πρόγραμμα v1.20</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -186,7 +186,7 @@ button.ui-icon-button.ft-cell-edit>svg{width:var(--school-ui-icon-size-list);hei
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Πλήρες Σχολικό Πρόγραμμα — άνοιγμα κεντρικού μενού"><span class="app-mark is-sub" data-app-icon="full" aria-hidden="true"></span><span class="brand-text"><span>Πλήρες Σχολικό Πρόγραμμα</span><span class="small version">v1.19</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Πλήρες Σχολικό Πρόγραμμα — άνοιγμα κεντρικού μενού"><span class="app-mark is-sub" data-app-icon="full" aria-hidden="true"></span><span class="brand-text"><span>Πλήρες Σχολικό Πρόγραμμα</span><span class="small version">v1.20</span></span></button></h1></div>
   <select id="period" aria-label="Περίοδος" disabled hidden></select>
   <span id="periodStatus" class="ui-period-status" hidden></span>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
@@ -964,7 +964,7 @@ button.ui-icon-button.ft-cell-edit>svg{width:var(--school-ui-icon-size-list);hei
     const limits = {programs: 200, activities: 2000, warnRatio: 0.9, ...(context.limits || {})}, list = [];
     const near = (count, limit) => count >= Math.ceil(limit * limits.warnRatio);
     const programs = Number(context.programCount) || 0;
-    if (near(programs, limits.programs)) list.push(['warning', 'Το σχολικό έτος έχει ' + programs + ' από τα ' + limits.programs + ' προγράμματα που επιτρέπονται, μαζί με τα προσχέδια. Καλό είναι να διαγραφούν προσχέδια που δεν χρειάζονται.']);
+    if (near(programs, limits.programs)) list.push(['warning', 'Το σχολικό έτος έχει ' + programs + ' από τα ' + limits.programs + ' προγράμματα που επιτρέπονται. Καλό είναι να διαγραφούν περίοδοι που δεν χρειάζονται, στα «Σχολικά Προγράμματα».']);
     for (const [prog, name] of [[program, 'Το Ωρολόγιο'], [individual, 'Τα Ατομικά Προγράμματα']]) {
       const activities = prog?.activities?.length || 0;
       if (activities > limits.activities) list.push(['error', name + ' της περιόδου ' + (prog === program ? 'έχει ' : 'έχουν ') + activities + ' δραστηριότητες, πάνω από το όριο των ' + limits.activities + '. Η αποθήκευση δεν θα γίνει.']);

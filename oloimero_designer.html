@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ολοήμερο Designer v1.99</title>
+<title>Ολοήμερο Designer v2.01</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -39,37 +39,6 @@ main.ol-without-design :is(#board,#boardTimeOverlayAnchor,.board-zoom-controls,.
 .ol-notices:empty{display:none}
 .ol-notices p{margin:0 0 4px;font-size:13px}
 
-/* «Διαχείριση προσχεδίων»: inline rename, multiple selection, common schoolIcon buttons. */
-.school-confirm.ol-drafts-dialog{width:min(720px,calc(100vw - 32px))}
-.ol-draft-help{margin:0 0 4px!important;color:var(--school-ui-muted);font-size:13px;line-height:1.45}
-.ol-draft-list{min-height:132px;max-height:min(350px,46vh);overflow:auto;margin-top:14px;padding:5px}
-.ol-draft-list:focus-visible{outline:2px solid var(--school-ui-focus);outline-offset:2px}
-.ol-draft-row{
-  display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:10px;
-  min-height:43px;padding:4px 5px 4px 10px;border:1px solid transparent;border-radius:7px;
-  cursor:pointer;user-select:none;font-size:15px;line-height:1.4;white-space:normal
-}
-.ol-draft-row:hover:not(.selected){background:#f1f4f8}
-.ol-draft-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ol-draft-name-group{display:flex;align-items:center;gap:8px;min-width:0}
-.ol-draft-open{flex:none;padding:2px 8px;border:1px solid #a5d4b3;border-radius:999px;background:#e7f5ec;color:#176534;font-size:12px;line-height:1.3}
-.ol-draft-date{flex:none;font-size:13px;color:var(--school-ui-muted);white-space:nowrap}
-.school-confirm .ol-draft-edit{width:32px;height:32px;min-width:32px;border-color:transparent;background:transparent;color:var(--school-ui-label-text)}
-.school-confirm .ol-draft-edit:hover:not(:disabled){background:var(--school-ui-primary-bg);border-color:var(--school-ui-primary-border)}
-.ol-draft-edit svg,.ol-draft-inline-actions svg{display:block;width:var(--school-ui-icon-size);height:var(--school-ui-icon-size)}
-.ol-draft-row.is-editing{grid-template-columns:minmax(0,1fr) auto;user-select:text}
-.ol-draft-inline{display:flex;align-items:center;gap:6px;min-width:0}
-.ol-draft-inline input{flex:1;min-width:0;width:100%;height:var(--school-ui-control-height);padding:var(--school-ui-control-padding-y) 9px;border:1px solid var(--school-ui-input-border);border-radius:7px}
-.ol-draft-inline-actions{display:flex;gap:4px;flex:none}
-.school-confirm .ol-draft-inline-actions button{display:grid;place-items:center;width:32px;height:32px;padding:0}
-.ol-draft-inline-actions .ol-draft-accept{background:var(--school-ui-success-bg);border-color:var(--school-ui-success-border);color:var(--school-ui-success-text)}
-.ol-draft-inline-actions .ol-draft-accept:hover:not(:disabled){background:var(--school-ui-success-hover-bg);border-color:var(--school-ui-success-border)}
-.ol-draft-empty{margin:8px;color:var(--school-ui-muted)}
-.ol-drafts-dialog .ui-validation-warning{margin-top:8px}
-.ol-draft-tools{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
-.ol-draft-tools button .ui-icon-text{white-space:nowrap}
-.ol-drafts-dialog .ui-helper{margin:12px 0 0}
-@media(max-width:520px){.ol-draft-row{gap:5px;padding-left:5px}.ol-draft-date{font-size:11px}.ol-draft-open{padding:2px 5px}}
 .school-confirm.ol-fet-import{width:min(680px,calc(100vw - 32px))}
 .ol-fet-import .subapp-import-list{min-width:0}
 .teacher-unmatched{font-style:italic}
@@ -610,7 +579,7 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
 <body>
 
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark is-sub" data-app-icon="oloimero" aria-hidden="true"></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v1.99</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark is-sub" data-app-icon="oloimero" aria-hidden="true"></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v2.01</span></span></button></h1></div>
   <select id="program" aria-label="Σχέδιο" hidden></select>
   <span id="periodStatus" class="ui-period-status" hidden></span>
   <span class="save-control">
@@ -622,14 +591,8 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
   <span class="ol-menu">
     <button id="planMenuButton" type="button" aria-haspopup="true" aria-expanded="false" disabled>Σχέδιο</button>
     <span id="planMenu" class="save-menu" hidden>
-      <button id="newDraft" type="button">Νέο προσχέδιο…</button>
-      <button id="newFromCurrent" type="button">Νέο προσχέδιο από το τρέχον…</button>
       <button id="importCsv" type="button">Εισαγωγή από CSV…</button>
       <button id="copyFromPeriod" type="button">Αντιγραφή από άλλη περίοδο…</button>
-      <hr>
-      <button id="assignPeriod" type="button">Ανάθεση σε περίοδο…</button>
-      <button id="deleteDraft" type="button">Διαγραφή προσχεδίου…</button>
-      <button id="manageDrafts" type="button">Διαχείριση προσχεδίων…</button>
     </span>
   </span>
   <button id="openDesign" type="button" disabled>Διαμόρφωση...</button>
@@ -705,7 +668,7 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
     <div class="subapp-file-drop-title">Ο πίνακας είναι κενός</div>
     <div class="subapp-file-drop-text">
       Σύρε εκπαιδευτικούς, μαθήματα, τάξεις και τμήματα από την αριστερή μπάρα στα κελιά.<br>
-      Αν αφήσεις εδώ ένα <span class="subapp-file-drop-files">CSV</span> του Ολοημέρου, εισάγεται σε νέο προσχέδιο.
+      Αν αφήσεις εδώ ένα <span class="subapp-file-drop-files">CSV</span> του Ολοημέρου, εισάγεται στο σχέδιο της περιόδου.
     </div>
   </div>
 
@@ -807,12 +770,11 @@ const WEEK_DAYS=["Δευτέρα","Τρίτη","Τετάρτη","Πέμπτη","
 const WEEK_DAY_ABBREVIATIONS=["Δε","Τρ","Τε","Πε","Πα"];
 // The designs of Ολοήμερο are programs (kind 'oloimero') of the shared file (school-timetables:*), through
 // schoolHost (_ui.js). Hours, classes, import, export and the CSV for FET: SchoolTimetable (_data.js).
-// Every change happens in the page; «Αποθήκευση» writes the design shown and the changes to other drafts
-// (deletions, names, an assignment to a period), all or nothing.
+// Every design belongs to a period (there are no drafts without a period). Every change happens in the page;
+// «Αποθήκευση» writes the design shown and the deletion of the design it replaced, all or nothing.
 const T=SchoolTimetable,D=SchoolDate;
 const post=schoolHost.post;
 const KIND="oloimero";
-const DRAFT_WARNING_LIMIT=5;
 const OTHER_TEACHER_COLOR="#bfe3ff";
 const quoted=value=>`«${value}»`;
 const byName=(a,b)=>String(a).localeCompare(String(b),"el",{numeric:true,sensitivity:"base"});
@@ -1752,7 +1714,7 @@ const departmentCount=(type,id)=>(type==="grade"?boardStats().gradeUses:boardSta
 // In a design of a period the hours of the teachers of Προσωπικό are those of the period (period.oloimeroHours, the
 // same for every design of the period): the value the user wrote or, without one, the automatic proposal of
 // SchoolTimetable.oloimeroAvailableHours («Ωράριο στο σχολείο» minus the morning hours in the composition of the
-// period). A draft, and a name without a match in Προσωπικό, keep the hours of the design (source.teachers).
+// period). A name without a match in Προσωπικό keeps the hours of the design (source.teachers).
 let periodHoursEdits=new Map();   // periodId → {staffId: hours}: the hours of a period as changed on this page
 let autoHoursMemo=new Map();      // periodId → Map(staffId → {hours, schoolHours, morning}), the automatic proposal
 const sortedHours=value=>Object.fromEntries(Object.keys(value||{}).sort().map(id=>[id,value[id]]));
@@ -1797,8 +1759,7 @@ function ownAvailableHours(t){
 function teacherAvailableHours(t){
   return periodHoursApply(t)?periodHoursInfo(current.periodId,t.staffId).hours:ownAvailableHours(t);
 }
-// The model with the hours the board shows (in a design of a period, those of the period): for a new draft from the
-// design and for the CSV for FET.
+// The model with the hours the board shows (those of the period): for the CSV for FET.
 function shownHoursModel(model){
   if(!model||current?.periodId==null)return model;
   const byId=new Map(teachers.map(teacher=>[teacher.id,teacher]));
@@ -3445,11 +3406,10 @@ function effectivePrograms(){
   return [...map.values()];
 }
 const designOfPeriod=(periodId,list=effectivePrograms())=>list.find(item=>item.periodId===periodId)||null;
-const draftsList=(list=effectivePrograms())=>list.filter(item=>item.periodId==null).sort((a,b)=>byName(a.name,b.name));
-const designName=base=>base.periodId!=null?`Ολοήμερο ${periodOf(base.periodId)?.name||""}`.trim():base.name||"Προσχέδιο";
+const designName=base=>`Ολοήμερο ${periodOf(base.periodId)?.name||""}`.trim();
 
 // Which design opens first: the design of the period that applies today, else the first period with a
-// design, else the period of today, the first period, or the first draft.
+// design, else the period of today or the first period.
 function defaultTarget(list=savedPrograms().map(program=>({id:program.id,periodId:program.periodId??null,name:program.name||""}))){
   const periods=periodsList(),today=T.periodAt(periods,D.today());
   const inPeriod=id=>list.find(item=>item.periodId===id);
@@ -3458,8 +3418,7 @@ function defaultTarget(list=savedPrograms().map(program=>({id:program.id,periodI
   if(withDesign)return {programId:inPeriod(withDesign.id).id};
   if(today)return {periodId:today.id};
   if(periods.length)return {periodId:periods[0].id};
-  const draft=[...list].filter(item=>item.periodId==null).sort((a,b)=>byName(a.name,b.name))[0];
-  return draft?{programId:draft.id}:null;
+  return null;
 }
 
 // Shows a design of the file (or a period without a design) inside a change: the pending changes stay.
@@ -3551,8 +3510,8 @@ async function discardIfDirty(message){
 // ---- Header ----
 const programSelect=document.querySelector("#program");
 function selectionValue(){
-  if(current)return current.periodId!=null?`period:${current.periodId}`:`draft:${current.id}`;
-  return selectedPeriodId?`period:${selectedPeriodId}`:"";
+  const periodId=current?current.periodId:selectedPeriodId;
+  return periodId?`period:${periodId}`:"";
 }
 function renderProgramSelect(){
   const list=effectivePrograms();
@@ -3565,35 +3524,29 @@ function renderProgramSelect(){
     }
     programSelect.append(group);
   }
-  const drafts=draftsList(list);
-  if(drafts.length){
-    const group=document.createElement("optgroup");group.label="Προσχέδια";
-    drafts.forEach(item=>group.append(new Option(item.name+(item.isNew?" (νέο)":""),`draft:${item.id}`)));
-    programSelect.append(group);
-  }
-  if(!programSelect.options.length)programSelect.append(new Option("Δεν υπάρχουν σχέδια",""));
+  if(!programSelect.options.length)programSelect.append(new Option("Δεν υπάρχουν περίοδοι",""));
   programSelect.value=selectionValue();
   const period=current?.periodId!=null?periodOf(current.periodId):selectedPeriodId?periodOf(selectedPeriodId):null;
-  programSelect.title=period?periodText(period):current?current.name:"";
+  programSelect.title=period?periodText(period):"";
   programSelect.hidden=!context;
   // What the Designer works on, as in the other program applications (the shared .ui-period-status).
   const status=document.querySelector("#periodStatus");
-  const [label,kind]=period?(T.isDraftPeriod(period)?["Προσχέδιο περιόδου","draft"]:["Επίσημη","official"]):current?["Προσχέδιο σχεδίου","design-draft"]:["",""];
+  const [label,kind]=period?(T.isDraftPeriod(period)?["Προσχέδιο περιόδου","draft"]:["Επίσημη","official"]):["",""];
   status.textContent=label;status.className="ui-period-status"+(kind?" "+kind:"");status.hidden=!context||!label;
 }
-// The selection is remembered in .data (lastViewByYear, through the Index), so the Designer opens there
-// next time. A new draft that is not saved yet is not remembered: it does not exist in the file.
+// The period shown is remembered in .data (lastViewByYear, through the Index), so the Designer opens there
+// next time.
 let reportedView="";
 function reportView(){
   if(!context)return;
-  const view=current?.isNew&&current.periodId==null?"":selectionValue();
+  const view=selectionValue();
   if(!view||view===reportedView)return;
   reportedView=view;
   post({type:"school-timetables:view",view});
 }
 // Where the Designer was last time (context.lastView), if it still exists; else null. The host keeps lastView on the
-// current period shared by the program applications whenever another application changes it, so a draft opens again
-// only while that period has not changed; without a lastView, the shared current period (context.currentPeriod).
+// current period shared by the program applications whenever another application changes it; without a lastView,
+// the shared current period (context.currentPeriod).
 function lastViewTarget(){
   const value=String(context?.lastView||""),separator=value.indexOf(":");
   if(separator<0){
@@ -3603,7 +3556,6 @@ function lastViewTarget(){
   }
   const kind=value.slice(0,separator),id=value.slice(separator+1);
   if(kind==="period"&&periodOf(id)){const program=savedOfPeriod(id);return program?{programId:program.id}:{periodId:id}}
-  if(kind==="draft"){const program=savedProgram(id);return program&&program.periodId==null?{programId:id}:null}
   return null;
 }
 function renderHeader(){
@@ -3614,7 +3566,7 @@ function renderHeader(){
   updateButtons();
 }
 function updateButtons(){
-  const ready=isReady(),has=ready&&!!current,draft=has&&current.periodId==null;
+  const ready=isReady(),has=ready&&!!current;
   const set=(selector,disabled)=>{const element=document.querySelector(selector);if(element)element.disabled=!!disabled};
   const saveButton=document.querySelector("#saveData");
   saveButton.classList.toggle("dirty",dirty);
@@ -3623,14 +3575,9 @@ function updateButtons(){
   set("#saveMenuButton",busy||!context);
   set("#exportCsv",busy||!has);
   set("#planMenuButton",busy||!ready);
-  set("#newDraft",busy||!ready);
-  set("#newFromCurrent",busy||!has);
-  set("#importCsv",busy||!ready);
   const periodId=current?current.periodId:selectedPeriodId;
+  set("#importCsv",busy||!ready||periodId==null);
   set("#copyFromPeriod",busy||!ready||periodId==null||!periodsList().some(period=>period.id!==periodId&&savedOfPeriod(period.id)));
-  set("#assignPeriod",busy||!draft||!periodsList().length);
-  set("#deleteDraft",busy||!draft);
-  set("#manageDrafts",busy||!ready);
   set("#openDesign",busy||!has);
   set("#printBoard",busy||!has);set("#printMode",busy||!has);
   set("#undoPlacement",busy||!undoStack.length);
@@ -3667,13 +3614,12 @@ function renderNoDesign(){
       paragraph("Το CSV εισάγεται με τον ίδιο τρόπο και από τα «Σχολικά Προγράμματα».","ui-helper"));
     return;
   }
-  actions.append(button("Νέο προσχέδιο",()=>void newDraft(false),{primary:true}),button("Εισαγωγή από CSV…",()=>void importCsv()));
-  noDesign.replaceChildren(paragraph("Δεν υπάρχουν σχέδια Ολοημέρου για το σχολικό έτος."),actions,
-    paragraph("Οι περίοδοι δημιουργούνται στα «Σχολικά Προγράμματα».","ui-helper"));
+  noDesign.replaceChildren(paragraph("Δεν υπάρχουν περίοδοι για το σχολικό έτος. Κάθε σχέδιο Ολοημέρου ανήκει σε μια περίοδο."),
+    paragraph("Οι περίοδοι δημιουργούνται στα «Σχολικά Προγράμματα» (Επίσημες ή Προσχέδια περιόδων).","ui-helper"));
 }
 
-// Warnings near the limits of the host (context.limits, from warnRatio): programs of the year, with every
-// draft, and activities of the design.
+// Warnings near the limits of the host (context.limits, from warnRatio): programs of the year and activities of the
+// design.
 function renderNotices(){
   const box=document.querySelector("#olNotices"),items=[];
   const limits=context?.limits;
@@ -3685,8 +3631,8 @@ function renderNotices(){
     };
     const programs=(Number(context.programCount)||savedPrograms().length)+effectivePrograms().length-savedPrograms().length;
     check(programs,limits.programs,
-      `Το σχολικό έτος θα είχε ${programs} προγράμματα (μαζί με τα προσχέδια όλων των εφαρμογών), πάνω από το όριο των ${limits.programs}. Η αποθήκευση δεν θα γίνει· διάγραψε προσχέδια που δεν χρειάζονται.`,
-      `Το σχολικό έτος έχει ${programs} από τα ${limits.programs} προγράμματα που επιτρέπονται, μαζί με τα προσχέδια. Καλό είναι να διαγραφούν προσχέδια που δεν χρειάζονται.`);
+      `Το σχολικό έτος θα είχε ${programs} προγράμματα, πάνω από το όριο των ${limits.programs}. Η αποθήκευση δεν θα γίνει· διάγραψε περιόδους που δεν χρειάζονται, στα «Σχολικά Προγράμματα».`,
+      `Το σχολικό έτος έχει ${programs} από τα ${limits.programs} προγράμματα που επιτρέπονται. Καλό είναι να διαγραφούν περίοδοι που δεν χρειάζονται, στα «Σχολικά Προγράμματα».`);
     const activities=boardStats().complete;
     check(activities,limits.activities,
       `Το σχέδιο έχει ${activities} δραστηριότητες, πάνω από το όριο των ${limits.activities}. Η αποθήκευση δεν θα γίνει.`,
@@ -3700,54 +3646,16 @@ programSelect.addEventListener("change",async()=>{
   const value=programSelect.value;
   if(!value||value===selectionValue())return;
   if(dirty&&!await confirmDiscard()){programSelect.value=selectionValue();return}
-  const [kind,id]=[value.slice(0,value.indexOf(":")),value.slice(value.indexOf(":")+1)];
-  if(kind==="period"){
-    const program=savedOfPeriod(id);loadClean(program?{programId:program.id}:{periodId:id});
-    // The period chosen here becomes the current period of «Σχολικά Προγράμματα» and the program applications.
-    post({type:"school-timetables:period",periodId:id});
-  }
-  else loadClean({programId:id});
+  const id=value.slice(value.indexOf(":")+1);
+  const program=savedOfPeriod(id);loadClean(program?{programId:program.id}:{periodId:id});
+  // The period chosen here becomes the current period of «Σχολικά Προγράμματα» and the program applications.
+  post({type:"school-timetables:period",periodId:id});
 });
 
-// A name for a new draft, in a choice dialog.
-function askName({title,message,suggested,accept="Δημιουργία"}){
-  const field=document.createElement("label"),input=document.createElement("input");
-  field.className="school-choice-field";field.textContent="Όνομα προσχεδίου";
-  input.type="text";input.maxLength=300;input.value=suggested||"";field.append(input);
-  return schoolChoiceDialog({
-    title,content:[message,field],
-    actions:[{label:"Ακύρωση"},{label:accept,accept:true,run:()=>{
-      const name=input.value.trim();
-      if(!name){input.focus();throw Error("Συμπλήρωσε όνομα για το προσχέδιο.")}
-      return name;
-    }}],
-    ready:()=>{input.focus();input.select()}
-  });
-}
 const nowIso=()=>new Date().toISOString();
-const withoutPlacements=model=>model?{...model,cells:"[]"}:null;
 const withNewActivityIds=model=>model?{...model,cells:JSON.stringify(JSON.parse(model.cells||"[]").map(([place,cell])=>[place,{...cell,activityId:null}]))}:null;
 const discardMessage=()=>current?`Οι μη αποθηκευμένες αλλαγές του ${quoted(designName(current))} θα απορριφθούν. Συνέχεια;`:"Οι μη αποθηκευμένες αλλαγές θα απορριφθούν. Συνέχεια;";
 
-// «Νέο προσχέδιο»: teachers, subjects, unions, hidden Τάξεις and Τμήματα and the design of the current design, without
-// placements. «Νέο προσχέδιο από το τρέχον»: everything, with the placements (what the board shows now).
-async function newDraft(fromCurrent){
-  closeMenus();
-  if(busy||!isReady()||(fromCurrent&&!current))return;
-  const model=current?shownHoursModel(captureModel()):null,sourceName=current?designName(current):"";
-  const name=await askName(fromCurrent
-    ?{title:"Νέο προσχέδιο από το τρέχον",suggested:`${sourceName} – αντίγραφο`,message:`Το νέο προσχέδιο θα έχει ό,τι δείχνει τώρα ο πίνακας του ${quoted(sourceName)}, με τις τοποθετήσεις.`+(dirty?" Οι μη αποθηκευμένες αλλαγές του πίνακα περνούν μόνο στο νέο προσχέδιο· το αρχικό μένει όπως αποθηκεύτηκε, και οι υπόλοιπες μη αποθηκευμένες αλλαγές απορρίπτονται.":"")}
-    :{title:"Νέο προσχέδιο",suggested:`Προσχέδιο ${D.format(D.today())}`,message:current?`Το νέο προσχέδιο κρατά εκπαιδευτικούς, μαθήματα, συνενώσεις, κρυφές τάξεις και τμήματα και Σχεδιασμό του ${quoted(sourceName)}, χωρίς τοποθετήσεις.`:"Το νέο προσχέδιο ξεκινά με κενό πίνακα."});
-  if(!name)return;
-  if(dirty&&!fromCurrent&&!await discardIfDirty(discardMessage()))return;
-  if(dirty&&fromCurrent)loadClean(savedTarget());
-  const now=nowIso();
-  current={id:crypto.randomUUID(),periodId:null,name,createdAt:now,updatedAt:now,csvName:"",importedAt:"",isNew:true};
-  selectedPeriodId=null;
-  applyModel(fromCurrent?withNewActivityIds(model):withoutPlacements(model));
-  commit();renderAll();
-  setStatus(`Δημιουργήθηκε το προσχέδιο ${quoted(name)} — αποθηκεύεται με την «Αποθήκευση»`);
-}
 // «Νέο σχέδιο» for a period without a design: an empty board.
 async function newDesignForPeriod(){
   if(busy||!isReady()||current||!selectedPeriodId)return;
@@ -3758,34 +3666,38 @@ async function newDesignForPeriod(){
   setStatus("Νέο σχέδιο για την περίοδο — αποθηκεύεται με την «Αποθήκευση»");
 }
 
-// «Εισαγωγή από CSV…»: the CSV that the Designer exports for FET (or an older CSV of the Designer), with the
-// importer of the kind and the shared import dialog. The design goes into a new draft, or into the period
-// of an empty period. dropped: a file dropped on the board ({name, text}).
+// «Εισαγωγή από CSV…»: the CSV that the Designer exports for FET, with the importer of the kind and the shared import
+// dialog. The design goes into the period shown (periodId: another period, e.g. from the empty state). A design the
+// period already has is replaced fully, after a confirmation that offers a backup of the period (schoolBackupConfirm),
+// and deleted with «Αποθήκευση». dropped: a file dropped on the board ({name, text}).
 async function importCsv({periodId=null,dropped=null}={}){
   closeMenus();
   if(busy||!isReady())return;
   if(!context.staff?.length){showMessage("Συμπλήρωσε πρώτα το Προσωπικό του σχολικού έτους στο «Προσωπικό».");return}
+  const targetId=periodId??(current?current.periodId:selectedPeriodId);
+  if(targetId==null||!periodOf(targetId)){showMessage("Το CSV εισάγεται στο σχέδιο μιας περιόδου. Διάλεξε πρώτα την περίοδο· οι περίοδοι δημιουργούνται στα «Σχολικά Προγράμματα».");return}
   if(!await discardIfDirty(discardMessage()))return;
   const importer=T.importer(KIND,"csv"),spec=importer.files[0];
   const request=action=>oloimeroFile(action,{kind:KIND,importer:importer.id,file:spec.key});
   let last=null;
   if(dropped)last={name:dropped.name};
   else try{last=await request("last")}catch(error){showMessage(error.message);return}
-  const period=periodId?periodOf(periodId):null;
-  const draftName=name=>String(name||"").replace(/\.csv$/i,"").trim()||`Προσχέδιο ${D.format(D.today())}`;
+  const period=periodOf(targetId),replacing=savedOfPeriod(targetId);
   let program=null,imported=null;
   try{
     program=await schoolProgramImport({
       direct:!!dropped,
       title:`Ολοήμερο: ${importer.label}`,
-      intro:importer.intro+(period?` Το σχέδιο μπαίνει στην περίοδο ${quoted(period.name)}.`:" Το σχέδιο μπαίνει σε νέο προσχέδιο."),
+      intro:importer.intro+` Το σχέδιο μπαίνει στην περίοδο ${quoted(period.name)}`+(replacing?", στη θέση του σχεδίου που έχει.":"."),
       files:[{key:spec.key,label:spec.label,last:last?.name||"",read:dropped?async()=>dropped:()=>request("read"),choose:()=>request("choose")}],
       // The classes of the year with the new ones that are not saved yet, so a missing class is created once.
       analyze:loaded=>importer.analyze(loaded,{staff:context.staff,classes:allClasses(),classLimit:context.limits?.classes,teachingHours:context.teachingHours}),
-      build:(analysis,options)=>{imported=analysis;return importer.build(analysis,{unmatched:options.unmatched,kind:KIND,periodId:period?period.id:null,name:period?"":draftName(analysis.csvName)})}
+      build:(analysis,options)=>{imported=analysis;return importer.build(analysis,{unmatched:options.unmatched,kind:KIND,periodId:period.id,name:""})}
     });
   }catch(error){if(!cancelled(error))showMessage(error?.message||String(error));return}
   if(!program)return;
+  if(replacing&&!await askReplaceOccupant("Εισαγωγή από CSV",period,replacing))return;
+  if(replacing)replaceOccupant(replacing);
   const created=imported?.newClasses||[];
   pageNewClasses=[...pageNewClasses,...structuredClone(created)];
   current={...baseOf(program),isNew:true};
@@ -3849,203 +3761,12 @@ async function copyFromPeriod(){
   setStatus(`Αντιγράφηκε το σχέδιο της περιόδου ${quoted(periodOf(chosen)?.name||"")} — αποθηκεύεται με την «Αποθήκευση»`);
 }
 
-// «Ανάθεση σε περίοδο…»: the original draft remains unchanged; a new independent design is
-// assigned to the period, with the available hours of the period (the draft keeps its own). A design already there
-// is deleted with «Αποθήκευση».
-async function assignToPeriod(){
-  closeMenus();
-  if(busy||!current||current.periodId!=null)return;
-  const list=effectivePrograms();
-  const field=document.createElement("label"),select=document.createElement("select");
-  field.className="school-choice-field";field.textContent="Περίοδος";
-  periodsList().forEach(period=>select.append(new Option(periodText(period)+(designOfPeriod(period.id,list)?" — έχει σχέδιο":""),period.id)));
-  const today=T.periodAt(periodsList(),D.today());
-  if(today)select.value=today.id;
-  field.append(select);
-  const chosen=await schoolChoiceDialog({
-    title:"Ανάθεση σε περίοδο",
-    content:[`Να ανατεθεί το προσχέδιο ${quoted(current.name)} στην περίοδο που θα επιλέξεις, ώστε να γίνει το σχέδιο Ολοημέρου της; Το προσχέδιο θα διατηρηθεί με το ίδιο όνομα. Η ανάθεση ολοκληρώνεται με την «Αποθήκευση».`,field],
-    actions:[
-      {label:"Ακύρωση"},
-      {label:"Ανάθεση",accept:true,run:()=>({periodId:select.value})}
-    ]
-  });
-  if(!chosen?.periodId)return;
-  const {periodId}=chosen;
-  const period=periodOf(periodId),occupant=designOfPeriod(periodId,effectivePrograms());
-  if(occupant&&!await askReplaceOccupant("Ανάθεση σε περίοδο",period,occupant))return;
-  const now=nowIso(),name=current.name;
-  // Preserve the original draft with its id, name and contents. A new, independent program is assigned to the period.
-  // New or modified drafts must be written together with the assigned program on «Αποθήκευση».
-  if(currentChanged())pending.set(current.id,{op:"put",program:buildProgram({...current,updatedAt:now},captureModel())});
-  if(occupant){
-    const old=programForId(occupant.id);
-    if(old)replaceOccupant(old);
-  }
-  current={...current,id:crypto.randomUUID(),periodId,isNew:true,createdAt:now,updatedAt:now};
-  selectedPeriodId=periodId;
-  commit();renderAll();
-  setStatus(`Το προσχέδιο ${quoted(name)} διατηρείται και δημιουργήθηκε ανεξάρτητο σχέδιο για την περίοδο ${quoted(period.name)}, με τις διαθέσιμες ώρες Ολοημέρου της περιόδου — πάτησε «Αποθήκευση»`);
-}
-
-// Deleting drafts: they are removed with «Αποθήκευση». When the draft shown is deleted, the design that
-// would open first is shown.
-function deleteDrafts(ids){
-  let currentDeleted=false;
-  for(const id of ids){
-    if(current&&current.id===id){currentDeleted=true;if(!current.isNew)pending.set(id,{op:"delete"});continue}
-    if(savedProgram(id))pending.set(id,{op:"delete"});else pending.delete(id);
-  }
-  if(currentDeleted){
-    current=null;
-    openInternal(defaultTarget(effectivePrograms()));
-  }
-  commit();renderAll();
-}
-async function deleteCurrentDraft(){
-  closeMenus();
-  if(busy||!current||current.periodId!=null)return;
-  const name=current.name;
-  if(!await schoolConfirm(`Να διαγραφεί το προσχέδιο ${quoted(name)};${current.isNew?"":" Η διαγραφή γίνεται με την «Αποθήκευση»."}`,{title:"Διαγραφή προσχεδίου",accept:"Διαγραφή"}))return;
-  deleteDrafts([current.id]);
-  setStatus(`Το προσχέδιο ${quoted(name)} διαγράφηκε${dirty?" — πάτησε «Αποθήκευση»":""}`);
-}
-function renameDraft(id,name){
-  if(current&&current.id===id)current={...current,name};
-  else{const program=programForId(id);if(program)pending.set(id,{op:"put",program:{...structuredClone(program),name,updatedAt:nowIso()}})}
-  commit();renderAll();
-}
-
-// «Διαχείριση προσχεδίων…»: list with multiple selection, rename, delete, open.
-async function manageDrafts(){
-  closeMenus();
-  if(busy||!isReady())return;
-  let selected=new Set(),anchor=null,openId=null,controls=null,editingId=null,editingValue="";
-  const element=(tag,className,text)=>{const node=document.createElement(tag);if(className)node.className=className;if(text!=null)node.textContent=text;return node};
-  const help=element("p","ol-draft-help","Για πολλαπλή επιλογή: Ctrl+κλικ ή Shift+κλικ. Μετονομασία: μολυβάκι, διπλό κλικ ή F2.");
-  const list=element("div","subapp-list ol-draft-list");
-  list.tabIndex=0;list.setAttribute("role","listbox");list.setAttribute("aria-multiselectable","true");list.setAttribute("aria-label","Προσχέδια");
-  const warning=element("p","ui-validation-warning");
-  const tools=element("div","ol-draft-tools");
-  const action=(label,icon,className="")=>{
-    const button=element("button",className);button.type="button";
-    const span=element("span","ui-icon-text");span.innerHTML=schoolIcon(icon);span.append(element("span","",label));button.append(span);
-    return button;
-  };
-  const openButton=action("Άνοιγμα","import","primary");
-  const deleteButton=action("Διαγραφή επιλεγμένων","close","danger");
-  tools.append(openButton,deleteButton);
-  const hint=element("p","ui-helper","Οι διαγραφές και οι μετονομασίες γίνονται με την «Αποθήκευση».");
-  const drafts=()=>draftsList();
-  const editField=()=>list.querySelector(".ol-draft-inline input");
-  const beginRename=id=>{
-    if(!id)return;
-    const item=drafts().find(entry=>entry.id===id);if(!item)return;
-    selected=new Set([id]);anchor=id;editingId=id;editingValue=item.name;
-    render();const input=editField();input?.focus();input?.select();
-  };
-  const cancelRename=()=>{if(editingId===null)return;editingId=null;render();list.focus()};
-  const saveRename=()=>{
-    if(editingId===null)return;
-    const id=editingId,item=drafts().find(entry=>entry.id===id),input=editField();
-    const name=(input?.value??editingValue).trim();
-    if(!item){cancelRename();return}
-    if(!name){if(input){input.setCustomValidity("Συμπλήρωσε όνομα προσχεδίου.");input.reportValidity();input.focus()}return}
-    editingId=null;
-    if(name!==item.name){renameDraft(id,name);setStatus(`Το προσχέδιο ονομάζεται τώρα ${quoted(name)} — πάτησε «Αποθήκευση»`)}
-    render();list.focus();
-  };
-  const render=()=>{
-    const items=drafts();
-    selected=new Set([...selected].filter(id=>items.some(item=>item.id===id)));
-    if(editingId&&!items.some(item=>item.id===editingId))editingId=null;
-    list.replaceChildren(...items.map(item=>{
-      const editing=editingId===item.id;
-      const row=element("div","subapp-list-item ol-draft-row"+(selected.has(item.id)?" selected":"")+(editing?" is-editing":""));
-      row.setAttribute("role","option");row.setAttribute("aria-selected",String(selected.has(item.id)));row.dataset.id=item.id;
-      const date=item.isNew?"νέο":item.updatedAt?D.format(localDay(item.updatedAt)):"";
-      if(editing){
-        const inline=element("div","ol-draft-inline");
-        const input=element("input");input.type="text";input.maxLength=300;input.value=editingValue;
-        input.setAttribute("aria-label","Νέο όνομα προσχεδίου");
-        input.addEventListener("input",()=>{editingValue=input.value;input.setCustomValidity("")});
-        const actions=element("span","ol-draft-inline-actions");
-        const accept=element("button","ol-draft-accept"," ");accept.type="button";accept.innerHTML=schoolIcon("check");accept.title="Αποδοχή μετονομασίας";accept.setAttribute("aria-label",accept.title);
-        const cancel=element("button",""," ");cancel.type="button";cancel.innerHTML=schoolIcon("close");cancel.title="Ακύρωση μετονομασίας";cancel.setAttribute("aria-label",cancel.title);
-        accept.addEventListener("click",event=>{event.stopPropagation();saveRename()});
-        cancel.addEventListener("click",event=>{event.stopPropagation();cancelRename()});
-        actions.append(accept,cancel);inline.append(input,actions);row.append(inline,element("span","ol-draft-date",date));
-      }else{
-        const group=element("span","ol-draft-name-group");
-        group.append(element("span","ol-draft-name",item.name));
-        if(current?.id===item.id)group.append(element("span","ol-draft-open","Ανοιχτό"));
-        const edit=element("button","ui-icon-button ol-draft-edit");edit.type="button";edit.innerHTML=schoolIcon("edit");
-        edit.title="Μετονομασία";edit.setAttribute("aria-label",`Μετονομασία: ${item.name}`);
-        edit.addEventListener("click",event=>{event.stopPropagation();beginRename(item.id)});
-        row.append(group,element("span","ol-draft-date",date),edit);
-      }
-      return row;
-    }));
-    if(!items.length)list.append(element("p","ol-draft-empty","Δεν υπάρχουν προσχέδια."));
-    warning.textContent=items.length>DRAFT_WARNING_LIMIT?`Υπάρχουν ${items.length} προσχέδια. Τα προσχέδια μεγαλώνουν το αρχείο .data· καλό είναι να διαγράφεις όσα δεν χρειάζονται.`:"";
-    warning.hidden=!warning.textContent;
-    const one=selected.size===1?items.find(item=>selected.has(item.id)):null;
-    deleteButton.disabled=!selected.size||!!editingId;
-    openButton.disabled=!one||current?.id===one.id||dirty||!!editingId;
-    hint.textContent=dirty&&one&&current?.id!==one.id?"Για να ανοίξεις άλλο προσχέδιο, αποθήκευσε πρώτα τις αλλαγές.":"Οι διαγραφές και οι μετονομασίες γίνονται με την «Αποθήκευση».";
-  };
-  list.addEventListener("click",event=>{
-    if(editingId||event.target.closest("button,input"))return;
-    const row=event.target.closest(".ol-draft-row");if(!row)return;
-    const result=schoolListSelection.click(drafts().map(item=>item.id),selected,anchor,row.dataset.id,event);
-    selected=result.selected;anchor=result.anchor;render();
-  });
-  list.addEventListener("dblclick",event=>{
-    if(editingId||event.target.closest("button,input"))return;
-    const row=event.target.closest(".ol-draft-row");if(row){event.preventDefault();beginRename(row.dataset.id)}
-  });
-  list.addEventListener("keydown",event=>{
-    if(editingId){
-      if(event.key==="Enter"){event.preventDefault();event.stopPropagation();saveRename()}
-      else if(event.key==="Escape"){event.preventDefault();event.stopPropagation();cancelRename()}
-      return;
-    }
-    const order=drafts().map(item=>item.id);
-    if(event.key==="F2"&&selected.size===1){event.preventDefault();beginRename([...selected][0]);return}
-    if(schoolListSelection.isSelectAll(event)){event.preventDefault();selected=new Set(order);render();return}
-    if(event.key==="ArrowDown"||event.key==="ArrowUp"){
-      event.preventDefault();const result=schoolListSelection.step(order,selected,anchor,event.key==="ArrowDown"?1:-1);
-      selected=result.selected;anchor=result.anchor;render();
-      list.querySelector(".ol-draft-row.selected")?.scrollIntoView({block:"nearest"});
-    }
-    if(event.key==="Delete"&&selected.size){event.preventDefault();deleteButton.click()}
-  });
-  deleteButton.onclick=async()=>{
-    if(editingId)return;
-    const items=drafts().filter(item=>selected.has(item.id));if(!items.length)return;
-    const names=items.slice(0,8).map(item=>`• ${item.name}`).join("\n")+(items.length>8?`\n• και ${items.length-8} ακόμη`:"");
-    if(!await schoolConfirm(`Να διαγραφούν ${items.length===1?"το προσχέδιο":`τα ${items.length} προσχέδια`};\n\n${names}\n\nΗ διαγραφή γίνεται με την «Αποθήκευση».`,{title:"Διαγραφή προσχεδίων",accept:"Διαγραφή"}))return;
-    deleteDrafts(items.map(item=>item.id));selected=new Set();render();
-    setStatus(items.length===1?`Διαγράφηκε το προσχέδιο ${quoted(items[0].name)} — πάτησε «Αποθήκευση»`:`Διαγράφηκαν ${items.length} προσχέδια — πάτησε «Αποθήκευση»`);
-  };
-  openButton.onclick=()=>{if(openButton.disabled)return;const id=[...selected][0];if(id){openId=id;controls?.dialog.close()}};
-  render();
-  await schoolChoiceDialog({
-    title:"Διαχείριση προσχεδίων",className:"ol-drafts-dialog",
-    content:["Τα προσχέδια του Ολοημέρου για το σχολικό έτος.",help,list,warning,tools,hint],
-    actions:[{label:"Κλείσιμο",accept:true}],
-    ready:api=>{controls=api;list.focus()}
-  });
-  if(openId)loadClean({programId:openId});
-}
-
 // ---- «Αποθήκευση» ----
 async function saveDesigns(){
   if(busy||!dirty||!context)return;
   const ops=[...pending].map(([id,change])=>change.op==="delete"?{op:"delete",id}:{op:"put",program:structuredClone(change.program)});
   let put=null;
   const changed=current&&currentChanged();
-  if(changed&&current.periodId==null&&!String(current.name||"").trim()){showMessage("Το προσχέδιο χρειάζεται όνομα. Δώσ' το από τη «Διαχείριση προσχεδίων…».");return}
   if(changed)ops.push({op:"put",program:buildProgram({...current,updatedAt:nowIso()},captureModel())});
   // The available hours of the Ολοήμερο of the periods changed here (all the hours of a period together).
   const periodHours=[...periodHoursEdits].filter(([periodId])=>periodOf(periodId)).map(([periodId,oloimeroHours])=>({periodId,oloimeroHours}));
@@ -4064,8 +3785,8 @@ async function saveDesigns(){
     if(changed)ops[ops.length-1]={op:"put",program:buildProgram({...current,updatedAt:ops[ops.length-1].program.updatedAt},captureModel(),classes)};
   }
   if(changed)put=ops[ops.length-1].program;
-  // The design shown is remembered together with this save, also a new draft (it is in the same save).
-  if(current&&put){const view=current.periodId!=null?`period:${current.periodId}`:`draft:${current.id}`;if(view!==reportedView){reportedView=view;post({type:"school-timetables:view",view})}}
+  // The period shown is remembered together with this save.
+  if(current&&put){const view=`period:${current.periodId}`;if(view!==reportedView){reportedView=view;post({type:"school-timetables:view",view})}}
   setBusy(true);
   try{
     const result=await schoolHost.request("school-timetables:save",{revision:context.revision,year:context.year,ops,...(newClasses.length?{newClasses}:{}),...(periodHours.length?{periodHours}:{})});
@@ -4077,10 +3798,7 @@ async function saveDesigns(){
       const withoutInitial=value=>{const{initial,initialSetAt,...rest}=value;return JSON.stringify(rest)};
       if(!stored||withoutInitial(stored)!==withoutInitial(put))throw Error("Η αποθήκευση ολοκληρώθηκε, αλλά το σχέδιο του αρχείου δεν είναι ίδιο με αυτό της σελίδας. Βεβαιώσου ότι το index.html είναι η τελευταία έκδοση.");
     }
-    for(const op of ops.filter(op=>op.op==="put"&&op.program.periodId==null)){
-      if(savedProgram(op.program.id)?.periodId!==null)throw Error("Η αποθήκευση ολοκληρώθηκε, αλλά ένα προσχέδιο δεν διατηρήθηκε στο αρχείο. Βεβαιώσου ότι το index.html είναι η τελευταία έκδοση.");
-    }
-    if(ops.some(op=>op.op==="delete"&&savedProgram(op.id)))throw Error("Η αποθήκευση ολοκληρώθηκε, αλλά κάποιο προσχέδιο δεν διαγράφηκε από το αρχείο. Βεβαιώσου ότι το index.html είναι η τελευταία έκδοση.");
+    if(ops.some(op=>op.op==="delete"&&savedProgram(op.id)))throw Error("Η αποθήκευση ολοκληρώθηκε, αλλά το παλιό σχέδιο της περιόδου δεν διαγράφηκε από το αρχείο. Βεβαιώσου ότι το index.html είναι η τελευταία έκδοση.");
     if(newClasses.some(item=>!(context.classes||[]).some(record=>record.id===item.id)))throw Error("Η αποθήκευση ολοκληρώθηκε, αλλά τα νέα τμήματα δεν προστέθηκαν στα «Τμήματα». Βεβαιώσου ότι το index.html είναι η τελευταία έκδοση.");
     loadClean(current&&savedProgram(current.id)?{programId:current.id}:defaultTarget());
     setStatus("Οι αλλαγές αποθηκεύτηκαν στο κοινό αρχείο .data"+(periodHours.length?" · διαθέσιμες ώρες Ολοημέρου της περιόδου":"")+(newClasses.length?` · νέα τμήματα στα «Τμήματα»: ${newClasses.map(item=>item.name).join(", ")}`:""));
@@ -4110,7 +3828,7 @@ async function exportCsv(){
   }catch(error){if(!cancelled(error))showMessage("Το CSV δεν αποθηκεύτηκε.\n\n"+(error?.message||String(error)))}
 }
 
-// ---- Dropping a CSV on the board: import into a new draft ----
+// ---- Dropping a CSV on the board: import into the design of the period shown ----
 // Inside the Index the file is dropped on the Index's overlay (drag-start), which keeps it as the last file of
 // the import and answers with school-oloimero:dropped-file. A drop that reaches the Designer (opened on its own)
 // is read here.
@@ -4125,7 +3843,7 @@ document.addEventListener("dragenter",e=>{
   e.preventDefault();
   boardWrap.classList.add("file-drag-over");
   if(emptyProjectDrop.classList.contains("visible"))emptyProjectDrop.classList.add("drag-over");
-  setStatus("Αφήστε το CSV για εισαγωγή σε νέο προσχέδιο");
+  setStatus("Αφήστε το CSV για εισαγωγή στο σχέδιο της περιόδου");
   post({type:"school-oloimero:drag-start"});
 },{capture:true});
 
@@ -4291,13 +4009,8 @@ document.addEventListener("keydown",event=>{if(event.key==="Escape")closeMenus()
 document.querySelector("#saveData").addEventListener("click",()=>void saveDesigns());
 boardTable.addEventListener("pointerdown",clearBoardTarget,true);
 document.querySelector("#exportCsv").addEventListener("click",()=>void exportCsv());
-document.querySelector("#newDraft").addEventListener("click",()=>void newDraft(false));
-document.querySelector("#newFromCurrent").addEventListener("click",()=>void newDraft(true));
 document.querySelector("#importCsv").addEventListener("click",()=>void importCsv());
 document.querySelector("#copyFromPeriod").addEventListener("click",()=>void copyFromPeriod());
-document.querySelector("#assignPeriod").addEventListener("click",()=>void assignToPeriod());
-document.querySelector("#deleteDraft").addEventListener("click",()=>void deleteCurrentDraft());
-document.querySelector("#manageDrafts").addEventListener("click",()=>void manageDrafts());
 document.querySelector("#undoPlacement").addEventListener("click",()=>{closeMenus();undoChange()});
 document.querySelector("#redoPlacement").addEventListener("click",redoChange);
 document.querySelector("#undoAll").addEventListener("click",()=>{closeMenus();void undoAllChanges()});

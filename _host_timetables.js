@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Προγράμματα στο Κεντρικό Μενού (host)
- * Έκδοση αρχείου: 0.22
+ * Έκδοση αρχείου: 0.23
  * Όνομα κατά την εγκατάσταση: _host_timetables.js
  *
  * Κώδικας μόνο του host για τα προγράμματα (timetablesByYear). Το φορτώνει το index.html μετά το
@@ -13,8 +13,7 @@
  *   validateCatalog(catalog, options)       έλεγχος του καταλόγου των Ατομικών Προγραμμάτων (πετά λάθος)
  *   checkCatalogAdditions(before, after)    ο κατάλογος που στέλνουν τα Σχολικά Προγράμματα έχει μόνο προσθήκες στο
  *                                           τέλος (επαναφορά από αντίγραφο ασφαλείας· πετά λάθος)
- *   context(data, app, revision)            το school-timetables:context για μια εφαρμογή (στα Σχολικά Προγράμματα
- *                                           και τα προσχέδια του Ολοημέρου, μόνο για ανάγνωση: oloimeroDrafts)
+ *   context(data, app, revision)            το school-timetables:context για μια εφαρμογή
  *   validatePeriods(periods, year, options) έλεγχος της λίστας περιόδων: Επίσημες και Προσχέδια περιόδων, διαθέσιμες
  *                                           ώρες Ολοημέρου (πετά λάθος)
  *   validateProgram(program, options)       πλήρης έλεγχος ενός προγράμματος, μαζί με το Ιστορικό και την αρχική
@@ -36,7 +35,7 @@
  *                                           _host_students.js, μέσω του index. Με spec.encoding:'auto' το
  *                                           κείμενο διαβάζεται ως UTF-8 και, αν δεν είναι, ως Windows-1253
  *   viewKey(app)                            το κλειδί της εφαρμογής στο lastViewByYear (το είδος της), ή null
- *   lastView(data, year, key)               η τελευταία επιλογή μιας εφαρμογής (π.χ. 'period:…', 'draft:…' ή,
+ *   lastView(data, year, key)               η τελευταία επιλογή μιας εφαρμογής (π.χ. 'period:…' ή,
  *                                           στα Ατομικά Προγράμματα, 'period:…|staff:…')
  *   withView(data, year, key, view)         αντίγραφο του data με νέα τελευταία επιλογή
  *   currentPeriod(data, year)               η κοινή τρέχουσα περίοδος των Σχολικών Προγραμμάτων και των εφαρμογών
@@ -66,13 +65,14 @@
   // προγράμματα περιόδων κάθε είδους.
   const PROGRAMS_APP = 'timetables.html';
   const PROGRAMS_TITLE = 'Σχολικά Προγράμματα';
-  // Όρια πλήθους: πιάνουν λάθη εφαρμογών (π.χ. προσχέδια που αντιγράφονται ξανά και ξανά). Πάνω από το όριο η
+  // Όρια πλήθους: πιάνουν λάθη εφαρμογών (π.χ. προγράμματα που αντιγράφονται ξανά και ξανά). Πάνω από το όριο η
   // αποθήκευση απορρίπτεται· από το 90% (WARN_RATIO) οι εφαρμογές δείχνουν προειδοποίηση, με τα όρια και τις
-  // μετρήσεις του context. programs: όλα τα προγράμματα του έτους, μαζί με τα προσχέδια όλων των εφαρμογών.
+  // μετρήσεις του context. programs: όλα τα προγράμματα του έτους. Κάθε πρόγραμμα ανήκει σε περίοδο:
+  // δεν υπάρχουν προσχέδια προγραμμάτων χωρίς περίοδο.
   // Το μέγεθος δεν έχει όριο εδώ: το index προειδοποιεί στην αποθήκευση όταν το αρχείο είναι πολύ μεγάλο.
   const LIMITS = Object.freeze({periods: 15, programs: 200, activities: 2000, times: 100, people: 100, text: 2000, ops: 1000});
   const WARN_RATIO = 0.9;
-  // Εφαρμογές που γράφουν και είδος που δεν είναι δικό τους, μόνο σε προγράμματα περιόδων (όχι προσχέδια, όχι διαγραφή,
+  // Εφαρμογές που γράφουν και είδος που δεν είναι δικό τους, μόνο σε προγράμματα περιόδων (όχι διαγραφή,
   // όχι τον κατάλογο): το Πλήρες Σχολικό Πρόγραμμα (fet_timetable_editor.html) αλλάζει και τις πρωινές ώρες των
   // Ατομικών Προγραμμάτων. Τα σχέδια του Ολοημέρου τα γράφουν μόνο ο Ολοήμερος Designer και τα Σχολικά Προγράμματα.
   const WRITERS = Object.freeze({individual: Object.freeze([T.kinds.school.owner])});
@@ -88,15 +88,13 @@
   const stableJson = value => JSON.stringify(value, (key, item) => isObject(item) ? Object.fromEntries(Object.keys(item).sort().map(name => [name, item[name]])) : item);
 
   // ---- Δικαιώματα ----
-  // periods: γράφει τη λίστα περιόδων· kinds: τα είδη που γράφει· owned: τα είδη της (εφαρμογή-κάτοχος)· drafts: 'own'
-  // (φτιάχνει, αλλάζει και σβήνει προσχέδια των ειδών της) ή 'none' (δεν αγγίζει προσχέδια· τα «Σχολικά Προγράμματα»
-  // δεν φτιάχνουν προσχέδια από προγράμματα περιόδων)· oloimeroHours: γράφει τις διαθέσιμες ώρες Ολοημέρου των περιόδων. Τα είδη του kinds που δεν είναι στο owned (WRITERS)
+  // periods: γράφει τη λίστα περιόδων· kinds: τα είδη που γράφει· owned: τα είδη της (εφαρμογή-κάτοχος)· oloimeroHours: γράφει τις διαθέσιμες ώρες Ολοημέρου των περιόδων. Τα είδη του kinds που δεν είναι στο owned (WRITERS)
   // τα γράφει μόνο σε προγράμματα περιόδων.
   function permissions(app) {
-    if (app === PROGRAMS_APP) return {app, periods: true, kinds: Object.keys(T.kinds), owned: [], drafts: 'none', oloimeroHours: true};
+    if (app === PROGRAMS_APP) return {app, periods: true, kinds: Object.keys(T.kinds), owned: [], oloimeroHours: true};
     const owned = Object.keys(T.kinds).filter(kind => T.kinds[kind].owner === app);
     const kinds = Object.keys(T.kinds).filter(kind => owned.includes(kind) || (WRITERS[kind] || []).includes(app));
-    return {app, periods: false, kinds, owned, drafts: owned.length ? 'own' : 'none', oloimeroHours: owned.includes('oloimero')};
+    return {app, periods: false, kinds, owned, oloimeroHours: owned.includes('oloimero')};
   }
   // Εφαρμογή που μόνο διαβάζει προγράμματα (π.χ. Σχολικό Ημερολόγιο): δεν βλέπει τα Προσχέδια περιόδων.
   const readerOnly = rights => !rights.periods && !rights.kinds.length;
@@ -179,11 +177,11 @@
   }
 
   // ---- Τελευταία επιλογή (lastViewByYear) ----
-  // Η εφαρμογή-κάτοχος ενός είδους θυμάται τι έδειχνε τελευταία (περίοδο ή προσχέδιο), ώστε να ανοίγει εκεί.
-  // Στο .data: lastViewByYear[year][είδος] = 'period:<id>' | 'draft:<id>' (στα Ατομικά Προγράμματα και ο εκπαιδευτικός:
+  // Η εφαρμογή-κάτοχος ενός είδους θυμάται σε ποια περίοδο ήταν τελευταία, ώστε να ανοίγει εκεί.
+  // Στο .data: lastViewByYear[year][είδος] = 'period:<id>' (στα Ατομικά Προγράμματα και ο εκπαιδευτικός:
   // 'period:<id>|staff:<id>', που το δέχεται το ίδιο μοτίβο). Δεν μετρά ως αλλαγή δεδομένων:
   // το index το γράφει στο αρχείο με την επόμενη αποθήκευση ή όταν η εφαρμογή κλείνει (school-timetables:view).
-  const VIEW_PATTERN = /^(period|draft):[^\s]{1,200}$/;
+  const VIEW_PATTERN = /^period:[^\s]{1,200}$/;
   function viewKey(app) {
     if (app === PROGRAMS_APP) return null;
     return permissions(app).owned[0] || null;
@@ -202,8 +200,7 @@
   // Η περίοδος όπου δούλεψε τελευταία ο χρήστης, κοινή για τα Σχολικά Προγράμματα και τις εφαρμογές προγραμμάτων:
   // όποια την αλλάζει, οι άλλες ανοίγουν σε αυτήν. Στο .data: lastViewByYear[year].period = 'period:<id>'. Όπως η
   // τελευταία επιλογή, δεν μετρά ως αλλαγή δεδομένων. Όταν αλλάζει, η τελευταία επιλογή κάθε εφαρμογής-κατόχου γίνεται
-  // η ίδια περίοδος (στα Ατομικά Προγράμματα μένει ο εκπαιδευτικός)· έτσι ένα προσχέδιο του Ολοήμερου Designer ανοίγει
-  // ξανά μόνο όσο η κοινή περίοδος δεν άλλαξε από τότε.
+  // η ίδια περίοδος (στα Ατομικά Προγράμματα μένει ο εκπαιδευτικός).
   const PERIOD_KEY = 'period';
   // Οι εφαρμογές που μοιράζονται την τρέχουσα περίοδο και ανοίγουν η μία την άλλη: τα Σχολικά Προγράμματα και όσες
   // γράφουν προγράμματα.
@@ -263,28 +260,21 @@
     return {...data, timetableSettings: {...settings, zoom: {...zooms, [key]: value}}};
   }
 
-  // school-timetables:context για μια εφαρμογή: τα προγράμματα περιόδων όλων των γνωστών ειδών και τα
-  // προσχέδια των ειδών της εφαρμογής. Προγράμματα άγνωστου είδους δεν στέλνονται.
+  // school-timetables:context για μια εφαρμογή: τα προγράμματα περιόδων όλων των γνωστών ειδών. Προγράμματα
+  // άγνωστου είδους, ή χωρίς περίοδο, δεν στέλνονται.
   // Μια εφαρμογή που μόνο διαβάζει δεν παίρνει τα Προσχέδια περιόδων και τα προγράμματά τους.
   function context(data, app, revision) {
     const year = data.school.year, timetables = yearData(data, year), rights = permissions(app);
-    const drafts = new Set(rights.drafts === 'own' ? rights.owned : []);
     const periods = readerOnly(rights) ? T.officialPeriods(timetables.periods) : timetables.periods;
     const periodIds = new Set(periods.map(period => period?.id));
-    const draftCounts = Object.fromEntries(Object.keys(T.kinds).map(kind => [kind, 0]));
-    for (const program of timetables.programs) if (known(program?.kind) && program.periodId == null) draftCounts[program.kind]++;
     return clone({
       revision, school: {...data.school}, year,
       staff: staffOf(data, year), teachingHours: hoursOf(data, year), classes: classesOf(data, year),
       periods,
-      programs: timetables.programs.filter(program => known(program?.kind) && (program.periodId != null ? periodIds.has(program.periodId) : drafts.has(program.kind))),
-      draftCounts,
-      // «Σχολικά Προγράμματα» only: the drafts of the Ολοήμερο Designer, read only, so that a new import from FET is
-      // compared with them (the σχέδιο Ολοημέρου of the period). A chosen draft goes to the period as a new copy.
-      ...(app === PROGRAMS_APP ? {oloimeroDrafts: timetables.programs.filter(program => program?.kind === 'oloimero' && program.periodId == null)} : {}),
+      programs: timetables.programs.filter(program => known(program?.kind) && program.periodId != null && periodIds.has(program.periodId)),
       // The catalog of the Ατομικά Προγράμματα (subjects and Συνενώσεις of the year), for every application.
       individualCatalog: individualCatalog(data, year),
-      // For the warnings near the limits: every program of the year (also drafts and unknown kinds).
+      // For the warnings near the limits: every program of the year (also of unknown kinds).
       programCount: timetables.programs.length,
       // The last design or period this application showed ('' when there is none).
       lastView: viewKey(app) ? lastView(data, year, viewKey(app)) : '',
@@ -433,7 +423,8 @@
   // Πλήρης έλεγχος ενός προγράμματος. options: {staffIds:Set, periodIds:Set, classIds:Set, unionIds:Set} (classIds: τα
   // id των Τμημάτων του έτους, μαζί με τα νέα της ίδιας αποθήκευσης· unionIds: οι Συνενώσεις του καταλόγου των
   // Ατομικών Προγραμμάτων, για το source τους).
-  // Ατομικά Προγράμματα (individual): πάντα σε περίοδο (χωρίς προσχέδια), ένας εκπαιδευτικός ανά δραστηριότητα,
+  // Κάθε πρόγραμμα ανήκει σε περίοδο (δεν υπάρχουν προσχέδια προγραμμάτων χωρίς περίοδο).
+  // Ατομικά Προγράμματα (individual): ένας εκπαιδευτικός ανά δραστηριότητα,
   // και subjectFromClasses (με κενό subject) μόνο εδώ.
   function validateProgram(program, options) {
     const {staffIds, periodIds, classIds, unionIds} = options;
@@ -441,10 +432,9 @@
     const label = 'Το πρόγραμμα ' + programName(program);
     if (program.formatVersion !== 2) throw Error(label + ' έχει ' + (program.formatVersion === 1 ? 'την παλιά μορφή τμημάτων' : 'άγνωστη μορφή') + '. Βεβαιώσου ότι το index.html και η εφαρμογή του προγράμματος είναι η τελευταία έκδοση.');
     if (!known(program.kind)) throw Error('Ένα πρόγραμμα έχει άγνωστο είδος ' + quoted(String(program.kind)) + '.');
-    if (program.periodId != null && (!isText(program.periodId, 200) || !periodIds.has(program.periodId))) throw Error(label + ' ανήκει σε περίοδο που δεν υπάρχει.');
+    if (program.periodId == null) throw Error(label + ' δεν ανήκει σε περίοδο. Κάθε πρόγραμμα ανήκει σε περίοδο· δεν υπάρχουν πια προσχέδια προγραμμάτων. Βεβαιώσου ότι η εφαρμογή είναι η τελευταία έκδοση.');
+    if (!isText(program.periodId, 200) || !periodIds.has(program.periodId)) throw Error(label + ' ανήκει σε περίοδο που δεν υπάρχει.');
     if (program.name != null && !isText(program.name, 300)) throw Error(label + ' έχει μη έγκυρο όνομα.');
-    if (program.kind === 'individual' && program.periodId == null) throw Error('Τα Ατομικά Προγράμματα δεν έχουν προσχέδια: ανήκουν πάντα σε περίοδο. Βεβαιώσου ότι η εφαρμογή είναι η τελευταία έκδοση.');
-    if (program.periodId == null && !String(program.name || '').trim()) throw Error('Ένα προσχέδιο (' + kindLabel(program.kind) + ') χρειάζεται όνομα.');
     for (const key of ['createdAt', 'updatedAt']) if (program[key] != null && !isText(program[key], 100)) throw Error(label + ' έχει μη έγκυρη ημερομηνία.');
     if (!Array.isArray(program.activities)) throw Error(label + ' δεν έχει έγκυρη λίστα δραστηριοτήτων.');
     if (program.activities.length > LIMITS.activities) throw Error(label + ' έχει ' + program.activities.length + ' δραστηριότητες, πάνω από το όριο των ' + LIMITS.activities + ' ανά πρόγραμμα. Η αποθήκευση δεν έγινε.');
@@ -570,8 +560,7 @@
       const existing = before.get(id);
       if (existing && !known(existing.kind)) throw Error('Το πρόγραμμα ' + programName(existing) + ' είναι άγνωστου είδους και δεν αλλάζει από εδώ. Βεβαιώσου ότι το index.html είναι η τελευταία έκδοση.');
       if (existing && !may(existing.kind)) throw Error('Η εφαρμογή δεν μπορεί να αλλάξει το πρόγραμμα ' + programName(existing) + '.');
-      if (existing && app === PROGRAMS_APP && existing.periodId == null) throw Error('Το προσχέδιο ' + programName(existing) + ' αλλάζει ή σβήνεται μόνο από την εφαρμογή του είδους του.');
-      if (existing && periodOnly(existing.kind) && (op.op === 'delete' || existing.periodId == null)) throw Error('Η εφαρμογή μπορεί μόνο να αλλάξει το πρόγραμμα ' + programName(existing) + ' μιας περιόδου, όχι να το διαγράψει.');
+      if (existing && periodOnly(existing.kind) && op.op === 'delete') throw Error('Η εφαρμογή μπορεί μόνο να αλλάξει το πρόγραμμα ' + programName(existing) + ' μιας περιόδου, όχι να το διαγράψει.');
       if (op.op === 'delete') {
         if (!existing) throw Error('Το πρόγραμμα που ζητήθηκε να διαγραφεί δεν υπάρχει πια. Φόρτωσε ξανά τα στοιχεία.');
         result.delete(id);
@@ -581,9 +570,6 @@
       if (!known(program.kind)) throw Error('Ένα πρόγραμμα έχει άγνωστο είδος ' + quoted(String(program.kind)) + '.');
       if (!may(program.kind)) throw Error('Η εφαρμογή δεν μπορεί να γράψει προγράμματα του είδους ' + quoted(kindLabel(program.kind)) + '.');
       if (existing && existing.kind !== program.kind) throw Error('Το είδος ενός προγράμματος δεν αλλάζει.');
-      // «Σχολικά Προγράμματα» write only period programs: a draft is made only by the application of its kind.
-      if (app === PROGRAMS_APP && program.periodId == null) throw Error('Η εφαρμογή «' + PROGRAMS_TITLE + '» γράφει μόνο προγράμματα περιόδων· τα προσχέδια φτιάχνονται στην εφαρμογή του είδους τους. Βεβαιώσου ότι η εφαρμογή είναι η τελευταία έκδοση.');
-      if (periodOnly(program.kind) && program.periodId == null) throw Error('Η εφαρμογή γράφει προγράμματα του είδους ' + quoted(kindLabel(program.kind)) + ' μόνο σε περίοδο.');
       // The initial state is kept by the host: an application never changes the stored one.
       T.keepInitial(existing || null, program, {setInitial: op.setInitial === true, now});
       result.set(id, program);
@@ -608,7 +594,7 @@
       }
       slots.set(key, program.id);
     }
-    if (result.size > LIMITS.programs) throw Error('Το σχολικό έτος θα είχε ' + result.size + ' προγράμματα (μαζί με τα προσχέδια), πάνω από το όριο των ' + LIMITS.programs + '. Η αποθήκευση δεν έγινε. Διάγραψε προσχέδια που δεν χρειάζονται και ξαναδοκίμασε.');
+    if (result.size > LIMITS.programs) throw Error('Το σχολικό έτος θα είχε ' + result.size + ' προγράμματα , πάνω από το όριο των ' + LIMITS.programs + '. Η αποθήκευση δεν έγινε. Διάγραψε περιόδους ή προγράμματα που δεν χρειάζονται και ξαναδοκίμασε.');
 
     // Νέα τμήματα των εισαγωγών: στα Τμήματα του έτους, με τους ελέγχους του _host_classes.js.
     if (addsClasses) {
@@ -648,7 +634,7 @@
     }
     return usage;
   }
-  const usageText = list => list.map(item => item.kindLabel + ' – ' + (item.periodId ? (item.periodName || 'περίοδος') : 'προσχέδιο') + (item.name ? ' ' + quoted(item.name) : '')).join(', ');
+  const usageText = list => list.map(item => item.kindLabel + ' – ' + (item.periodName || 'περίοδος') + (item.name ? ' ' + quoted(item.name) : '')).join(', ');
 
   // Αναφορές στα προγράμματα όταν το Προσωπικό διαγράφει εκπαιδευτικούς (στο data, που είναι ήδη αντίγραφο).
   //   before / after: το Προσωπικό του έτους πριν και μετά· removals: [{id, mode:'unmatch'|'remove'}].
@@ -656,7 +642,7 @@
   //   remove: το id φεύγει, και σβήνονται οι δραστηριότητες που έμειναν χωρίς ανθρώπους από αυτή τη διαγραφή.
   //   Ατομικά Προγράμματα (individual): οι δραστηριότητες και τα ελλιπή κελιά του εκπαιδευτικού σβήνονται πάντα, και
   //   με unmatch, γιατί ένα ατομικό πρόγραμμα είναι πάντα το πρόγραμμα ενός εκπαιδευτικού του Προσωπικού.
-  //   Ισχύει για όλα τα προγράμματα του έτους, και για τα προσχέδια, και στην αρχική τους κατάσταση (program.initial).
+  //   Ισχύει για όλα τα προγράμματα του έτους, και στην αρχική τους κατάσταση (program.initial).
   //   Οι διαθέσιμες ώρες Ολοημέρου των περιόδων του εκπαιδευτικού σβήνονται. Τα source.teachers (FET, Ολοήμερο
   //   Designer) δεν δείχνουν πια τον εκπαιδευτικό. Διαγραμμένος εκπαιδευτικός που εμφανίζεται σε
   //   προγράμματα χωρίς mode: πετά λάθος.

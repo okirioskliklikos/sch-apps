@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Τμήματα στο Κεντρικό Μενού (host)
- * Έκδοση αρχείου: 0.09
+ * Έκδοση αρχείου: 0.10
  * Όνομα κατά την εγκατάσταση: _host_classes.js
  *
  * Κώδικας μόνο του host για τα Τμήματα (classesByYear). Το φορτώνει το index.html μετά το _data.js και πριν
@@ -37,7 +37,7 @@
  *   number. homeroomStaffId: το id ενός εκπαιδευτικού του Προσωπικού ή ''. Τα άγνωστα πεδία (του έτους και κάθε
  *   τμήματος) διατηρούνται.
  * Όλα τα δεδομένα αναφέρονται στα τμήματα με το id: μια μετονομασία περνά παντού. Ένα τμήμα δεν αφαιρείται, και
- * δεν αλλάζει είδος, όταν έχει μαθητές, υπεύθυνο, εμφανίζεται σε πρόγραμμα ή προσχέδιο του έτους, χρησιμοποιείται
+ * δεν αλλάζει είδος, όταν έχει μαθητές, υπεύθυνο, εμφανίζεται σε πρόγραμμα του έτους, χρησιμοποιείται
  * ως ετικέτα (_host_tags.js, που φορτώνεται μετά από αυτό· το χρησιμοποιεί τη στιγμή της κλήσης) ή βαθμολογείται σε
  * Συμβάν Ποινών / Επιβραβεύσεων του Ημερολογίου (_host_calendar.js, επίσης τη στιγμή της κλήσης).
  * Παλιά μορφή τμημάτων (needsMigration): Προσωπικό με homeroomClass, τμήμα χωρίς grade/number με όνομα τμήματος,
@@ -104,7 +104,7 @@
     }
     return ids;
   }
-  // Σε ποια προγράμματα (και προσχέδια) του έτους εμφανίζεται κάθε τμήμα: τα classes των δραστηριοτήτων και, στα
+  // Σε ποια προγράμματα του έτους εμφανίζεται κάθε τμήμα: τα classes των δραστηριοτήτων και, στα
   // σχέδια του Ολοήμερου Designer, τα κελιά και οι Συνενώσεις, και στα Ατομικά Προγράμματα τα chips των κελιών.
   // Μετρά και η αρχική κατάσταση των προγραμμάτων (program.initial, SchoolTimetable.initialProgram), με 0
   // δραστηριότητες όταν το τμήμα είναι μόνο εκεί.
@@ -226,7 +226,7 @@
     const parts = [];
     if (counts[record.id]) parts.push(plural(counts[record.id], 'μαθητή', 'μαθητές'));
     if (homeroom) parts.push('υπεύθυνο');
-    if (usage[record.id]?.length) parts.push('χρήση σε ' + plural(usage[record.id].length, 'πρόγραμμα ή προσχέδιο', 'προγράμματα ή προσχέδια') + ' (' + usage[record.id].map(item => item.kindLabel + ' – ' + (item.periodId ? (item.periodName || 'περίοδος') : 'προσχέδιο') + (item.name ? ' ' + quoted(item.name) : '')).join(', ') + ')');
+    if (usage[record.id]?.length) parts.push('χρήση σε ' + plural(usage[record.id].length, 'πρόγραμμα', 'προγράμματα') + ' (' + usage[record.id].map(item => item.kindLabel + ' – ' + (item.periodName || 'περίοδος') + (item.name ? ' ' + quoted(item.name) : '')).join(', ') + ')');
     if (tags[record.id]?.length) parts.push('χρήση ως ετικέτα σε ' + tags[record.id].map(item => item.count + ' ' + (item.count === 1 ? item.one : item.many)).join(', '));
     if (scores[record.id]?.length) parts.push('βαθμολογία σε ' + scores[record.id].map(item => item.count + ' ' + (item.count === 1 ? item.one : item.many)).join(', '));
     return parts.join(', ');
@@ -234,7 +234,7 @@
 
   // Το school-classes:save σε αντίγραφο του data: αντικαθιστά μόνο τη λίστα του classesByYear[year]. Τα άλλα έτη
   // και τα άγνωστα πεδία του έτους μένουν όπως είναι. Απορρίπτει την αφαίρεση και την αλλαγή είδους τμήματος που
-  // έχει δεδομένα (μαθητές, υπεύθυνο, χρήση σε πρόγραμμα ή προσχέδιο ή ως ετικέτα, βαθμολογία σε συμβάν), και αλλαγή
+  // έχει δεδομένα (μαθητές, υπεύθυνο, χρήση σε πρόγραμμα ή ως ετικέτα, βαθμολογία σε συμβάν), και αλλαγή
   // τάξης ή αριθμού.
   function applySave(data, message) {
     const year = data.school.year, classes = validateClasses(message?.classes, staffOf(data, year)), candidate = clone(data);
