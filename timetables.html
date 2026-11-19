@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Σχολικά Προγράμματα v0.46</title>
+<title>Σχολικά Προγράμματα v0.47</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -211,7 +211,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" data-app-icon="timetables" aria-hidden="true"></span><span class="brand-text"><span>Σχολικά Προγράμματα</span><span class="small version">v0.46</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" data-app-icon="timetables" aria-hidden="true"></span><span class="brand-text"><span>Σχολικά Προγράμματα</span><span class="small version">v0.47</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="more" class="sp-more" type="button" title="Περισσότερες ενέργειες" aria-label="Περισσότερες ενέργειες" disabled></button>
@@ -547,12 +547,13 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
         ${menu ? `<button type="button" class="ui-icon-button" data-menu="${esc(kind)}" title="Ενέργειες" aria-label="Ενέργειες: ${esc(card.title)}"></button>` : ''}
       </div>`;
     const open = card.open && info.owner ? `<button type="button" class="ui-link-button" data-open="${esc(kind)}">${schoolIconText('chevron-right', 'Άνοιγμα', {end: true})}</button>` : '';
+    const action = kind === 'school' && importable ? `<button type="button" class="ui-link-button" data-import="school">${schoolIconText('chevron-right', 'Εισαγωγή', {end: true})}</button>` : open;
     if (!program) {
       const help = kind === 'individual' ? 'Ορίζεται στην εφαρμογή ' + quoted(info.ownerTitle) + '.' : importable ? '' : info.ownerTitle ? 'Ανατίθεται σε περίοδο από την εφαρμογή ' + quoted(info.ownerTitle) + '.' : '';
       const dropHint = kind === 'school' && schoolHost.hosted ? '<p class="sp-drop-hint">Ή άφησε εδώ το CSV ωρολογίου και το αρχείο .fet.</p>' : '';
       return `<article class="sp-card" aria-labelledby="card-${esc(kind)}"${kind === 'school' ? ' data-drop="school"' : ''}>${head}
-        <div class="sp-empty"><p>Δεν υπάρχει πρόγραμμα στην περίοδο.</p>${help ? `<p>${esc(help)}</p>` : ''}${importable ? `<button type="button" class="primary" data-import="${esc(kind)}">Εισαγωγή…</button>` : ''}${dropHint}</div>
-        ${open ? `<div class="sp-card-actions">${open}</div>` : ''}</article>`;
+        <div class="sp-empty"><p>Δεν υπάρχει πρόγραμμα στην περίοδο.</p>${help ? `<p>${esc(help)}</p>` : ''}${importable && kind !== 'school' ? `<button type="button" class="primary" data-import="${esc(kind)}">Εισαγωγή…</button>` : ''}${dropHint}</div>
+        ${action ? `<div class="sp-card-actions">${action}</div>` : ''}</article>`;
     }
     // The same five facts on every card; «Τελ. αλλαγή» only when the program differs from its initial state.
     const s = stats(program), source = program.source || {}, modified = T.isModified(program), initial = initialDate(program);
@@ -573,7 +574,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
       ${pendingCells ? `<p class="sp-note">${pendingCells === 1 ? '1 ελλιπές κελί' : pendingCells + ' ελλιπή κελιά'}</p>` : ''}
       ${note ? `<p class="sp-note">${esc(note)}</p>` : ''}
       ${isStored(program) ? '' : '<p class="sp-new">Νέο· αποθηκεύεται με την «Αποθήκευση».</p>'}
-      ${open ? `<div class="sp-card-actions">${open}</div>` : ''}
+      ${action ? `<div class="sp-card-actions">${action}</div>` : ''}
     </article>`;
   }
   // The day (YYYY-MM-DD) of the initial state of a program: its «Ορισμός ως Αρχική», or else the import (Ωρολόγιο) or
