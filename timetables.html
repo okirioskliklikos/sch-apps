@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Σχολικά Προγράμματα v0.50</title>
+<title>Σχολικά Προγράμματα v0.51</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -1075,7 +1075,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
     const kind = message.kind === 'oloimero' ? 'oloimero' : 'school';
     const names = ['csv', 'fet'].map(key => message.files?.[key]?.name).filter(Boolean);
     if (names.length) notice('Αφέθηκ' + (names.length === 1 ? 'ε το αρχείο ' : 'αν τα αρχεία ') + names.map(quoted).join(' και ') + '.');
-    importProgram(period, kind);
+    void importProgram(period, kind, message.files || {});
   });
   schoolHost.on('school-programs:dropped-file-error', message => { notice(message.error || 'Η απόθεση του αρχείου δεν έγινε.', true); });
 
@@ -1090,7 +1090,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
     return true;
   }
   // Import with an importer of the kind (SchoolTimetable.kinds), with the shared dialog schoolProgramImport.
-  async function importProgram(period, kind) {
+  async function importProgram(period, kind, initialFiles = {}) {
     if (busy) return;
     const importers = T.importers(kind), label = kindLabel(kind);
     if (!importers.length) return;
@@ -1103,15 +1103,13 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
     if (!importer || !periodById(period.id)) return;
     const replacing = programOf(period.id, kind);
     let created = [];   // analysis.newClasses of the analysis that was built
-    const last = {};
-    try { for (const file of importer.files) last[file.key] = await fileRequest('last', kind, importer.id, file.key); }
-    catch (error) { notice(error.message, true); return; }
     const program = await schoolProgramImport({
+      initialFiles,
       title: label + ': ' + importer.label,
       intro: 'Περίοδος ' + quoted(periodName(period)) + (rangeText(period) ? ' (' + rangeText(period) + ')' : '') + '.',
       files: importer.files.map(file => ({
-        key: file.key, label: file.label, last: last[file.key]?.name || '',
-        read: () => fileRequest('read', kind, importer.id, file.key), choose: () => fileRequest('choose', kind, importer.id, file.key)
+        key: file.key, label: file.label,
+        choose: () => fileRequest('choose', kind, importer.id, file.key)
       })),
       // classes: the τμήματα of the year and those of earlier imports of the page that are not saved yet, so
       // that a τμήμα missing from «Τμήματα» is created once; classLimit: the limit of the host.
