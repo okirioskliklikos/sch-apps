@@ -24,7 +24,6 @@
   --school-ui-icon-size-20:20px;
   --school-ui-icon-size-22:22px;
   --school-ui-icon-size-32:32px;
-  --school-ui-icon-size-40:40px;
   --school-ui-workspace-bg:#f5f6f8;
   --school-ui-label-bg:#f0f3f7;
   --school-ui-label-text:#405367;
@@ -304,7 +303,7 @@ dialog button:focus-visible,dialog input:focus-visible,dialog select:focus-visib
 .school-import-drop-mode .school-import-drop.drag-over{background:#e7f0ff;border-color:#2768df;box-shadow:0 0 0 4px rgba(39,104,223,.14)}
 .school-import-drop-mode .school-import-drop:focus-visible{outline:2px solid var(--school-ui-focus);outline-offset:3px}
 .school-import-drop-mode .school-import-drop .subapp-file-drop-icon{color:#1455c0}
-.school-import-drop-mode .school-import-drop .subapp-file-drop-icon>svg{display:block;width:var(--school-ui-icon-size-40);height:var(--school-ui-icon-size-40)}
+.school-import-drop-mode .school-import-drop .subapp-file-drop-icon>svg{display:block;width:var(--school-ui-icon-size-32);height:var(--school-ui-icon-size-32)}
 .school-import-drop-mode .school-import-drop-title{font-size:18px;line-height:1.35;color:#1455c0}
 .school-import-drop-mode .school-import-drop-hint{font-size:14px;line-height:1.45}
 .school-import-drop-mode .school-import-native{display:none}

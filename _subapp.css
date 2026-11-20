@@ -186,10 +186,10 @@ main{display:grid;grid-template-columns:300px minmax(0,1fr);min-height:calc(100v
 .subapp-file-drop.visible{display:flex}
 .subapp-file-drop.drag-over{background:#e7f0ff;border-color:#2768df;box-shadow:0 0 0 4px rgba(39,104,223,.14)}
 .subapp-file-drop-icon{color:#1455c0}
-/* The icon of the drop area is schoolIcon('file-import'), 40px, the same in every drop area of the suite (and in
+/* The icon of the drop area is schoolIcon('file-import'), 32px, the same in every drop area of the suite (and in
    the drop area of the import dialog, in _ui.css). */
 .subapp-file-drop-icon>svg{
-  display:block;width:var(--school-ui-icon-size-40);height:var(--school-ui-icon-size-40)
+  display:block;width:var(--school-ui-icon-size-32);height:var(--school-ui-icon-size-32)
 }
 .subapp-file-drop-title{font-size:19px;font-weight:750;color:#1455c0}
 .subapp-file-drop-text{max-width:600px;font-size:14px;line-height:1.55}
