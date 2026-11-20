@@ -338,7 +338,8 @@
       });
       dropZone.addEventListener('dragover', event => {
         if (![...(event.dataTransfer?.types || [])].includes('Files')) return;
-        event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; dropZone.classList.add('drag-over');
+        event.preventDefault(); event.stopPropagation();
+        event.dataTransfer.dropEffect = 'copy'; dropZone.classList.add('drag-over');
       });
       dropZone.addEventListener('dragleave', event => {
         if (!dropZone.contains(event.relatedTarget)) dropZone.classList.remove('drag-over');
