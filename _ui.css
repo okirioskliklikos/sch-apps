@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινό περιβάλλον χρήστη
- * Έκδοση αρχείου: 0.65
+ * Έκδοση αρχείου: 0.66
  * Όνομα κατά την εγκατάσταση: _ui.css
  */
 
@@ -527,6 +527,14 @@ button.ui-icon-button>svg{display:block;width:var(--school-ui-icon-size);height:
 .app-mark[data-app-icon="fet"]{--app-mark-color:var(--school-app-fet);--app-mark-icon:var(--school-icon-app-fet)}
 .app-mark[data-app-icon="individual"]{--app-mark-color:var(--school-app-individual);--app-mark-icon:var(--school-icon-app-individual)}
 .app-mark[data-app-icon="full"]{--app-mark-color:var(--school-app-full);--app-mark-icon:var(--school-icon-app-full)}
+/* Icon of the application in the title of every dialog (_ui.js puts it there): a 32px square with a 20px shape,
+   centred on the title text. The title stays a block, so a centred title (text-align) centres icon and text together;
+   a long title wraps beside the icon. */
+.school-dialog-heading{display:inline-flex;align-items:center;gap:10px;max-width:100%;vertical-align:top}
+.school-dialog-title-text{min-width:0}
+.app-mark.school-dialog-mark{
+  flex:0 0 32px;width:32px;height:32px;border-radius:9px;--app-mark-icon-size:var(--school-ui-icon-size-20)
+}
 
 /* Reusable form controls. Add ui-* classes to opt into these styles. */
 :where(button,input,select,textarea):focus-visible{outline:2px solid var(--school-ui-focus);outline-offset:2px}

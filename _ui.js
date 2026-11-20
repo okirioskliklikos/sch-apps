@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.52
+ * Έκδοση αρχείου: 0.53
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -34,6 +34,8 @@
  * Σε κάθε σελίδα με την κοινή κεφαλίδα κρατά στη μεταβλητή --subapp-header-height το πραγματικό
  * ύψος της κεφαλίδας (αλλάζει όταν η κεφαλίδα αναδιπλώνεται).
  * Το κείμενο μπαίνει πάντα με textContent, ποτέ ως HTML.
+ * Τίτλος κάθε διαλόγου: αριστερά το εικονίδιο της εφαρμογής που τον ανοίγει (.school-dialog-mark), από την
+ * κεφαλίδα της σελίδας (header .app-mark)· στο Κεντρικό Μενού το εικονίδιό του (σπίτι).
  * Κουμπιά κάτω δεξιά σε κάθε διάλογο: τέρμα δεξιά η «Ακύρωση», αριστερά της η προεπιλεγμένη ενέργεια
  * (αποδοχή) και πιο αριστερά οι υπόλοιπες. Κάτω αριστερά δεν μπαίνουν κουμπιά.
  * Η εμφάνιση των διαλόγων ορίζεται στο _ui.css (.school-confirm, .school-choice-*, .school-import-*,
@@ -48,13 +50,37 @@
   let tail = Promise.resolve();    // Η ουρά των διαλόγων.
   let dialogSequence = 0;          // Μοναδικά id για τους διαλόγους επιλογής.
 
+  // Εικονίδιο της εφαρμογής στον τίτλο κάθε διαλόγου: το εικονίδιο της κεφαλίδας της σελίδας (με το is-sub
+  // της), και στο Κεντρικό Μενού, που δεν έχει κεφαλίδα, το δικό του (#home-nav). Το icon ενός διαλόγου
+  // ('<όνομα>' ή 'none') αλλάζει το εικονίδιο ή το βγάζει.
+  function pageAppIcon() {
+    const mark = document.querySelector('header .app-mark[data-app-icon]') || document.querySelector('#home-nav .app-mark[data-app-icon]');
+    return mark ? {name: mark.dataset.appIcon, sub: mark.classList.contains('is-sub')} : null;
+  }
+  // Βάζει το εικονίδιο μπροστά από το κείμενο του τίτλου: <h2><span class="school-dialog-heading">
+  // <span class="app-mark school-dialog-mark"></span><span class="school-dialog-title-text">κείμενο</span></span></h2>.
+  // Το κείμενο μένει όπως ήταν (μετακινείται, δεν ξαναγράφεται). Ένας τίτλος που το έχει ήδη δεν αλλάζει.
+  function dialogTitleIcon(title, icon) {
+    if (!title || icon === 'none' || title.querySelector(':scope > .school-dialog-heading')) return title;
+    const page = icon ? {name: String(icon), sub: false} : pageAppIcon();
+    if (!page?.name) return title;
+    const mark = document.createElement('span');
+    mark.className = 'app-mark school-dialog-mark' + (page.sub ? ' is-sub' : '');
+    mark.dataset.appIcon = page.name; mark.setAttribute('aria-hidden', 'true');
+    const text = document.createElement('span'); text.className = 'school-dialog-title-text';
+    text.append(...title.childNodes);
+    const heading = document.createElement('span'); heading.className = 'school-dialog-heading';
+    heading.append(mark, text); title.append(heading);
+    return title;
+  }
+
   function show(message, o) {
     return new Promise(resolve => {
       const previous = document.activeElement, dialog = document.createElement('dialog');
       dialog.className = 'school-confirm';
       dialog.setAttribute('aria-labelledby', 'school-confirm-title');
       dialog.setAttribute('aria-describedby', 'school-confirm-message');
-      const title = document.createElement('h2'); title.id = 'school-confirm-title'; title.textContent = o.title;
+      const title = document.createElement('h2'); title.id = 'school-confirm-title'; title.textContent = o.title; dialogTitleIcon(title, o.icon);
       const text = document.createElement('p'); text.id = 'school-confirm-message'; text.textContent = message;
       const actions = document.createElement('div'); actions.className = 'school-confirm-actions';
       let cancel = null, accepted = false;
@@ -83,7 +109,7 @@
   // Ενημέρωση ή επιβεβαίωση σε ουρά: ένας διάλογος τη φορά, με τη σειρά που ζητήθηκαν.
   // Επιστρέφει Promise: true όταν πατηθεί «Εντάξει» ή αποδοχή, false στην ακύρωση.
   function schoolMessage(message, options = {}) {
-    const o = {title: options.title || 'Ενημέρωση', confirm: !!options.confirm, accept: options.accept || 'Συνέχεια', cancel: options.cancel || 'Ακύρωση'};
+    const o = {title: options.title || 'Ενημέρωση', icon: options.icon, confirm: !!options.confirm, accept: options.accept || 'Συνέχεια', cancel: options.cancel || 'Ακύρωση'};
     const task = () => show(String(message ?? ''), o);
     const run = busy ? tail.then(task, task) : task();
     busy++;
@@ -114,6 +140,7 @@
   // Διάλογος με επιλογές: τίτλος, περιεχόμενο, μεγάλα κουμπιά επιλογών (π.χ. «Τελευταίο αρχείο» /
   // «Επιλογή άλλου αρχείου») και κουμπιά ενεργειών κάτω δεξιά.
   //   options.title    τίτλος
+  //   options.icon     εικονίδιο εφαρμογής στον τίτλο (προεπιλογή: της σελίδας· 'none' χωρίς εικονίδιο)
   //   options.content  κείμενο ή στοιχείο DOM, ή πίνακας από αυτά (το κείμενο μπαίνει σε <p> με textContent)
   //   options.choices  [{label, disabled, title, value, run}]  κουμπιά επιλογής, το ένα κάτω από το άλλο
   //   options.actions  [{label, accept, cancel, disabled, value, run}] κουμπιά κάτω δεξιά (προεπιλογή: «Ακύρωση»).
@@ -137,7 +164,7 @@
       const id = 'school-choice-' + (++dialogSequence);
       dialog.className = 'school-confirm school-choice' + (options.className ? ' ' + options.className : '');
       dialog.setAttribute('aria-labelledby', id + '-title');
-      const title = document.createElement('h2'); title.id = id + '-title'; title.textContent = options.title || 'Επιλογή';
+      const title = document.createElement('h2'); title.id = id + '-title'; title.textContent = options.title || 'Επιλογή'; dialogTitleIcon(title, options.icon);
       const content = [];
       for (const item of [].concat(options.content ?? [])) {
         if (item == null) continue;
@@ -591,7 +618,7 @@
       let customSelectedIndex = custom.indexOf(selected);
 
       const title = document.createElement('div'); title.id = 'school-color-picker-title';
-      title.className = 'school-color-picker-title'; title.textContent = options.title || 'Επιλογή χρώματος';
+      title.className = 'school-color-picker-title'; title.textContent = options.title || 'Επιλογή χρώματος'; dialogTitleIcon(title, options.icon);
       const accept = document.createElement('button'); accept.type = 'button'; accept.className = 'confirm-accept';
       accept.textContent = options.accept || 'Επιλογή';
       const cancel = document.createElement('button'); cancel.type = 'button'; cancel.textContent = 'Ακύρωση';
@@ -2275,6 +2302,15 @@
     });
   }
   const schoolMenu = Object.freeze({open: openSchoolMenu, close: () => activeMenu?.close(null, false)});
+
+  // Οι διάλογοι που είναι γραμμένοι στο html της σελίδας (π.χ. «Πρόσβαση στο κοινό αρχείο» του Κεντρικού Μενού)
+  // παίρνουν κι αυτοί το εικονίδιο στον τίτλο τους (το πρώτο h2 του διαλόγου), εκτός από data-dialog-icon="none"
+  // (ή data-dialog-icon="<όνομα>" για άλλο εικονίδιο).
+  const staticDialogTitles = () => {
+    for (const title of document.querySelectorAll('dialog > h2:first-child')) dialogTitleIcon(title, title.dataset.dialogIcon);
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', staticDialogTitles, {once: true});
+  else staticDialogTitles();
 
   window.schoolMessage = schoolMessage;
   window.schoolConfirm = schoolConfirm;
