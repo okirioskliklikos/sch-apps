@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.51
+ * Έκδοση αρχείου: 0.52
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -18,6 +18,8 @@
  *   window.schoolEscape                            ασφαλές κείμενο μέσα σε HTML
  *   window.schoolIcon                              κοινά εικονίδια SVG
  *   window.schoolIconText                          εικονίδιο μαζί με κείμενο, στη μέση των κεφαλαίων
+ *   window.schoolButtonIcon                        το εικονίδιο του είδους ενός κουμπιού από το κείμενό του
+ *                                                  (τα κουμπιά με κείμενο το παίρνουν αυτόματα)
  *   window.schoolListSelection                     πολλαπλή επιλογή σε λίστες (κλικ, Shift, Ctrl, βέλη)
  *   window.schoolMenu                              αναδυόμενο μενού («⋮», «⋯»), ένα τη φορά
  *   window.schoolProblems                          γραμμή και λίστα προβλημάτων μιας περιόδου (συγκρούσεις, προειδοποιήσεις)
@@ -875,7 +877,30 @@
     meeting: ['2.4', 'M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2.5 20v-1a5 5 0 0 1 5-5h3a5 5 0 0 1 5 5v1M16 4.3a3.5 3.5 0 0 1 0 6.4M18 14.2a5 5 0 0 1 3.5 4.8v1'],
     // Menus (schoolMenu): «⋮» for the actions of an item (e.g. a card) and «⋯» for the rarer actions of a page.
     'more-vertical': ['3.6', 'M12 5v.01M12 12v.01M12 19v.01'],
-    'more-horizontal': ['3.6', 'M5 12h.01M12 12h.01M19 12h.01']
+    'more-horizontal': ['3.6', 'M5 12h.01M12 12h.01M19 12h.01'],
+    // Ενέργειες κουμπιών με κείμενο (βλέπε BUTTON_ICONS πιο κάτω).
+    save: ['2', 'M5 3h11.5L21 7.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7.5 3v5h8V3M7 21v-6.5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1V21'],
+    'undo-all': ['2.2', 'M3.5 4v5h5M4.3 15a8 8 0 1 0 1.9-8.3L3.5 9'],
+    restore: ['2.2', 'M3.5 4v5h5M4.3 15a8 8 0 1 0 1.9-8.3L3.5 9M12 8v4.3l2.8 1.7'],
+    trash: ['2', 'M4 7h16M10 11v6M14 11v6M5.5 7l1 12a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2l1-12M9 7V4.5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1V7'],
+    eraser: ['2', 'M4.6 15.4 14.5 5.5a2 2 0 0 1 2.8 0l2.2 2.2a2 2 0 0 1 0 2.8L11 19H8.2zM9.5 10.5l5 5M11 19h9'],
+    print: ['2', 'M7 9V3.5h10V9M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2M7 14h10v7H7z'],
+    backup: ['2', 'M3.5 4h17v4h-17zM5 8v11a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8M10 12h4'],
+    'folder-open': ['2', 'M3 18V6a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v2M3 18l2.4-6.6A2 2 0 0 1 7.3 10H21l-2.6 7.6a2 2 0 0 1-1.9 1.4H4a1 1 0 0 1-1-1z'],
+    'file-plus': ['2', 'M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M12 11v6M9 14h6'],
+    files: ['2', 'M15 3H9a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V8zM15 3v5h5M4 8v11a2 2 0 0 0 2 2h9'],
+    settings: ['2', 'M12 5.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 1 0 0-13zM12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 1 0 0-5zM12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1'],
+    wand: ['2', 'M4 20 15 9M13 7l4 4M18 3v3M16.5 4.5h3M8 4v2M7 5h2M20 13v2M19 14h2'],
+    search: ['2.2', 'M10.5 3.5a7 7 0 1 0 0 14 7 7 0 1 0 0-14zM20.5 20.5l-5-5'],
+    braces: ['2', 'M8 4H7a2 2 0 0 0-2 2v4l-2 2 2 2v4a2 2 0 0 0 2 2h1M16 4h1a2 2 0 0 1 2 2v4l2 2-2 2v4a2 2 0 0 1-2 2h-1'],
+    tag: ['2', 'M3.5 12.6V4.5a1 1 0 0 1 1-1h8.1l8 8a1.5 1.5 0 0 1 0 2.1l-7 7a1.5 1.5 0 0 1-2.1 0zM8 8v.01'],
+    'check-square': ['2', 'M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM8 12l3 3 5-6'],
+    square: ['2', 'M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z'],
+    flag: ['2', 'M5 21V4M5 4h12l-2.5 4.5L17 13H5'],
+    eye: ['2', 'M2.5 12S6 5 12 5s9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7zM12 9a3 3 0 1 0 0 6 3 3 0 1 0 0-6z'],
+    'eye-off': ['2', 'M3 3l18 18M10.6 5.1A9 9 0 0 1 12 5c6 0 9.5 7 9.5 7a15 15 0 0 1-2.7 3.5M6.6 6.6C3.9 8.3 2.5 12 2.5 12S6 19 12 19a9 9 0 0 0 4.4-1.1M9.9 9.9a3 3 0 0 0 4.2 4.2'],
+    'lock-open': ['2', 'M6 11h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1zM8 11V7a4 4 0 0 1 7.8-1.2'],
+    key: ['2', 'M8 11a4.5 4.5 0 1 0 0 9 4.5 4.5 0 1 0 0-9zM11.2 12.3 20 3.5M17 6.5l2.5 2.5M14.5 9l2 2']
   };
   function schoolIcon(name) {
     const icon = icons[name];
@@ -1008,6 +1033,101 @@
     const name = end ? element.dataset.schoolIconEnd : element.dataset.schoolIcon;
     if (text) element.innerHTML = schoolIconText(name, text, {end});
     else element.insertAdjacentHTML('afterbegin', schoolIcon(name));
+  }
+
+  // Εικονίδια στα κουμπιά με κείμενο: κάθε κουμπί με κείμενο παίρνει μόνο του το εικονίδιο του είδους του, από
+  // το κείμενό του (BUTTON_ICONS), πριν από το κείμενο, στο χρώμα των γραμμάτων του (.ui-icon-text). Ίδιο είδος,
+  // ίδιο εικονίδιο σε όλες τις εφαρμογές. Ισχύει και για όσα κουμπιά φτιάχνονται αργότερα (διάλογοι, μενού,
+  // λίστες) και για κουμπί που αλλάζει κείμενο (MutationObserver). Η εφαρμογή δεν γράφει εικονίδιο για αυτά.
+  //   data-school-icon="name"  άλλο εικονίδιο (ή data-school-icon-end για εικονίδιο μετά το κείμενο)
+  //   data-school-icon="none"  κανένα εικονίδιο
+  // Χωρίς εικονίδιο μένουν: κουμπιά χωρίς κείμενο ή που έχουν ήδη εικονίδιο (SVG, εικονίδιο εφαρμογής), το κουμπί
+  // μέσα σε <select> (λίστα περιόδων),
+  // καρτέλες (role="tab"), κουμπιά που ανοίγουν λίστα επιλογής (aria-haspopup="listbox"), οι διακόπτες
+  // προβολής μιας ομάδας (κείμενα που δεν είναι στον πίνακα) και κάθε κουμπί με κείμενο που δεν είναι στον πίνακα.
+  // Σύγκριση χωρίς τόνους και πεζά–κεφαλαία, χωρίς «…» / «...» στο τέλος: πρώτα ολόκληρο το κείμενο, μετά η αρχή του
+  // (ολόκληρες λέξεις, π.χ. «Εισαγωγή από CSV…», «Τελευταίο αρχείο: x.fet»).
+  const BUTTON_ICONS = {
+    // Ολόκληρο το κείμενο.
+    exact: {
+      'ανοιγμα': 'folder-open', 'επιλογη αρχειου .data': 'folder-open',
+      'δημιουργια και αποθηκευση .data': 'file-plus',
+      'αφαιρεση': 'minus', 'επεξεργασια': 'edit', 'αναιρεση': 'undo', 'επαναληψη': 'redo',
+      'αναιρεση ολων': 'undo-all', 'απορριψη αλλαγων': 'undo-all',
+      'ενημερωση csv': 'export', 'επαναριθμηση πραξεων': 'number-list', 'ιστορικο': 'clock',
+      'ενταξει': 'check', 'ναι': 'check', 'εφαρμογη': 'check', 'ενημερωση': 'check', 'επιλογη': 'check',
+      'συνεχεια': 'arrow-right',
+      'ακυρωση': 'close', 'οχι': 'close', 'κλεισιμο': 'close',
+      'αυτοματη προταση': 'wand', 'αυτοματη συμπληρωση κενων': 'wand',
+      'ανευρεση πεδιων': 'search', 'ελεγχος απο το προγραμμα': 'search',
+      'παραγωγη εγγραφων': 'files', 'πεδια': 'braces', 'ετικετες': 'tag',
+      'επιλογη εκπαιδευτικων': 'meeting',
+      'επιλογη ολων': 'check-square', 'ολα': 'check-square', 'ολες': 'check-square', 'ολοι': 'check-square',
+      'καμια': 'square', 'καμια επιλογη': 'square', 'κανενα': 'square', 'κανενας': 'square',
+      'εμφανιση': 'eye', 'αποκρυψη': 'eye-off',
+      'ξεκλειδωμα': 'lock-open', 'να επιτραπει η προσβαση': 'lock-open', 'νεα αδεια για το προηγουμενο αρχειο': 'lock-open',
+      'αλλαγη κωδικου': 'key'
+    },
+    // Η αρχή του κειμένου (ολόκληρες λέξεις), με αυτή τη σειρά.
+    prefix: [
+      ['αντιγραφο ασφαλειας', 'backup'], ['αποθηκευση αντιγραφου', 'save'], ['αποθηκευση', 'save'],
+      ['επιλογη αλλου αρχειου', 'folder-open'], ['τελευταιο αρχειο', 'folder-open'], ['δεν υπαρχει τελευταιο αρχειο', 'folder-open'], ['επιλογη αρχειων', 'folder-open'], ['επιλογη αρχειου', 'folder-open'], ['προσθηκη αρχειων', 'folder-open'],
+      ['εισαγωγη', 'import'], ['απο το csv', 'import'], ['εξαγωγη', 'export'],
+      ['εκτυπωση', 'print'], ['προεπισκοπηση', 'print'],
+      ['προσθηκη', 'plus'], ['νεα', 'plus'], ['νεο', 'plus'],
+      ['διαγραφη', 'trash'], ['καθαρισμος', 'eraser'],
+      ['επαναφορα', 'restore'], ['ορισμος', 'flag'], ['αντιγραφη', 'copy'],
+      ['αποδοχη', 'check'], ['ανοιγμα', 'chevron-right'], ['αυτοματη', 'wand'],
+      ['διαχειριση', 'settings'], ['διαμορφωση', 'settings'], ['κλεισιμο', 'close']
+    ]
+  };
+  // Ένας αριθμός σε παρένθεση στο τέλος (π.χ. «Αυτόματη συμπλήρωση κενών (3)») δεν μετρά.
+  const buttonIconKey = text => String(text).normalize('NFD').replace(/[̀-ͯ]/g, '').toLocaleLowerCase('el')
+    .replace(/\s*\(\d+\)\s*$/, '').replace(/(…|\.\.\.)\s*$/, '').replace(/\s+/g, ' ').trim();
+  function buttonIconName(text) {
+    const key = buttonIconKey(text);
+    if (!key) return '';
+    if (Object.hasOwn(BUTTON_ICONS.exact, key)) return BUTTON_ICONS.exact[key];
+    for (const [start, name] of BUTTON_ICONS.prefix) if (key === start || key.startsWith(start + ' ') || key.startsWith(start + ':')) return name;
+    return '';
+  }
+  // Το εικονίδιο μπαίνει μπροστά από το περιεχόμενο του κουμπιού, που μετακινείται (δεν ξαναγράφεται) μέσα στο
+  // <span> του .ui-icon-text· έτσι μένουν τα στοιχεία του (π.χ. ένας μετρητής με id) και ό,τι τα αναφέρει.
+  function buttonIcon(button) {
+    if (!(button instanceof HTMLButtonElement) || button.closest('select')) return;
+    if (button.getAttribute('role') === 'tab' || button.getAttribute('aria-haspopup') === 'listbox') return;
+    if (button.querySelector('svg,img,input,.app-mark,.ui-icon-text,selectedcontent')) return;
+    const text = button.textContent.trim();
+    if (!text) return;
+    const own = button.dataset.schoolIcon, ownEnd = button.dataset.schoolIconEnd;
+    if (own === 'none') return;
+    const name = own || ownEnd || buttonIconName(text);
+    if (!name || !icons[name]) return;
+    const wrap = document.createElement('span'), label = document.createElement('span');
+    wrap.className = 'ui-icon-text';
+    label.append(...button.childNodes);
+    wrap.innerHTML = schoolIcon(name);
+    if (!own && ownEnd) wrap.prepend(label); else wrap.append(label);
+    button.append(wrap);
+  }
+  function buttonIcons(root) {
+    if (root instanceof HTMLButtonElement) buttonIcon(root);
+    else if (root?.querySelectorAll) for (const button of root.querySelectorAll('button')) buttonIcon(button);
+  }
+  buttonIcons(document);
+  // Κουμπιά που προστίθενται ή αλλάζουν κείμενο μετά τη φόρτωση. Το observer τρέχει πριν ζωγραφιστεί η σελίδα,
+  // οπότε το κουμπί δεν φαίνεται ποτέ χωρίς εικονίδιο. Ένα κουμπί που έχει ήδη εικονίδιο δεν ξαναγράφεται.
+  if (typeof MutationObserver === 'function') {
+    new MutationObserver(records => {
+      const seen = new Set();
+      for (const record of records) {
+        const target = record.type === 'characterData' ? record.target.parentElement : record.target;
+        const button = target?.closest?.('button');
+        if (button) seen.add(button);
+        for (const node of record.addedNodes) if (node.nodeType === 1) seen.add(node);
+      }
+      for (const node of seen) if (node.isConnected) buttonIcons(node);
+    }).observe(document.documentElement, {childList: true, subtree: true, characterData: true});
   }
 
   // Κείμενο με μορφοποίηση: μπάρα (B I U | χρώμα ▾ | λίστες | καθαρισμός) πάνω από πεδίο contenteditable.
@@ -2165,6 +2285,7 @@
   window.schoolColor = Object.freeze({normalize: normalColor, ink: inkFor, valid: validColor, tones: tagTones});
   window.schoolEscape = schoolEscape;
   window.schoolIcon = schoolIcon;
+  window.schoolButtonIcon = buttonIconName;
   window.schoolIconText = schoolIconText;
   window.schoolListSelection = schoolListSelection;
   window.schoolHost = schoolHost;
