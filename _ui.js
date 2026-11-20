@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.53
+ * Έκδοση αρχείου: 0.54
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -142,7 +142,8 @@
   //   options.title    τίτλος
   //   options.icon     εικονίδιο εφαρμογής στον τίτλο (προεπιλογή: της σελίδας· 'none' χωρίς εικονίδιο)
   //   options.content  κείμενο ή στοιχείο DOM, ή πίνακας από αυτά (το κείμενο μπαίνει σε <p> με textContent)
-  //   options.choices  [{label, disabled, title, value, run}]  κουμπιά επιλογής, το ένα κάτω από το άλλο
+  //   options.choices  [{label, icon, disabled, title, value, run}]  κουμπιά επιλογής, το ένα κάτω από το άλλο
+  //                    (icon: εικονίδιο του schoolIcon πριν από το κείμενο, ίδιο με το data-school-icon· και στα actions)
   //   options.actions  [{label, accept, cancel, disabled, value, run}] κουμπιά κάτω δεξιά (προεπιλογή: «Ακύρωση»).
   //                    Μπαίνουν πάντα με την ίδια σειρά, όποια σειρά κι αν έχει ο πίνακας: τέρμα δεξιά η
   //                    «Ακύρωση» (cancel:true ή ετικέτα «Ακύρωση»), αριστερά της το κουμπί αποδοχής (accept:true)
@@ -189,6 +190,7 @@
         const element = document.createElement('button'); element.type = 'button'; element.textContent = spec.label;
         if (spec.accept) element.className = 'confirm-accept';
         if (spec.title) element.title = spec.title;
+        if (spec.icon) element.dataset.schoolIcon = spec.icon;
         element.disabled = !!spec.disabled; element.onclick = () => activate(spec);
         buttons.push([element, spec]); return element;
       };
