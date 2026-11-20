@@ -1578,7 +1578,7 @@ const StaffStorage = (() => {
     const items=[...(event.dataTransfer?.items||[])].filter(item=>item.kind==='file');
     // getAsFileSystemHandle must be called while the drop event is being dispatched.
     const pending=items.map(item=>typeof item.getAsFileSystemHandle==='function'?item.getAsFileSystemHandle().catch(()=>null):Promise.resolve(null));
-    const nativeFiles=items.map(item=>item.getAsFile()).filter(Boolean);
+    const nativeFiles=items.length?items.map(item=>item.getAsFile()).filter(Boolean):[...(event.dataTransfer?.files||[])];
     if(!spec)return;
     const send=payload=>{if(currentAppFile===file)frame.contentWindow?.postMessage(payload,staffTargetOrigin)};
     if(dropBusy){send({type:spec.error,error:'Μια ενέργεια αρχείου βρίσκεται ήδη σε εξέλιξη.'});return}
@@ -1588,7 +1588,7 @@ const StaffStorage = (() => {
       if(!Timetables)throw Error(missingTimetables);
       const handles=(await Promise.all(pending)).filter(handle=>handle?.kind==='file');
       if(!handles.length&&!nativeFiles.length)throw Error('Δεν ήταν δυνατή η ανάγνωση των αρχείων της απόθεσης.');
-      const fallback=handles.length ? [] : nativeFiles;
+      const fallback=nativeFiles.filter(file=>!handles.some(handle=>handle.name===file.name));
       send(await spec.read(handles,sharedData.school.year,kind,fallback));
     }catch(error){send({type:spec.error,error:error.message||String(error)})}
     finally{dropBusy=false}
