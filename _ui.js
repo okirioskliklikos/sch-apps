@@ -245,6 +245,8 @@
     const dropZone = richDrop ? element('div', 'school-import-drop') : null;
     const fileInput = richDrop ? element('input', 'school-import-native') : null;
     let filePickerActive = false, filePickerCancelledAt = 0;
+    const pendingNames = {};
+    let queuedFiles = [], drainingFiles = false;
     const openFilePicker = () => {
       if (controls?.working) return;
       filePickerActive = true;
@@ -265,25 +267,50 @@
       fileInput.type = 'file'; fileInput.accept = fetDrop ? '.csv,.fet' : '.csv'; fileInput.multiple = fetDrop;
       fileInput.tabIndex = -1; fileInput.setAttribute('aria-hidden', 'true');
       dropZone.append(icon, heading, hint, list, fileInput);
-      const receive = async incoming => {
-        if (controls?.working) return;
+      // Keep every drop, including one made while an earlier file is being read or analysed.
+      // Show each filename immediately; its ready check appears only after reading succeeds.
+      const drainFiles = async () => {
+        if (drainingFiles || !controls || controls.working) return;
+        drainingFiles = true;
+        try {
+          while (queuedFiles.length && controls.dialog.open) {
+            const selected = queuedFiles.splice(0);
+            await controls.busy(async () => {
+              for (const file of selected) {
+                const key = /\.csv$/i.test(file.name) ? 'csv' : 'fet';
+                try {
+                  loaded[key] = {name: file.name, text: await file.text()};
+                  delete rowErrors[key];
+                } catch (problem) {
+                  delete loaded[key];
+                  rowErrors[key] = problem?.message || String(problem);
+                }
+                if (pendingNames[key] === file.name) delete pendingNames[key];
+                renderFiles();
+              }
+              await analyzeNow();
+            });
+          }
+        } finally {
+          drainingFiles = false;
+          focusImport();
+        }
+      };
+      const receive = incoming => {
         const chosen = [...incoming];
         if (!chosen.length) return;
         const valid = chosen.filter(item => (fetDrop ? /\.(csv|fet)$/i : /\.csv$/i).test(item.name));
-        if (!valid.length) { analysis = null; analysisError = fetDrop ? 'Επίλεξε αρχεία .csv ή .fet.' : 'Επίλεξε αρχείο .csv.'; renderResult(); return; }
-        await controls?.busy(async () => {
-          for (const file of valid) {
-            const key = /\.csv$/i.test(file.name) ? 'csv' : 'fet';
-            try {
-              loaded[key] = {name: file.name, text: await file.text()};
-              delete rowErrors[key];
-            } catch (problem) {
-              rowErrors[key] = problem?.message || String(problem);
-            }
-          }
-          renderFiles(); await analyzeNow();
-        });
-        focusImport();
+        if (!valid.length) {
+          analysis = null; analysisError = fetDrop ? 'Επίλεξε αρχεία .csv ή .fet.' : 'Επίλεξε αρχείο .csv.';
+          renderResult(); return;
+        }
+        for (const file of valid) {
+          pendingNames[/\.csv$/i.test(file.name) ? 'csv' : 'fet'] = file.name;
+        }
+        analysis = null; analysisError = '';
+        queuedFiles.push(...valid);
+        renderFiles(); renderResult();
+        void drainFiles();
       };
       fileInput.addEventListener('change', () => {
         filePickerActive = false;
@@ -325,14 +352,14 @@
       rowButtons = [];
       list.replaceChildren(...files.map(file => {
         const row = element('div', 'school-import-file'), textBox = element('div', 'school-import-file-text');
-        const current = loaded[file.key]?.name || '';
+        const current = pendingNames[file.key] || loaded[file.key]?.name || '';
         textBox.append(element('span', 'school-import-file-label', file.label),
           element('span', 'school-import-file-name', current || 'Δεν έχει επιλεγεί αρχείο'));
         if (rowErrors[file.key]) textBox.append(element('span', 'school-import-file-error', rowErrors[file.key]));
         if (richDrop) {
           const status = element('span', 'school-import-file-state');
-          status.innerHTML = schoolIcon(loaded[file.key] ? 'check' : 'file-import');
-          status.classList.toggle('is-ready', !!loaded[file.key]);
+          status.innerHTML = schoolIcon(loaded[file.key] && !pendingNames[file.key] ? 'check' : 'file-import');
+          status.classList.toggle('is-ready', !!loaded[file.key] && !pendingNames[file.key]);
           row.append(status, textBox);
           return row;
         }
@@ -413,6 +440,7 @@
           renderFiles();
           await analyzeNow();
         });
+        void drainFiles();
         focusImport();
       }
     });
