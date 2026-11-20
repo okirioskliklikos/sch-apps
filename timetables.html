@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Σχολικά Προγράμματα v0.52</title>
+<title>Σχολικά Προγράμματα v0.53</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -75,7 +75,6 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
 .sp-card .sp-file-drop[role="button"]{cursor:pointer}
 .sp-file-drop .subapp-file-drop-title{font-size:15px;line-height:1.4}
 .sp-file-drop .subapp-file-drop-text{font-size:13px;line-height:1.4}
-.sp-file-drop .subapp-file-drop-icon{--subapp-file-drop-icon-size:var(--school-ui-icon-size-18)}
 .sp-file-drop .sp-drop-state{font-size:13px;color:var(--school-ui-muted);line-height:1.4}
 .sp-empty p{margin:0}
 .sp-card-actions{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px;margin-top:auto}
@@ -218,7 +217,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" data-app-icon="timetables" aria-hidden="true"></span><span class="brand-text"><span>Σχολικά Προγράμματα</span><span class="small version">v0.52</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικά Προγράμματα — άνοιγμα κεντρικού μενού"><span class="app-mark" data-app-icon="timetables" aria-hidden="true"></span><span class="brand-text"><span>Σχολικά Προγράμματα</span><span class="small version">v0.53</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="more" class="sp-more" type="button" title="Περισσότερες ενέργειες" aria-label="Περισσότερες ενέργειες" disabled></button>
@@ -453,7 +452,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
       <section class="sp-full" aria-labelledby="fullTitle">
         <span class="app-mark is-sub sp-mark" data-app-icon="full" aria-hidden="true"></span>
         <div class="sp-full-text"><h2 id="fullTitle">Πλήρες Σχολικό Πρόγραμμα</h2><p>Η σύνθεση των τριών πηγών της περιόδου: προβολή, επεξεργασία ωρών και εκτύπωση.</p></div>
-        <button id="openFull" type="button" class="success">${schoolIconText('chevron-right', 'Άνοιγμα προγράμματος', {end: true})}</button>
+        <button id="openFull" type="button" class="success">${schoolIconText('chevron-right', 'Άνοιγμα προγράμματος')}</button>
       </section>
       <section id="problems" aria-label="Συγκρούσεις και προειδοποιήσεις της περιόδου" hidden></section>
       <div id="limits" class="sp-limits" hidden></div>`;
@@ -559,8 +558,8 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
         ${menu ? `<button type="button" class="ui-icon-button" data-menu="${esc(kind)}" title="Ενέργειες" aria-label="Ενέργειες: ${esc(card.title)}"></button>` : ''}
       </div>`;
     const dropKind = kind === 'school' || kind === 'oloimero' ? ` data-drop="${kind}"` : '';
-    const open = card.open && info.owner ? `<button type="button" class="ui-link-button" data-open="${esc(kind)}">${schoolIconText('chevron-right', 'Άνοιγμα', {end: true})}</button>` : '';
-    const action = kind === 'school' && importable ? `<button type="button" class="ui-link-button" data-import="school">${schoolIconText('chevron-right', 'Εισαγωγή', {end: true})}</button>` : open;
+    const open = card.open && info.owner ? `<button type="button" class="ui-link-button" data-open="${esc(kind)}">${schoolIconText('chevron-right', 'Άνοιγμα')}</button>` : '';
+    const action = kind === 'school' && importable ? `<button type="button" class="ui-link-button" data-import="school">${schoolIconText('import', 'Εισαγωγή')}</button>` : open;
     if (!program) {
       const help = kind === 'individual' ? 'Ορίζεται στην εφαρμογή ' + quoted(info.ownerTitle) + '.' : importable ? '' : info.ownerTitle ? 'Ανατίθεται σε περίοδο από την εφαρμογή ' + quoted(info.ownerTitle) + '.' : '';
       const dropArea = (kind === 'school' || kind === 'oloimero') && schoolHost.hosted
@@ -790,7 +789,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
     schoolChoiceDialog({
       title: 'Διαχείριση περιόδων', className: 'sp-periods-dialog',
       content: ['Περίοδοι του σχολικού έτους ' + context.year + '. Οι αλλαγές αποθηκεύονται με την «Αποθήκευση» της σελίδας.', layout],
-      actions: [{label: 'Κλείσιμο', accept: true, value: true}],
+      actions: [{label: 'Κλείσιμο', value: true}],
       ready: () => table.focus({preventScroll: true})
     }).then(() => {
       if (chosen && periodById(chosen) && chosen !== selectedId) selectPeriod(chosen);
