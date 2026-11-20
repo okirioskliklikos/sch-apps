@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινό περιβάλλον χρήστη
- * Έκδοση αρχείου: 0.64
+ * Έκδοση αρχείου: 0.65
  * Όνομα κατά την εγκατάσταση: _ui.css
  */
 
@@ -208,7 +208,7 @@ dialog button:hover:not(:disabled){background:#eef3f8;border-color:#8d9aa5}
 dialog button[type=submit],dialog .confirm-accept{
   background:var(--school-ui-primary-bg);border-color:var(--school-ui-primary-border);color:var(--school-ui-primary-text)
 }
-dialog button[type=submit]:hover:not(:disabled),dialog .confirm-accept:hover:not(:disabled){background:#d8e8ff;border-color:#709bd3}
+dialog button[type=submit]:hover:not(:disabled),dialog .confirm-accept:hover:not(:disabled),dialog button.primary:hover:not(:disabled){background:#d8e8ff;border-color:#709bd3}
 dialog button:focus-visible,dialog input:focus-visible,dialog select:focus-visible{outline:2px solid var(--school-ui-focus);outline-offset:2px}
 
 .dialog-actions{display:flex;justify-content:flex-end;gap:10px}
@@ -235,7 +235,8 @@ dialog button:focus-visible,dialog input:focus-visible,dialog select:focus-visib
 .school-confirm .requirement-error{margin-top:14px;color:#c62828;font-size:14px}
 .school-confirm-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px;flex-wrap:wrap}
 .school-confirm button{font-family:inherit;padding:var(--school-ui-control-padding-y) 16px;border:1px solid var(--school-ui-control-border);border-radius:8px;background:#fff;color:#334155;cursor:pointer}
-.school-confirm .confirm-accept{background:var(--school-ui-primary-bg);border-color:var(--school-ui-primary-border);color:var(--school-ui-primary-text)}
+/* .primary keeps its look inside a dialog too (e.g. «Νέα περίοδος…» in «Διαχείριση περιόδων»). */
+.school-confirm :is(.confirm-accept,button.primary){background:var(--school-ui-primary-bg);border-color:var(--school-ui-primary-border);color:var(--school-ui-primary-text)}
 .school-confirm button:focus-visible{outline:2px solid var(--school-ui-focus);outline-offset:3px}
 /* Choice dialog (window.schoolChoiceDialog in _ui.js): large option buttons, one under the other,
    and an error line that takes no room until it has a message. */

@@ -790,7 +790,7 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
     schoolChoiceDialog({
       title: 'Διαχείριση περιόδων', className: 'sp-periods-dialog',
       content: ['Περίοδοι του σχολικού έτους ' + context.year + '. Οι αλλαγές αποθηκεύονται με την «Αποθήκευση» της σελίδας.', layout],
-      actions: [{label: 'Κλείσιμο', accept: true, value: true}],
+      actions: [{label: 'Κλείσιμο', value: true}],
       ready: () => table.focus({preventScroll: true})
     }).then(() => {
       if (chosen && periodById(chosen) && chosen !== selectedId) selectPeriod(chosen);
