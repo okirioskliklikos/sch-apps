@@ -333,11 +333,11 @@
         }
       });
       dropZone.addEventListener('dragenter', event => {
-        if (!event.dataTransfer?.types.includes('Files')) return;
+        if (![...(event.dataTransfer?.types || [])].includes('Files')) return;
         event.preventDefault(); dropZone.classList.add('drag-over');
       });
       dropZone.addEventListener('dragover', event => {
-        if (!event.dataTransfer?.types.includes('Files')) return;
+        if (![...(event.dataTransfer?.types || [])].includes('Files')) return;
         event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; dropZone.classList.add('drag-over');
       });
       dropZone.addEventListener('dragleave', event => {
