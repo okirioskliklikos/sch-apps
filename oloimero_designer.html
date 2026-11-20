@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ολοήμερο Designer v2.06</title>
+<title>Ολοήμερο Designer v2.07</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -578,7 +578,7 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
 <body>
 
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark is-sub" data-app-icon="oloimero" aria-hidden="true"></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v2.06</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Ολοήμερο Designer — άνοιγμα κεντρικού μενού"><span class="app-mark is-sub" data-app-icon="oloimero" aria-hidden="true"></span><span class="brand-text"><span>Ολοήμερο Designer</span><span class="small version">v2.07</span></span></button></h1></div>
   <select id="program" aria-label="Σχέδιο" hidden></select>
   <span class="save-control">
     <button id="saveData" class="save-main" type="button" disabled>Αποθήκευση</button>
@@ -662,7 +662,7 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
   <table id="board"><tbody></tbody></table>
 
   <div id="emptyProjectDrop" class="subapp-file-drop" aria-live="polite">
-    <div class="subapp-file-drop-icon" aria-hidden="true" data-school-icon="file-import"></div>
+    <div class="subapp-file-drop-icon" aria-hidden="true" data-school-icon="grip"></div>
     <div class="subapp-file-drop-title">Ο πίνακας είναι κενός</div>
     <div class="subapp-file-drop-text">
       Σύρε εκπαιδευτικούς, μαθήματα, τάξεις και τμήματα από την αριστερή μπάρα στα κελιά.
@@ -3379,6 +3379,14 @@ function isExternalFileDrag(event){
     [...(event.dataTransfer?.items||[])].some(item=>item.kind==="file");
 }
 
+// A file from the computer dropped anywhere on the page is not opened by the browser (it would replace the page and
+// lose unsaved changes). A CSV is imported only through «Εισαγωγή από CSV…», whose drop area accepts it first.
+document.addEventListener("dragover",e=>{
+  if(!isExternalFileDrag(e)||e.defaultPrevented)return;
+  e.preventDefault();e.dataTransfer.dropEffect="none";
+});
+document.addEventListener("drop",e=>{if(isExternalFileDrag(e))e.preventDefault()});
+
 // ---- Designs of the school year ----
 const mainEl=document.querySelector("main");
 const asideEl=document.querySelector("aside");
@@ -3674,6 +3682,7 @@ async function importCsv({periodId=null}={}){
       title:`Ολοήμερο: ${importer.label}`,
       intro:importer.intro+` Το σχέδιο μπαίνει στην περίοδο ${quoted(period.name)}`+(replacing?", στη θέση του σχεδίου που έχει.":"."),
       files:[{key:spec.key,label:spec.label,choose:()=>request("choose")}],
+      chooseFiles:()=>oloimeroFile("chooseFiles",{kind:KIND,importer:importer.id}),
       // The classes of the year with the new ones that are not saved yet, so a missing class is created once.
       analyze:loaded=>importer.analyze(loaded,{staff:context.staff,classes:allClasses(),classLimit:context.limits?.classes,teachingHours:context.teachingHours}),
       build:(analysis,options)=>{imported=analysis;return importer.build(analysis,{unmatched:options.unmatched,kind:KIND,periodId:period.id,name:""})}
