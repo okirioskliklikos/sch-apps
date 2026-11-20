@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Τμήματα στο Κεντρικό Μενού (host)
- * Έκδοση αρχείου: 0.10
+ * Έκδοση αρχείου: 0.11
  * Όνομα κατά την εγκατάσταση: _host_classes.js
  *
  * Κώδικας μόνο του host για τα Τμήματα (classesByYear). Το φορτώνει το index.html μετά το _data.js και πριν
@@ -248,7 +248,7 @@
         if (text) lost.push(quoted(old.name) + ': ' + text);
         continue;
       }
-      if (C.isGeneral(old) && C.isGeneral(now) && C.key(old) !== C.key(now)) throw Error('Το τμήμα ' + quoted(old.name) + ' δεν μπορεί να γίνει ' + C.key(now) + ': η τάξη και ο αριθμός ενός τμήματος δεν αλλάζουν. Για νέο τμήμα χρησιμοποίησε «+ Προσθήκη».');
+      if (C.isGeneral(old) && C.isGeneral(now) && C.key(old) !== C.key(now)) throw Error('Το τμήμα ' + quoted(old.name) + ' δεν μπορεί να γίνει ' + C.key(now) + ': η τάξη και ο αριθμός ενός τμήματος δεν αλλάζουν. Για νέο τμήμα χρησιμοποίησε «Προσθήκη».');
       if (C.isGeneral(old) !== C.isGeneral(now)) {
         const text = classDataText(old, counts, usage, old.homeroomStaffId || now.homeroomStaffId, tags, scores);
         if (text) throw Error('Το είδος του τμήματος ' + quoted(old.name) + ' δεν αλλάζει, γιατί έχει ' + text + '.');
