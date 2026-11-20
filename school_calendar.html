@@ -97,8 +97,9 @@
 /* ---- Dialogs (all on schoolChoiceDialog) ---- */
 .school-confirm.cal-day-actions{width:min(620px,calc(100vw - 32px))}
 .cal-day-actions .school-choice-options button.cal-has-data{background:var(--school-ui-primary-bg);border-color:var(--school-ui-primary-border);color:var(--school-ui-primary-text)}
-/* The ΣΣΔ choice has the same icon as Παιδαγωγική Συνάντηση; only its icon is red, the text keeps its colour. */
-.cal-day-actions .school-choice-options button.cal-choice-ssd .ui-icon-text>svg{color:var(--cal-ssd)}
+/* Each choice's icon has the colour of its section (--ind-ink of .cal-ind-<tone>, as on the chips of the days);
+   the text keeps the colour of the button. */
+.cal-day-actions .school-choice-options button .ui-icon-text>svg{color:var(--ind-ink,currentColor)}
 .school-confirm-actions .cal-delete:not(:disabled){color:#a12626}
 
 /* Notes editor (Προσωπικές Σημειώσεις, and the Ποινές / Επιβραβεύσεις with the same layout) */
@@ -723,11 +724,11 @@ async function openDayActions(date) {
     const has = DAY_SECTIONS.map(section => section.count(key) > 0);
     const choice = await schoolChoiceDialog({
       title: longDate(date), className: 'cal-day-actions',
-      // Each choice has the icon of its category in the calendar (the ΣΣΔ one in red, see .cal-choice-ssd).
+      // Each choice has the icon of its section in the calendar, in the colour of its section (.cal-ind-<tone>).
       choices: DAY_SECTIONS.map(section => ({label: section.label, value: section.key, icon: section.icon})),
       ready: ({dialog}) => dialog.querySelectorAll('.school-choice-options button').forEach((button, index) => {
         button.classList.toggle('cal-has-data', has[index]);
-        button.classList.add('cal-choice-' + DAY_SECTIONS[index].key);
+        button.classList.add('cal-ind-' + DAY_SECTIONS[index].tone);
       })
     });
     const section = DAY_SECTIONS.find(item => item.key === choice);
