@@ -1067,7 +1067,11 @@ header .sp-more>svg{display:block;flex:none;width:var(--school-ui-icon-size-18);
     card.addEventListener('dragover', start);
   }
   // A file dropped anywhere else is not opened by the browser.
-  document.addEventListener('dragover', event => { if (isFileDrag(event)) { event.preventDefault(); event.dataTransfer.dropEffect = 'none'; } });
+  document.addEventListener('dragover', event => {
+    // The import dialog has its own drop zone: never override its accepted copy effect.
+    if (!isFileDrag(event) || event.defaultPrevented) return;
+    event.preventDefault(); event.dataTransfer.dropEffect = 'none';
+  });
   document.addEventListener('drop', event => { if (isFileDrag(event)) event.preventDefault(); });
   schoolHost.on('school-programs:dropped-files', message => {
     const period = periodById(selectedId);
