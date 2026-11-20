@@ -23,6 +23,7 @@
   --school-ui-icon-size-18:18px;
   --school-ui-icon-size-20:20px;
   --school-ui-icon-size-22:22px;
+  --school-ui-icon-size-32:32px;
   --school-ui-workspace-bg:#f5f6f8;
   --school-ui-label-bg:#f0f3f7;
   --school-ui-label-text:#405367;
@@ -313,7 +314,8 @@ dialog button:focus-visible,dialog input:focus-visible,dialog select:focus-visib
 }
 .school-import-drop-mode .school-import-file-state{display:grid;place-items:center;flex:none;color:var(--school-ui-muted)}
 .school-import-drop-mode .school-import-file-state.is-ready{color:var(--school-ui-ok)}
-.school-import-drop-mode .school-import-file-state svg{display:block;width:var(--school-ui-icon-size);height:var(--school-ui-icon-size)}
+/* The file icon of each row is large (32px), so the files are easy to tell apart. */
+.school-import-drop-mode .school-import-file-state svg{display:block;width:var(--school-ui-icon-size-32);height:var(--school-ui-icon-size-32)}
 .school-import-drop-mode .school-import-file-text{min-width:0}
 .school-import-drop-mode .school-import-result{margin-top:14px}
 .school-import-fet .school-import-summary{grid-template-columns:repeat(4,minmax(0,1fr))}
