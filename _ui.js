@@ -1110,6 +1110,8 @@
     wrap.innerHTML = schoolIcon(name);
     if (!own && ownEnd) wrap.prepend(label); else wrap.append(label);
     button.append(wrap);
+    // «Διαγραφή» και «Αφαίρεση» (το εικονίδιο του κάδου) έχουν πάντα κόκκινα γράμματα, και το εικονίδιο μαζί τους.
+    if (name === 'trash') button.classList.add('danger');
   }
   function buttonIcons(root) {
     if (root instanceof HTMLButtonElement) buttonIcon(root);

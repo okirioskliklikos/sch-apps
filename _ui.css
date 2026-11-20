@@ -238,6 +238,11 @@ dialog button:focus-visible,dialog input:focus-visible,dialog select:focus-visib
 .school-confirm button{font-family:inherit;padding:var(--school-ui-control-padding-y) 16px;border:1px solid var(--school-ui-control-border);border-radius:8px;background:#fff;color:#334155;cursor:pointer}
 /* .primary keeps its look inside a dialog too (e.g. «Νέα περίοδος…» in «Διαχείριση περιόδων»). */
 .school-confirm :is(.confirm-accept,button.primary){background:var(--school-ui-primary-bg);border-color:var(--school-ui-primary-border);color:var(--school-ui-primary-text)}
+/* «Διαγραφή» / «Αφαίρεση» (.danger) keep their red text in a dialog; as the main button of a confirmation they are
+   red on a light red fill instead of blue. */
+.school-confirm button:is(.danger,.subapp-remove-button){color:#a12626}
+.school-confirm button.danger:is(.confirm-accept,.primary){background:#fdecea;border-color:#f0aaa3}
+.school-confirm button.danger:is(.confirm-accept,.primary):hover:not(:disabled){background:#fbdcd8;border-color:#e58e85}
 .school-confirm button:focus-visible{outline:2px solid var(--school-ui-focus);outline-offset:3px}
 /* Choice dialog (window.schoolChoiceDialog in _ui.js): large option buttons, one under the other,
    and an error line that takes no room until it has a message. */
