@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ολοήμερο Designer v2.05</title>
+<title>Ολοήμερο Designer v2.06</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -111,7 +111,6 @@ main.ol-without-design :is(#board,#boardTimeOverlayAnchor,.board-zoom-controls,.
 /* Board area and floating controls */
 #boardWrap{padding:18px 18px 18px 0;overflow:auto;min-width:0;cursor:grab}
 #boardWrap.panning{cursor:grabbing;user-select:none}
-#boardWrap.file-drag-over{background:var(--school-ui-primary-bg)}
 /* Zoom: the shared .ui-zoom of _ui.css; here only its place. */
 .board-zoom-controls{position:fixed;right:18px;z-index:60}
 .board-usage-summary{
@@ -667,7 +666,6 @@ td.drop{outline:3px solid var(--ol-drop-outline);outline-offset:-3px}
     <div class="subapp-file-drop-title">Ο πίνακας είναι κενός</div>
     <div class="subapp-file-drop-text">
       Σύρε εκπαιδευτικούς, μαθήματα, τάξεις και τμήματα από την αριστερή μπάρα στα κελιά.<br>
-      Αν αφήσεις εδώ ένα <span class="subapp-file-drop-files">CSV</span> του Ολοημέρου, εισάγεται στο σχέδιο της περιόδου.
     </div>
   </div>
 
@@ -3376,11 +3374,6 @@ function parseFetReferenceData(text){
 }
 
 
-function clearProjectFileDragState(){
-  boardWrap.classList.remove("file-drag-over");
-  emptyProjectDrop.classList.remove("drag-over");
-}
-
 function isExternalFileDrag(event){
   return [...(event.dataTransfer?.types||[])].includes("Files") ||
     [...(event.dataTransfer?.items||[])].some(item=>item.kind==="file");
@@ -3664,8 +3657,8 @@ async function newDesignForPeriod(){
 // «Εισαγωγή από CSV…»: the CSV that the Designer exports for FET, with the importer of the kind and the shared import
 // dialog. The design goes into the period shown (periodId: another period, e.g. from the empty state). A design the
 // period already has is replaced fully, after a confirmation that offers a backup of the period (schoolBackupConfirm),
-// and deleted with «Αποθήκευση». dropped: a file dropped on the board ({name, text}).
-async function importCsv({periodId=null,dropped=null}={}){
+// and deleted with «Αποθήκευση». The dialog starts with an empty file selection.
+async function importCsv({periodId=null}={}){
   closeMenus();
   if(busy||!isReady())return;
   if(!context.staff?.length){showMessage("Συμπλήρωσε πρώτα το Προσωπικό του σχολικού έτους στο «Προσωπικό».");return}
@@ -3674,17 +3667,13 @@ async function importCsv({periodId=null,dropped=null}={}){
   if(!await discardIfDirty(discardMessage()))return;
   const importer=T.importer(KIND,"csv"),spec=importer.files[0];
   const request=action=>oloimeroFile(action,{kind:KIND,importer:importer.id,file:spec.key});
-  let last=null;
-  if(dropped)last={name:dropped.name};
-  else try{last=await request("last")}catch(error){showMessage(error.message);return}
   const period=periodOf(targetId),replacing=savedOfPeriod(targetId);
   let program=null,imported=null;
   try{
     program=await schoolProgramImport({
-      direct:!!dropped,
       title:`Ολοήμερο: ${importer.label}`,
       intro:importer.intro+` Το σχέδιο μπαίνει στην περίοδο ${quoted(period.name)}`+(replacing?", στη θέση του σχεδίου που έχει.":"."),
-      files:[{key:spec.key,label:spec.label,last:last?.name||"",read:dropped?async()=>dropped:()=>request("read"),choose:()=>request("choose")}],
+      files:[{key:spec.key,label:spec.label,choose:()=>request("choose")}],
       // The classes of the year with the new ones that are not saved yet, so a missing class is created once.
       analyze:loaded=>importer.analyze(loaded,{staff:context.staff,classes:allClasses(),classLimit:context.limits?.classes,teachingHours:context.teachingHours}),
       build:(analysis,options)=>{imported=analysis;return importer.build(analysis,{unmatched:options.unmatched,kind:KIND,periodId:period.id,name:""})}
@@ -3833,56 +3822,6 @@ async function exportCsv(){
     );
   }catch(error){if(!cancelled(error))showMessage("Το CSV δεν αποθηκεύτηκε.\n\n"+(error?.message||String(error)))}
 }
-
-// ---- Dropping a CSV on the board: import into the design of the period shown ----
-// Inside the Index the file is dropped on the Index's overlay (drag-start), which keeps it as the last file of
-// the import and answers with school-oloimero:dropped-file. A drop that reaches the Designer (opened on its own)
-// is read here.
-async function importDroppedFile(file){
-  clearProjectFileDragState();
-  if(!file||!/\.csv$/i.test(file.name||"")){showMessage("Μπορείς να αφήσεις εδώ ένα αρχείο CSV του Ολοημέρου.");return}
-  await importCsv({dropped:{name:file.name,text:file.text}});
-}
-
-document.addEventListener("dragenter",e=>{
-  if(!isExternalFileDrag(e)||!isReady())return;
-  e.preventDefault();
-  boardWrap.classList.add("file-drag-over");
-  if(emptyProjectDrop.classList.contains("visible"))emptyProjectDrop.classList.add("drag-over");
-  setStatus("Αφήστε το CSV για εισαγωγή στο σχέδιο της περιόδου");
-  post({type:"school-oloimero:drag-start"});
-},{capture:true});
-
-document.addEventListener("dragover",e=>{
-  if(!isExternalFileDrag(e))return;
-  e.preventDefault();
-  e.dataTransfer.dropEffect=isReady()?"copy":"none";
-  if(!isReady())return;
-  boardWrap.classList.add("file-drag-over");
-  if(emptyProjectDrop.classList.contains("visible"))emptyProjectDrop.classList.add("drag-over");
-},{capture:true});
-
-document.addEventListener("dragleave",e=>{
-  if(!isExternalFileDrag(e)||e.relatedTarget)return;
-  clearProjectFileDragState();
-},{capture:true});
-
-document.addEventListener("drop",async e=>{
-  if(!isExternalFileDrag(e))return;
-  e.preventDefault();
-  e.stopImmediatePropagation();
-  clearProjectFileDragState();
-  if(!isReady())return;
-  const file=[...(e.dataTransfer?.files||[])][0];
-  if(!file)return;
-  await importDroppedFile({name:file.name,text:await file.text()});
-},{capture:true});
-
-schoolHost.on("school-oloimero:dropped-file",message=>void importDroppedFile(message.result));
-schoolHost.on("school-oloimero:dropped-file-error",message=>{
-  clearProjectFileDragState();
-  showMessage("Το αρχείο CSV δεν μπορεί να ανοιχτεί.\n\n"+(message.error||"Άγνωστο σφάλμα."));
-});
 
 function applySelectedPrintMode(){
   const mode=document.querySelector("#printMode").value;
