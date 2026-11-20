@@ -393,7 +393,7 @@ body.session-locked #app-shell { visibility:hidden; pointer-events:none; }
     <div class="sidebar-head">
       <div class="brand">
         <span class="brand-name">Εφαρμογές σχολείου</span>
-        <span class="sidebar-version" aria-label="Έκδοση 1.19">v1.19</span>
+        <span class="sidebar-version" aria-label="Έκδοση 1.20">v1.20</span>
       </div>
     </div>
     <div id="sidebar-school" class="sidebar-school" hidden><span id="nav-school-name" class="sidebar-school-name"></span><span id="nav-school-year" class="sidebar-school-year"></span></div>
@@ -1523,29 +1523,23 @@ const StaffStorage = (() => {
   // Drag and drop of import files onto an application. The application reports drag-start; the Index then lays an
   // overlay over the iframe (or over a part of it) so that the drop happens here (a file handle cannot be passed from
   // a file:// iframe). The files become the last files of the importer, and the application receives the result.
-  //   Ολοήμερο Designer: a CSV of the Ολοήμερο anywhere on the board → school-oloimero:dropped-file {name, text}.
+  //   Ολοήμερο Designer: δεν δέχεται εξωτερικά αρχεία στον πίνακα.
   //   Σχολικά Προγράμματα: a CSV of the Ολοήμερο on its card, or CSV and/or .fet on the Ωρολόγιο FET card.
   //   school-programs:drag-start includes the source kind and card rect; dropped-files returns the kind and files,
   //   and the application opens the existing importer for that kind.
   const DROP_APPS={
-    'oloimero_designer.html':{start:'school-oloimero:drag-start',error:'school-oloimero:dropped-file-error',text:'Αφήστε το CSV του Ολοημέρου για εισαγωγή',
-      async read(handles,year){
-        const handle=handles.find(item=>/\.csv$/i.test(item.name));
-        if(!handle)throw Error('Μπορείς να αφήσεις στην επιφάνεια του πίνακα ένα αρχείο CSV του Ολοημέρου.');
-        return {type:'school-oloimero:dropped-file',result:await Timetables.droppedImportFile(year,'oloimero','csv','csv',handle)};
-      }},
     'timetables.html':{start:'school-programs:drag-start',error:'school-programs:dropped-file-error',text:'Αφήστε το CSV ωρολογίου και το .fet',area:true,
       async read(handles,year,kind){
         const csv=handles.find(item=>/\.csv$/i.test(item.name)),fet=handles.find(item=>/\.fet$/i.test(item.name));
         if(kind==='oloimero'){
           if(!csv||fet)throw Error('Στην κάρτα του Ολοήμερου Designer μπορείς να αφήσεις μόνο ένα αρχείο CSV Ολοημέρου.');
           const result=await Timetables.droppedImportFile(year,'oloimero','csv','csv',csv);
-          return {type:'school-programs:dropped-files',kind:'oloimero',files:{csv:{name:result.name}}};
+          return {type:'school-programs:dropped-files',kind:'oloimero',files:{csv:result}};
         }
         if(!csv&&!fet)throw Error('Στην κάρτα του Ωρολογίου FET μπορείς να αφήσεις το CSV ωρολογίου («…_timetable.csv») και το αρχείο .fet.');
         const files={};
-        if(csv)files.csv={name:(await Timetables.droppedImportFile(year,'school','fet','csv',csv)).name};
-        if(fet)files.fet={name:(await Timetables.droppedImportFile(year,'school','fet','fet',fet)).name};
+        if(csv)files.csv=await Timetables.droppedImportFile(year,'school','fet','csv',csv);
+        if(fet)files.fet=await Timetables.droppedImportFile(year,'school','fet','fet',fet);
         return {type:'school-programs:dropped-files',kind:'school',files};
       }}
   };
