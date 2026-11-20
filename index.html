@@ -393,7 +393,7 @@ body.session-locked #app-shell { visibility:hidden; pointer-events:none; }
     <div class="sidebar-head">
       <div class="brand">
         <span class="brand-name">Εφαρμογές σχολείου</span>
-        <span class="sidebar-version" aria-label="Έκδοση 1.20">v1.20</span>
+        <span class="sidebar-version" aria-label="Έκδοση 1.21">v1.21</span>
       </div>
     </div>
     <div id="sidebar-school" class="sidebar-school" hidden><span id="nav-school-name" class="sidebar-school-name"></span><span id="nav-school-year" class="sidebar-school-year"></span></div>
@@ -1523,7 +1523,7 @@ const StaffStorage = (() => {
   // Drag and drop of import files onto an application. The application reports drag-start; the Index then lays an
   // overlay over the iframe (or over a part of it) so that the drop happens here (a file handle cannot be passed from
   // a file:// iframe). The files become the last files of the importer, and the application receives the result.
-  //   Ολοήμερο Designer: δεν δέχεται εξωτερικά αρχεία στον πίνακα.
+  //   Ολοήμερο Designer: no drop on its board (its CSV is dropped only inside its import dialog).
   //   Σχολικά Προγράμματα: a CSV of the Ολοήμερο on its card, or CSV and/or .fet on the Ωρολόγιο FET card.
   //   school-programs:drag-start includes the source kind and card rect; dropped-files returns the kind and files,
   //   and the application opens the existing importer for that kind.

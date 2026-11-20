@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.50
+ * Έκδοση αρχείου: 0.51
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -207,6 +207,8 @@
   // και καλεί την κατασκευή. Τη διαδικασία (ανάλυση, κατασκευή) τη δίνει η εφαρμογή, συνήθως από το _data.js.
   //   options.title, options.intro      τίτλος και εισαγωγικό κείμενο (κείμενο ή στοιχείο DOM)
   //   options.files [{key, label, choose}], choose(): Promise<{name,text}>.
+  //   options.chooseFiles(): Promise<{key:{name,text}}> or null; when given, a click on the drop area chooses the files
+  //     through it (the host's picker, which starts in the folder of the last files) instead of the browser's picker.
   //   options.initialFiles {key:{name,text}}: only files dropped in this operation.
   //   options.analyze(loaded): analysis of the currently selected files.
   //   options.build(analysis, {unmatched:'keep'|'drop', direct:false}): result.
@@ -247,8 +249,22 @@
     let filePickerActive = false, filePickerCancelledAt = 0;
     const pendingNames = {};
     let queuedFiles = [], drainingFiles = false;
+    let drainFiles = async () => {}, receive = () => {};
     const openFilePicker = () => {
       if (controls?.working) return;
+      if (typeof options.chooseFiles === 'function') {
+        // The host's picker: it starts in the folder of the last files, and reads only the files chosen now.
+        let chosen = null;
+        filePickerActive = true;
+        void controls?.busy(async () => {
+          try { chosen = await options.chooseFiles(); }
+          finally { filePickerActive = false; filePickerCancelledAt = Date.now(); }
+        }).then(() => {
+          const values = Object.values(chosen || {}).filter(value => typeof value?.name === 'string' && typeof value?.text === 'string');
+          if (values.length) receive(values.map(value => ({name: value.name, text: async () => value.text})));
+        });
+        return;
+      }
       filePickerActive = true;
       try { fileInput.click(); } catch (problem) { filePickerActive = false; throw problem; }
     };
@@ -269,8 +285,10 @@
       dropZone.append(icon, heading, hint, list, fileInput);
       // Keep every drop, including one made while an earlier file is being read or analysed.
       // Show each filename immediately; its ready check appears only after reading succeeds.
-      const drainFiles = async () => {
-        if (drainingFiles || !controls || controls.working) return;
+      drainFiles = async () => {
+        if (drainingFiles || !controls) return;
+        // Another action is running (e.g. «Εισαγωγή» that may fail): try again once it has finished.
+        if (controls.working) { if (controls.dialog.open) setTimeout(() => void drainFiles(), 150); return; }
         drainingFiles = true;
         try {
           while (queuedFiles.length && controls.dialog.open) {
@@ -296,7 +314,7 @@
           focusImport();
         }
       };
-      const receive = incoming => {
+      receive = incoming => {
         const chosen = [...incoming];
         if (!chosen.length) return;
         const valid = chosen.filter(item => (fetDrop ? /\.(csv|fet)$/i : /\.csv$/i).test(item.name));

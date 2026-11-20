@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Προγράμματα στο Κεντρικό Μενού (host)
- * Έκδοση αρχείου: 0.24
+ * Έκδοση αρχείου: 0.25
  * Όνομα κατά την εγκατάσταση: _host_timetables.js
  *
  * Κώδικας μόνο του host για τα προγράμματα (timetablesByYear). Το φορτώνει το index.html μετά το
@@ -25,7 +25,8 @@
  *   staffUsage(data, year)                  σε ποια προγράμματα εμφανίζεται κάθε εκπαιδευτικός
  *   applyStaffRemovals(data, year, before, after, removals)   αναφορές σε διαγραφή εκπαιδευτικού
  *   importFile(year, message, app)          αρχεία των εισαγωγέων (SchoolTimetable.kinds) για το
- *                                           school-programs:file, το school-fet:file και το school-oloimero:file
+ *                                           school-programs:file, το school-fet:file και το school-oloimero:file·
+ *                                           με action:'chooseFiles' όλα τα αρχεία του εισαγωγέα σε ένα παράθυρο
  *   programsFile(year, message, app)        τα αρχεία των Σχολικών Προγραμμάτων (school-programs:file): εισαγωγή,
  *                                           αποθήκευση και άνοιγμα αντιγράφου ασφαλείας περιόδου
  *   oloimeroFile(year, message, app)        τα αρχεία του Ολοήμερου Designer (school-oloimero:file): εισαγωγή,
@@ -824,6 +825,7 @@
     return {importer, spec};
   }
   async function importFile(year, message, app) {
+    if (message?.action === 'chooseFiles') return chooseImportFiles(year, message, app);
     if (!FILE_ACTIONS.includes(message?.action)) throw Error('Άγνωστη ενέργεια αρχείου εισαγωγής. Βεβαιώσου ότι το index.html και τα κοινά αρχεία είναι η τελευταία έκδοση.');
     const {importer, spec} = importSpec(message, app);
     const keyOf = file => importKey(year, message.kind, importer.id, file);
@@ -836,6 +838,40 @@
         return null;
       }
     });
+  }
+
+  // {action:'chooseFiles', kind, importer}: all the files of an importer chosen in one picker (several at once when the
+  // importer has several files, e.g. the CSV and the .fet of FET). The picker starts in the folder of the last file of
+  // the importer; nothing remembered is read. Each chosen file goes to its place by its extension and becomes the last
+  // file of that place. → {key: {name, text}} with only the places chosen.
+  async function chooseImportFiles(year, message, app) {
+    const importer = T.importer(message?.kind, message?.importer);
+    if (!importer?.files?.length) throw Error('Άγνωστος εισαγωγέας. Βεβαιώσου ότι το index.html και τα κοινά αρχεία είναι η τελευταία έκδοση.');
+    if (app !== undefined && !permissions(app).kinds.includes(message.kind)) throw Error('Η εφαρμογή δεν μπορεί να εισαγάγει προγράμματα του είδους ' + quoted(kindLabel(message.kind)) + '.');
+    const keyOf = file => importKey(year, message.kind, importer.id, file);
+    const endings = spec => Object.values(spec.accept || {}).flat().map(item => String(item).toLowerCase());
+    const accept = {};
+    for (const spec of importer.files) for (const [type, list] of Object.entries(spec.accept || {})) accept[type] = [...new Set([...(accept[type] || []), ...list])];
+    let startIn = null;
+    for (const spec of importer.files) { startIn = await rememberedHandle(keyOf(spec.key)); if (startIn) break; }
+    const handles = await picker('open', {
+      id: ('sp-' + message.kind + '-' + importer.id).slice(0, 32), multiple: importer.files.length > 1,
+      types: [{description: importer.files.map(spec => spec.description || spec.label).join(', '), accept}]
+    }, startIn);
+    const chosen = new Map();
+    for (const handle of handles) {
+      const name = String(handle?.name || '').toLowerCase();
+      const spec = importer.files.find(item => endings(item).some(ending => name.endsWith(ending)));
+      if (!spec) throw Error('Το ' + quoted(handle.name) + ' δεν είναι αρχείο ' + importer.files.flatMap(endings).join(' ή ') + '.');
+      if (chosen.has(spec.key)) throw Error('Επίλεξε ένα μόνο αρχείο για το ' + quoted(spec.label) + '.');
+      chosen.set(spec.key, {spec, handle});
+    }
+    const result = {};
+    for (const [key, {spec, handle}] of chosen) {
+      result[key] = await readHandle(handle, spec.encoding);
+      await referenceStore('put', keyOf(key), handle).catch(() => {});
+    }
+    return result;
   }
 
   // An import file dropped on an application (the Index lays its overlay over the iframe and receives the drop):
@@ -868,6 +904,7 @@
 
   // The files of «Σχολικά Προγράμματα» (school-programs:file):
   //   {action:'last'|'read'|'choose', kind, importer, file}  the file of an importer (importFile)
+  //   {action:'chooseFiles', kind, importer}                all the files of an importer in one picker (importFile)
   //   {action:'backupSave', suggestedName, text}            saves the backup of a period (saveBackup) → {name}
   //   {action:'backupOpen'}                                  a backup file chosen by the user → {name, text}
   async function programsFile(year, message, app) {
@@ -888,6 +925,7 @@
 
   // The files of the Ολοήμερο Designer (school-oloimero:file):
   //   {action:'last'|'read'|'choose', kind:'oloimero', importer, file}  the file of an importer (importFile)
+  //   {action:'chooseFiles', kind:'oloimero', importer}                 the files of an importer in one picker
   //   {action:'last'|'read'|'choose', reference:'fet'}                 a .fet file for the Μαθήματα and Τμήματα of
   //                                                                    the sidebar; remembered per school year
   //   {action:'export', suggestedName, text}                           saves the CSV for FET → {name}; the picker
@@ -909,6 +947,7 @@
       await referenceStore('put', key, handle).catch(() => {});
       return {name: handle.name};
     }
+    if (message?.action === 'chooseFiles' && message.reference == null) return importFile(year, message, app);
     if (!FILE_ACTIONS.includes(message?.action)) throw Error('Άγνωστη ενέργεια αρχείου. Βεβαιώσου ότι το index.html και τα κοινά αρχεία είναι η τελευταία έκδοση.');
     if (message.reference === 'fet') {
       return rememberedFile(message.action, {
