@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Σχολικό Ημερολόγιο v1.32</title>
+<title>Σχολικό Ημερολόγιο v1.33</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -97,6 +97,8 @@
 /* ---- Dialogs (all on schoolChoiceDialog) ---- */
 .school-confirm.cal-day-actions{width:min(620px,calc(100vw - 32px))}
 .cal-day-actions .school-choice-options button.cal-has-data{background:var(--school-ui-primary-bg);border-color:var(--school-ui-primary-border);color:var(--school-ui-primary-text)}
+/* The ΣΣΔ choice has the same icon as Παιδαγωγική Συνάντηση; only its icon is red, the text keeps its colour. */
+.cal-day-actions .school-choice-options button.cal-choice-ssd .ui-icon-text>svg{color:var(--cal-ssd)}
 .school-confirm-actions .cal-delete:not(:disabled){color:#a12626}
 
 /* Notes editor (Προσωπικές Σημειώσεις, and the Ποινές / Επιβραβεύσεις with the same layout) */
@@ -284,7 +286,7 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" data-app-icon="calendar" aria-hidden="true"></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v1.32</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" data-app-icon="calendar" aria-hidden="true"></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v1.33</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="print" type="button" disabled>Εκτύπωση...</button>
@@ -721,8 +723,12 @@ async function openDayActions(date) {
     const has = DAY_SECTIONS.map(section => section.count(key) > 0);
     const choice = await schoolChoiceDialog({
       title: longDate(date), className: 'cal-day-actions',
-      choices: DAY_SECTIONS.map(section => ({label: section.label, value: section.key})),
-      ready: ({dialog}) => dialog.querySelectorAll('.school-choice-options button').forEach((button, index) => button.classList.toggle('cal-has-data', has[index]))
+      // Each choice has the icon of its category in the calendar (the ΣΣΔ one in red, see .cal-choice-ssd).
+      choices: DAY_SECTIONS.map(section => ({label: section.label, value: section.key, icon: section.icon})),
+      ready: ({dialog}) => dialog.querySelectorAll('.school-choice-options button').forEach((button, index) => {
+        button.classList.toggle('cal-has-data', has[index]);
+        button.classList.add('cal-choice-' + DAY_SECTIONS[index].key);
+      })
     });
     const section = DAY_SECTIONS.find(item => item.key === choice);
     if (!section) break;
