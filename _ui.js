@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.49
+ * Έκδοση αρχείου: 0.50
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -206,39 +206,19 @@
   // ανάλυση (λάθη, προειδοποιήσεις, ενημερωτικά, σύνοψη), ρωτά για τους εκπαιδευτικούς χωρίς αντιστοίχιση
   // και καλεί την κατασκευή. Τη διαδικασία (ανάλυση, κατασκευή) τη δίνει η εφαρμογή, συνήθως από το _data.js.
   //   options.title, options.intro      τίτλος και εισαγωγικό κείμενο (κείμενο ή στοιχείο DOM)
-  //   options.files   [{key, label, last, read, choose}]
-  //                   last: όνομα του τελευταίου αρχείου (ή κενό)· read(): Promise με {name, text} του
-  //                   τελευταίου αρχείου (ή null)· choose(): Promise με {name, text} νέου αρχείου.
-  //                   Τα τελευταία αρχεία διαβάζονται μόλις ανοίξει ο διάλογος.
-  //   options.analyze(loaded)            loaded: {key: {name, text}} → ανάλυση {ok, errors, warnings, info,
-  //                                      unmatchedTeachers, summary:[{value, label}]} (ή Promise)
-  //   options.build(analysis, {unmatched:'keep'|'drop', direct})  → η τιμή του διαλόγου (π.χ. το πρόγραμμα)·
-  //                                      direct: true όταν η εισαγωγή έγινε χωρίς διάλογο (options.direct)
-  //   options.accept                     ετικέτα του κουμπιού αποδοχής (προεπιλογή «Εισαγωγή»)
-  //   options.direct                     «από τρέχοντα αρχεία»: διαβάζει τα τελευταία αρχεία και κάνει την ανάλυση
-  //                                      πριν από τον διάλογο. Αν όλα διαβάστηκαν και η ανάλυση δεν έχει λάθη,
-  //                                      προειδοποιήσεις ή εκπαιδευτικούς χωρίς αντιστοίχιση, καλεί αμέσως το
-  //                                      build, χωρίς διάλογο. Αλλιώς ανοίγει ο διάλογος με τα αποτελέσματα.
-  // Επιστρέφει Promise με την τιμή του build, ή null στην ακύρωση. Με λάθη στην ανάλυση η αποδοχή μένει ανενεργή.
+  //   options.files [{key, label, choose}], choose(): Promise<{name,text}>.
+  //   options.initialFiles {key:{name,text}}: only files dropped in this operation.
+  //   options.analyze(loaded): analysis of the currently selected files.
+  //   options.build(analysis, {unmatched:'keep'|'drop', direct:false}): result.
+  //   options.accept: button label (default «Εισαγωγή»).
+  // No remembered content is ever loaded on opening; the dialog always confirms import.
   async function schoolProgramImport(options = {}) {
-    const files = options.files || [], preset = {loaded: {}, rowErrors: {}, analysis: null, analysisError: ''};
-    if (options.direct) {
-      for (const file of files) {
-        if (!file.last) continue;
-        try { const value = await file.read(); if (value) preset.loaded[file.key] = value; }
-        catch (problem) { if (!isCancellation(problem)) preset.rowErrors[file.key] = problem?.message || String(problem); }
-      }
-      if (files.every(file => preset.loaded[file.key])) {
-        try {
-          const result = await options.analyze(preset.loaded);
-          preset.analysis = result;
-          if (result?.ok && !result.errors?.length && !result.warnings?.length && !result.unmatchedTeachers?.length) {
-            return await options.build(result, {unmatched: 'keep', direct: true});
-          }
-        } catch (problem) { preset.analysis = null; preset.analysisError = problem?.message || String(problem); }
-      }
+    const loaded = {};
+    for (const file of options.files || []) {
+      const value = options.initialFiles?.[file.key];
+      if (value && typeof value.name === 'string' && typeof value.text === 'string') loaded[file.key] = value;
     }
-    return importDialog(options, preset);
+    return importDialog(options, {loaded, rowErrors: {}, analysis: null, analysisError: ''});
   }
   function importDialog(options, preset) {
     const files = options.files || [], loaded = preset.loaded, rowErrors = preset.rowErrors;
@@ -265,6 +245,8 @@
     const dropZone = richDrop ? element('div', 'school-import-drop') : null;
     const fileInput = richDrop ? element('input', 'school-import-native') : null;
     let filePickerActive = false, filePickerCancelledAt = 0;
+    const pendingNames = {};
+    let queuedFiles = [], drainingFiles = false;
     const openFilePicker = () => {
       if (controls?.working) return;
       filePickerActive = true;
@@ -285,25 +267,50 @@
       fileInput.type = 'file'; fileInput.accept = fetDrop ? '.csv,.fet' : '.csv'; fileInput.multiple = fetDrop;
       fileInput.tabIndex = -1; fileInput.setAttribute('aria-hidden', 'true');
       dropZone.append(icon, heading, hint, list, fileInput);
-      const receive = async incoming => {
-        if (controls?.working) return;
+      // Keep every drop, including one made while an earlier file is being read or analysed.
+      // Show each filename immediately; its ready check appears only after reading succeeds.
+      const drainFiles = async () => {
+        if (drainingFiles || !controls || controls.working) return;
+        drainingFiles = true;
+        try {
+          while (queuedFiles.length && controls.dialog.open) {
+            const selected = queuedFiles.splice(0);
+            await controls.busy(async () => {
+              for (const file of selected) {
+                const key = /\.csv$/i.test(file.name) ? 'csv' : 'fet';
+                try {
+                  loaded[key] = {name: file.name, text: await file.text()};
+                  delete rowErrors[key];
+                } catch (problem) {
+                  delete loaded[key];
+                  rowErrors[key] = problem?.message || String(problem);
+                }
+                if (pendingNames[key] === file.name) delete pendingNames[key];
+                renderFiles();
+              }
+              await analyzeNow();
+            });
+          }
+        } finally {
+          drainingFiles = false;
+          focusImport();
+        }
+      };
+      const receive = incoming => {
         const chosen = [...incoming];
         if (!chosen.length) return;
         const valid = chosen.filter(item => (fetDrop ? /\.(csv|fet)$/i : /\.csv$/i).test(item.name));
-        if (!valid.length) { analysis = null; analysisError = fetDrop ? 'Επίλεξε αρχεία .csv ή .fet.' : 'Επίλεξε αρχείο .csv.'; renderResult(); return; }
-        await controls?.busy(async () => {
-          for (const file of valid) {
-            const key = /\.csv$/i.test(file.name) ? 'csv' : 'fet';
-            try {
-              loaded[key] = {name: file.name, text: await file.text()};
-              delete rowErrors[key];
-            } catch (problem) {
-              rowErrors[key] = problem?.message || String(problem);
-            }
-          }
-          renderFiles(); await analyzeNow();
-        });
-        focusImport();
+        if (!valid.length) {
+          analysis = null; analysisError = fetDrop ? 'Επίλεξε αρχεία .csv ή .fet.' : 'Επίλεξε αρχείο .csv.';
+          renderResult(); return;
+        }
+        for (const file of valid) {
+          pendingNames[/\.csv$/i.test(file.name) ? 'csv' : 'fet'] = file.name;
+        }
+        analysis = null; analysisError = '';
+        queuedFiles.push(...valid);
+        renderFiles(); renderResult();
+        void drainFiles();
       };
       fileInput.addEventListener('change', () => {
         filePickerActive = false;
@@ -326,12 +333,13 @@
         }
       });
       dropZone.addEventListener('dragenter', event => {
-        if (!event.dataTransfer?.types.includes('Files')) return;
+        if (![...(event.dataTransfer?.types || [])].includes('Files')) return;
         event.preventDefault(); dropZone.classList.add('drag-over');
       });
       dropZone.addEventListener('dragover', event => {
-        if (!event.dataTransfer?.types.includes('Files')) return;
-        event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; dropZone.classList.add('drag-over');
+        if (![...(event.dataTransfer?.types || [])].includes('Files')) return;
+        event.preventDefault(); event.stopPropagation();
+        event.dataTransfer.dropEffect = 'copy'; dropZone.classList.add('drag-over');
       });
       dropZone.addEventListener('dragleave', event => {
         if (!dropZone.contains(event.relatedTarget)) dropZone.classList.remove('drag-over');
@@ -345,14 +353,14 @@
       rowButtons = [];
       list.replaceChildren(...files.map(file => {
         const row = element('div', 'school-import-file'), textBox = element('div', 'school-import-file-text');
-        const current = loaded[file.key]?.name || file.last || '';
+        const current = pendingNames[file.key] || loaded[file.key]?.name || '';
         textBox.append(element('span', 'school-import-file-label', file.label),
-          element('span', 'school-import-file-name', loaded[file.key] ? current : current ? 'Τελευταίο αρχείο: ' + current : 'Δεν έχει επιλεγεί αρχείο'));
+          element('span', 'school-import-file-name', current || 'Δεν έχει επιλεγεί αρχείο'));
         if (rowErrors[file.key]) textBox.append(element('span', 'school-import-file-error', rowErrors[file.key]));
         if (richDrop) {
           const status = element('span', 'school-import-file-state');
-          status.innerHTML = schoolIcon(loaded[file.key] ? 'check' : 'file-import');
-          status.classList.toggle('is-ready', !!loaded[file.key]);
+          status.innerHTML = schoolIcon(loaded[file.key] && !pendingNames[file.key] ? 'check' : 'file-import');
+          status.classList.toggle('is-ready', !!loaded[file.key] && !pendingNames[file.key]);
           row.append(status, textBox);
           return row;
         }
@@ -430,17 +438,10 @@
           if (accept && !accept.disabled) accept.click();
         });
         await api.busy(async () => {
-          // Files already read (options.direct) are not read again, nor analysed again.
-          let read = false;
-          for (const file of files) {
-            if (!file.last || loaded[file.key] || rowErrors[file.key]) continue;
-            read = true;
-            try { const value = await file.read(); if (value) loaded[file.key] = value; }
-            catch (problem) { if (!isCancellation(problem)) rowErrors[file.key] = problem?.message || String(problem); }
-          }
           renderFiles();
-          if (read || (!analysis && !analysisError)) await analyzeNow(); else renderResult();
+          await analyzeNow();
         });
+        void drainFiles();
         focusImport();
       }
     });
