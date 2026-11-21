@@ -122,7 +122,6 @@
 .cal-note-grip>svg{display:block;width:var(--school-ui-icon-size-18);height:var(--school-ui-icon-size-18)}
 .cal-note-grip:active{cursor:grabbing!important}
 .cal-note-grip:disabled{cursor:default!important;opacity:.35}
-.cal-note-add{display:block;width:100%;border:1px dashed #a8b9c8!important;background:#f9fbfd!important;color:#365e83!important;text-align:center!important}
 .cal-note-empty{color:#697984;text-align:center;padding:30px 10px}
 
 /* Ποινές / Επιβραβεύσεις: the same dialog and list as the Προσωπικές Σημειώσεις (above). Each event is a schoolTaggedText
@@ -902,7 +901,7 @@ async function editPersonalNotes(date) {
       const empty = document.createElement('div'); empty.className = 'cal-note-empty'; empty.textContent = 'Δεν υπάρχουν προσωπικές σημειώσεις για αυτή την ημέρα.'; body.append(empty);
     }
     if (active && !notes.some(note => note.id === activeId)) body.append(active.element);
-    const add = document.createElement('button'); add.type = 'button'; add.className = 'cal-note-add';
+    const add = document.createElement('button'); add.type = 'button'; add.className = 'cal-note-add ui-add-row';
     add.innerHTML = schoolIconText('plus', 'Προσθήκη σημείωσης');
     add.disabled = locked;
     add.addEventListener('click', () => { if (activeId === null) noteItem({id: noteId(), html: '', tags: []}, true).item.edit(true); });
@@ -1193,7 +1192,7 @@ async function editBehaviorEvents(date) {
       const empty = document.createElement('div'); empty.className = 'cal-note-empty'; empty.textContent = 'Δεν υπάρχουν συμβάντα για αυτή την ημέρα.'; body.append(empty);
     }
     if (!editingEnabled) return;
-    const add = document.createElement('button'); add.type = 'button'; add.className = 'cal-note-add';
+    const add = document.createElement('button'); add.type = 'button'; add.className = 'cal-note-add ui-add-row';
     add.innerHTML = schoolIconText('plus', 'Προσθήκη συμβάντος'); add.disabled = locked || events.length >= maxEvents;
     add.addEventListener('click', () => {
       if (activeId !== null || events.length >= maxEvents) return;

@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.54
+ * Έκδοση αρχείου: 0.55
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -1826,7 +1826,7 @@
     const generalTitle = document.createElement('h3'); generalTitle.textContent = 'Γενικές ετικέτες';
     const list = document.createElement('div'); list.className = 'school-tag-manager-list';
     const tools = document.createElement('div'); tools.className = 'school-tag-manager-tools';
-    const add = document.createElement('button'); add.type = 'button'; add.innerHTML = schoolIconText('plus', 'Νέα ετικέτα');
+    const add = document.createElement('button'); add.type = 'button'; add.className = 'ui-add-row'; add.innerHTML = schoolIconText('plus', 'Προσθήκη ετικέτας');
     const count = document.createElement('p'); count.className = 'school-tag-manager-count';
     tools.append(add, count);
     const colorsTitle = document.createElement('h3'); colorsTitle.textContent = 'Χρώματα κατηγοριών';
