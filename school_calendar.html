@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Σχολικό Ημερολόγιο v1.33</title>
+<title>Σχολικό Ημερολόγιο v1.34</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -122,7 +122,6 @@
 .cal-note-grip>svg{display:block;width:var(--school-ui-icon-size-18);height:var(--school-ui-icon-size-18)}
 .cal-note-grip:active{cursor:grabbing!important}
 .cal-note-grip:disabled{cursor:default!important;opacity:.35}
-.cal-note-add{display:block;width:100%;border:1px dashed #a8b9c8!important;background:#f9fbfd!important;color:#365e83!important;text-align:center!important}
 .cal-note-empty{color:#697984;text-align:center;padding:30px 10px}
 
 /* Ποινές / Επιβραβεύσεις: the same dialog and list as the Προσωπικές Σημειώσεις (above). Each event is a schoolTaggedText
@@ -287,9 +286,10 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" data-app-icon="calendar" aria-hidden="true"></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v1.33</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" data-app-icon="calendar" aria-hidden="true"></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v1.34</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
+  <button id="tags" type="button" disabled>Ετικέτες…</button>
   <button id="print" type="button" disabled>Εκτύπωση...</button>
   <div class="header-right"><span id="schoolYear" class="school-year-indicator" hidden><span>Σχολικό έτος:</span> <span id="schoolYearValue"></span></span></div>
 </header>
@@ -511,7 +511,7 @@ function buttons() {
   $('save').classList.toggle('dirty', dirty);
   $('save').setAttribute('aria-label', dirty ? 'Αποθήκευση — υπάρχουν μη αποθηκευμένες αλλαγές' : 'Αποθήκευση');
   $('save').disabled = $('undo').disabled = busy || !context || !dirty;
-  $('print').disabled = busy || !context;
+  $('print').disabled = $('tags').disabled = busy || !context;
 }
 function setBusy(value) { busy = value; $('root').classList.toggle('busy', value); buttons(); }
 function latestDate() {
@@ -563,6 +563,18 @@ async function undoAll() {
   if (!await schoolConfirm('Να απορριφθούν όλες οι αλλαγές από την τελευταία αποθήκευση;', {title:'Αναίρεση Όλων', accept:'Αναίρεση Όλων'})) return;
   cal = JSON.parse(savedJson);
   tagRegistry = JSON.parse(savedTagsJson);
+  render(); updateDirty();
+}
+// «Ετικέτες…» of the header: the «Διαχείριση ετικετών» without opening a day. The new registry reaches the page as
+// with «Ενημέρωση» of a dialog (acceptRegistry: deleted general tags leave every item of the year) and is saved
+// with «Αποθήκευση».
+async function manageTags() {
+  if (busy || !context) return;
+  const next = await schoolTags.manage({tags: clone(tagRegistry), usage: id => tagUsageOf(id), limits: context.limits});
+  // The dialog lists the general tags alphabetically: an unchanged registry does not count as a change.
+  const same = tags => calendarJson({...tags, general: [...(tags.general || [])].sort((x, y) => String(x.id).localeCompare(String(y.id)))});
+  if (!next || same(next) === same(tagRegistry)) return;
+  acceptRegistry(next);
   render(); updateDirty();
 }
 
@@ -889,7 +901,7 @@ async function editPersonalNotes(date) {
       const empty = document.createElement('div'); empty.className = 'cal-note-empty'; empty.textContent = 'Δεν υπάρχουν προσωπικές σημειώσεις για αυτή την ημέρα.'; body.append(empty);
     }
     if (active && !notes.some(note => note.id === activeId)) body.append(active.element);
-    const add = document.createElement('button'); add.type = 'button'; add.className = 'cal-note-add';
+    const add = document.createElement('button'); add.type = 'button'; add.className = 'cal-note-add ui-add-row';
     add.innerHTML = schoolIconText('plus', 'Προσθήκη σημείωσης');
     add.disabled = locked;
     add.addEventListener('click', () => { if (activeId === null) noteItem({id: noteId(), html: '', tags: []}, true).item.edit(true); });
@@ -1180,7 +1192,7 @@ async function editBehaviorEvents(date) {
       const empty = document.createElement('div'); empty.className = 'cal-note-empty'; empty.textContent = 'Δεν υπάρχουν συμβάντα για αυτή την ημέρα.'; body.append(empty);
     }
     if (!editingEnabled) return;
-    const add = document.createElement('button'); add.type = 'button'; add.className = 'cal-note-add';
+    const add = document.createElement('button'); add.type = 'button'; add.className = 'cal-note-add ui-add-row';
     add.innerHTML = schoolIconText('plus', 'Προσθήκη συμβάντος'); add.disabled = locked || events.length >= maxEvents;
     add.addEventListener('click', () => {
       if (activeId !== null || events.length >= maxEvents) return;
@@ -1664,6 +1676,7 @@ window.addEventListener('afterprint', () => { document.body.classList.remove('pr
 // ---- Controls ----
 $('save').addEventListener('click', save);
 $('undo').addEventListener('click', undoAll);
+$('tags').addEventListener('click', manageTags);
 $('print').addEventListener('click', printDialog);
 $('prevMonth').addEventListener('click', () => changeDisplayedMonth(-1));
 $('nextMonth').addEventListener('click', () => changeDisplayedMonth(1));

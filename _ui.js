@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.54
+ * Έκδοση αρχείου: 0.55
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -1669,7 +1669,9 @@
     const texts = {search: 'Αναζήτηση ετικέτας…', selected: 'Επιλεγμένες', limit: 'ετικετών ανά στοιχείο', ...(options.texts || {})};
     const allTypes = ['staff', 'class', 'student', 'general'];
     const types = Array.isArray(options.types) && options.types.length ? allTypes.filter(type => options.types.includes(type)) : allTypes;
-    const openByDefault = types[0];
+    // Στο άνοιγμα: οι «Γενικές» (σε επιλογέα χωρίς γενικές, π.χ. συμμετέχοντες, η πρώτη κατηγορία) και όσες ομάδες
+    // έχουν επιλεγμένα, ώστε να φαίνονται.
+    const openByDefault = types.includes('general') ? 'general' : types[0];
     const keyOf = ref => ref.type + '\u0001' + ref.id;
     const excluded = new Set((Array.isArray(options.exclude) ? options.exclude : []).filter(ref => ref && ref.type && ref.id).map(keyOf));
     const offered = ref => !excluded.has(keyOf(ref));
@@ -1826,7 +1828,7 @@
     const generalTitle = document.createElement('h3'); generalTitle.textContent = 'Γενικές ετικέτες';
     const list = document.createElement('div'); list.className = 'school-tag-manager-list';
     const tools = document.createElement('div'); tools.className = 'school-tag-manager-tools';
-    const add = document.createElement('button'); add.type = 'button'; add.innerHTML = schoolIconText('plus', 'Νέα ετικέτα');
+    const add = document.createElement('button'); add.type = 'button'; add.className = 'ui-add-row'; add.innerHTML = schoolIconText('plus', 'Προσθήκη ετικέτας');
     const count = document.createElement('p'); count.className = 'school-tag-manager-count';
     tools.append(add, count);
     const colorsTitle = document.createElement('h3'); colorsTitle.textContent = 'Χρώματα κατηγοριών';

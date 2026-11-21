@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινό περιβάλλον χρήστη
- * Έκδοση αρχείου: 0.66
+ * Έκδοση αρχείου: 0.67
  * Όνομα κατά την εγκατάσταση: _ui.css
  */
 
@@ -61,6 +61,8 @@
   --school-ui-primary-bg:#e8f1ff;
   --school-ui-primary-border:#8eb4e7;
   --school-ui-primary-text:#154c91;
+  /* «Προσθήκη» button of a whole list (.ui-add-row): dashed frame across the list. */
+  --school-ui-add-row-border:#a8b9c8;--school-ui-add-row-bg:#f9fbfd;--school-ui-add-row-text:#365e83;
   --school-ui-success-bg:#1f8a5b;
   --school-ui-success-hover-bg:#18764d;
   --school-ui-success-border:#17704a;
@@ -754,9 +756,17 @@ select.ui-period-select option:focus-visible{outline:2px solid var(--school-ui-f
 .school-tag-option input:disabled+.school-tag{opacity:.55}
 .school-confirm .school-tag-options>button.school-tag-select-all{align-self:flex-start;min-width:0;height:28px;margin:2px 0 4px;padding:0 10px;font-size:13px}
 .school-tag-empty{margin:2px 0 6px!important;font-size:13px;color:var(--school-ui-muted)}
-.school-tag-manager h3{margin:14px 0 6px;font-size:15px;color:var(--school-ui-label-text)}
+/* «Προσθήκη» of a whole list (e.g. «Προσθήκη σημείωσης» of the Σχολικό Ημερολόγιο, «Προσθήκη ετικέτας» of the
+   «Διαχείριση ετικετών»): a button across the list, with a dashed frame, centred text and its icon. */
+.ui-add-row{display:block;width:100%;border:1px dashed var(--school-ui-add-row-border)!important;background:var(--school-ui-add-row-bg)!important;color:var(--school-ui-add-row-text)!important;text-align:center!important}
+
+/* One left edge for the whole dialog: the list keeps 4px around its rows (room for the focus ring inside its
+   scrolling box), so the headings, «Προσθήκη ετικέτας» and the category colours get the same 4px, and the category rows
+   use the columns of the general tags (colour 48px, gap 8px, name), so their names start where the name fields do. */
+.school-tag-manager{--school-tag-manager-inset:4px}
+.school-tag-manager h3{margin:14px 0 6px;padding-inline:var(--school-tag-manager-inset);font-size:15px;color:var(--school-ui-label-text)}
 .school-tag-manager h3:first-child{margin-top:0}
-.school-tag-manager-list{display:grid;gap:6px;max-height:min(40dvh,340px);overflow:auto;padding:4px}
+.school-tag-manager-list{display:grid;gap:6px;max-height:min(40dvh,340px);overflow:auto;padding:var(--school-tag-manager-inset)}
 .school-tag-manager-list:empty{display:none}
 .school-tag-manager-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px}
 .school-tag-manager-row input{width:100%;box-sizing:border-box;min-width:0}
@@ -766,11 +776,13 @@ select.ui-period-select option:focus-visible{outline:2px solid var(--school-ui-f
 .school-confirm .school-tag-manager .school-color-trigger{width:48px;padding:4px 5px}
 .school-confirm .school-tag-manager-remove{display:inline-flex;align-items:center;justify-content:center;width:var(--school-ui-control-height);height:var(--school-ui-control-height);padding:0;color:#536575}
 .school-tag-manager-remove svg{width:var(--school-ui-icon-size);height:var(--school-ui-icon-size)}
-.school-tag-manager-tools{display:flex;align-items:center;flex-wrap:wrap;gap:6px 12px;margin-top:8px}
+.school-tag-manager-tools{display:flex;align-items:center;flex-wrap:wrap;gap:6px 12px;margin-top:8px;padding-inline:var(--school-tag-manager-inset)}
+/* «Προσθήκη ετικέτας»: across the dialog, like «Προσθήκη σημείωσης» (.ui-add-row); the count goes under it. */
+.school-tag-manager-tools>.ui-add-row{flex:1 1 100%}
 .school-tag-manager-count{margin:0!important;font-size:13px}
 .school-tag-manager-count:empty{display:none}
-.school-tag-manager-colors{display:grid;gap:6px}
-.school-tag-manager-color{display:flex;align-items:center;gap:10px}
+.school-tag-manager-colors{display:grid;gap:6px;padding-inline:var(--school-tag-manager-inset)}
+.school-tag-manager-color{display:flex;align-items:center;gap:8px}
 
 /* Pop-up menu (schoolMenu of _ui.js), e.g. «⋮» of a card or «⋯» of the header: one at a time, placed by _ui.js
    under its button (position:fixed). Items are text buttons as tall as a control; .danger for a deletion. */
