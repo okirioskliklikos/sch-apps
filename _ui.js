@@ -1669,10 +1669,9 @@
     const texts = {search: 'Αναζήτηση ετικέτας…', selected: 'Επιλεγμένες', limit: 'ετικετών ανά στοιχείο', ...(options.texts || {})};
     const allTypes = ['staff', 'class', 'student', 'general'];
     const types = Array.isArray(options.types) && options.types.length ? allTypes.filter(type => options.types.includes(type)) : allTypes;
-    // Στο άνοιγμα: σε επιλογέα ετικετών μόνο οι «Γενικές» είναι ανοιχτές· σε επιλογέα χωρίς γενικές (π.χ. συμμετέχοντες)
-    // η πρώτη κατηγορία και όσες ομάδες έχουν επιλεγμένα.
+    // Στο άνοιγμα: οι «Γενικές» (σε επιλογέα χωρίς γενικές, π.χ. συμμετέχοντες, η πρώτη κατηγορία) και όσες ομάδες
+    // έχουν επιλεγμένα, ώστε να φαίνονται.
     const openByDefault = types.includes('general') ? 'general' : types[0];
-    const openSelected = !types.includes('general');
     const keyOf = ref => ref.type + '\u0001' + ref.id;
     const excluded = new Set((Array.isArray(options.exclude) ? options.exclude : []).filter(ref => ref && ref.type && ref.id).map(keyOf));
     const offered = ref => !excluded.has(keyOf(ref));
@@ -1776,7 +1775,7 @@
         const own = g.details.querySelectorAll('input[type=checkbox]');
         g.summary.textContent = g.details.dataset.title + ' (' + own.length + ')';
         const has = [...own].some(box => box.checked);
-        g.details.open = g.details.dataset.key in openState ? openState[g.details.dataset.key] : ((openSelected && has) || g.details.dataset.key === openByDefault);
+        g.details.open = g.details.dataset.key in openState ? openState[g.details.dataset.key] : (has || g.details.dataset.key === openByDefault);
         g.details.addEventListener('toggle', () => { if (!search.value.trim()) openState[g.details.dataset.key] = g.details.open; });
       }
       filter(); refreshLimit();
@@ -1789,7 +1788,7 @@
         const visible = [...details.querySelectorAll('.school-tag-option')].some(label => !label.hidden);
         details.hidden = !!query && !visible;
         if (query) details.open = visible;
-        else details.open = details.dataset.key in openState ? openState[details.dataset.key] : ((openSelected && [...details.querySelectorAll('input:checked')].length > 0) || details.dataset.key === openByDefault);
+        else details.open = details.dataset.key in openState ? openState[details.dataset.key] : ([...details.querySelectorAll('input:checked')].length > 0 || details.dataset.key === openByDefault);
       }
       for (const refresh of allButtons) refresh();
     };
