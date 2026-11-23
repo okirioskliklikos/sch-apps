@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Σχολικό Ημερολόγιο v1.34</title>
+<title>Σχολικό Ημερολόγιο v1.35</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -738,6 +738,7 @@ async function openDayActions(date) {
       title: longDate(date), className: 'cal-day-actions',
       // Each choice has the icon of its section in the calendar, in the colour of its section (.cal-ind-<tone>).
       choices: DAY_SECTIONS.map(section => ({label: section.label, value: section.key, icon: section.icon})),
+      actions: [{label: 'Κλείσιμο'}],
       ready: ({dialog}) => dialog.querySelectorAll('.school-choice-options button').forEach((button, index) => {
         button.classList.toggle('cal-has-data', has[index]);
         button.classList.add('cal-ind-' + DAY_SECTIONS[index].tone);

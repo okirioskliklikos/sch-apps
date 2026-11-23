@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.55
+ * Έκδοση αρχείου: 0.56
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -867,6 +867,7 @@
     bold: ['3.3', 'M7 4h5.5a4 4 0 0 1 0 8H7zM7 12h6.5a4 4 0 0 1 0 8H7z'],
     italic: ['2', 'M10 4h8M6 20h8M15 4 9 20'],
     underline: ['2', 'M5.5 4v9.5a6.5 6.5 0 0 0 13 0V4M4 23.5h16'],
+    superscript: ['2.2', 'M3 18h10M5 9l6 9M11 9l-6 9M15 4h5v4h-5l5-4M15 8h5'],
     'text-color': ['2', 'M5.5 20 12 4l6.5 16M7.9 14h8.2'],
     'chevron-down': ['2.4', 'm6 9 6 6 6-6'],
     'bullet-list': ['2', 'M10 6h10M10 12h10M10 18h10M4.5 5.2a.8.8 0 1 0 0 1.6.8.8 0 1 0 0-1.6zM4.5 11.2a.8.8 0 1 0 0 1.6.8.8 0 1 0 0-1.6zM4.5 17.2a.8.8 0 1 0 0 1.6.8.8 0 1 0 0-1.6z'],
@@ -1162,7 +1163,7 @@
     }).observe(document.documentElement, {childList: true, subtree: true, characterData: true});
   }
 
-  // Κείμενο με μορφοποίηση: μπάρα (B I U | χρώμα ▾ | λίστες | καθαρισμός) πάνω από πεδίο contenteditable.
+  // Κείμενο με μορφοποίηση: μπάρα (B I U | εκθέτης, χρώμα ▾ | λίστες | καθαρισμός) πάνω από πεδίο contenteditable.
   //   schoolRichText.create({html, labelledBy, label, color, actions}) → {element, editor, html, setHtml(html), focus()}
   //     html        το αρχικό κείμενο (καθαρίζεται με το SchoolHtml.sanitize του _data.js, όταν είναι φορτωμένο)
   //     labelledBy  id της ετικέτας του πεδίου (ή label: κείμενο για aria-label)
@@ -1195,6 +1196,7 @@
     ['italic', 'italic', 'Πλάγια (Ctrl+I)'],
     ['underline', 'underline', 'Υπογράμμιση (Ctrl+U)'],
     '|',
+    ['superscript', 'superscript', 'Εκθέτης'],
     ['color', 'text-color', 'Χρώμα κειμένου'],
     ['colorMenu', 'chevron-down', 'Επιλογή χρώματος κειμένου…'],
     '|',
@@ -1203,7 +1205,7 @@
     '|',
     ['removeFormat', 'clear-format', 'Καθαρισμός μορφοποίησης (Ctrl+\\)']
   ];
-  const STATE_COMMANDS = ['bold', 'italic', 'underline', 'insertUnorderedList', 'insertOrderedList'];
+  const STATE_COMMANDS = ['bold', 'italic', 'underline', 'superscript', 'insertUnorderedList', 'insertOrderedList'];
 
   function createRichText(options = {}) {
     const box = document.createElement('div'); box.className = 'school-richtext';
