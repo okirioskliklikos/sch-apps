@@ -95,16 +95,17 @@
 | Θέμα της εργασίας | Διαβάζονται |
 |---|---|
 | Χρήση ή αλλαγή κοινού component | Το αρχείο του: `shared/dialogs.md` (`schoolConfirm`, `schoolMessage`, `schoolChoiceDialog`, `schoolProgramImport`, `schoolBackupConfirm`, `schoolColorPicker`), `shared/components.md` (`.ui-period-status`, `schoolPeriodSelect`, `.ui-zoom`, `schoolMenu`, `schoolProblems`, `schoolListSelection`), `shared/richtext.md` (`schoolRichText`, `schoolTaggedText`, `SchoolHtml`), `shared/tags.md` (`schoolTags`, `SchoolTags`), `shared/icons.md` (`schoolIcon`, `schoolIconText`, `BUTTON_ICONS`, `.app-mark`) |
-| Νέο κείμενο κουμπιού ή νέο εικονίδιο | `shared/icons.md` |
+| Νέο κείμενο κουμπιού, νέο εικονίδιο, ή αλλαγή εικονιδίου εφαρμογής (χρώματα, μορφή `is-sub`, αριστερή μπάρα) | `shared/icons.md` |
 | Νέος διάλογος | `shared/dialogs.md`, `shared/icons.md` |
 | Ετικέτες, ή επιλογέας μαθητών, τμημάτων ή εκπαιδευτικών | `shared/tags.md` |
-| Τμήματα ή υπεύθυνοι τμημάτων που διαβάζει ή γράφει άλλη εφαρμογή (π.χ. εισαγωγές προγραμμάτων, αλλαγές στο Προσωπικό) | `apps/classes.md` |
+| Τμήματα ή υπεύθυνοι τμημάτων που διαβάζει ή γράφει άλλη εφαρμογή (π.χ. εισαγωγές προγραμμάτων, αλλαγές στο Προσωπικό) | `apps/classes.md`· και `timetables/model.md` όταν αφορά τον υπεύθυνο τμήματος μέσα σε πρόγραμμα |
 | Μαθητές που διαβάζει ή γράφει άλλη εφαρμογή | `apps/students.md` |
 | Διαγραφές, μετονομασίες ή αναφορές σε εκπαιδευτικούς, μαθητές ή τμήματα | `core/data_model.md`, `shared/tags.md`, `apps/classes.md` (υπεύθυνοι και αφαίρεση τμημάτων) και το αρχείο της εφαρμογής από την οποία γίνεται η διαγραφή· επιπλέον το αρχείο κάθε εφαρμογής της οποίας ο κώδικας αλλάζει για να ακολουθήσει τη διαγραφή |
 | Νέα δεδομένα στο `.data`, νέο `xxxByYear`, όρια πλήθους, νέο μήνυμα host | `core/data_model.md`, `core/architecture.md` |
 | Νέα υποεφαρμογή | `core/architecture.md`, `core/subapp.md`, `shared/ui_base.md`, `shared/icons.md`· και `core/data_model.md` όταν έχει δικά της δεδομένα στο `.data` |
-| Κεφαλίδα, αριστερή μπάρα, στυλ | `core/subapp.md`, `shared/ui_base.md`· και `core/architecture.md` για την αριστερή μπάρα του Κεντρικού Μενού. Ισχύουν οι οπτικοί έλεγχοι του «Τρόπου δουλειάς» |
+| Κεφαλίδα, αριστερή μπάρα, στυλ | `core/subapp.md`, `shared/ui_base.md`· `core/architecture.md` για την αριστερή μπάρα του Κεντρικού Μενού· `shared/icons.md` για τα εικονίδια εφαρμογών ή κουμπιών. Ισχύουν οι οπτικοί έλεγχοι του «Τρόπου δουλειάς» |
 | Ανάγνωση προγραμμάτων από άλλη εφαρμογή (π.χ. Ημερολόγιο, Templater, Προσωπικό) | `timetables/api.md`, `timetables/composition.md` |
+| Ενέργεια που αλλάζει ή σβήνει αποθηκευμένα προγράμματα (αντικατάσταση, διαγραφή, «Επαναφορά», «Ορισμός ως Αρχική», αντιγραφή πάνω σε αποθηκευμένα δεδομένα) | `timetables/backup.md`, `shared/dialogs.md` (`schoolBackupConfirm`) |
 | Αποθήκευση προγραμμάτων, άνοιγμα εφαρμογής προγραμμάτων με στόχο, κοινή τρέχουσα περίοδος, δικαιώματα εγγραφής | `timetables/host.md` |
 | Επιλογή αρχείων, εισαγωγή ή εξαγωγή αρχείων, απόθεση αρχείων (`:file`, `:fet`, file handles) | `core/architecture.md`· και `timetables/import.md` όταν πρόκειται για προγράμματα |
 | Λόγος μιας απόφασης για τα Σχολικά Προγράμματα, το Πλήρες Σχολικό Πρόγραμμα, τον Ολοήμερο Designer ή τα Ατομικά Προγράμματα, ή αλλαγή σε κάτι που αποφασίστηκε εκεί | `timetables/decisions.md` |
