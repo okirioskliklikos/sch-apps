@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Σχολικό Ημερολόγιο v1.35</title>
+<title>Σχολικό Ημερολόγιο v1.36</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -28,7 +28,28 @@
 /* ---- Workspace ---- */
 .cal-app{display:flex;flex-direction:column;flex:1;min-height:0;overflow:auto}
 .cal-app[hidden]{display:none}
-.cal-viewbar{display:flex;justify-content:flex-end;gap:6px;flex:none}
+.page-main{padding-block-start:10px}
+.cal-toolbar{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex:none}
+.cal-viewbar{display:flex;gap:6px;flex:none}
+.cal-filterbar{display:flex;align-items:flex-start;gap:6px;min-width:0}
+.cal-filterbar>button{flex:none;border-radius:999px}
+.cal-filter-chips{display:grid;gap:5px;min-width:0;padding-block:4px}
+.cal-filter-chips:not(:has(.school-tag)){display:none}
+.cal-filterbar .school-tag-label>.ui-icon-text{display:block;overflow:hidden;text-overflow:ellipsis}
+.ui-menu:has(>.cal-filter-panel),.cal-filter-submenu.ui-menu{width:max-content;min-width:0}
+.cal-filter-options{padding:6px}
+.cal-filter-options.ui-menu{padding-block:9px}
+.cal-filter-category>button[aria-expanded="true"]{background:var(--school-ui-primary-bg);color:var(--school-ui-primary-text)}
+@media(min-width:720px) and (min-height:400px){
+  .ui-menu:has(>.cal-filter-panel){overflow:visible}
+  .cal-filter-category{position:relative}
+  .cal-filter-submenu.ui-menu{
+    position:absolute;top:0;left:calc(100% + 10px);max-height:min(50dvh,calc(100dvh - 240px))
+  }
+}
+.cal-filter-options .school-tag,.cal-filter-options .ui-icon-text{white-space:normal}
+.cal-filter-panel .school-tag,.cal-filterbar .school-tag{--ui-icon-text-size:var(--school-ui-icon-size-small)}
+.cal-filter-type{--school-tag-bg:var(--ind-bg);--school-tag-ink:var(--ind-ink);--school-tag-border:var(--ind-line)}
 .cal-view-toggle{width:var(--school-ui-control-height);padding-left:0;padding-right:0;display:inline-flex;align-items:center;justify-content:center}
 .cal-view-toggle svg{display:block;width:var(--school-ui-icon-size);height:var(--school-ui-icon-size)}
 .monthbar{display:flex;align-items:center;justify-content:center;gap:12px;padding:4px 12px 11px;flex:none}
@@ -286,7 +307,7 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" data-app-icon="calendar" aria-hidden="true"></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v1.34</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" data-app-icon="calendar" aria-hidden="true"></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v1.36</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="tags" type="button" disabled>Ετικέτες…</button>
@@ -296,9 +317,19 @@
 <main id="root" class="page-main">
   <p id="connection" class="subapp-connection">Άνοιξε το «Σχολικό Ημερολόγιο» από το Κεντρικό Μενού, αφού ανοίξεις το αρχείο πληροφοριών του σχολείου. Απαιτείται η τελευταία έκδοση του index.html.</p>
   <div id="calendarApp" class="cal-app" hidden>
-    <div class="cal-viewbar" role="group" aria-label="Προβολή ημερολογίου">
-      <button id="monthViewBtn" class="ui-toggle cal-view-toggle" data-school-icon="calendar-month" type="button" aria-label="Προβολή μήνα" aria-pressed="false" title="Προβολή μήνα"></button>
-      <button id="yearViewBtn" class="ui-toggle cal-view-toggle" data-school-icon="calendar-year" type="button" aria-label="Προβολή σχολικού έτους" aria-pressed="true" title="Προβολή σχολικού έτους"></button>
+    <div class="cal-toolbar">
+      <div class="cal-filterbar" role="group" aria-label="Φίλτρα ημερολογίου">
+        <button id="filters" type="button" aria-haspopup="dialog" aria-expanded="false" data-school-icon-end="chevron-down">Φίλτρα</button>
+        <div class="cal-filter-chips">
+          <div id="typeFilterChips" class="school-tags"></div>
+          <div id="fixedFilterChips" class="school-tags"></div>
+          <div id="generalFilterChips" class="school-tags"></div>
+        </div>
+      </div>
+      <div class="cal-viewbar" role="group" aria-label="Προβολή ημερολογίου">
+        <button id="monthViewBtn" class="ui-toggle cal-view-toggle" data-school-icon="calendar-month" type="button" aria-label="Προβολή μήνα" aria-pressed="false" title="Προβολή μήνα"></button>
+        <button id="yearViewBtn" class="ui-toggle cal-view-toggle" data-school-icon="calendar-year" type="button" aria-label="Προβολή σχολικού έτους" aria-pressed="true" title="Προβολή σχολικού έτους"></button>
+      </div>
     </div>
     <div class="monthbar" id="monthBar" hidden>
       <button class="monthnav ui-icon-button" id="prevMonth" type="button" aria-label="Προηγούμενος μήνας" title="Προηγούμενος μήνας" data-school-icon="chevron-left"></button>
@@ -356,6 +387,8 @@ let cal = emptyCalendar(), savedJson = calendarJson(cal), dirty = false, busy = 
 let tagRegistry = emptyTags(), savedTagsJson = calendarJson(tagRegistry);
 let startYear = 0, currentView = 'year', calendarClickTimer = null;
 let displayed = new Date(), selectedDate = new Date();
+const filterTypes = new Set();
+let filterTags = [];
 let zoom = 100, zoomLimits = {min:70, max:150, step:10};
 
 // ---- Data ----
@@ -436,24 +469,28 @@ const hasEvents = events => Array.isArray(events) && events.length > 0;
 const hasDayContent = entry => hasPersonal(entry.personalNotes) || hasBook(entry.schoolLifeBook) || hasEvents(entry.behaviorEvents);
 // Sections of a day, in the order of the day menu. Each one: key (its choice in the menu), label, aria (in the label
 // of the day cell), tone (CSS rule .cal-ind-<tone> with its colours), icon (schoolIcon), slot [column, row] of its chip
-// and dot (row 1 is the bottom row, filled first), count(key) (0: nothing on the day), number (the chip
+// and dot (row 1 is the bottom row, filled first), items(key) (the entries of the section on that day), number (the chip
 // shows the count) and open(date) (its window). A new section is one more entry here and one .cal-ind-<tone> rule.
 const DAY_SECTIONS = [
   {key:'personalNotes', label:'Προσωπικές Σημειώσεις', aria:'προσωπικές σημειώσεις', tone:'personal', icon:'note', slot:[1, 1], number:true,
-    count: key => (getEntry(key).personalNotes || []).filter(note => hasHtml(note.html)).length, open: date => editDay(date, 'personalNotes')},
+    items: key => getEntry(key).personalNotes.filter(note => hasHtml(note.html)), open: date => editDay(date, 'personalNotes')},
   {key:'schoolLifeBook', label:'Βιβλίο Σχολικής Ζωής', aria:'βιβλίο σχολικής ζωής', tone:'school', icon:'book', slot:[2, 1], number:false,
-    count: key => hasBook(getEntry(key).schoolLifeBook) ? 1 : 0, open: date => editDay(date, 'schoolLifeBook')},
+    items: key => hasBook(getEntry(key).schoolLifeBook) ? [getEntry(key).schoolLifeBook] : [], open: date => editDay(date, 'schoolLifeBook')},
   {key:'behaviorEvents', label:'Ποινές / Επιβραβεύσεις', aria:'ποινές / επιβραβεύσεις', tone:'behavior', icon:'scale', slot:[3, 1], number:true,
-    count: key => (getEntry(key).behaviorEvents || []).length, open: date => editBehaviorEvents(date)},
+    items: key => getEntry(key).behaviorEvents, open: date => editBehaviorEvents(date)},
   {key:'ped', label:'Παιδαγωγική Συνάντηση', aria:'παιδαγωγική συνάντηση', tone:'ped', icon:'meeting', slot:[1, 2], number:false,
-    count: key => cal.pedagogicMeetings[key] ? 1 : 0, open: date => openMeeting('ped', date)},
+    items: key => cal.pedagogicMeetings[key] ? [cal.pedagogicMeetings[key].subject] : [], open: date => openMeeting('ped', date)},
   {key:'ssd', label:'Συνεδρίαση Συλλόγου Διδασκόντων', aria:'συνεδρίαση Συλλόγου Διδασκόντων', tone:'ssd', icon:'meeting', slot:[2, 2], number:false,
-    count: key => cal.ssdMeetings[key] ? 1 : 0, open: date => openMeeting('ssd', date)}
+    items: key => cal.ssdMeetings[key] ? [cal.ssdMeetings[key].subject] : [], open: date => openMeeting('ssd', date)}
 ];
 // Rows of the dots: always all of them, so that every dot keeps its place.
 const DAY_ROWS = Math.max(...DAY_SECTIONS.map(section => section.slot[1]));
 // The sections that have content on a day, with their count.
-const daySections = key => DAY_SECTIONS.map(section => ({section, count: section.count(key)})).filter(item => item.count > 0);
+function daySections(key) {
+  return DAY_SECTIONS.filter(section => !filterTypes.size || filterTypes.has(section.key))
+    .map(section => ({section, count: section.items(key).filter(matchesEventTags).length}))
+    .filter(item => item.count > 0);
+}
 const noteId = () => crypto.randomUUID();
 // A cancelled confirmation inside a dialog: the dialog stays open and shows no error.
 const cancelled = () => Object.assign(Error('Η ενέργεια ακυρώθηκε.'), {name:'AbortError'});
@@ -520,6 +557,11 @@ function latestDate() {
 }
 function receiveContext(next) {
   const first = !context || context.school.year !== next.school.year;
+  schoolMenu.close();
+  if (first) {
+    filterTypes.clear();
+    filterTags = [];
+  }
   context = next;
   startYear = Number(String(next.school.year).slice(0, 4));
   cal = normalizeCalendar(next.calendar);
@@ -588,6 +630,119 @@ function applyZoom(value, report = true) {
   $('zoomOut').disabled = zoom <= zoomLimits.min; $('zoomIn').disabled = zoom >= zoomLimits.max;
   if (report && changed) { post({type:'school-calendar:zoom', zoom}); if (context) { if (currentView === 'year') renderYear(); else fitMonthIndicators(); } }
 }
+
+// ---- Calendar filters (view state only) ----
+function matchesEventTags(item) {
+  return filterTags.every(ref => (item.tags || []).some(tag => G.same(ref, tag)));
+}
+
+function typeChip(section) {
+  const chip = document.createElement('span');
+  chip.className = 'school-tag cal-filter-type cal-ind-' + section.tone;
+  chip.innerHTML = schoolIconText(section.icon, section.label);
+  return chip;
+}
+
+function renderFilterChips() {
+  const data = tagData();
+  filterTags = filterTags.filter(ref => !G.resolve(ref, data).missing);
+  const types = DAY_SECTIONS.filter(section => filterTypes.has(section.key)).map(section => {
+    const chip = typeChip(section);
+    schoolTags.makeRemovable(chip, 'Αφαίρεση τύπου: ' + section.label, () => {
+      filterTypes.delete(section.key);
+      render();
+      $('filters').focus();
+    });
+    return chip;
+  });
+  const onRemove = ref => {
+    filterTags = filterTags.filter(tag => !G.same(tag, ref));
+    render();
+    $('filters').focus();
+  };
+  const fixed = schoolTags.chips(filterTags.filter(ref => ref.type !== 'general'), data, {onRemove});
+  const general = schoolTags.chips(filterTags.filter(ref => ref.type === 'general'), data, {onRemove});
+  $('typeFilterChips').replaceChildren(...types);
+  $('fixedFilterChips').replaceChildren(...fixed.children);
+  $('generalFilterChips').replaceChildren(...general.children);
+}
+
+function openFilters() {
+  const button = $('filters');
+  if (button.getAttribute('aria-expanded') === 'true') {
+    schoolMenu.close();
+    button.focus();
+    return;
+  }
+  const panel = document.createElement('div'); panel.className = 'cal-filter-panel';
+  const types = document.createElement('div'); types.className = 'cal-filter-options';
+  const checkboxes = DAY_SECTIONS.map(section => {
+    const label = document.createElement('label'); label.className = 'school-tag-option';
+    const box = document.createElement('input'); box.type = 'checkbox'; box.checked = filterTypes.has(section.key);
+    box.addEventListener('change', () => {
+      if (box.checked) filterTypes.add(section.key);
+      else filterTypes.delete(section.key);
+      render();
+    });
+    label.append(box, typeChip(section));
+    types.append(label);
+    return box;
+  });
+  const tagPicker = types => schoolTags.inlinePicker({
+    types, refs: filterTags.filter(ref => types.includes(ref.type)), data: tagData(),
+    onChange: refs => {
+      filterTags = [...filterTags.filter(ref => !types.includes(ref.type)), ...refs];
+      render();
+    }
+  });
+  const sideLayout = matchMedia('(min-width:720px) and (min-height:400px)');
+  const fixed = tagPicker(['staff', 'class', 'student']), general = tagPicker(['general']);
+  const submenus = [
+    ['Τύποι γεγονότων', types],
+    ['Σταθερές ετικέτες', fixed.element],
+    ['Γενικές ετικέτες', general.element]
+  ].map(([label, content], index) => {
+    const toggle = document.createElement('button'); toggle.type = 'button'; toggle.className = 'ui-menu-item';
+    toggle.innerHTML = schoolIconText('chevron-right', label, {end:true});
+    const category = document.createElement('div'); category.className = 'cal-filter-category';
+    content.classList.add('cal-filter-submenu');
+    content.classList.toggle('ui-menu', sideLayout.matches);
+    content.id = 'cal-filter-options-' + index;
+    content.hidden = true;
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.setAttribute('aria-controls', content.id);
+    category.append(toggle, content);
+    panel.append(category);
+    return {toggle, content};
+  });
+  for (const {toggle, content} of submenus) {
+    toggle.addEventListener('click', () => {
+      const open = content.hidden;
+      for (const submenu of submenus) {
+        const visible = open && submenu.content === content;
+        submenu.content.hidden = !visible;
+        submenu.toggle.setAttribute('aria-expanded', String(visible));
+      }
+      if (open) content.querySelector('input[type="search"]')?.focus();
+    });
+  }
+  const divider = document.createElement('div'); divider.className = 'ui-menu-separator'; divider.setAttribute('role', 'separator');
+  const clear = document.createElement('button'); clear.type = 'button'; clear.className = 'ui-menu-item'; clear.textContent = 'Καθαρισμός φίλτρων';
+  clear.addEventListener('click', () => {
+    filterTypes.clear(); filterTags = [];
+    for (const box of checkboxes) box.checked = false;
+    fixed.setRefs([]); general.setRefs([]);
+    render();
+  });
+  panel.append(divider, clear);
+  const updateSubmenuLayout = () => {
+    for (const {content} of submenus) content.classList.toggle('ui-menu', sideLayout.matches);
+  };
+  sideLayout.addEventListener('change', updateSubmenuLayout);
+  schoolMenu.open(button, [], {label:'Φίλτρα ημερολογίου', align:'start', content:panel})
+    .finally(() => sideLayout.removeEventListener('change', updateSubmenuLayout));
+}
+$('filters').addEventListener('click', openFilters);
 
 // ---- Rendering ----
 // The indicators of a day cell: one button per section with content, which opens that section.
@@ -702,7 +857,7 @@ function renderYear() {
   grid.style.gridTemplateColumns = `${labelWidth}px repeat(31,minmax(28px,1fr))`;
   grid.style.gridTemplateRows = `calc(34px * var(--scale)) repeat(12, ${cellSize}px)`;
 }
-function render() { if (!context) return; if (currentView === 'year') renderYear(); else renderMonth(); }
+function render() { if (!context) return; renderFilterChips(); if (currentView === 'year') renderYear(); else renderMonth(); }
 function setView(view) {
   currentView = view;
   const annual = view === 'year';
@@ -733,7 +888,7 @@ async function openDayActions(date) {
   const key = dateKey(date);
   while (true) {
     // On returning from an entry, refresh the indicators and show the same day's choices again.
-    const has = DAY_SECTIONS.map(section => section.count(key) > 0);
+    const has = DAY_SECTIONS.map(section => section.items(key).length > 0);
     const choice = await schoolChoiceDialog({
       title: longDate(date), className: 'cal-day-actions',
       // Each choice has the icon of its section in the calendar, in the colour of its section (.cal-ind-<tone>).
