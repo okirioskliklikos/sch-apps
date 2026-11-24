@@ -723,6 +723,7 @@ function openFilters() {
         submenu.content.hidden = !visible;
         submenu.toggle.setAttribute('aria-expanded', String(visible));
       }
+      if (open) content.querySelector('input[type="search"]')?.focus();
     });
   }
   const divider = document.createElement('div'); divider.className = 'ui-menu-separator'; divider.setAttribute('role', 'separator');
