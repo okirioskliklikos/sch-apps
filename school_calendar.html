@@ -36,14 +36,14 @@
 .cal-filter-chips{display:grid;gap:5px;min-width:0;padding-block:4px}
 .cal-filter-chips:not(:has(.school-tag)){display:none}
 .cal-filterbar .school-tag-label>.ui-icon-text{display:block;overflow:hidden;text-overflow:ellipsis}
-.cal-filter-panel{width:min(220px,calc(100vw - 28px));min-width:0}
+.ui-menu:has(>.cal-filter-panel),.cal-filter-submenu.ui-menu{width:max-content;min-width:0}
 .cal-filter-options{padding:2px 6px}
 .cal-filter-category>button[aria-expanded="true"]{background:var(--school-ui-primary-bg);color:var(--school-ui-primary-text)}
 @media(min-width:720px) and (min-height:400px){
   .ui-menu:has(>.cal-filter-panel){overflow:visible}
   .cal-filter-category{position:relative}
   .cal-filter-submenu.ui-menu{
-    position:absolute;top:0;left:calc(100% + 10px);width:320px;max-height:min(50dvh,calc(100dvh - 240px))
+    position:absolute;top:0;left:calc(100% + 10px);max-height:min(50dvh,calc(100dvh - 240px))
   }
 }
 .cal-filter-options .school-tag,.cal-filter-options .ui-icon-text{white-space:normal}
