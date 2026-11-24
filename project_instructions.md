@@ -5,22 +5,127 @@
 Ό,τι σημειώνεται **(σχεδιάζεται)** έχει αποφασιστεί αλλά δεν υπάρχει ακόμη στον κώδικα.
 
 ## Χάρτης οδηγιών
-Οι οδηγίες χωρίζονται σε αρχεία, ώστε να μη διαβάζονται ολόκληρες σε κάθε εργασία. Το παρόν αρχείο διαβάζεται πάντα ολόκληρο. Από τα αρχεία του φακέλου `docs/` διαβάζεται ολόκληρο κάθε αρχείο που αφορά την εργασία, σύμφωνα με τον πίνακα· αν δεν είναι σίγουρο ότι ένα αρχείο δεν την αφορά, διαβάζεται. Όλα τα αρχεία οδηγιών έχουν το ίδιο κύρος.
+Οι οδηγίες χωρίζονται σε αρχεία, ώστε να μη διαβάζονται ολόκληρες σε κάθε εργασία. Όλα τα αρχεία οδηγιών έχουν το ίδιο κύρος. Ο Χάρτης είναι η μόνη λίστα που ορίζει ποια αρχεία οδηγιών διαβάζονται και τι προϋποθέτει το καθένα.
 
-| Αρχείο | Περιέχει | Διαβάζεται όταν η εργασία |
-|---|---|---|
-| `project_instructions.md` | Αρχεία, αρχεία δοκιμής, εικονίδια και κεφαλίδα, βιβλιοθήκες, εκδόσεις, κοινό αρχείο `.data` και Δεδομένα Προσωπικού, δήλωση νέας υποεφαρμογής, πρωτόκολλο host ↔ υποεφαρμογή, συμπεριφορά υποεφαρμογής, Κεντρικό Μενού, τρόπος δουλειάς | πάντα |
-| `docs/shared_code.md` | Κοινό CSS (`_ui.css`, `_subapp.css`), κοινός κώδικας JS (`_ui.js`), κοινός κώδικας δεδομένων (`_data*.js`) | γράφει ή αλλάζει κώδικα (σχεδόν κάθε εργασία κώδικα), ή αφορά τα κοινά αρχεία |
-| `docs/timetables.md` | Ώρες Διδασκαλίας (αυτόματες ετικέτες FET), Προγράμματα (`timetablesByYear`): περίοδοι, δραστηριότητες, είδη, ποιος κάνει τι, εισαγωγές, επικύρωση, πρωτόκολλο `school-timetables:*` | αφορά τις Ώρες Διδασκαλίας, τα Σχολικά Προγράμματα, το Πλήρες Σχολικό Πρόγραμμα (FET Timetable Editor), τον Ολοήμερο Designer ή τα Ατομικά Προγράμματα, ή διαβάζει ή γράφει προγράμματα (π.χ. Documents Templater, «Έλεγχος από το πρόγραμμα» του Ημερολογίου, αλλαγές στο Προσωπικό) |
-| `docs/school_programs.md` | Σχολικά Προγράμματα: αποφάσεις και ιστορικό της αναδιοργάνωσης των εφαρμογών προγραμμάτων (υλοποιήθηκε στα Βήματα 1–7γ): Πλήρες Σχολικό Πρόγραμμα, επίσημες περίοδοι και προσχέδια περιόδων, αρχική και τρέχουσα κατάσταση, ζώνες ωρών, αντίγραφα ασφαλείας. Ό,τι ισχύει είναι στο `docs/timetables.md` | χρειάζεται τον λόγο μιας απόφασης για τα Σχολικά Προγράμματα, το Πλήρες Σχολικό Πρόγραμμα, τον Ολοήμερο Designer ή τα Ατομικά Προγράμματα, ή αλλάζει κάτι που αποφασίστηκε εκεί |
-| `docs/classes_students.md` | Τμήματα (`classesByYear`), Μαθητές (`studentsByYear`) | αφορά τα Τμήματα ή τους Μαθητές, ή διαβάζει ή γράφει τμήματα ή μαθητές (π.χ. εισαγωγές προγραμμάτων, υπεύθυνοι τμημάτων, αλλαγές στο Προσωπικό) |
-| `docs/calendar.md` | Σχολικό Ημερολόγιο (`calendarByYear`) | αφορά το Σχολικό Ημερολόγιο |
-| `docs/tags.md` | Ετικέτες (`tagsByYear`) | αφορά τις ετικέτες, ή διαγράφει εκπαιδευτικούς, μαθητές ή τμήματα |
-| `docs/templater.md` | Documents Templater — πεδία από το κοινό αρχείο | αφορά τον Documents Templater ή το `SchoolDocumentFields` |
-| `docs/open_issues.md` | Ανοιχτά θέματα για αργότερα | όταν το ζητήσω, ή για να δεις αν ένα θέμα που προέκυψε είναι ήδη καταγεγραμμένο |
+### Ποια αρχεία διαβάζονται
+1. Το παρόν αρχείο διαβάζεται πάντα ολόκληρο. Για εργασία που αφορά μόνο τις οδηγίες ή τη διαδικασία συνεργασίας αρκεί αυτό, μαζί με τα αρχεία οδηγιών που αλλάζουν.
+2. Για κάθε εργασία που γράφει ή αλλάζει κώδικα σελίδας ή UI διαβάζονται επίσης το `docs/core/subapp.md` και το `docs/shared/ui_base.md`. Για κάθε εργασία που αγγίζει δεδομένα του `.data` διαβάζεται το `docs/core/data_model.md`.
+3. Από τον Πίνακα Α διαβάζονται τα αρχεία κάθε αρχείου κώδικα που η εργασία χρησιμοποιεί ή αλλάζει, και από τον Πίνακα Β τα αρχεία κάθε θέματος της εργασίας. Τα αποτελέσματα ενώνονται και κάθε αρχείο διαβάζεται μία φορά.
+4. Για κάθε αρχείο που προκύπτει διαβάζονται και όσα γράφει ο Πίνακας Γ («Προϋποθέτει»). Ο Πίνακας Γ είναι πλήρης: κάθε γραμμή έχει ήδη και τις εξαρτήσεις των εξαρτήσεων, οπότε δεν χρειάζεται να ακολουθηθεί αλυσίδα.
+5. Αν δεν είναι σίγουρο ότι ένα αρχείο δεν αφορά την εργασία, διαβάζεται.
 
+### Κανόνες ανάγνωσης και ανάκτησης
+- **Πλήρης ανάγνωση χωρίς όριο βάθους:** κάθε αρχείο οδηγιών που απαιτείται διαβάζεται ολόκληρο. Αν κατά την εξέταση του κώδικα φανεί ότι χρειάζεται και άλλη οδηγία που δεν προκύπτει από τον Χάρτη, διαβάζεται κι αυτή, σε όποιο επίπεδο εξάρτησης κι αν βρίσκεται, πριν από την υλοποίηση. Δεν ακολουθούνται ιστορικές ή ενδεικτικές παραπομπές που δεν αφορούν την εργασία. Το ίδιο αρχείο, στην ίδια έκδοση, δεν ξαναδιαβάζεται στην ίδια εργασία. Η αναζήτηση ενός συμβόλου στον κώδικα δεν αντικαθιστά την ανάγνωση των οδηγιών που ορίζουν τη χρήση του.
+- **Εντοπισμός, χρήση και τροποποίηση κοινού κώδικα** (`_ui.js`, `_ui.css`, `_subapp.css`, `_data*.js`, `_host_*.js`):
+  - Εντοπισμός: όταν ένα μεγάλο κοινό αρχείο ανοίγει μόνο για να βρεθεί ένα component ή μια συνάρτηση, δεν διαβάζονται οι οδηγίες των άσχετων components του.
+  - Χρήση: όταν η εργασία χρησιμοποιεί ένα component ή μια συνάρτηση, διαβάζονται οι οδηγίες του (Πίνακας Β) και όσα προϋποθέτουν.
+  - Τροποποίηση: όταν αλλάζει ένα κοινό component ή API, οι καταναλωτές του βρίσκονται με αναζήτηση στον κώδικα όλων των αρχείων της σουίτας. Οι οδηγίες μιας εφαρμογής-καταναλωτή διαβάζονται όταν αλλάζει ορατή συμπεριφορά ή API που χρησιμοποιεί, και η εφαρμογή αναφέρεται στην περιγραφή του PR. Ισχύουν και οι κανόνες για τα κοινά αρχεία του «Τρόπου δουλειάς».
+- **Περικομμένη ανάκτηση:** όταν η ανάκτηση ενός αρχείου οδηγιών ή ενός αναγκαίου αρχείου κώδικα επιστρέφει περικομμένο περιεχόμενο, η ανάγνωση συνεχίζει σε μικρότερα διαδοχικά τμήματα, μέχρι να διαβαστεί ολόκληρο το αρχείο· αν ένα τμήμα περικόπτεται ακόμη, μικραίνει. Όλα τα τμήματα διαβάζονται από το ίδιο commit (το SHA του `dev` που καταγράφεται στην αρχή της εργασίας). Η ανάγνωση είναι πλήρης όταν τα τμήματα καλύπτουν συνεχόμενα από την πρώτη ως την τελευταία γραμμή, και ο συνολικός αριθμός γραμμών ή το μέγεθος συμφωνεί με αυτό που δίνει το εργαλείο για το ίδιο commit. Η περικοπή δεν είναι λόγος να σταματήσει η εργασία ή να ανοίξει νέα συνομιλία. Αν ένας τεχνικός περιορισμός δεν επιτρέπει πλήρη ανάγνωση, ενημερώνεται ο χρήστης και η υλοποίηση δεν συνεχίζει με υποθέσεις ή παλιά αντίγραφα.
+- **Ιχνηλασιμότητα:** η πρόταση υλοποίησης και η περιγραφή του PR αναφέρουν ποια αρχεία οδηγιών διαβάστηκαν. Αν ο Χάρτης αποδειχθεί ελλιπής, διορθώνεται στο ίδιο PR· ο κανόνας που έλειπε δεν παρακάμπτεται.
+
+### Αρχεία οδηγιών
+Όλα κάτω από το `docs/`, εκτός από το παρόν.
+
+| Αρχείο | Περιέχει |
+|---|---|
+| `core/architecture.md` | Αρχεία της σουίτας και αρμοδιότητες (υποεφαρμογές, `_host_*.js`), δήλωση νέας υποεφαρμογής, πρωτόκολλο host ↔ υποεφαρμογή, αριστερή μπάρα του Κεντρικού Μενού, κοινό CSS του index, `schoolHost` |
+| `core/data_model.md` | Κοινό αρχείο `.data`, μέγεθος και όρια πλήθους, αναφορές με `id`, διαγραφές εκπαιδευτικών, μαθητών και τμημάτων |
+| `core/subapp.md` | Εικονίδια και γραμμή βάσης της κεφαλίδας, αναδίπλωση, ☰, συμπεριφορά υποεφαρμογής, `schoolEscape` |
+| `core/testing.md` | `data_test.html`, αρχεία δοκιμής και τι ελέγχεται με αυτά |
+| `shared/ui_base.md` | Κοινό CSS: μεταβλητές, ύψη, κουμπιά, σκελετός υποεφαρμογής, πλευρική στήλη, κλάσεις διάταξης, χρώματα |
+| `shared/icons.md` | `schoolIcon`, `schoolIconText`, `.ui-icon-text`, `BUTTON_ICONS`, εικονίδια εφαρμογών και διαλόγων |
+| `shared/dialogs.md` | Φόρτωση του `_ui.js`, `schoolConfirm`, `schoolMessage`, `schoolChoiceDialog`, `schoolProgramImport`, `schoolBackupConfirm`, `schoolColorPicker` |
+| `shared/components.md` | Ένδειξη κατάστασης περιόδου, λίστα περιόδων (`schoolPeriodSelect`), ζουμ (`.ui-zoom`), `schoolMenu`, `schoolProblems`, `schoolListSelection` |
+| `shared/richtext.md` | `schoolRichText`, `schoolTaggedText`, `SchoolHtml` |
+| `shared/tags.md` | Ετικέτες (`tagsByYear`), `schoolTags`, `SchoolTags`, `_host_tags.js` |
+| `shared/data_code.md` | Τα `_data*.js` και τι έχει το καθένα, `SchoolCsv`, `SchoolFet`, `SchoolText`, `SchoolDate`, `SchoolClasses`, `SchoolStudents` |
+| `apps/staff.md` | Προσωπικό (`staffByYear`): πεδία, αυτόματη συμπλήρωση, εξαγωγή |
+| `apps/teaching_hours.md` | Ώρες Διδασκαλίας, αυτόματες ετικέτες FET |
+| `apps/classes.md` | Τμήματα (`classesByYear`), νέα μορφή τμημάτων, υπεύθυνος τμήματος, εισαγωγές |
+| `apps/students.md` | Μαθητές (`studentsByYear`) |
+| `apps/calendar.md` | Σχολικό Ημερολόγιο (`calendarByYear`): δεδομένα, ημέρα, Προσωπικές Σημειώσεις, Βιβλίο Σχολικής Ζωής, ζουμ, εκτύπωση, πρωτόκολλο |
+| `apps/calendar_behavior.md` | Ποινές / Επιβραβεύσεις (`behaviorEvents`) |
+| `apps/calendar_meetings.md` | Συνεδριάσεις Συλλόγου Διδασκόντων, Παιδαγωγικές Συναντήσεις, «Έλεγχος από το πρόγραμμα» |
+| `apps/templater.md` | Documents Templater: φόρμα, «Ανεύρεση πεδίων», παραγωγή, πρότυπα XLSX με άγκυρες, πρωτόκολλο |
+| `apps/templater_fields.md` | Πεδία @ από το κοινό αρχείο, `SchoolDocumentFields` |
+| `timetables/model.md` | Προγράμματα (`timetablesByYear`): περίοδοι, πρόγραμμα, Ιστορικό, αρχική κατάσταση, δραστηριότητα, είδη, τελευταία επιλογή, ζουμ |
+| `timetables/api.md` | `SchoolTimetable` (`_data_timetable.js`, `_data_oloimero.js`) |
+| `timetables/composition.md` | Σύνθεση περιόδου, μετακίνηση δραστηριοτήτων, ώρες και διαθεσιμότητα εκπαιδευτικού |
+| `timetables/import.md` | Εισαγωγείς, εισαγωγέας FET, `source` προγράμματος από FET |
+| `timetables/backup.md` | Αντικατάσταση και διαγραφή, αντίγραφο ασφαλείας περιόδου, αντιγραφή περιόδου |
+| `timetables/host.md` | Επικύρωση και δικαιώματα στο host, πρωτόκολλο `school-timetables:*` |
+| `timetables/programs_page.md` | Σχολικά Προγράμματα (`timetables.html`) |
+| `timetables/full.md` | Πλήρες Σχολικό Πρόγραμμα (`fet_timetable_editor.html`) |
+| `timetables/oloimero.md` | Ολοήμερος Designer, `source` σχεδίου, εξαγωγή CSV για το FET |
+| `timetables/individual.md` | Ατομικά Προγράμματα (`individual_programs.html`) |
+| `timetables/decisions.md` | Σχολικά Προγράμματα: αποφάσεις και ιστορικό της αναδιοργάνωσης (Βήματα 1–7γ) |
+| `open_issues.md` | Ανοιχτά θέματα για αργότερα |
+
+### Πίνακας Α — ανά αρχείο κώδικα
+Όλες οι διαδρομές είναι μέσα στο `docs/`.
+
+| Αρχείο κώδικα | Διαβάζονται |
+|---|---|
+| Κάθε HTML υποεφαρμογής, `_ui.css`, `_subapp.css` | `core/subapp.md`, `shared/ui_base.md` |
+| `_ui.js` | `core/subapp.md`, `shared/ui_base.md`, το αρχείο του component που αφορά η εργασία (Πίνακας Β, πρώτη γραμμή), και `core/architecture.md` όταν αφορά το `schoolHost` ή τα μηνύματα προς το host |
+| `index.html` | `core/architecture.md`, `core/data_model.md`, και το αρχείο της εφαρμογής ή του θέματος που αφορά η αλλαγή |
+| `_host_timetables.js` | `core/architecture.md`, `core/data_model.md`, `core/testing.md`, `timetables/host.md` |
+| `_host_calendar.js` | `core/architecture.md`, `core/data_model.md`, `core/testing.md`, `apps/calendar.md`· και `apps/calendar_behavior.md` για τα Συμβάντα Ποινών / Επιβραβεύσεων, `apps/calendar_meetings.md` για τις συνεδριάσεις |
+| `_host_classes.js` | `core/architecture.md`, `core/data_model.md`, `core/testing.md`, `apps/classes.md` |
+| `_host_students.js` | `core/architecture.md`, `core/data_model.md`, `core/testing.md`, `apps/students.md` |
+| `_host_tags.js` | `core/architecture.md`, `core/data_model.md`, `core/testing.md`, `shared/tags.md` |
+| `_data.js` | `shared/data_code.md`, `core/testing.md`· και `shared/tags.md` για το `SchoolTags`, `apps/classes.md` για το `SchoolClasses`, `apps/students.md` για το `SchoolStudents`, `shared/richtext.md` για το `SchoolHtml` |
+| `_data_timetable.js` | `shared/data_code.md`, `core/testing.md`, `timetables/api.md`, `timetables/composition.md`, `timetables/import.md`, και το αρχείο της εφαρμογής-κατόχου του είδους που αλλάζει (`timetables/full.md`, `timetables/oloimero.md` ή `timetables/individual.md`) |
+| `_data_oloimero.js` | `shared/data_code.md`, `core/testing.md`, `timetables/api.md`, `timetables/import.md`, `timetables/oloimero.md` |
+| `_data_documents.js` | `shared/data_code.md`, `core/testing.md`, `apps/templater_fields.md` |
+| `data_test.html` | `core/testing.md` και οι οδηγίες του κώδικα που ελέγχεται |
+| `_lib_*.js` | «Βιβλιοθήκες» στο παρόν αρχείο |
+| `school_staff.html` | `apps/staff.md`, `core/data_model.md` |
+| `teaching_hours.html` | `apps/teaching_hours.md` |
+| `school_classes.html` | `apps/classes.md`, `core/data_model.md` |
+| `school_students.html` | `apps/students.md`, `core/data_model.md` |
+| `school_calendar.html` | `apps/calendar.md`· και `apps/calendar_behavior.md` / `apps/calendar_meetings.md` όταν αφορά τις αντίστοιχες λειτουργίες |
+| `documents_templater.html` | `apps/templater.md`· και `apps/templater_fields.md` για τα πεδία @ |
+| `timetables.html` | `timetables/programs_page.md`, `timetables/backup.md`, `timetables/import.md` |
+| `fet_timetable_editor.html` | `timetables/full.md` |
+| `oloimero_designer.html` | `timetables/oloimero.md`, `timetables/backup.md`, `timetables/import.md` |
+| `individual_programs.html` | `timetables/individual.md`, `timetables/backup.md` |
+
+### Πίνακας Β — ανά θέμα
+| Θέμα της εργασίας | Διαβάζονται |
+|---|---|
+| Χρήση ή αλλαγή κοινού component | Το αρχείο του: `shared/dialogs.md` (`schoolConfirm`, `schoolMessage`, `schoolChoiceDialog`, `schoolProgramImport`, `schoolBackupConfirm`, `schoolColorPicker`), `shared/components.md` (`.ui-period-status`, `schoolPeriodSelect`, `.ui-zoom`, `schoolMenu`, `schoolProblems`, `schoolListSelection`), `shared/richtext.md` (`schoolRichText`, `schoolTaggedText`, `SchoolHtml`), `shared/tags.md` (`schoolTags`, `SchoolTags`), `shared/icons.md` (`schoolIcon`, `schoolIconText`, `BUTTON_ICONS`, `.app-mark`) |
+| Νέο κείμενο κουμπιού ή νέο εικονίδιο | `shared/icons.md` |
+| Νέος διάλογος | `shared/dialogs.md`, `shared/icons.md` |
+| Ετικέτες, ή επιλογέας μαθητών, τμημάτων ή εκπαιδευτικών | `shared/tags.md` |
+| Διαγραφές, μετονομασίες ή αναφορές σε εκπαιδευτικούς, μαθητές ή τμήματα | `core/data_model.md`, `shared/tags.md` και το αρχείο της εφαρμογής από την οποία γίνεται η διαγραφή· επιπλέον το αρχείο κάθε εφαρμογής της οποίας ο κώδικας αλλάζει για να ακολουθήσει τη διαγραφή |
+| Νέα δεδομένα στο `.data`, νέο `xxxByYear`, όρια πλήθους, νέο μήνυμα host | `core/data_model.md`, `core/architecture.md` |
+| Νέα υποεφαρμογή | `core/architecture.md`, `core/subapp.md`, `shared/ui_base.md`, `shared/icons.md`· και `core/data_model.md` όταν έχει δικά της δεδομένα στο `.data` |
+| Κεφαλίδα, αριστερή μπάρα, στυλ | `core/subapp.md`, `shared/ui_base.md`· και `core/architecture.md` για την αριστερή μπάρα του Κεντρικού Μενού. Ισχύουν οι οπτικοί έλεγχοι του «Τρόπου δουλειάς» |
+| Ανάγνωση προγραμμάτων από άλλη εφαρμογή (π.χ. Ημερολόγιο, Templater, Προσωπικό) | `timetables/api.md`, `timetables/composition.md` |
+| Αποθήκευση προγραμμάτων, άνοιγμα εφαρμογής προγραμμάτων με στόχο, κοινή τρέχουσα περίοδος, δικαιώματα εγγραφής | `timetables/host.md` |
+| Επιλογή αρχείων, εισαγωγή ή εξαγωγή αρχείων, απόθεση αρχείων (`:file`, `:fet`, file handles) | `core/architecture.md`· και `timetables/import.md` όταν πρόκειται για προγράμματα |
+| Λόγος μιας απόφασης για τα Σχολικά Προγράμματα, το Πλήρες Σχολικό Πρόγραμμα, τον Ολοήμερο Designer ή τα Ατομικά Προγράμματα, ή αλλαγή σε κάτι που αποφασίστηκε εκεί | `timetables/decisions.md` |
+| Ανοιχτά θέματα | `open_issues.md`, όταν το ζητήσω, ή για να δεις αν ένα θέμα που προέκυψε είναι ήδη καταγεγραμμένο |
+| Έλεγχοι με το `data_test.html` | `core/testing.md` |
+
+### Πίνακας Γ — Προϋποθέτει
+| Αρχείο | Προϋποθέτει (πλήρης λίστα) |
+|---|---|
+| `timetables/programs_page.md` | `timetables/model.md`, `timetables/api.md`, `timetables/composition.md`, `timetables/host.md`, `shared/components.md` |
+| `timetables/full.md`, `timetables/oloimero.md`, `timetables/individual.md` | `timetables/model.md`, `timetables/api.md`, `timetables/composition.md`, `shared/components.md` |
+| `timetables/api.md`, `timetables/composition.md`, `timetables/host.md`, `timetables/import.md`, `timetables/backup.md` | `timetables/model.md` |
+| `apps/calendar.md` | `shared/tags.md`, `shared/richtext.md` |
+| `apps/calendar_behavior.md`, `apps/calendar_meetings.md` | `apps/calendar.md`, `shared/tags.md`, `shared/richtext.md` |
+| `apps/templater_fields.md` | `apps/templater.md`, `timetables/api.md`, `timetables/composition.md`, `timetables/model.md` |
+| `apps/students.md` | `apps/classes.md`, όταν η εργασία αφορά εισαγωγή μαθητών, αντιστοίχιση μαθητή σε τμήμα ή υπεύθυνο τμήματος |
+| `shared/tags.md` | `shared/richtext.md` |
+
+### Συντήρηση των οδηγιών
 - Οι διαδρομές των αρχείων οδηγιών γράφονται από τη ρίζα του repository. Μια παραπομπή σε ενότητα άλλου αρχείου οδηγιών γράφει και το αρχείο, π.χ. «Ετικέτες (`tagsByYear`)» στο `docs/shared/tags.md`.
-- Νέο κείμενο μπαίνει στο αρχείο του θέματός του. Ένα νέο μεγάλο θέμα (π.χ. νέα υποεφαρμογή με δικά της δεδομένα) παίρνει δικό του αρχείο στο `docs/` και γραμμή σε αυτόν τον πίνακα.
+- Νέο κείμενο μπαίνει στο αρχείο του θέματός του. Ένα νέο θέμα (π.χ. νέα υποεφαρμογή με δικά της δεδομένα) παίρνει δικό του αρχείο στον κατάλληλο φάκελο του `docs/`, και γραμμές στον κατάλογο και στους πίνακες του Χάρτη. Οι εξαρτήσεις γράφονται μόνο στον Πίνακα Γ, όχι στα ίδια τα αρχεία.
+- Μέγεθος ενός αρχείου του `docs/`: έως 15.000 χαρακτήρες επιθυμητό, έως 20.000 αποδεκτό, από 20.000 έως 25.000 εξετάζεται θεματικός διαχωρισμός, πάνω από 25.000 χωρίζεται όπου γίνεται. Είναι κανόνας συντήρησης: προτεραιότητα έχει η θεματική συνοχή, και δεν αφαιρούνται κανόνες για να μικρύνει ένα αρχείο. Εξαιρούνται το παρόν αρχείο και το `docs/timetables/model.md`, που διαβάζεται πάντα ολόκληρο από όσες εργασίες αγγίζουν προγράμματα.
+- Νέο κείμενο δεν γράφεται σε παραγράφους πάνω από περίπου 1.500 χαρακτήρες. Οι υπάρχουσες μεγάλες παράγραφοι χωρίζονται σταδιακά σε μικρότερες, σε κουκκίδες ή με επικεφαλίδες, χωρίς αλλαγή ουσίας.
 
 ## Αρχεία
 - Όλα τα αρχεία της σουίτας σε έναν φάκελο, χωρίς υποφακέλους. Ο φάκελος `docs/` του repository έχει μόνο μέρη των οδηγιών (βλέπε «Χάρτης οδηγιών») και δεν είναι μέρος της σουίτας.
