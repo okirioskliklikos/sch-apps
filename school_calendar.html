@@ -28,10 +28,13 @@
 /* ---- Workspace ---- */
 .cal-app{display:flex;flex-direction:column;flex:1;min-height:0;overflow:auto}
 .cal-app[hidden]{display:none}
-.cal-viewbar{display:flex;justify-content:flex-end;gap:6px;flex:none}
-.cal-filterbar{display:flex;align-items:flex-start;gap:6px;flex:none}
-.cal-filterbar>button{flex:none}
-.cal-filterbar>.school-tags{align-self:center}
+.page-main{padding-block-start:10px}
+.cal-toolbar{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex:none}
+.cal-viewbar{display:flex;gap:6px;flex:none}
+.cal-filterbar{display:flex;align-items:flex-start;gap:6px;min-width:0}
+.cal-filterbar>button{flex:none;border-radius:999px}
+.cal-filter-chips{display:grid;gap:5px;min-width:0;padding-block:4px}
+.cal-filter-chips:not(:has(.school-tag)){display:none}
 .cal-filterbar .school-tag-label>.ui-icon-text{display:block;overflow:hidden;text-overflow:ellipsis}
 .cal-filter-panel{width:min(320px,calc(100vw - 28px));min-width:0}
 .cal-filter-options{padding:2px 6px}
@@ -305,13 +308,19 @@
 <main id="root" class="page-main">
   <p id="connection" class="subapp-connection">Άνοιξε το «Σχολικό Ημερολόγιο» από το Κεντρικό Μενού, αφού ανοίξεις το αρχείο πληροφοριών του σχολείου. Απαιτείται η τελευταία έκδοση του index.html.</p>
   <div id="calendarApp" class="cal-app" hidden>
-    <div class="cal-viewbar" role="group" aria-label="Προβολή ημερολογίου">
-      <button id="monthViewBtn" class="ui-toggle cal-view-toggle" data-school-icon="calendar-month" type="button" aria-label="Προβολή μήνα" aria-pressed="false" title="Προβολή μήνα"></button>
-      <button id="yearViewBtn" class="ui-toggle cal-view-toggle" data-school-icon="calendar-year" type="button" aria-label="Προβολή σχολικού έτους" aria-pressed="true" title="Προβολή σχολικού έτους"></button>
-    </div>
-    <div class="cal-filterbar" role="group" aria-label="Φίλτρα ημερολογίου">
-      <button id="filters" type="button" aria-haspopup="dialog" aria-expanded="false">Φίλτρα…</button>
-      <div id="filterChips" class="school-tags"></div>
+    <div class="cal-toolbar">
+      <div class="cal-filterbar" role="group" aria-label="Φίλτρα ημερολογίου">
+        <button id="filters" type="button" aria-haspopup="dialog" aria-expanded="false" data-school-icon-end="chevron-down">Φίλτρα</button>
+        <div class="cal-filter-chips">
+          <div id="typeFilterChips" class="school-tags"></div>
+          <div id="fixedFilterChips" class="school-tags"></div>
+          <div id="generalFilterChips" class="school-tags"></div>
+        </div>
+      </div>
+      <div class="cal-viewbar" role="group" aria-label="Προβολή ημερολογίου">
+        <button id="monthViewBtn" class="ui-toggle cal-view-toggle" data-school-icon="calendar-month" type="button" aria-label="Προβολή μήνα" aria-pressed="false" title="Προβολή μήνα"></button>
+        <button id="yearViewBtn" class="ui-toggle cal-view-toggle" data-school-icon="calendar-year" type="button" aria-label="Προβολή σχολικού έτους" aria-pressed="true" title="Προβολή σχολικού έτους"></button>
+      </div>
     </div>
     <div class="monthbar" id="monthBar" hidden>
       <button class="monthnav ui-icon-button" id="prevMonth" type="button" aria-label="Προηγούμενος μήνας" title="Προηγούμενος μήνας" data-school-icon="chevron-left"></button>
@@ -637,12 +646,16 @@ function renderFilterChips() {
     });
     return chip;
   });
-  const tags = schoolTags.chips(filterTags, data, {onRemove: ref => {
+  const onRemove = ref => {
     filterTags = filterTags.filter(tag => !G.same(tag, ref));
     render();
     $('filters').focus();
-  }});
-  $('filterChips').replaceChildren(...types, ...tags.children);
+  };
+  const fixed = schoolTags.chips(filterTags.filter(ref => ref.type !== 'general'), data, {onRemove});
+  const general = schoolTags.chips(filterTags.filter(ref => ref.type === 'general'), data, {onRemove});
+  $('typeFilterChips').replaceChildren(...types);
+  $('fixedFilterChips').replaceChildren(...fixed.children);
+  $('generalFilterChips').replaceChildren(...general.children);
 }
 
 function openFilters() {
