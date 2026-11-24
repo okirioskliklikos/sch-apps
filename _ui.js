@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινές λειτουργίες περιβάλλοντος χρήστη
- * Έκδοση αρχείου: 0.58
+ * Έκδοση αρχείου: 0.59
  * Όνομα κατά την εγκατάσταση: _ui.js
  *
  * Φορτώνεται με <script src="_ui.js"></script> από το Κεντρικό Μενού και από κάθε υποεφαρμογή,
@@ -1637,17 +1637,22 @@
       const chip = tagChip(ref, data);
       if (typeof onRemove === 'function') {
         const label = chip.textContent;
-        chip.classList.add('is-removable');
-        const text = document.createElement('span'); text.className = 'school-tag-label'; text.textContent = label;
-        const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'school-tag-remove';
-        remove.innerHTML = schoolIcon('close'); remove.title = 'Αφαίρεση ετικέτας: ' + label;
-        remove.setAttribute('aria-label', remove.title);
-        remove.addEventListener('click', () => onRemove(ref));
-        chip.replaceChildren(text, remove);
+        makeChipRemovable(chip, 'Αφαίρεση ετικέτας: ' + label, () => onRemove(ref));
       }
       box.append(chip);
     }
     return box;
+  }
+
+  function makeChipRemovable(chip, label, onRemove) {
+    chip.classList.add('is-removable');
+    const text = document.createElement('span'); text.className = 'school-tag-label';
+    text.append(...chip.childNodes);
+    const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'school-tag-remove';
+    remove.innerHTML = schoolIcon('close'); remove.title = label;
+    remove.setAttribute('aria-label', label);
+    remove.addEventListener('click', onRemove);
+    chip.append(text, remove);
   }
 
   // Ο επιλογέας ετικετών. options: {title, refs, data, usage(id) → [{one, many, count}], limits:{tags, tagsPerItem, warnRatio}}
@@ -1662,12 +1667,12 @@
   //   texts      {search, selected, limit}: το κείμενο της αναζήτησης, «Επιλεγμένες» και το όριο στο μήνυμα
   //              («ετικετών ανά στοιχείο»)
   //   selectAll  true: κάθε ομάδα με επιλογές (π.χ. οι μαθητές ενός τμήματος) έχει «Επιλογή όλων» / «Καμία επιλογή»
-  function tagPick(options = {}) {
+  function createTagPicker(options, live = false) {
     const Tags = tagsLib(), C = window.SchoolClasses, T = window.SchoolTimetable, S = window.SchoolStudents;
     const base = options.data || {};
     let registry = structuredClone(base.tags || {general: [], colors: {}});
     const dataNow = () => ({...base, tags: registry});
-    const perItem = Number(options.max) || Number(options.limits?.tagsPerItem) || 40;
+    const perItem = live ? Infinity : Number(options.max) || Number(options.limits?.tagsPerItem) || 40;
     const texts = {search: 'Αναζήτηση ετικέτας…', selected: 'Επιλεγμένες', limit: 'ετικετών ανά στοιχείο', ...(options.texts || {})};
     const allTypes = ['staff', 'class', 'student', 'general'];
     const types = Array.isArray(options.types) && options.types.length ? allTypes.filter(type => options.types.includes(type)) : allTypes;
@@ -1683,7 +1688,9 @@
     search.placeholder = texts.search; search.setAttribute('aria-label', texts.search.replace(/…$/, ''));
     const status = document.createElement('p'); status.className = 'school-tag-status'; status.setAttribute('role', 'status');
     const groups = document.createElement('div'); groups.className = 'school-tag-groups';
-    root.append(search, status, groups);
+    root.append(search);
+    if (!live) root.append(status);
+    root.append(groups);
     const checkboxes = [], allButtons = [];
     let openState = {};
     const refreshLimit = () => {
@@ -1693,10 +1700,12 @@
       status.classList.toggle('ui-validation-warning', full);
       for (const refresh of allButtons) refresh();
     };
+    const refsNow = () => Tags.sort([...selected.values()], dataNow());
+    const selectionChanged = () => { refreshLimit(); options.onChange?.(refsNow()); };
     const item = ref => {
       const label = document.createElement('label'); label.className = 'school-tag-option';
       const box = document.createElement('input'); box.type = 'checkbox'; box.checked = selected.has(keyOf(ref));
-      box.onchange = () => { if (box.checked) selected.set(keyOf(ref), ref); else selected.delete(keyOf(ref)); refreshLimit(); };
+      box.onchange = () => { if (box.checked) selected.set(keyOf(ref), ref); else selected.delete(keyOf(ref)); selectionChanged(); };
       box.ref = ref;
       const chip = tagChip(ref, dataNow());
       label.dataset.search = tagSearchKey(chip.textContent);
@@ -1796,21 +1805,39 @@
     };
     search.addEventListener('input', filter);
     search.addEventListener('keydown', event => { if (event.key === 'Enter') event.preventDefault(); });
+    const setRegistry = next => {
+      registry = next;
+      const ids = new Set((registry.general || []).map(tag => tag.id));
+      for (const [key, ref] of selected) if (ref.type === 'general' && !ids.has(ref.id)) selected.delete(key);
+      build();
+    };
+    const setRefs = refs => {
+      selected.clear();
+      for (const ref of Tags.clean(refs)) selected.set(keyOf(ref), ref);
+      for (const box of checkboxes) box.checked = selected.has(keyOf(box.ref));
+      refreshLimit();
+    };
+    return {root, search, build, refsNow, setRegistry, setRefs, dataNow};
+  }
+
+  function tagInlinePicker(options = {}) {
+    const picker = createTagPicker({...options, manage: false}, true);
+    picker.build();
+    return {element: picker.root, setRefs: picker.setRefs};
+  }
+
+  function tagPick(options = {}) {
+    const {root, search, build, refsNow, setRegistry, dataNow} = createTagPicker(options);
     return schoolChoiceDialog({
       title: options.title || 'Ετικέτες', content: root, className: 'school-tag-dialog',
       actions: [
         ...(options.manage === false ? [] : [{label: 'Διαχείριση ετικετών…', run: async () => {
-          const next = await tagManage({tags: registry, usage: options.usage, limits: options.limits});
-          if (next) {
-            registry = next;
-            const ids = new Set((registry.general || []).map(tag => tag.id));
-            for (const [key, ref] of selected) if (ref.type === 'general' && !ids.has(ref.id)) selected.delete(key);
-            build();
-          }
+          const next = await tagManage({tags: dataNow().tags, usage: options.usage, limits: options.limits});
+          if (next) setRegistry(next);
           search.focus();
           throw tagCancelled();
         }}]),
-        {label: options.accept || 'Εφαρμογή', accept: true, run: () => ({refs: Tags.sort([...selected.values()], dataNow()), tags: registry})},
+        {label: options.accept || 'Εφαρμογή', accept: true, run: () => ({refs: refsNow(), tags: dataNow().tags})},
         {label: 'Ακύρωση'}
       ],
       ready: () => { build(); search.focus(); }
@@ -1927,7 +1954,7 @@
       }
     });
   }
-  const schoolTags = Object.freeze({chips: tagChips, chip: tagChip, pick: tagPick, manage: tagManage, usageText: tagUsageText});
+  const schoolTags = Object.freeze({chips: tagChips, chip: tagChip, makeRemovable: makeChipRemovable, inlinePicker: tagInlinePicker, pick: tagPick, manage: tagManage, usageText: tagUsageText});
 
   // ---- Κείμενο με μορφοποίηση και ετικέτες (window.schoolTaggedText) ----
   // Ένα πλαίσιο με μορφοποιημένο κείμενο και ετικέτες, που αλλάζει μέσα στη θέση του. Προβολή: το κείμενο (ή το
@@ -2246,7 +2273,9 @@
     }
     return new Promise(resolve => {
       const menu = document.createElement('div');
-      menu.className = 'ui-menu'; menu.setAttribute('role', 'menu'); menu.tabIndex = -1;
+      const content = options.content;
+      menu.className = 'ui-menu'; menu.setAttribute('role', content ? 'dialog' : 'menu'); menu.tabIndex = -1;
+      if (content) menu.append(content);
       if (options.label) menu.setAttribute('aria-label', options.label);
       for (const item of items || []) {
         if (!item) continue;
@@ -2267,19 +2296,30 @@
       if (menu.lastElementChild?.classList.contains('ui-menu-separator')) menu.lastElementChild.remove();
       const enabled = () => [...menu.querySelectorAll('.ui-menu-item:not(:disabled)')];
       const onKey = event => {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          event.stopPropagation();
+          close(null, true);
+          return;
+        }
+        if (content) return;
         const list = enabled(), index = list.indexOf(document.activeElement);
-        if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(null, true); }
-        else if (event.key === 'Tab') close(null, false);
+        if (event.key === 'Tab') close(null, false);
         else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
           event.preventDefault();
           if (list.length) list[(index + (event.key === 'ArrowDown' ? 1 : -1) + list.length) % list.length].focus();
         } else if (event.key === 'Home' || event.key === 'End') { event.preventDefault(); list[event.key === 'Home' ? 0 : list.length - 1]?.focus(); }
       };
       const onPointer = event => { if (!menu.contains(event.target) && !anchor?.contains(event.target)) close(null, false); };
-      const onMove = event => { if (!menu.contains(event.target)) close(null, false); };
+      const onMove = event => {
+        if (menu.contains(event.target)) return;
+        if (content) position();
+        else close(null, false);
+      };
       function close(value, restoreFocus) {
         if (activeMenu?.menu !== menu) return;
         activeMenu = null;
+        if (content) document.removeEventListener('keydown', onKey, true);
         document.removeEventListener('pointerdown', onPointer, true);
         window.removeEventListener('resize', onMove);
         window.removeEventListener('scroll', onMove, true);
@@ -2288,23 +2328,33 @@
         if (restoreFocus && anchor?.isConnected) anchor.focus();
         resolve(value);
       }
-      menu.addEventListener('keydown', onKey);
+      if (content) document.addEventListener('keydown', onKey, true);
+      else menu.addEventListener('keydown', onKey);
       document.body.append(menu);
       activeMenu = {menu, anchor, close};
-      anchor?.setAttribute('aria-haspopup', 'menu');
+      anchor?.setAttribute('aria-haspopup', content ? 'dialog' : 'menu');
       anchor?.setAttribute('aria-expanded', 'true');
       // Under the button, inside the window: above it when there is no room below.
-      const rect = anchor ? anchor.getBoundingClientRect() : {left: 8, right: 8, top: 8, bottom: 8};
-      const width = menu.offsetWidth, height = menu.offsetHeight, gap = 4, margin = 8;
-      let left = options.align === 'start' ? rect.left : rect.right - width;
-      left = Math.max(margin, Math.min(left, window.innerWidth - width - margin));
-      let top = rect.bottom + gap;
-      if (top + height > window.innerHeight - margin && rect.top - gap - height >= margin) top = rect.top - gap - height;
-      menu.style.left = left + 'px'; menu.style.top = Math.max(margin, top) + 'px';
+      function position() {
+        const rect = anchor ? anchor.getBoundingClientRect() : {left: 8, right: 8, top: 8, bottom: 8};
+        const gap = 4, margin = 8;
+        const below = window.innerHeight - rect.bottom - gap - margin;
+        const above = rect.top - gap - margin;
+        if (content) menu.style.maxHeight = Math.max(0, below) + 'px';
+        const aboveAnchor = content ? menu.scrollHeight > menu.clientHeight && above > below
+          : menu.offsetHeight > below && menu.offsetHeight <= above;
+        if (content && aboveAnchor) menu.style.maxHeight = above + 'px';
+        const width = menu.offsetWidth;
+        const left = options.align === 'start' ? rect.left : rect.right - width;
+        const top = aboveAnchor ? rect.top - gap - menu.offsetHeight : rect.bottom + gap;
+        menu.style.left = Math.max(margin, Math.min(left, window.innerWidth - width - margin)) + 'px';
+        menu.style.top = Math.max(margin, top) + 'px';
+      }
+      position();
       document.addEventListener('pointerdown', onPointer, true);
       window.addEventListener('resize', onMove);
       window.addEventListener('scroll', onMove, true);
-      (enabled()[0] || menu).focus();
+      (content?.querySelector('button') || enabled()[0] || menu).focus();
     });
   }
   const schoolMenu = Object.freeze({open: openSchoolMenu, close: () => activeMenu?.close(null, false)});
