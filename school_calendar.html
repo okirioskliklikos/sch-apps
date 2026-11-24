@@ -38,6 +38,17 @@
 .cal-filterbar .school-tag-label>.ui-icon-text{display:block;overflow:hidden;text-overflow:ellipsis}
 .cal-filter-panel{width:min(320px,calc(100vw - 28px));min-width:0}
 .cal-filter-options{padding:2px 6px}
+.cal-filter-submenu-arrow-side{display:none}
+.cal-filter-category>button[aria-expanded="true"]{background:var(--school-ui-primary-bg);color:var(--school-ui-primary-text)}
+@media(min-width:720px) and (min-height:400px){
+  .ui-menu:has(>.cal-filter-panel){overflow:visible}
+  .cal-filter-category{position:relative}
+  .cal-filter-submenu.ui-menu{
+    position:absolute;top:0;left:calc(100% + 10px);width:100%;max-height:min(50dvh,calc(100dvh - 240px))
+  }
+  .cal-filter-submenu-arrow-side{display:inline}
+  .cal-filter-submenu-arrow-down{display:none}
+}
 .cal-filter-options .school-tag,.cal-filter-options .ui-icon-text{white-space:normal}
 .cal-filter-panel .school-tag,.cal-filterbar .school-tag{--ui-icon-text-size:var(--school-ui-icon-size-small)}
 .cal-filter-type{--school-tag-bg:var(--ind-bg);--school-tag-ink:var(--ind-ink);--school-tag-border:var(--ind-line)}
@@ -686,6 +697,7 @@ function openFilters() {
       render();
     }
   });
+  const sideLayout = matchMedia('(min-width:720px) and (min-height:400px)');
   const fixed = tagPicker(['staff', 'class', 'student']), general = tagPicker(['general']);
   const submenus = [
     ['Τύποι γεγονότων', types],
@@ -694,11 +706,19 @@ function openFilters() {
   ].map(([label, content], index) => {
     const toggle = document.createElement('button'); toggle.type = 'button'; toggle.className = 'ui-menu-item';
     toggle.innerHTML = schoolIconText('chevron-down', label, {end:true});
+    const arrow = toggle.querySelector('svg');
+    arrow.classList.add('cal-filter-submenu-arrow-down');
+    arrow.insertAdjacentHTML('afterend', schoolIcon('chevron-right'));
+    arrow.nextElementSibling.classList.add('cal-filter-submenu-arrow-side');
+    const category = document.createElement('div'); category.className = 'cal-filter-category';
+    content.classList.add('cal-filter-submenu');
+    content.classList.toggle('ui-menu', sideLayout.matches);
     content.id = 'cal-filter-options-' + index;
     content.hidden = true;
     toggle.setAttribute('aria-expanded', 'false');
     toggle.setAttribute('aria-controls', content.id);
-    panel.append(toggle, content);
+    category.append(toggle, content);
+    panel.append(category);
     return {toggle, content};
   });
   for (const {toggle, content} of submenus) {
@@ -720,7 +740,12 @@ function openFilters() {
     render();
   });
   panel.append(divider, clear);
-  schoolMenu.open(button, [], {label:'Φίλτρα ημερολογίου', align:'start', content:panel});
+  const updateSubmenuLayout = () => {
+    for (const {content} of submenus) content.classList.toggle('ui-menu', sideLayout.matches);
+  };
+  sideLayout.addEventListener('change', updateSubmenuLayout);
+  schoolMenu.open(button, [], {label:'Φίλτρα ημερολογίου', align:'start', content:panel})
+    .finally(() => sideLayout.removeEventListener('change', updateSubmenuLayout));
 }
 $('filters').addEventListener('click', openFilters);
 
