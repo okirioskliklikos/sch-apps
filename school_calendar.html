@@ -97,8 +97,9 @@
 :is(.year-day,.day.cal-compact) .cal-ind::before{content:"";width:min(8px,80%);aspect-ratio:1;border-radius:50%;background:var(--ind-dot)}
 :is(.year-day,.day.cal-compact) .cal-ind:hover::before{box-shadow:0 0 0 2px var(--ind-line)}
 /* Filters: a meeting where the selected teachers are only absent has a hollow indicator (dot with an empty centre,
-   chip with a dashed frame and no fill). */
+   chip with a dashed frame and icon and no fill). */
 .cal-ind.is-absent{border-style:dashed;border-color:var(--ind-ink);background:transparent}
+.cal-ind.is-absent svg path{stroke-dasharray:4 2.5;stroke-linecap:butt}
 :is(.year-day,.day.cal-compact) .cal-ind.is-absent::before{box-sizing:border-box;border:1.5px solid var(--ind-dot);background:transparent}
 
 /* School year */
