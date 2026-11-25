@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Σχολικό Ημερολόγιο v1.37</title>
+<title>Σχολικό Ημερολόγιο v1.38</title>
 <link rel="stylesheet" href="_ui.css">
 <link rel="stylesheet" href="_subapp.css">
 <style>
@@ -312,7 +312,7 @@
 </head>
 <body>
 <header class="page-head">
-  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" data-app-icon="calendar" aria-hidden="true"></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v1.37</span></span></button></h1></div>
+  <div class="toolbar-brand"><h1><button class="brand-menu" type="button" title="Άνοιγμα κεντρικού μενού" aria-label="Σχολικό Ημερολόγιο — άνοιγμα κεντρικού μενού"><span class="app-mark" data-app-icon="calendar" aria-hidden="true"></span><span class="brand-text"><span>Σχολικό Ημερολόγιο</span><span class="small version">v1.38</span></span></button></h1></div>
   <button id="save" class="save-main" type="button" disabled>Αποθήκευση</button>
   <button id="undo" type="button" disabled>Αναίρεση Όλων</button>
   <button id="tags" type="button" disabled>Ετικέτες…</button>
@@ -474,19 +474,25 @@ const hasEvents = events => Array.isArray(events) && events.length > 0;
 const hasDayContent = entry => hasPersonal(entry.personalNotes) || hasBook(entry.schoolLifeBook) || hasEvents(entry.behaviorEvents);
 // Sections of a day, in the order of the day menu. Each one: key (its choice in the menu), label, aria (in the label
 // of the day cell), tone (CSS rule .cal-ind-<tone> with its colours), icon (schoolIcon), slot [column, row] of its chip
-// and dot (row 1 is the bottom row, filled first), items(key) (the entries of the section on that day), number (the chip
-// shows the count) and open(date) (its window). A new section is one more entry here and one .cal-ind-<tone> rule.
+// and dot (row 1 is the bottom row, filled first), items(key) (the entries of the section on that day, each with the
+// tags that the calendar filters look at), number (the chip shows the count) and open(date) (its window). A new section
+// is one more entry here and one .cal-ind-<tone> rule.
+// For the filters an event also has its scored students and classes (scores), and a meeting the tags of its subject
+// and its staff: the director, the present and the absent.
+const eventFilterItem = event => ({tags: [...event.tags, ...event.scores.map(({type, id}) => ({type, id}))]});
+const meetingFilterItem = meeting => ({tags: [...meeting.subject.tags,
+  ...[meeting.directorId, ...meeting.present, ...meeting.absent].filter(Boolean).map(id => ({type:'staff', id}))]});
 const DAY_SECTIONS = [
   {key:'personalNotes', label:'Προσωπικές Σημειώσεις', aria:'προσωπικές σημειώσεις', tone:'personal', icon:'note', slot:[1, 1], number:true,
     items: key => getEntry(key).personalNotes.filter(note => hasHtml(note.html)), open: date => editDay(date, 'personalNotes')},
   {key:'schoolLifeBook', label:'Βιβλίο Σχολικής Ζωής', aria:'βιβλίο σχολικής ζωής', tone:'school', icon:'book', slot:[2, 1], number:false,
     items: key => hasBook(getEntry(key).schoolLifeBook) ? [getEntry(key).schoolLifeBook] : [], open: date => editDay(date, 'schoolLifeBook')},
   {key:'behaviorEvents', label:'Ποινές / Επιβραβεύσεις', aria:'ποινές / επιβραβεύσεις', tone:'behavior', icon:'scale', slot:[3, 1], number:true,
-    items: key => getEntry(key).behaviorEvents, open: date => editBehaviorEvents(date)},
+    items: key => getEntry(key).behaviorEvents.map(eventFilterItem), open: date => editBehaviorEvents(date)},
   {key:'ped', label:'Παιδαγωγική Συνάντηση', aria:'παιδαγωγική συνάντηση', tone:'ped', icon:'meeting', slot:[1, 2], number:false,
-    items: key => cal.pedagogicMeetings[key] ? [cal.pedagogicMeetings[key].subject] : [], open: date => openMeeting('ped', date)},
+    items: key => cal.pedagogicMeetings[key] ? [meetingFilterItem(cal.pedagogicMeetings[key])] : [], open: date => openMeeting('ped', date)},
   {key:'ssd', label:'Συνεδρίαση Συλλόγου Διδασκόντων', aria:'συνεδρίαση Συλλόγου Διδασκόντων', tone:'ssd', icon:'meeting', slot:[2, 2], number:false,
-    items: key => cal.ssdMeetings[key] ? [cal.ssdMeetings[key].subject] : [], open: date => openMeeting('ssd', date)}
+    items: key => cal.ssdMeetings[key] ? [meetingFilterItem(cal.ssdMeetings[key])] : [], open: date => openMeeting('ssd', date)}
 ];
 // Rows of the dots: always all of them, so that every dot keeps its place.
 const DAY_ROWS = Math.max(...DAY_SECTIONS.map(section => section.slot[1]));
