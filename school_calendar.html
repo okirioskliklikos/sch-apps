@@ -27,6 +27,11 @@
 
 /* ---- Workspace ---- */
 .cal-app{display:flex;flex-direction:column;flex:1;min-height:0;overflow:auto}
+/* «Φίλτρα» and the view buttons sit 12px under the header, as far as the zoom is from the bottom of the window
+   (.zoom bottom:12px). The app moves up into the padding of .page-main (20px, 16px on narrow windows) and keeps
+   4px of its own, so that the focus outline of the buttons is not cut by its scrolling. */
+.cal-app{margin-block-start:-12px;padding-block-start:4px}
+@media(max-width:650px){.cal-app{margin-block-start:-8px}}
 .cal-app[hidden]{display:none}
 .cal-toolbar{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex:none}
 .cal-viewbar{display:flex;gap:6px;flex:none}
