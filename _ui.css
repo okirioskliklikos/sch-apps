@@ -1,6 +1,6 @@
 /*
  * Εφαρμογές σχολείου — Κοινό περιβάλλον χρήστη
- * Έκδοση αρχείου: 0.67
+ * Έκδοση αρχείου: 0.68
  * Όνομα κατά την εγκατάσταση: _ui.css
  */
 
@@ -499,6 +499,8 @@ button.ui-icon-button>svg{display:block;width:var(--school-ui-icon-size);height:
 }
 .school-richtext-editor:focus{border-color:#6e9ad0;box-shadow:0 0 0 2px #d9e8fa}
 .school-richtext-editor :is(ul,ol){margin:4px 0;padding-left:26px}
+/* Superscript (<sup>) keeps the height of its line, in the editor and in the view of the text. */
+:is(.school-richtext-editor,.school-tagged-text-body) sup{line-height:0}
 
 /* Application icon: <span class="app-mark" data-app-icon="<name>"></span>, a line shape (mask with currentColor).
    data-app-icon picks the colour and the shape of the application. A central application: white line on its colour;
