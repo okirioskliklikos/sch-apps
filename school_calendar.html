@@ -96,6 +96,10 @@
 :is(.year-day,.day.cal-compact) .cal-ind :is(svg,.cal-ind-count){display:none}
 :is(.year-day,.day.cal-compact) .cal-ind::before{content:"";width:min(8px,80%);aspect-ratio:1;border-radius:50%;background:var(--ind-dot)}
 :is(.year-day,.day.cal-compact) .cal-ind:hover::before{box-shadow:0 0 0 2px var(--ind-line)}
+/* Filters: a meeting where the selected teachers are only absent has a hollow indicator (dot with an empty centre,
+   chip with a dashed frame and no fill). */
+.cal-ind.is-absent{border-style:dashed;border-color:var(--ind-ink);background:transparent}
+:is(.year-day,.day.cal-compact) .cal-ind.is-absent::before{box-sizing:border-box;border:1.5px solid var(--ind-dot);background:transparent}
 
 /* School year */
 .year-selected-date{width:calc(88% * var(--scale));margin:8px auto 0;text-align:right;color:var(--school-ui-muted);font-size:14px;font-weight:600}
@@ -478,10 +482,10 @@ const hasDayContent = entry => hasPersonal(entry.personalNotes) || hasBook(entry
 // tags that the calendar filters look at), number (the chip shows the count) and open(date) (its window). A new section
 // is one more entry here and one .cal-ind-<tone> rule.
 // For the filters an event also has its scored students and classes (scores), and a meeting the tags of its subject
-// and its staff: the director, the present and the absent.
+// and its present staff (tags), and its absent staff (absent). Staff who are neither present nor absent do not count.
 const eventFilterItem = event => ({tags: [...event.tags, ...event.scores.map(({type, id}) => ({type, id}))]});
-const meetingFilterItem = meeting => ({tags: [...meeting.subject.tags,
-  ...[meeting.directorId, ...meeting.present, ...meeting.absent].filter(Boolean).map(id => ({type:'staff', id}))]});
+const staffRefs = ids => ids.filter(Boolean).map(id => ({type:'staff', id}));
+const meetingFilterItem = meeting => ({tags: [...meeting.subject.tags, ...staffRefs(meeting.present)], absent: staffRefs(meeting.absent)});
 const DAY_SECTIONS = [
   {key:'personalNotes', label:'Προσωπικές Σημειώσεις', aria:'προσωπικές σημειώσεις', tone:'personal', icon:'note', slot:[1, 1], number:true,
     items: key => getEntry(key).personalNotes.filter(note => hasHtml(note.html)), open: date => editDay(date, 'personalNotes')},
@@ -497,9 +501,13 @@ const DAY_SECTIONS = [
 // Rows of the dots: always all of them, so that every dot keeps its place.
 const DAY_ROWS = Math.max(...DAY_SECTIONS.map(section => section.slot[1]));
 // The sections that have content on a day, with their count.
+// absent: every entry that matches has the selected staff only as absent (its indicator is hollow).
 function daySections(key) {
   return DAY_SECTIONS.filter(section => !filterTypes.size || filterTypes.has(section.key))
-    .map(section => ({section, count: section.items(key).filter(matchesEventTags).length}))
+    .map(section => {
+      const items = section.items(key).filter(matchesEventTags);
+      return {section, count: items.length, absent: items.length > 0 && items.every(onlyAbsent)};
+    })
     .filter(item => item.count > 0);
 }
 const noteId = () => crypto.randomUUID();
@@ -643,8 +651,15 @@ function applyZoom(value, report = true) {
 }
 
 // ---- Calendar filters (view state only) ----
+const hasRef = (list, ref) => (list || []).some(tag => G.same(ref, tag));
+// Every selected tag is on the entry, as a tag, a participant or (in meetings) an absent teacher.
 function matchesEventTags(item) {
-  return filterTags.every(ref => (item.tags || []).some(tag => G.same(ref, tag)));
+  return filterTags.every(ref => hasRef(item.tags, ref) || hasRef(item.absent, ref));
+}
+// A meeting where none of the selected teachers is present (or a tag of its subject), only absent: a present one wins.
+function onlyAbsent(item) {
+  const staff = filterTags.filter(ref => ref.type === 'staff');
+  return staff.some(ref => hasRef(item.absent, ref)) && !staff.some(ref => hasRef(item.tags, ref));
 }
 
 function typeChip(section) {
@@ -760,11 +775,11 @@ $('filters').addEventListener('click', openFilters);
 function dayIndicators(date, sections) {
   const box = document.createElement('div'); box.className = 'cal-indicators';
   box.style.setProperty('--ind-rows', DAY_ROWS);
-  for (const {section, count} of sections) {
+  for (const {section, count, absent} of sections) {
     const button = document.createElement('button');
-    button.type = 'button'; button.tabIndex = -1; button.className = `cal-ind cal-ind-${section.tone}`;
+    button.type = 'button'; button.tabIndex = -1; button.className = `cal-ind cal-ind-${section.tone}` + (absent ? ' is-absent' : '');
     button.style.setProperty('--ind-col', section.slot[0]); button.style.setProperty('--ind-row', DAY_ROWS - section.slot[1] + 1);
-    const title = section.number ? `${section.label}: ${count}` : section.label;
+    const title = (section.number ? `${section.label}: ${count}` : section.label) + (absent ? ' (απών)' : '');
     button.title = title; button.setAttribute('aria-label', `Άνοιγμα: ${title}`);
     button.innerHTML = schoolIcon(section.icon) + (section.number ? `<span class="cal-ind-count">${count}</span>` : '');
     button.addEventListener('click', event => { event.stopPropagation(); openSection(section, date); });
@@ -777,7 +792,7 @@ function dayIndicators(date, sections) {
 function decorateDay(cell, date, label) {
   const key = dateKey(date), sections = daySections(key);
   cell.dataset.key = key; cell.tabIndex = 0; cell.setAttribute('role', 'gridcell');
-  cell.setAttribute('aria-label', label + sections.map(({section, count}) => ` — ${section.aria}${section.number ? ` (${count})` : ''}`).join(''));
+  cell.setAttribute('aria-label', label + sections.map(({section, count, absent}) => ` — ${section.aria}${section.number ? ` (${count})` : ''}${absent ? ' (απών)' : ''}`).join(''));
   if (sections.length) cell.append(dayIndicators(date, sections));
   if (key === dateKey(selectedDate)) cell.classList.add('selected-day');
 }
